@@ -213,7 +213,7 @@
     <WizardModal @open-builder="goBuilder" />
 
     <!-- PAYWALL MODAL -->
-    <PaywallModal :show="showPaywall" @close="showPaywall=false" @paid="onPaid" />
+    <PaywallModal ref="paywallRef" :show="showPaywall" @close="showPaywall=false" @paid="onPaid" />
 
     <!-- TOAST -->
     <div class="toast-wrap">
@@ -228,7 +228,7 @@
 </template>
 
 <script setup>
-import { ref, computed, provide, onMounted } from 'vue'
+import { ref, computed, provide, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from './stores/auth.js'
 import { useCvStore } from './stores/cv.js'
@@ -255,6 +255,7 @@ const zoom = ref(75)
 const newSkill = ref('')
 const searchQ = ref('')
 const showPaywall = ref(false)
+const paywallRef  = ref(null)
 const toasts = ref([])
 
 const pTabs = [
@@ -311,18 +312,38 @@ provide('showToast', showToast)
 
 function onPaid() {
   showPaywall.value = false
-  showToast('Export unlocked — PDF downloading...')
+  showToast('PDF ready — check your print/save dialog')
 }
 
 async function onAuthDone() {
   await notifStore.fetch()
+  // Check if returning from Stripe checkout
+  const params = new URLSearchParams(window.location.search)
+  if (params.get('session') && sessionStorage.getItem('pcv_pending_download')) {
+    sessionStorage.removeItem('pcv_pending_download')
+    window.history.replaceState({}, '', window.location.pathname)
+    showPaywall.value = true
+    await nextTick()
+    paywallRef.value?.handleStripeReturn()
+  }
 }
 function onboardDone() { /* stay on dashboard */ }
 
 onMounted(async () => {
   store.initDarkMode()
   await auth.fetchMe()
-  if (auth.isLoggedIn) await notifStore.fetch()
+  if (auth.isLoggedIn) {
+    await notifStore.fetch()
+    // Check if returning from Stripe after already being logged in
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('session') && sessionStorage.getItem('pcv_pending_download')) {
+      sessionStorage.removeItem('pcv_pending_download')
+      window.history.replaceState({}, '', window.location.pathname)
+      showPaywall.value = true
+      await nextTick()
+      paywallRef.value?.handleStripeReturn()
+    }
+  }
 })
 </script>
 
