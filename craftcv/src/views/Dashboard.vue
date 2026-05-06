@@ -25,7 +25,7 @@
       </div>
       <div class="dash-empty-title">{{ activeTab === 'all' ? 'No CVs yet' : `No ${activeTab} CVs` }}</div>
       <p class="dash-empty-sub">{{ activeTab === 'all' ? 'Create your first CV to get started.' : `You have no ${activeTab} CVs right now.` }}</p>
-      <button class="btn-primary accent" @click="store.openWizard()" style="margin-top:16px;">
+      <button class="btn-primary accent" @click="newCV()" style="margin-top:16px;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="width:13px;height:13px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Create your first CV
       </button>
@@ -62,7 +62,7 @@
       </div>
 
       <!-- New CV card -->
-      <div class="proj-card new-card anim-up" :style="{ animationDelay: `${filteredDrafts.length * 0.06}s` }" @click="store.openWizard()">
+      <div class="proj-card new-card anim-up" :style="{ animationDelay: `${filteredDrafts.length * 0.06}s` }" @click="newCV()">
         <div class="new-card-inner">
           <div class="new-card-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -78,10 +78,15 @@
 import { ref, computed, onMounted } from 'vue'
 import { useCvStore } from '../stores/cv.js'
 
-const store   = ref(useCvStore())
+const store   = useCvStore()
 const drafts  = ref([])
 const loading = ref(true)
 const activeTab = ref('all')
+
+function newCV() {
+  store.resetData()
+  store.openWizard()
+}
 
 const COLORS  = ['#e8eefb','#f0ebfa','#fce9eb','#e6f5f4','#fdf0dc','#e6f5ed']
 const ACCENTS = ['#2a5bd7','#6236b0','#c52b3d','#0d7a72','#b56a0e','#1a7a4a']

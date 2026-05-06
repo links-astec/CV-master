@@ -73,22 +73,31 @@ const SAMPLE = {
 }
 
 const TEMPLATES = [
-  { id: 'executive',   name: 'Executive Slate',    cat: 'Professional', badge: 'pop',   badgeLabel: 'Popular', desc: 'Dark header · Sidebar · Skill bars' },
-  { id: 'modern',      name: 'Modern Azure',        cat: 'Professional', badge: null,    badgeLabel: '',        desc: 'Gradient header · Photo · Chips' },
-  { id: 'gradient',    name: 'Gradient Flow',       cat: 'Professional', badge: 'new',   badgeLabel: 'New',     desc: 'Rich overlay · Photo ready' },
-  { id: 'swiss',       name: 'Swiss Design',        cat: 'Professional', badge: null,    badgeLabel: '',        desc: 'Bauhaus geometric · Structured' },
-  { id: 'elegant',     name: 'Elegant Gold',        cat: 'Professional', badge: 'pro',   badgeLabel: 'Pro',     desc: 'Dark gold header · Refined' },
-  { id: 'photo',       name: 'Photo Professional',  cat: 'Professional', badge: 'photo', badgeLabel: 'Photo',   desc: 'Requires profile photo' },
-  { id: 'minimal',     name: 'Minimal Editorial',   cat: 'Minimal',      badge: null,    badgeLabel: '',        desc: 'Serif editorial · Clean' },
-  { id: 'compact',     name: 'Compact Grid',        cat: 'Minimal',      badge: 'new',   badgeLabel: 'New',     desc: 'Dense two-column layout' },
-  { id: 'academic',    name: 'Academic',            cat: 'Minimal',      badge: null,    badgeLabel: '',        desc: 'Timeline layout · Traditional' },
-  { id: 'creative',    name: 'Creative Violet',     cat: 'Creative',     badge: null,    badgeLabel: '',        desc: 'Bold sidebar · Dot-skill rating' },
-  { id: 'teal',        name: 'Teal Sidebar',        cat: 'Creative',     badge: 'new',   badgeLabel: 'New',     desc: 'Teal sidebar · Skill bars' },
-  { id: 'pastel',      name: 'Pastel Rose',         cat: 'Creative',     badge: null,    badgeLabel: '',        desc: 'Soft gradient · Feminine' },
-  { id: 'infographic', name: 'Infographic',         cat: 'Creative',     badge: 'pro',   badgeLabel: 'Pro',     desc: 'Stats cards · Visual data' },
-  { id: 'bold',        name: 'Bold Noir',           cat: 'Tech',         badge: 'pop',   badgeLabel: 'Popular', desc: 'Full dark · Gradient stripe' },
-  { id: 'tech',        name: 'Tech Dark',           cat: 'Tech',         badge: 'new',   badgeLabel: 'New',     desc: 'Terminal monospace · Dark' },
-  { id: 'newspaper',   name: 'Newspaper',           cat: 'Unique',       badge: 'new',   badgeLabel: 'New',     desc: 'Editorial broadsheet · Serif' },
+  { id: 'executive',   name: 'Executive Slate',      cat: 'Professional', badge: 'pop',   badgeLabel: 'Popular', desc: 'Dark header · Sidebar · Skill bars' },
+  { id: 'modern',      name: 'Modern Azure',          cat: 'Professional', badge: null,    badgeLabel: '',        desc: 'Gradient header · Photo ready' },
+  { id: 'gradient',    name: 'Gradient Flow',         cat: 'Professional', badge: null,    badgeLabel: '',        desc: 'Rich overlay · Photo ready' },
+  { id: 'swiss',       name: 'Swiss Design',          cat: 'Professional', badge: null,    badgeLabel: '',        desc: 'Bauhaus geometric · Structured' },
+  { id: 'elegant',     name: 'Elegant Gold',          cat: 'Professional', badge: 'pro',   badgeLabel: 'Pro',     desc: 'Dark gold header · Refined' },
+  { id: 'photo',       name: 'Photo Professional',    cat: 'Professional', badge: 'photo', badgeLabel: 'Photo',   desc: 'Profile photo · Two-column' },
+  { id: 'corporate',   name: 'Corporate Blue',        cat: 'Professional', badge: 'new',   badgeLabel: 'New',     desc: 'Navy header · Skill bars' },
+  { id: 'clean',       name: 'Clean Professional',    cat: 'Professional', badge: 'new',   badgeLabel: 'New',     desc: 'Classic layout · Timeless' },
+  { id: 'minimal',     name: 'Minimal Editorial',     cat: 'Minimal',      badge: null,    badgeLabel: '',        desc: 'Serif editorial · Clean' },
+  { id: 'compact',     name: 'Compact Grid',          cat: 'Minimal',      badge: null,    badgeLabel: '',        desc: 'Dense two-column layout' },
+  { id: 'academic',    name: 'Academic',              cat: 'Minimal',      badge: null,    badgeLabel: '',        desc: 'Timeline layout · Traditional' },
+  { id: 'creative',    name: 'Creative Violet',       cat: 'Creative',     badge: null,    badgeLabel: '',        desc: 'Bold sidebar · Dot-skill rating' },
+  { id: 'teal',        name: 'Teal Sidebar',          cat: 'Creative',     badge: null,    badgeLabel: '',        desc: 'Teal sidebar · Skill bars' },
+  { id: 'pastel',      name: 'Pastel Rose',           cat: 'Creative',     badge: null,    badgeLabel: '',        desc: 'Soft gradient · Feminine' },
+  { id: 'infographic', name: 'Infographic',           cat: 'Creative',     badge: 'pro',   badgeLabel: 'Pro',     desc: 'Stats cards · Visual data' },
+  { id: 'magazine',    name: 'Magazine Editorial',    cat: 'Creative',     badge: 'new',   badgeLabel: 'New',     desc: 'Split panels · Editorial feel' },
+  { id: 'bold',        name: 'Bold Noir',             cat: 'Tech',         badge: 'pop',   badgeLabel: 'Popular', desc: 'Full dark · Gradient stripe' },
+  { id: 'tech',        name: 'Tech Dark',             cat: 'Tech',         badge: null,    badgeLabel: '',        desc: 'Terminal monospace · Dark' },
+  { id: 'midnight',    name: 'Midnight Executive',    cat: 'Tech',         badge: 'new',   badgeLabel: 'New',     desc: 'Deep dark · Neon accents' },
+  { id: 'newspaper',   name: 'Newspaper',             cat: 'Unique',       badge: null,    badgeLabel: '',        desc: 'Editorial broadsheet · Serif' },
+  { id: 'slate',       name: 'Slate Impact',          cat: 'Professional', badge: 'new',   badgeLabel: 'New',     desc: 'Steel dark · Gradient bar' },
+  { id: 'terra',       name: 'Terra',                 cat: 'Creative',     badge: 'new',   badgeLabel: 'New',     desc: 'Warm earthy tones · Elegant' },
+  { id: 'prism',       name: 'Prism',                 cat: 'Creative',     badge: 'new',   badgeLabel: 'New',     desc: 'Colourful accent strip' },
+  { id: 'ivory',       name: 'Ivory Luxury',          cat: 'Minimal',      badge: 'new',   badgeLabel: 'New',     desc: 'Off-white · Centred · Refined' },
+  { id: 'split',       name: 'Bold Split',            cat: 'Unique',       badge: 'new',   badgeLabel: 'New',     desc: 'Dark sidebar · Amber accents' },
 ]
 
 // Cache rendered HTML so we don't re-render on every reactive update
@@ -98,8 +107,18 @@ function renderSample(id) {
   return renderCache.get(id)
 }
 
-// Scale the 700px CV to fit the thumbnail width (185px card - 2px border = 183px usable → scale ≈ 0.262)
-const thumbScale = 0.261
+// CV is 700px wide. Scale it to fit the card thumbnail.
+// We use CSS container approach — the scaler reads actual card width via ref
+const thumbScale = computed(() => {
+  // Card width depends on grid — estimate based on viewport
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 1200
+  let cardW
+  if (vw <= 480)      cardW = (vw - 28 - 8) / 2   // 2-col, 14px side padding, 8px gap
+  else if (vw <= 768) cardW = (vw - 28 - 10) / 2  // 2-col mobile
+  else if (vw <= 1024) cardW = 170
+  else                cardW = 185
+  return Math.round((cardW / 700) * 1000) / 1000
+})
 
 const cats = ['All', 'Professional', 'Minimal', 'Creative', 'Tech', 'Unique']
 const activeCat = ref('All')
@@ -121,73 +140,60 @@ function pickTemplate(id) {
 .tpl-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
-  gap: 14px;
-  margin-bottom: 4px;
+  gap: 14px; margin-bottom: 4px;
 }
 .tpl-card {
-  background: var(--c-surface);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  cursor: pointer;
-  border: 2px solid transparent;
-  transition: all .2s;
-  box-shadow: var(--shadow-xs);
+  background: var(--c-surface); border-radius: var(--radius-lg);
+  overflow: hidden; cursor: pointer; border: 2px solid transparent;
+  transition: all .2s; box-shadow: var(--shadow-xs);
 }
-.tpl-card:hover { box-shadow: var(--shadow); transform: translateY(-3px); border-color: var(--c-border2); }
+.tpl-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); border-color: var(--c-border2); }
 .tpl-card.sel { border-color: var(--c-accent); }
 
-/* Thumbnail — clips the scaled-down CV */
-.tpl-thumb {
-  height: 200px;
-  overflow: hidden;
-  position: relative;
-  background: #f5f4f0;
-}
-.tpl-preview-scroll {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  position: relative;
-}
-.tpl-preview-scaler {
-  transform-origin: top left;
-  width: 700px; /* actual CV width */
-  pointer-events: none;
-  user-select: none;
-}
+.tpl-thumb { height: 195px; overflow: hidden; position: relative; background: #f5f4f0; }
+.tpl-preview-scroll { width: 100%; height: 100%; overflow: hidden; position: relative; }
+.tpl-preview-scaler { transform-origin: top left; width: 700px; pointer-events: none; user-select: none; }
 
-/* Selected overlay */
 .tpl-selected-overlay {
-  position: absolute; inset: 0;
-  background: rgba(42,91,215,.12);
-  display: flex; align-items: flex-start; justify-content: flex-end;
-  padding: 8px;
+  position: absolute; inset: 0; background: rgba(42,91,215,.1);
+  display: flex; align-items: flex-start; justify-content: flex-end; padding: 8px;
 }
 .tpl-selected-check {
-  width: 24px; height: 24px; border-radius: 50%;
+  width: 22px; height: 22px; border-radius: 50%;
   background: var(--c-accent); color: #fff;
   display: flex; align-items: center; justify-content: center;
 }
-.tpl-selected-check svg { width: 12px; height: 12px; }
+.tpl-selected-check svg { width: 11px; height: 11px; }
 
-/* Badge */
 .tpl-badge {
-  position: absolute; top: 8px; left: 8px;
-  font-size: 9px; font-weight: 700; letter-spacing: .05em;
-  text-transform: uppercase; padding: 2px 8px; border-radius: 20px;
+  position: absolute; top: 7px; left: 7px;
+  font-size: 9px; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; padding: 2px 7px; border-radius: 20px;
 }
 .b-pop { background: #fef9c3; color: #a16207; }
 .b-new { background: #dcfce7; color: #15803d; }
 .b-pro { background: #f0ebfa; color: #6236b0; }
 .b-photo { background: #fce9eb; color: #c52b3d; }
 
-.tpl-info { padding: 11px 13px; border-top: 1px solid var(--c-border); }
+.tpl-info { padding: 10px 12px; border-top: 1px solid var(--c-border); }
 .tpl-name { font-size: 12.5px; font-weight: 600; color: var(--c-text); }
 .tpl-cat { font-size: 11px; color: var(--c-text3); margin-top: 2px; }
-
 .tpl-section-ttl {
   font-size: 10.5px; font-weight: 700; color: var(--c-text3);
-  text-transform: uppercase; letter-spacing: .07em;
-  margin: 22px 0 11px;
+  text-transform: uppercase; letter-spacing: .07em; margin: 20px 0 10px;
+}
+
+@media (max-width: 768px) {
+  .tpl-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tpl-thumb { height: 155px; }
+  .tpl-name { font-size: 11px; }
+  .tpl-cat { font-size: 10px; }
+  .tpl-info { padding: 8px 9px; }
+  .tpl-section-ttl { font-size: 9.5px; margin: 12px 0 7px; }
+  .tpl-badge { font-size: 8px; padding: 1px 5px; }
+}
+@media (max-width: 400px) {
+  .tpl-thumb { height: 125px; }
+  .tpl-grid { gap: 8px; }
 }
 </style>

@@ -47,11 +47,11 @@ async function getMailer() {
   }
   return mailer;
 }
-async function sendMail({ to, subject, html }) {
+async function sendMail({ to, subject, html, attachments }) {
   const t = await getMailer();
   const info = await t.sendMail({
     from: `"PerfectCV" <${process.env.SMTP_FROM || 'noreply@perfectcv.app'}>`,
-    to, subject, html,
+    to, subject, html, attachments,
   });
   if (!process.env.SMTP_HOST) console.log('Preview URL:', nodemailer.getTestMessageUrl(info));
 }
@@ -364,6 +364,19 @@ app.patch('/api/notifications/read-all', authMiddleware, async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Update failed.' }); }
 });
 
+// Add a notification programmatically (called from frontend events)
+app.post('/api/notifications/add', authMiddleware, async (req, res) => {
+  try {
+    const { type = 'system', title, body } = req.body;
+    if (!title || !body) return res.status(400).json({ error: 'title and body required.' });
+    await query(
+      'INSERT INTO notifications (user_id, type, title, body) VALUES ($1, $2, $3, $4)',
+      [req.user.sub, type, title, body]
+    );
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Failed to add notification.' }); }
+});
+
 // ── AI PROXY ──────────────────────────────────────────────────────────────────
 async function callGroq(prompt, model = 'llama-3.3-70b-versatile') {
   if (!GROQ_KEY) throw new Error('AI is not configured. Add GROQ_API_KEY to your environment.');
@@ -395,26 +408,123 @@ app.post('/api/ai/enhance', authMiddleware, async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── CV UPLOAD ─────────────────────────────────────────────────────────────────
+// ── CV UPLOAD (real Groq extraction) ─────────────────────────────────────────
 app.post('/api/cv/upload', authMiddleware, upload.single('cv'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
-  // Stub extraction — replace with pdf-parse + Groq for real parsing
-  await new Promise(r => setTimeout(r, 1000));
-  res.json({
-    extracted: {
-      fn: 'Extracted', ln: 'Candidate', title: 'Senior Developer',
-      email: 'candidate@email.com', phone: '+44 7700 000000', loc: 'London, UK', li: '',
-      sum: 'Experienced software developer with a strong background in building scalable web applications.',
-      experiences: [
-        { id: 1, title: 'Senior Developer', company: 'Tech Company', period: '2021–Present', desc: 'Led development of key platform features serving 500K+ users.' },
-        { id: 2, title: 'Developer', company: 'Startup Ltd', period: '2018–2021', desc: 'Built and shipped full-stack features across web and mobile.' },
-      ],
-      skills: ['JavaScript', 'TypeScript', 'React', 'Node.js', 'SQL', 'Docker'],
-      education: { degree: 'BSc Computer Science', school: 'University of London', year: '2018' },
-      certifications: [], languages: [{ name: 'English', level: 'Native' }],
-    },
-    message: `Parsed ${req.file.originalname} (${(req.file.size / 1024).toFixed(0)} KB)`,
-  });
+  try {
+    // Convert buffer to text — works for plain-text CVs and most PDFs
+    const rawText = req.file.buffer.toString('utf-8', 0, Math.min(req.file.buffer.length, 12000))
+      .replace(/[^\x20-\x7E\n\r\t]/g, ' ') // strip non-printable chars
+      .replace(/\s{3,}/g, '\n')
+      .trim();
+
+    if (!GROQ_KEY) {
+      // No Groq key — return a best-effort parse from raw text
+      return res.json({ extracted: parseFallback(rawText), message: `Parsed ${req.file.originalname}` });
+    }
+
+    const prompt = `Extract CV/resume information from the following text and return ONLY a valid JSON object with these exact keys:
+{
+  "fn": "first name",
+  "ln": "last name",
+  "title": "current or target job title",
+  "email": "email address",
+  "phone": "phone number",
+  "loc": "city, country",
+  "li": "linkedin url or username",
+  "website": "personal website if present",
+  "sum": "professional summary (2-3 sentences)",
+  "experiences": [{"title":"","company":"","period":"","desc":""}],
+  "skills": ["skill1","skill2"],
+  "education": {"degree":"","school":"","year":""},
+  "certifications": ["cert1"],
+  "languages": [{"name":"","level":""}]
+}
+Return ONLY the JSON, no markdown, no explanation.
+
+CV TEXT:
+${rawText.slice(0, 8000)}`;
+
+    const raw = await callGroq(prompt, 'llama-3.3-70b-versatile');
+    // Strip any markdown fences Groq might add
+    const clean = raw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+    let extracted;
+    try { extracted = JSON.parse(clean); }
+    catch { extracted = parseFallback(rawText); }
+
+    res.json({ extracted, message: `Extracted from ${req.file.originalname} (${(req.file.size/1024).toFixed(0)} KB)` });
+  } catch (e) {
+    console.error('Upload error:', e.message);
+    res.status(500).json({ error: 'Extraction failed: ' + e.message });
+  }
+});
+
+function parseFallback(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const emailMatch = text.match(/[\w.+-]+@[\w-]+\.[a-z]{2,}/i);
+  const phoneMatch = text.match(/[\+\d][\d\s\-\(\)]{8,}/);
+  return {
+    fn: lines[0]?.split(' ')[0] || 'First',
+    ln: lines[0]?.split(' ').slice(1).join(' ') || 'Last',
+    title: lines[1] || '',
+    email: emailMatch?.[0] || '',
+    phone: phoneMatch?.[0]?.trim() || '',
+    loc: '', li: '', website: '',
+    sum: lines.slice(2,5).join(' ').slice(0,300),
+    experiences: [],
+    skills: [],
+    education: { degree: '', school: '', year: '' },
+    certifications: [], languages: [],
+  };
+}
+
+// ── SEND CV BY EMAIL ──────────────────────────────────────────────────────────
+app.post('/api/cv/email', authMiddleware, async (req, res) => {
+  try {
+    const { htmlContent, fileName, recipientEmail } = req.body;
+    if (!htmlContent) return res.status(400).json({ error: 'CV content required.' });
+    const { rows } = await query('SELECT * FROM users WHERE id = $1', [req.user.sub]);
+    const user = rows[0];
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+    const toEmail = recipientEmail || user.email;
+    await sendMail({
+      to: toEmail,
+      subject: `Your CV from PerfectCV — ${fileName || 'Download Ready'}`,
+      html: `
+        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;background:#fff;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:28px;">
+            <div style="width:36px;height:36px;background:#2a5bd7;border-radius:9px;display:flex;align-items:center;justify-content:center;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <span style="font-size:18px;font-weight:700;color:#1a1916;">PerfectCV</span>
+          </div>
+          <h2 style="font-size:22px;color:#1a1916;margin-bottom:8px;">Your CV is ready, ${user.name}!</h2>
+          <p style="color:#6b6860;line-height:1.65;margin-bottom:24px;">
+            Your professional CV has been generated and is attached to this email as an HTML file.
+            Open it in any browser, then use <strong>File → Print → Save as PDF</strong> to get a perfect PDF.
+          </p>
+          <div style="background:#f5f4f0;border-radius:10px;padding:16px 18px;margin-bottom:24px;">
+            <div style="font-size:12px;font-weight:700;color:#6b6860;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">How to save as PDF</div>
+            <ol style="color:#6b6860;font-size:13px;line-height:2;padding-left:18px;margin:0;">
+              <li>Open the attached <strong>${fileName || 'cv.html'}</strong> file in Chrome or Edge</li>
+              <li>Press <strong>Ctrl+P</strong> (Windows) or <strong>Cmd+P</strong> (Mac)</li>
+              <li>Set destination to <strong>"Save as PDF"</strong></li>
+              <li>Click Save</li>
+            </ol>
+          </div>
+          <p style="color:#b0ada6;font-size:12px;">Built with PerfectCV · <a href="https://cv-master-rose.vercel.app" style="color:#2a5bd7;">cv-master-rose.vercel.app</a></p>
+        </div>`,
+      attachments: [{
+        filename: fileName || 'my-cv.html',
+        content: htmlContent,
+        contentType: 'text/html',
+      }],
+    });
+    res.json({ ok: true, sentTo: toEmail });
+  } catch (e) {
+    console.error('Email send error:', e.message);
+    res.status(500).json({ error: 'Failed to send email: ' + e.message });
+  }
 });
 
 // ── DRAFTS ────────────────────────────────────────────────────────────────────
