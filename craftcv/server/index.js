@@ -478,49 +478,84 @@ function parseFallback(text) {
   };
 }
 
-// ── SEND CV BY EMAIL ──────────────────────────────────────────────────────────
+// ── SEND CV BY EMAIL (PDF attachment) ────────────────────────────────────────
 app.post('/api/cv/email', authMiddleware, async (req, res) => {
   try {
-    const { htmlContent, fileName, recipientEmail } = req.body;
+    const { htmlContent, fileName } = req.body;
     if (!htmlContent) return res.status(400).json({ error: 'CV content required.' });
+
     const { rows } = await query('SELECT * FROM users WHERE id = $1', [req.user.sub]);
     const user = rows[0];
     if (!user) return res.status(404).json({ error: 'User not found.' });
-    const toEmail = recipientEmail || user.email;
+
+    const toEmail = user.email;
+    const pdfName = (fileName || 'my-cv').replace(/\.html?$/i, '') + '.pdf';
+
+    // Generate PDF using wkhtmltopdf (available on Linux/Render)
+    let pdfBuffer = null;
+    try {
+      const { execFile } = await import('child_process');
+      const { writeFileSync, readFileSync, unlinkSync } = await import('fs');
+      const { tmpdir } = await import('os');
+      const { join } = await import('path');
+      const { promisify } = await import('util');
+      const execFileAsync = promisify(execFile);
+
+      const tmpHtml = join(tmpdir(), `cv_${Date.now()}.html`);
+      const tmpPdf  = join(tmpdir(), `cv_${Date.now()}.pdf`);
+
+      writeFileSync(tmpHtml, htmlContent, 'utf-8');
+
+      await execFileAsync('wkhtmltopdf', [
+        '--page-size', 'A4',
+        '--margin-top', '0',
+        '--margin-bottom', '0',
+        '--margin-left', '0',
+        '--margin-right', '0',
+        '--encoding', 'UTF-8',
+        '--enable-local-file-access',
+        '--quiet',
+        tmpHtml,
+        tmpPdf,
+      ], { timeout: 30000 });
+
+      pdfBuffer = readFileSync(tmpPdf);
+      try { unlinkSync(tmpHtml); unlinkSync(tmpPdf); } catch {}
+    } catch (pdfErr) {
+      console.warn('wkhtmltopdf failed, falling back to HTML attachment:', pdfErr.message);
+    }
+
+    const attachment = pdfBuffer
+      ? { filename: pdfName,                   content: pdfBuffer,   contentType: 'application/pdf' }
+      : { filename: pdfName.replace('.pdf','.html'), content: htmlContent, contentType: 'text/html' };
+
     await sendMail({
       to: toEmail,
-      subject: `Your CV from PerfectCV — ${fileName || 'Download Ready'}`,
+      subject: `Your CV from PerfectCV`,
       html: `
-        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;background:#fff;">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:28px;">
-            <div style="width:36px;height:36px;background:#2a5bd7;border-radius:9px;display:flex;align-items:center;justify-content:center;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;padding:40px 24px;background:#fff;">
+          <div style="margin-bottom:28px;">
+            <div style="display:inline-flex;align-items:center;gap:10px;">
+              <div style="width:36px;height:36px;background:#2a5bd7;border-radius:9px;display:flex;align-items:center;justify-content:center;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              </div>
+              <span style="font-size:18px;font-weight:700;color:#1a1916;">PerfectCV</span>
             </div>
-            <span style="font-size:18px;font-weight:700;color:#1a1916;">PerfectCV</span>
           </div>
-          <h2 style="font-size:22px;color:#1a1916;margin-bottom:8px;">Your CV is ready, ${user.name}!</h2>
-          <p style="color:#6b6860;line-height:1.65;margin-bottom:24px;">
-            Your professional CV has been generated and is attached to this email as an HTML file.
-            Open it in any browser, then use <strong>File → Print → Save as PDF</strong> to get a perfect PDF.
+          <h1 style="font-size:24px;color:#1a1916;margin:0 0 10px;">Here's your CV, ${user.name}!</h1>
+          <p style="color:#6b6860;font-size:15px;line-height:1.7;margin:0 0 28px;">
+            Your professional CV is attached${pdfBuffer ? ' as a PDF' : ''} — ready to send to employers. Good luck with your applications!
           </p>
-          <div style="background:#f5f4f0;border-radius:10px;padding:16px 18px;margin-bottom:24px;">
-            <div style="font-size:12px;font-weight:700;color:#6b6860;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">How to save as PDF</div>
-            <ol style="color:#6b6860;font-size:13px;line-height:2;padding-left:18px;margin:0;">
-              <li>Open the attached <strong>${fileName || 'cv.html'}</strong> file in Chrome or Edge</li>
-              <li>Press <strong>Ctrl+P</strong> (Windows) or <strong>Cmd+P</strong> (Mac)</li>
-              <li>Set destination to <strong>"Save as PDF"</strong></li>
-              <li>Click Save</li>
-            </ol>
+          <div style="border-top:1px solid #f0ede8;padding-top:20px;">
+            <p style="color:#b0ada6;font-size:12px;margin:0;">
+              Made with <a href="https://cv-master-rose.vercel.app" style="color:#2a5bd7;text-decoration:none;">PerfectCV</a>
+            </p>
           </div>
-          <p style="color:#b0ada6;font-size:12px;">Built with PerfectCV · <a href="https://cv-master-rose.vercel.app" style="color:#2a5bd7;">cv-master-rose.vercel.app</a></p>
         </div>`,
-      attachments: [{
-        filename: fileName || 'my-cv.html',
-        content: htmlContent,
-        contentType: 'text/html',
-      }],
+      attachments: [attachment],
     });
-    res.json({ ok: true, sentTo: toEmail });
+
+    res.json({ ok: true, sentTo: toEmail, format: pdfBuffer ? 'pdf' : 'html' });
   } catch (e) {
     console.error('Email send error:', e.message);
     res.status(500).json({ error: 'Failed to send email: ' + e.message });

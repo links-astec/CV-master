@@ -18,20 +18,15 @@
           :class="{ sel: store.template === t.id }"
           @click="pickTemplate(t.id)"
         >
-          <!-- Live CV preview thumbnail -->
-          <div class="tpl-thumb">
-            <div class="tpl-preview-scroll">
-              <div class="tpl-preview-scaler" :style="{ transform: `scale(${thumbScale})` }">
-                <div v-html="renderSample(t.id)"></div>
-              </div>
+          <div class="tpl-thumb" :ref="el => { if(el) cardEls[t.id]=el }">
+            <div class="tpl-preview-scaler" :style="getScale(t.id)">
+              <div v-html="renderSample(t.id)"></div>
             </div>
-            <!-- Selected check -->
             <div v-if="store.template === t.id" class="tpl-selected-overlay">
               <div class="tpl-selected-check">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
               </div>
             </div>
-            <!-- Badge -->
             <div v-if="t.badge" class="tpl-badge" :class="`b-${t.badge}`">{{ t.badgeLabel }}</div>
           </div>
           <div class="tpl-info">
@@ -45,14 +40,13 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useCvStore } from '../stores/cv.js'
 import { useCvRenderer } from '../composables/cvRenderer.js'
 
 const store = useCvStore()
 const { render } = useCvRenderer()
 
-// Sample data used for ALL template previews so they look good
 const SAMPLE = {
   fn: 'Alexandra', ln: 'Morrison',
   title: 'Senior Product Manager',
@@ -73,66 +67,129 @@ const SAMPLE = {
 }
 
 const TEMPLATES = [
-  { id: 'executive',   name: 'Executive Slate',      cat: 'Professional', badge: 'pop',   badgeLabel: 'Popular', desc: 'Dark header · Sidebar · Skill bars' },
-  { id: 'modern',      name: 'Modern Azure',          cat: 'Professional', badge: null,    badgeLabel: '',        desc: 'Gradient header · Photo ready' },
-  { id: 'gradient',    name: 'Gradient Flow',         cat: 'Professional', badge: null,    badgeLabel: '',        desc: 'Rich overlay · Photo ready' },
-  { id: 'swiss',       name: 'Swiss Design',          cat: 'Professional', badge: null,    badgeLabel: '',        desc: 'Bauhaus geometric · Structured' },
-  { id: 'elegant',     name: 'Elegant Gold',          cat: 'Professional', badge: 'pro',   badgeLabel: 'Pro',     desc: 'Dark gold header · Refined' },
-  { id: 'photo',       name: 'Photo Professional',    cat: 'Professional', badge: 'photo', badgeLabel: 'Photo',   desc: 'Profile photo · Two-column' },
-  { id: 'corporate',   name: 'Corporate Blue',        cat: 'Professional', badge: 'new',   badgeLabel: 'New',     desc: 'Navy header · Skill bars' },
-  { id: 'clean',       name: 'Clean Professional',    cat: 'Professional', badge: 'new',   badgeLabel: 'New',     desc: 'Classic layout · Timeless' },
-  { id: 'minimal',     name: 'Minimal Editorial',     cat: 'Minimal',      badge: null,    badgeLabel: '',        desc: 'Serif editorial · Clean' },
-  { id: 'compact',     name: 'Compact Grid',          cat: 'Minimal',      badge: null,    badgeLabel: '',        desc: 'Dense two-column layout' },
-  { id: 'academic',    name: 'Academic',              cat: 'Minimal',      badge: null,    badgeLabel: '',        desc: 'Timeline layout · Traditional' },
-  { id: 'creative',    name: 'Creative Violet',       cat: 'Creative',     badge: null,    badgeLabel: '',        desc: 'Bold sidebar · Dot-skill rating' },
-  { id: 'teal',        name: 'Teal Sidebar',          cat: 'Creative',     badge: null,    badgeLabel: '',        desc: 'Teal sidebar · Skill bars' },
-  { id: 'pastel',      name: 'Pastel Rose',           cat: 'Creative',     badge: null,    badgeLabel: '',        desc: 'Soft gradient · Feminine' },
-  { id: 'infographic', name: 'Infographic',           cat: 'Creative',     badge: 'pro',   badgeLabel: 'Pro',     desc: 'Stats cards · Visual data' },
-  { id: 'magazine',    name: 'Magazine Editorial',    cat: 'Creative',     badge: 'new',   badgeLabel: 'New',     desc: 'Split panels · Editorial feel' },
-  { id: 'bold',        name: 'Bold Noir',             cat: 'Tech',         badge: 'pop',   badgeLabel: 'Popular', desc: 'Full dark · Gradient stripe' },
-  { id: 'tech',        name: 'Tech Dark',             cat: 'Tech',         badge: null,    badgeLabel: '',        desc: 'Terminal monospace · Dark' },
-  { id: 'midnight',    name: 'Midnight Executive',    cat: 'Tech',         badge: 'new',   badgeLabel: 'New',     desc: 'Deep dark · Neon accents' },
-  { id: 'newspaper',   name: 'Newspaper',             cat: 'Unique',       badge: null,    badgeLabel: '',        desc: 'Editorial broadsheet · Serif' },
-  { id: 'slate',       name: 'Slate Impact',          cat: 'Professional', badge: 'new',   badgeLabel: 'New',     desc: 'Steel dark · Gradient bar' },
-  { id: 'terra',       name: 'Terra',                 cat: 'Creative',     badge: 'new',   badgeLabel: 'New',     desc: 'Warm earthy tones · Elegant' },
-  { id: 'prism',       name: 'Prism',                 cat: 'Creative',     badge: 'new',   badgeLabel: 'New',     desc: 'Colourful accent strip' },
-  { id: 'ivory',       name: 'Ivory Luxury',          cat: 'Minimal',      badge: 'new',   badgeLabel: 'New',     desc: 'Off-white · Centred · Refined' },
-  { id: 'split',       name: 'Bold Split',            cat: 'Unique',       badge: 'new',   badgeLabel: 'New',     desc: 'Dark sidebar · Amber accents' },
+  { id: 'executive',   name: 'Executive Slate',     cat: 'Professional', badge: 'pop',   badgeLabel: 'Popular', desc: 'Dark header · Sidebar · Skill bars' },
+  { id: 'modern',      name: 'Modern Azure',         cat: 'Professional', badge: null,    badgeLabel: '',        desc: 'Gradient header · Photo ready' },
+  { id: 'gradient',    name: 'Gradient Flow',        cat: 'Professional', badge: null,    badgeLabel: '',        desc: 'Rich overlay · Photo ready' },
+  { id: 'swiss',       name: 'Swiss Design',         cat: 'Professional', badge: null,    badgeLabel: '',        desc: 'Bauhaus geometric · Structured' },
+  { id: 'elegant',     name: 'Elegant Gold',         cat: 'Professional', badge: 'pro',   badgeLabel: 'Pro',     desc: 'Dark gold header · Refined' },
+  { id: 'photo',       name: 'Photo Professional',   cat: 'Professional', badge: 'photo', badgeLabel: 'Photo',   desc: 'Profile photo · Two-column' },
+  { id: 'corporate',   name: 'Corporate Blue',       cat: 'Professional', badge: null,    badgeLabel: '',        desc: 'Navy header · Skill bars' },
+  { id: 'clean',       name: 'Clean Professional',   cat: 'Professional', badge: null,    badgeLabel: '',        desc: 'Classic layout · Timeless' },
+  { id: 'slate',       name: 'Slate Impact',         cat: 'Professional', badge: 'new',   badgeLabel: 'New',     desc: 'Steel dark · Gradient bar' },
+  { id: 'ruby',        name: 'Ruby Red',             cat: 'Professional', badge: 'new',   badgeLabel: 'New',     desc: 'Deep red header · Gradient bar' },
+  { id: 'ocean',       name: 'Ocean Blue',           cat: 'Professional', badge: 'new',   badgeLabel: 'New',     desc: 'Ocean gradient · Classic layout' },
+  { id: 'sunrise',     name: 'Sunrise Orange',       cat: 'Professional', badge: 'new',   badgeLabel: 'New',     desc: 'Warm orange gradient · Energetic' },
+  { id: 'diamond',     name: 'Diamond',              cat: 'Professional', badge: 'new',   badgeLabel: 'New',     desc: 'Diamond avatar · Clean lines' },
+  { id: 'emerald',     name: 'Emerald',              cat: 'Professional', badge: 'new',   badgeLabel: 'New',     desc: 'Emerald avatar · Clean lines' },
+  { id: 'graphite',    name: 'Graphite',             cat: 'Professional', badge: 'new',   badgeLabel: 'New',     desc: 'Dark sidebar · Minimal' },
+  { id: 'onyx',        name: 'Onyx',                 cat: 'Professional', badge: 'new',   badgeLabel: 'New',     desc: 'Dark with gradient bar' },
+  { id: 'slate2',      name: 'Slate Pro',            cat: 'Professional', badge: 'new',   badgeLabel: 'New',     desc: 'Slate sidebar · Pro layout' },
+  { id: 'minimal',     name: 'Minimal Editorial',    cat: 'Minimal',      badge: null,    badgeLabel: '',        desc: 'Serif editorial · Clean' },
+  { id: 'compact',     name: 'Compact Grid',         cat: 'Minimal',      badge: null,    badgeLabel: '',        desc: 'Dense two-column layout' },
+  { id: 'academic',    name: 'Academic',             cat: 'Minimal',      badge: null,    badgeLabel: '',        desc: 'Timeline layout · Traditional' },
+  { id: 'ivory',       name: 'Ivory Luxury',         cat: 'Minimal',      badge: 'new',   badgeLabel: 'New',     desc: 'Off-white · Centred · Refined' },
+  { id: 'silver',      name: 'Silver Lining',        cat: 'Minimal',      badge: 'new',   badgeLabel: 'New',     desc: 'Cool grey · Refined layout' },
+  { id: 'rose',        name: 'Rose Gold',            cat: 'Minimal',      badge: 'new',   badgeLabel: 'New',     desc: 'Soft rose · Elegant' },
+  { id: 'sky',         name: 'Sky Blue',             cat: 'Minimal',      badge: 'new',   badgeLabel: 'New',     desc: 'Centred · Sky blue' },
+  { id: 'nordic',      name: 'Nordic',               cat: 'Minimal',      badge: 'new',   badgeLabel: 'New',     desc: 'Centred · Rainbow gradient bar' },
+  { id: 'creative',    name: 'Creative Violet',      cat: 'Creative',     badge: null,    badgeLabel: '',        desc: 'Bold sidebar · Dot-skill rating' },
+  { id: 'teal',        name: 'Teal Sidebar',         cat: 'Creative',     badge: null,    badgeLabel: '',        desc: 'Teal sidebar · Skill bars' },
+  { id: 'pastel',      name: 'Pastel Rose',          cat: 'Creative',     badge: null,    badgeLabel: '',        desc: 'Soft gradient · Feminine' },
+  { id: 'infographic', name: 'Infographic',          cat: 'Creative',     badge: 'pro',   badgeLabel: 'Pro',     desc: 'Stats cards · Visual data' },
+  { id: 'magazine',    name: 'Magazine Editorial',   cat: 'Creative',     badge: null,    badgeLabel: '',        desc: 'Split panels · Editorial feel' },
+  { id: 'terra',       name: 'Terra',                cat: 'Creative',     badge: 'new',   badgeLabel: 'New',     desc: 'Warm earthy tones · Elegant' },
+  { id: 'prism',       name: 'Prism',                cat: 'Creative',     badge: 'new',   badgeLabel: 'New',     desc: 'Colourful accent strip' },
+  { id: 'forest',      name: 'Forest Green',         cat: 'Creative',     badge: 'new',   badgeLabel: 'New',     desc: 'Deep green sidebar · Nature' },
+  { id: 'purple',      name: 'Purple Reign',         cat: 'Creative',     badge: 'new',   badgeLabel: 'New',     desc: 'Deep violet header · Bold' },
+  { id: 'mint',        name: 'Mint Fresh',           cat: 'Creative',     badge: 'new',   badgeLabel: 'New',     desc: 'Mint green sidebar · Clean' },
+  { id: 'indigo',      name: 'Indigo Wave',          cat: 'Creative',     badge: 'new',   badgeLabel: 'New',     desc: 'Wave header cutout · Bold' },
+  { id: 'bloom',       name: 'Pink Bloom',           cat: 'Creative',     badge: 'new',   badgeLabel: 'New',     desc: 'Pink gradient · Feminine & bold' },
+  { id: 'sakura',      name: 'Sakura',               cat: 'Creative',     badge: 'new',   badgeLabel: 'New',     desc: 'Cherry blossom · Soft pink' },
+  { id: 'lemon',       name: 'Lemon Fresh',          cat: 'Creative',     badge: 'new',   badgeLabel: 'New',     desc: 'Bright yellow · Energetic' },
+  { id: 'aurora',      name: 'Aurora',               cat: 'Creative',     badge: 'new',   badgeLabel: 'New',     desc: 'Northern lights gradient' },
+  { id: 'bold',        name: 'Bold Noir',            cat: 'Tech',         badge: 'pop',   badgeLabel: 'Popular', desc: 'Full dark · Gradient stripe' },
+  { id: 'tech',        name: 'Tech Dark',            cat: 'Tech',         badge: null,    badgeLabel: '',        desc: 'Terminal monospace · Dark' },
+  { id: 'midnight',    name: 'Midnight Executive',   cat: 'Tech',         badge: null,    badgeLabel: '',        desc: 'Deep dark · Neon accents' },
+  { id: 'charcoal',    name: 'Charcoal Grid',        cat: 'Tech',         badge: 'new',   badgeLabel: 'New',     desc: 'Full dark grey · Minimal' },
+  { id: 'amber',       name: 'Dark Amber',           cat: 'Tech',         badge: 'new',   badgeLabel: 'New',     desc: 'Dark background · Amber accents' },
+  { id: 'cobalt',      name: 'Cobalt Night',         cat: 'Tech',         badge: 'new',   badgeLabel: 'New',     desc: 'Dark cobalt · Neon accents' },
+  { id: 'vega',        name: 'Vega',                 cat: 'Tech',         badge: 'new',   badgeLabel: 'New',     desc: 'Pure dark · Cyan accents' },
+  { id: 'carbon',      name: 'Carbon',               cat: 'Tech',         badge: 'new',   badgeLabel: 'New',     desc: 'Carbon black · Orange accents' },
+  { id: 'obsidian',    name: 'Obsidian',             cat: 'Tech',         badge: 'new',   badgeLabel: 'New',     desc: 'Deep dark · Tricolour bar' },
+  { id: 'newspaper',   name: 'Newspaper',            cat: 'Unique',       badge: null,    badgeLabel: '',        desc: 'Editorial broadsheet · Serif' },
+  { id: 'split',       name: 'Bold Split',           cat: 'Unique',       badge: 'new',   badgeLabel: 'New',     desc: 'Dark sidebar · Amber accents' },
 ]
 
-// Cache rendered HTML so we don't re-render on every reactive update
 const renderCache = new Map()
 function renderSample(id) {
   if (!renderCache.has(id)) renderCache.set(id, render(id, SAMPLE))
   return renderCache.get(id)
 }
 
-// CV is 700px wide. Scale it to fit the card thumbnail.
-// We use CSS container approach — the scaler reads actual card width via ref
-const thumbScale = computed(() => {
-  // Card width depends on grid — estimate based on viewport
-  const vw = typeof window !== 'undefined' ? window.innerWidth : 1200
-  let cardW
-  if (vw <= 480)      cardW = (vw - 28 - 8) / 2   // 2-col, 14px side padding, 8px gap
-  else if (vw <= 768) cardW = (vw - 28 - 10) / 2  // 2-col mobile
-  else if (vw <= 1024) cardW = 170
-  else                cardW = 185
-  return Math.round((cardW / 700) * 1000) / 1000
+const cardEls = ref({})
+function getScale(id) {
+  const el = cardEls.value[id]
+  const w  = el ? el.clientWidth : 185
+  // zoom shrinks layout AND visual — no overflow, no clipping
+  return { zoom: String(Math.max(0.1, w / 700)), transformOrigin: 'top left' }
+}
+
+let _ro
+onMounted(() => {
+  _ro = new ResizeObserver(() => {})
+  document.querySelectorAll('.tpl-thumb').forEach(el => _ro.observe(el))
 })
+onUnmounted(() => _ro?.disconnect())
 
 const cats = ['All', 'Professional', 'Minimal', 'Creative', 'Tech', 'Unique']
 const activeCat = ref('All')
 const filtered = computed(() => activeCat.value === 'All' ? TEMPLATES : TEMPLATES.filter(t => t.cat === activeCat.value))
 const grouped = computed(() => {
   const map = new Map()
-  filtered.value.forEach(t => { if (!map.has(t.cat)) map.set(t.cat, []); map.get(t.cat).push(t) })
+  filtered.value.forEach(t => { if (!map.has(t.cat)) map.set(t.cat, [  { id: 'crimson', name: 'Crimson', cat: 'Professional', badge: 'new', badgeLabel: 'New', desc: 'Deep red · Gradient stripe' },
+  { id: 'sage', name: 'Sage Green', cat: 'Minimal', badge: 'new', badgeLabel: 'New', desc: 'Sage green · Nature tones' },
+  { id: 'dusk', name: 'Dusk', cat: 'Creative', badge: 'new', badgeLabel: 'New', desc: 'Twilight purple gradient' },
+  { id: 'slate3', name: 'Slate III', cat: 'Professional', badge: 'new', badgeLabel: 'New', desc: 'Dark sidebar · Blue accents' },
+  { id: 'copper2', name: 'Copper II', cat: 'Minimal', badge: 'new', badgeLabel: 'New', desc: 'Copper accent · Clean' },
+  { id: 'neon', name: 'Neon Green', cat: 'Tech', badge: 'new', badgeLabel: 'New', desc: 'Dark · Neon green accents' },
+  { id: 'blush', name: 'Blush', cat: 'Creative', badge: 'new', badgeLabel: 'New', desc: 'Blush pink · Gradient avatar' },
+  { id: 'sand', name: 'Sand', cat: 'Minimal', badge: 'new', badgeLabel: 'New', desc: 'Warm sand tones · Centred' },
+  { id: 'phantom', name: 'Phantom', cat: 'Tech', badge: 'new', badgeLabel: 'New', desc: 'Pure black · Minimal' },
+  { id: 'electric', name: 'Electric', cat: 'Professional', badge: 'new', badgeLabel: 'New', desc: 'Sky blue · Bold header' },
+  { id: 'luxe', name: 'Luxe Gold', cat: 'Unique', badge: 'new', badgeLabel: 'New', desc: 'Dark gold luxury' },
+  { id: 'mono', name: 'Monospace', cat: 'Tech', badge: 'new', badgeLabel: 'New', desc: 'Monospace terminal' },
+  { id: 'wave', name: 'Wave', cat: 'Professional', badge: 'new', badgeLabel: 'New', desc: 'Wave cutout header' },
+  { id: 'tealwave', name: 'Teal Wave', cat: 'Professional', badge: 'new', badgeLabel: 'New', desc: 'Teal wave header · Clean' },
+  { id: 'navy', name: 'Navy Pro', cat: 'Professional', badge: 'new', badgeLabel: 'New', desc: 'Navy sidebar · Blue accents' },
+  { id: 'violet2', name: 'Violet', cat: 'Creative', badge: 'new', badgeLabel: 'New', desc: 'Violet avatar · Soft background' },
+  { id: 'midnight2', name: 'Midnight II', cat: 'Tech', badge: 'new', badgeLabel: 'New', desc: 'Pure black · Stark minimal' },
+  { id: 'glacier', name: 'Glacier', cat: 'Minimal', badge: 'new', badgeLabel: 'New', desc: 'Ice blue · Cool tones' },
+  { id: 'lava', name: 'Lava', cat: 'Professional', badge: 'new', badgeLabel: 'New', desc: 'Dark red gradient · Fire bar' },
+  { id: 'verdant', name: 'Verdant', cat: 'Creative', badge: 'new', badgeLabel: 'New', desc: 'Deep green sidebar · Nature' },
+  { id: 'parchment', name: 'Parchment', cat: 'Unique', badge: 'new', badgeLabel: 'New', desc: 'Cream serif · Elegant' },
+  { id: 'matrix', name: 'Matrix', cat: 'Tech', badge: 'new', badgeLabel: 'New', desc: 'Terminal green · Hacker' },
+  { id: 'retro', name: 'Retro Gold', cat: 'Unique', badge: 'new', badgeLabel: 'New', desc: 'Retro gold · Bold stripes' },
+  { id: 'prism2', name: 'Prism II', cat: 'Creative', badge: 'new', badgeLabel: 'New', desc: 'Rainbow top bar · Clean' },
+  { id: 'zinc', name: 'Zinc', cat: 'Tech', badge: 'new', badgeLabel: 'New', desc: 'Dark zinc · Grey tones' },
+  { id: 'coral', name: 'Coral', cat: 'Creative', badge: 'new', badgeLabel: 'New', desc: 'Coral gradient · Chip skills' },
+  { id: 'tan', name: 'Tan', cat: 'Minimal', badge: 'new', badgeLabel: 'New', desc: 'Warm tan · Serif accents' },
+  { id: 'slate4', name: 'Slate IV', cat: 'Professional', badge: 'new', badgeLabel: 'New', desc: 'Slate header · Rainbow bar' },
+  { id: 'clay', name: 'Clay Amber', cat: 'Creative', badge: 'new', badgeLabel: 'New', desc: 'Amber sidebar · Warm' },
+  { id: 'frost', name: 'Frost', cat: 'Minimal', badge: 'new', badgeLabel: 'New', desc: 'Indigo centred · Soft' },
+  { id: 'steel', name: 'Steel', cat: 'Minimal', badge: 'new', badgeLabel: 'New', desc: 'Steel blue · Clean grid' },
+  { id: 'mauve', name: 'Mauve', cat: 'Creative', badge: 'new', badgeLabel: 'New', desc: 'Deep mauve gradient' },
+  { id: 'brick', name: 'Brick Red', cat: 'Minimal', badge: 'new', badgeLabel: 'New', desc: 'Red accent bar · Clean' },
+  { id: 'peach', name: 'Peach', cat: 'Creative', badge: 'new', badgeLabel: 'New', desc: 'Peach gradient · Warm' },
+  { id: 'plum', name: 'Plum Dark', cat: 'Tech', badge: 'new', badgeLabel: 'New', desc: 'Deep purple dark' },
+  { id: 'spruce', name: 'Spruce', cat: 'Professional', badge: 'new', badgeLabel: 'New', desc: 'Green sidebar · Icon badge' },
+]); map.get(t.cat).push(t) })
   return map
 })
 function countFor(cat) { return cat === 'All' ? TEMPLATES.length : TEMPLATES.filter(t => t.cat === cat).length }
 
 function pickTemplate(id) {
   store.template = id
-  store.openWizard()
+  store.openWizard(true)
 }
 </script>
 
@@ -140,23 +197,39 @@ function pickTemplate(id) {
 .tpl-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
-  gap: 14px; margin-bottom: 4px;
+  gap: 16px;
+  margin-bottom: 8px;
 }
 .tpl-card {
-  background: var(--c-surface); border-radius: var(--radius-lg);
-  overflow: hidden; cursor: pointer; border: 2px solid transparent;
-  transition: all .2s; box-shadow: var(--shadow-xs);
+  background: var(--c-surface);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all .2s;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
 }
-.tpl-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); border-color: var(--c-border2); }
-.tpl-card.sel { border-color: var(--c-accent); }
-
-.tpl-thumb { height: 195px; overflow: hidden; position: relative; background: #f5f4f0; }
-.tpl-preview-scroll { width: 100%; height: 100%; overflow: hidden; position: relative; }
-.tpl-preview-scaler { transform-origin: top left; width: 700px; pointer-events: none; user-select: none; }
-
+.tpl-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,.12); transform: translateY(-2px); border-color: var(--c-border2); }
+.tpl-card.sel   { border-color: var(--c-accent); box-shadow: 0 0 0 3px rgba(42,91,215,.12); }
+.tpl-thumb {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1.2;
+  overflow: hidden;
+  background: #f0ede8;
+}
+.tpl-preview-scaler {
+  width: 700px;
+  transform-origin: top left;
+  pointer-events: none;
+  user-select: none;
+  display: block;
+}
 .tpl-selected-overlay {
-  position: absolute; inset: 0; background: rgba(42,91,215,.1);
-  display: flex; align-items: flex-start; justify-content: flex-end; padding: 8px;
+  position: absolute; inset: 0;
+  background: rgba(42,91,215,.08);
+  display: flex; align-items: flex-start; justify-content: flex-end;
+  padding: 8px; pointer-events: none;
 }
 .tpl-selected-check {
   width: 22px; height: 22px; border-radius: 50%;
@@ -164,36 +237,33 @@ function pickTemplate(id) {
   display: flex; align-items: center; justify-content: center;
 }
 .tpl-selected-check svg { width: 11px; height: 11px; }
-
 .tpl-badge {
   position: absolute; top: 7px; left: 7px;
   font-size: 9px; font-weight: 700; letter-spacing: .04em;
   text-transform: uppercase; padding: 2px 7px; border-radius: 20px;
+  pointer-events: none;
 }
-.b-pop { background: #fef9c3; color: #a16207; }
-.b-new { background: #dcfce7; color: #15803d; }
-.b-pro { background: #f0ebfa; color: #6236b0; }
+.b-pop   { background: #fef9c3; color: #a16207; }
+.b-new   { background: #dcfce7; color: #15803d; }
+.b-pro   { background: #f0ebfa; color: #6236b0; }
 .b-photo { background: #fce9eb; color: #c52b3d; }
-
 .tpl-info { padding: 10px 12px; border-top: 1px solid var(--c-border); }
-.tpl-name { font-size: 12.5px; font-weight: 600; color: var(--c-text); }
-.tpl-cat { font-size: 11px; color: var(--c-text3); margin-top: 2px; }
+.tpl-name { font-size: 12.5px; font-weight: 600; color: var(--c-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tpl-cat  { font-size: 10.5px; color: var(--c-text3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tpl-section-ttl {
-  font-size: 10.5px; font-weight: 700; color: var(--c-text3);
-  text-transform: uppercase; letter-spacing: .07em; margin: 20px 0 10px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--c-text3); margin: 22px 0 10px;
 }
-
 @media (max-width: 768px) {
   .tpl-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-  .tpl-thumb { height: 155px; }
-  .tpl-name { font-size: 11px; }
-  .tpl-cat { font-size: 10px; }
-  .tpl-info { padding: 8px 9px; }
-  .tpl-section-ttl { font-size: 9.5px; margin: 12px 0 7px; }
-  .tpl-badge { font-size: 8px; padding: 1px 5px; }
+  .tpl-thumb { aspect-ratio: 1 / 1.3; }
+  .tpl-name  { font-size: 11px; }
+  .tpl-cat   { font-size: 10px; }
+  .tpl-info  { padding: 7px 9px; }
+  .tpl-section-ttl { font-size: 9.5px; margin: 14px 0 7px; }
 }
 @media (max-width: 400px) {
-  .tpl-thumb { height: 125px; }
-  .tpl-grid { gap: 8px; }
+  .tpl-grid  { gap: 8px; }
+  .tpl-info  { padding: 6px 8px; }
 }
 </style>

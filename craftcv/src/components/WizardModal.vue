@@ -127,7 +127,7 @@ const panelBody   = ref(null)
 const previewWrap = ref(null)
 const previewZoom = ref(72)
 
-const TPLS = ['executive','modern','minimal','bold','creative','academic','elegant','tech','pastel','teal','newspaper','swiss','gradient','compact','photo','infographic','corporate','magazine','midnight','clean','slate','terra','prism','ivory','split']
+const TPLS = ['executive','modern','minimal','bold','creative','academic','elegant','tech','pastel','teal','newspaper','swiss','gradient','compact','photo','infographic','corporate','magazine','midnight','clean','slate','terra','prism','ivory','split','forest','ruby','ocean','purple','charcoal','sunrise','silver','mint','indigo','amber','diamond','bloom','nordic','sakura','emerald','cobalt','lemon','graphite','vega','rose','onyx','aurora','carbon','sky','obsidian','slate2','crimson','sage','dusk','slate3','copper2','neon','blush','sand','phantom','electric','luxe','mono','wave','tealwave','navy','violet2','midnight2','glacier','lava','verdant','parchment','matrix','retro','prism2','zinc']
 const TPL_NAMES = { executive:'Executive Slate', modern:'Modern Azure', minimal:'Minimal Editorial', bold:'Bold Noir', creative:'Creative Violet', academic:'Academic', elegant:'Elegant Gold', tech:'Tech Dark', pastel:'Pastel Rose', teal:'Teal Sidebar', newspaper:'Newspaper', swiss:'Swiss Design', gradient:'Gradient Flow', compact:'Compact Grid', photo:'Photo Professional', infographic:'Infographic', corporate:'Corporate Blue', magazine:'Magazine Editorial', midnight:'Midnight Executive', clean:'Clean Professional' }
 
 const currentTplName = computed(() => TPL_NAMES[store.template] || store.template)
@@ -277,12 +277,15 @@ watch(() => store.wizardOpen, v => {
   width: 380px; min-width: 340px; flex-shrink: 0;
   display: flex; flex-direction: column;
   border-right: 1px solid var(--c-border);
-  background: var(--c-surface); min-height: 0;
+  background: var(--c-surface);
+  overflow: hidden;   /* panel itself never expands beyond modal */
+  min-height: 0;
 }
 .wiz-panel-hd {
   padding: 14px 16px 12px; padding-right: 50px;
   border-bottom: 1px solid var(--c-border);
-  flex-shrink: 0; position: relative;
+  flex-shrink: 0;     /* header always visible */
+  position: relative;
 }
 .wiz-mode-label { font-size: 11px; font-weight: 700; color: var(--c-accent); margin-bottom: 9px; }
 .wiz-steps { display: flex; gap: 4px; margin-bottom: 6px; }
@@ -290,13 +293,24 @@ watch(() => store.wizardOpen, v => {
 .wiz-pip.done { background: var(--c-green); }
 .wiz-pip.active { background: var(--c-accent); }
 .wiz-step-lbl { font-size: 11.5px; color: var(--c-text3); }
-.wiz-panel-body { flex: 1; overflow-y: auto; padding: 18px; min-height: 0; -webkit-overflow-scrolling: touch; }
+/* Body scrolls — footer and header stay fixed */
+.wiz-panel-body {
+  flex: 1;
+  overflow-y: auto;   /* only the middle content scrolls */
+  overflow-x: hidden;
+  padding: 18px;
+  min-height: 0;      /* required: without this flex won't scroll */
+  -webkit-overflow-scrolling: touch;
+}
 .wiz-panel-body::-webkit-scrollbar { width: 3px; }
 .wiz-panel-body::-webkit-scrollbar-thumb { background: var(--c-border2); border-radius: 2px; }
 .wiz-panel-ft {
-  padding: 12px 16px; border-top: 1px solid var(--c-border);
-  flex-shrink: 0; display: flex; align-items: center;
-  justify-content: space-between; gap: 8px; background: var(--c-surface);
+  padding: 12px 16px;
+  border-top: 1px solid var(--c-border);
+  flex-shrink: 0;     /* footer always visible at bottom */
+  display: flex; align-items: center;
+  justify-content: space-between; gap: 8px;
+  background: var(--c-surface);
 }
 .wiz-step-num { font-size: 11.5px; color: var(--c-text3); font-weight: 600; }
 

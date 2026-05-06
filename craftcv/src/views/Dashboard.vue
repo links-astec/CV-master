@@ -75,7 +75,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onActivated } from 'vue'
 import { useCvStore } from '../stores/cv.js'
 
 const store   = useCvStore()
@@ -146,18 +146,34 @@ async function loadDrafts() {
   loading.value = true
   try {
     const r = await fetch('/api/drafts', { credentials: 'include' })
-    if (r.ok) drafts.value = await r.json()
-  } catch {}
-  loading.value = false
+    if (r.ok) {
+      drafts.value = await r.json()
+      loading.value = false
+    } else if (r.status === 401) {
+      // Just returned from Stripe — auth cookie may not be ready, retry after short delay
+      setTimeout(async () => {
+        try {
+          const r2 = await fetch('/api/drafts', { credentials: 'include' })
+          if (r2.ok) drafts.value = await r2.json()
+        } catch {}
+        loading.value = false
+      }, 1500)
+    } else {
+      loading.value = false
+    }
+  } catch {
+    loading.value = false
+  }
 }
 
-function openDraft(draft) {
+onMounted(loadDrafts)
+onActivated(loadDrafts)
   const cv = useCvStore()
   if (draft.data) Object.assign(cv.data, draft.data)
   if (draft.template) cv.template = draft.template
   cv.currentDraftId = draft.id
   cv.openWizard()
-}
+
 
 async function deleteDraft(id) {
   if (!confirm('Delete this CV?')) return
@@ -165,7 +181,6 @@ async function deleteDraft(id) {
   drafts.value = drafts.value.filter(d => d.id !== id)
 }
 
-onMounted(loadDrafts)
 </script>
 
 <style scoped>

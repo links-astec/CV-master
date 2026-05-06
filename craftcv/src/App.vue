@@ -88,10 +88,17 @@
 
         <!-- CONTENT AREA -->
         <div class="content-area">
-          <RouterView v-if="currentView !== 'builder'" />
+          <!-- Always-mounted RouterView — never unmount pages -->
+          <div :style="currentView === 'builder' ? 'display:none' : 'display:contents'">
+            <RouterView v-slot="{ Component }">
+              <KeepAlive>
+                <component :is="Component" />
+              </KeepAlive>
+            </RouterView>
+          </div>
 
           <!-- BUILDER VIEW -->
-          <div v-if="currentView === 'builder'" class="builder-wrap">
+          <div v-show="currentView === 'builder'" class="builder-wrap">
 
             <!-- LEFT EDIT PANEL (desktop only shown when panelOpen) -->
             <div class="builder-panel" :class="{ 'panel-collapsed': !panelOpen }">
@@ -204,9 +211,11 @@
 
               <!-- CV Preview canvas -->
               <div class="builder-canvas" ref="canvasRef">
-                <div class="cv-page-shadow">
-                  <div :style="{ transform:`scale(${cvScale})`, transformOrigin:'top center', transition:'transform .2s' }">
-                    <div v-html="renderedCV"></div>
+                <div class="cv-outer" :style="cvOuterStyle">
+                  <div class="cv-scaler" :style="cvScalerStyle">
+                    <div class="cv-page-shadow">
+                      <div v-html="renderedCV"></div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -313,8 +322,8 @@
 </template>
 
 <script setup>
-import { ref, computed, provide, onMounted, nextTick, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, provide, onMounted, nextTick, onUnmounted, resolveComponent } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth.js'
 import { useCvStore } from './stores/cv.js'
 import { useNotifStore } from './stores/notifications.js'
@@ -329,6 +338,7 @@ const auth       = useAuthStore()
 const store      = useCvStore()
 const notifStore = useNotifStore()
 const router     = useRouter()
+const route      = useRoute()
 const { render } = useCvRenderer()
 
 const sidebarOpen      = ref(true)
@@ -351,8 +361,8 @@ const pTabs = [
   { id: 'review', label: 'Score' },
 ]
 
-const TEMPLATES = ['executive','modern','minimal','bold','creative','academic','elegant','tech','pastel','teal','newspaper','swiss','gradient','compact','photo','infographic','corporate','magazine','midnight','clean','slate','terra','prism','ivory','split']
-const TEMPLATE_NAMES = { executive:'Executive Slate', modern:'Modern Azure', minimal:'Minimal Editorial', bold:'Bold Noir', creative:'Creative Violet', academic:'Academic', elegant:'Elegant Gold', tech:'Tech Dark', pastel:'Pastel Rose', teal:'Teal Sidebar', newspaper:'Newspaper', swiss:'Swiss Design', gradient:'Gradient Flow', compact:'Compact Grid', photo:'Photo Professional', infographic:'Infographic', corporate:'Corporate Blue', magazine:'Magazine Editorial', midnight:'Midnight Executive', clean:'Clean Professional', slate:'Slate Impact', terra:'Terra', prism:'Prism', ivory:'Ivory Luxury', split:'Bold Split' }
+const TEMPLATES = ['executive','modern','minimal','bold','creative','academic','elegant','tech','pastel','teal','newspaper','swiss','gradient','compact','photo','infographic','corporate','magazine','midnight','clean','slate','terra','prism','ivory','split','forest','ruby','ocean','purple','charcoal','sunrise','silver','mint','indigo','amber','diamond','bloom','nordic','sakura','emerald','cobalt','lemon','graphite','vega','rose','onyx','aurora','carbon','sky','obsidian','slate2','crimson','sage','dusk','slate3','copper2','neon','blush','sand','phantom','electric','luxe','mono','wave','tealwave','navy','violet2','midnight2','glacier','lava','verdant','parchment','matrix','retro','prism2','zinc']
+const TEMPLATE_NAMES = { executive:'Executive Slate', modern:'Modern Azure', minimal:'Minimal Editorial', bold:'Bold Noir', creative:'Creative Violet', academic:'Academic', elegant:'Elegant Gold', tech:'Tech Dark', pastel:'Pastel Rose', teal:'Teal Sidebar', newspaper:'Newspaper', swiss:'Swiss Design', gradient:'Gradient Flow', compact:'Compact Grid', photo:'Photo Professional', infographic:'Infographic', corporate:'Corporate Blue', magazine:'Magazine Editorial', midnight:'Midnight Executive', clean:'Clean Professional', slate:'Slate Impact', terra:'Terra', prism:'Prism', ivory:'Ivory Luxury', split:'Bold Split', forest:'Forest Green', ruby:'Ruby Red', ocean:'Ocean Blue', purple:'Purple Reign', charcoal:'Charcoal Grid', sunrise:'Sunrise Orange', silver:'Silver Lining', mint:'Mint Fresh', indigo:'Indigo Wave', amber:'Dark Amber', diamond:'Diamond', bloom:'Pink Bloom', nordic:'Nordic', sakura:'Sakura', emerald:'Emerald', cobalt:'Cobalt Night', lemon:'Lemon Fresh', graphite:'Graphite', vega:'Vega', rose:'Rose Gold', onyx:'Onyx', aurora:'Aurora', carbon:'Carbon', sky:'Sky Blue', obsidian:'Obsidian', slate2:'Slate Pro', crimson:'Crimson', sage:'Sage Green', dusk:'Dusk', slate3:'Slate III', copper2:'Copper II', neon:'Neon Green', blush:'Blush', sand:'Sand', phantom:'Phantom', electric:'Electric', luxe:'Luxe Gold', mono:'Monospace', wave:'Wave' }
 
 const PAGE_META = {
   dashboard: { title: 'Dashboard',     sub: 'Your CVs at a glance' },
@@ -363,12 +373,59 @@ const PAGE_META = {
 const pageMeta   = computed(() => PAGE_META[currentView.value] || { title: 'PerfectCV', sub: '' })
 const renderedCV = computed(() => render(store.template, store.data))
 
-// Auto-scale CV to fit canvas on mobile
+// Auto-scale CV to fit canvas — on mobile fill width, on desktop use zoom
+const isMobileView = computed(() => canvasWidth.value > 0 && canvasWidth.value < 780)
+
 const cvScale = computed(() => {
-  if (canvasWidth.value > 0 && canvasWidth.value < 750) {
-    return Math.max(0.3, (canvasWidth.value - 24) / 700)
+  if (isMobileView.value && canvasWidth.value > 0) {
+    return (canvasWidth.value - 16) / 700
   }
   return zoom.value / 100
+})
+
+const cvOuterStyle = computed(() => {
+  if (isMobileView.value) {
+    // Outer is exactly as wide as scaled CV, tall enough to hold it
+    // Use padding-bottom trick: height = 0 + padding = aspect ratio of A4
+    const s = cvScale.value
+    const w = Math.round(700 * s)
+    return {
+      width: w + 'px',
+      // A4 aspect is ~1:1.414. Add extra for CVs that run longer.
+      paddingBottom: Math.round(700 * s * 1.6) + 'px',
+      position: 'relative',
+      flexShrink: '0',
+      margin: '0 8px',
+    }
+  }
+  // Desktop: flex container that centres the zoom-scaled CV
+  return {
+    width: '100%',
+    display: 'flex',
+    justifyContent: 'center',
+    padding: '24px',
+    boxSizing: 'border-box',
+  }
+})
+
+const cvScalerStyle = computed(() => {
+  const s = cvScale.value
+  if (isMobileView.value) {
+    return {
+      position: 'absolute',
+      top: '0',
+      left: '0',
+      width: '700px',
+      transformOrigin: 'top left',
+      transform: `scale(${s})`,
+    }
+  }
+  // Desktop: CSS zoom shrinks both visual AND layout space — no clipping
+  return {
+    width: '700px',
+    zoom: `${s}`,
+    flexShrink: '0',
+  }
 })
 
 let ro
@@ -385,7 +442,7 @@ function toggleSidebar() {
 
 function go(view, path) {
   currentView.value = view
-  router.push(path)
+  if (route.path !== path) router.push(path)
   if (isMobile()) mobileSidebarOpen.value = false
 }
 
@@ -411,42 +468,45 @@ function showToast(msg, ms = 3500) {
 }
 provide('showToast', showToast)
 
-function onPaid() { showPaywall.value = false; showToast('CV sent to your email!') }
+function onPaid() {
+  showPaywall.value = false
+  showToast('CV sent to your email!')
+}
 
 async function onAuthDone() {
   await notifStore.fetch()
+  handleStripeReturn()
+}
+function onboardDone() {}
+
+function handleStripeReturn() {
   const params = new URLSearchParams(window.location.search)
   if (params.get('session') && sessionStorage.getItem('pcv_pending_download')) {
     sessionStorage.removeItem('pcv_pending_download')
     window.history.replaceState({}, '', window.location.pathname)
     showPaywall.value = true
-    await nextTick()
-    paywallRef.value?.handleStripeReturn()
+    nextTick(() => paywallRef.value?.handleStripeReturn())
   }
 }
-function onboardDone() {}
 
 onMounted(async () => {
   store.initDarkMode()
   await auth.fetchMe()
   if (auth.isLoggedIn) {
     await notifStore.fetch()
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('session') && sessionStorage.getItem('pcv_pending_download')) {
-      sessionStorage.removeItem('pcv_pending_download')
-      window.history.replaceState({}, '', window.location.pathname)
-      showPaywall.value = true
-      await nextTick()
-      paywallRef.value?.handleStripeReturn()
-    }
+    handleStripeReturn()
   }
   nextTick(() => {
     ro = new ResizeObserver(measureCanvas)
     if (canvasRef.value) ro.observe(canvasRef.value)
     measureCanvas()
+    window.addEventListener('resize', measureCanvas)
   })
 })
-onUnmounted(() => ro?.disconnect())
+onUnmounted(() => {
+  ro?.disconnect()
+  window.removeEventListener('resize', measureCanvas)
+})
 </script>
 
 <style>
@@ -522,7 +582,7 @@ onUnmounted(() => ro?.disconnect())
 .drawer-fade-leave-to { opacity: 0; }
 .drawer-fade-leave-to .mobile-edit-drawer { transform: translateY(100%); }
 
-/* ── CV PAGE SHADOW (preview looks like a real doc) ─────────── */
+/* ── CV PAGE SHADOW ─────────────────────────────────────────── */
 .cv-page-shadow {
   display: inline-block;
   box-shadow: 0 8px 40px rgba(0,0,0,.18), 0 2px 8px rgba(0,0,0,.08);
@@ -538,25 +598,20 @@ onUnmounted(() => ro?.disconnect())
 .export-pill { background: var(--c-accent) !important; color: #fff !important; border-color: var(--c-accent) !important; }
 .export-pill:hover { opacity: .88; }
 
-/* ── BUILDER CANVAS — mobile fills screen ───────────────────── */
-@media (max-width: 768px) {
-  .builder-wrap { flex-direction: column !important; }
-  .builder-panel { display: none !important; }
-  .builder-preview { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-  .builder-canvas {
-    flex: 1; overflow: auto; padding: 12px;
-    display: flex; align-items: flex-start; justify-content: center;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 80px; /* space for export bar */
-  }
-  .builder-canvas .cv-page-shadow { width: 100%; }
-  /* Make CV fill screen width on mobile */
-  .builder-canvas .cv-page-shadow > div { transform-origin: top left !important; }
+/* ── CV OUTER + SCALER ──────────────────────────────────────── */
+.cv-outer  { box-sizing: border-box; }
+.cv-scaler { display: block; }
+
+/* ── MOBILE BUILDER ─────────────────────────────────────────── */
+@media (max-width: 779px) {
+  .builder-wrap    { flex-direction: column !important; }
+  .builder-panel   { display: none !important; }
+  .builder-preview { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
 }
 
-/* Topbar right group */
+/* ── TOPBAR RIGHT ───────────────────────────────────────────── */
 .topbar-right { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 
-/* Misc */
+/* ── MISC ───────────────────────────────────────────────────── */
 .skill-rm svg { width: 11px; height: 11px; }
 </style>

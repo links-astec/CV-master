@@ -33,6 +33,22 @@ export const useCvStore = defineStore('cv', () => {
     localStorage.setItem('pcv-dark', v ? '1' : '0')
   })
 
+  // Persist CV data & template so they survive page reloads (e.g. Stripe redirect)
+  watch(data, (v) => {
+    try { localStorage.setItem('pcv-draft', JSON.stringify(v)) } catch {}
+  }, { deep: true })
+  watch(template, (v) => {
+    try { localStorage.setItem('pcv-template', v) } catch {}
+  })
+
+  // Restore on store creation
+  try {
+    const saved = localStorage.getItem('pcv-draft')
+    if (saved) data.value = { ...emptyData(), ...JSON.parse(saved) }
+    const savedTpl = localStorage.getItem('pcv-template')
+    if (savedTpl) template.value = savedTpl
+  } catch {}
+
   function initDarkMode() {
     const saved = localStorage.getItem('pcv-dark')
     darkMode.value = saved === '1'

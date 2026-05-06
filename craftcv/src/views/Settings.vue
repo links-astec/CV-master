@@ -53,22 +53,6 @@
         </div>
       </div>
 
-      <!-- AI Status -->
-      <div class="settings-card">
-        <div class="settings-ttl">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-          AI Status
-        </div>
-        <p style="font-size:13px;color:var(--c-text2);margin-bottom:14px;line-height:1.6;">
-          PerfectCV uses <strong>Groq AI</strong> to power all writing assistance — running on our servers.
-          No API key or configuration needed from you.
-        </p>
-        <div class="ai-status-row" :class="aiStatus.cls">
-          <div class="ai-status-dot"></div>
-          <span>{{ aiStatus.label }}</span>
-        </div>
-      </div>
-
       <!-- Notifications -->
       <div class="settings-card">
         <div class="settings-ttl">
@@ -104,8 +88,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { inject } from 'vue'
+import { ref, computed, onMounted, onActivated, inject } from 'vue'
 import { useAuthStore } from '../stores/auth.js'
 import { useCvStore } from '../stores/cv.js'
 
@@ -118,13 +101,6 @@ const newPassword = ref('')
 const showPw      = ref(false)
 const saving      = ref(false)
 const saveError   = ref('')
-const aiHealth    = ref(null)
-
-const aiStatus = computed(() => {
-  if (!aiHealth.value) return { cls: 'ai-checking', label: 'Checking AI status...' }
-  if (aiHealth.value.groq) return { cls: 'ai-ok', label: 'Groq AI connected — all features active' }
-  return { cls: 'ai-warn', label: 'AI not configured — contact support' }
-})
 
 async function saveProfile() {
   saveError.value = ''
@@ -157,12 +133,6 @@ async function logout() {
   window.location.reload()
 }
 
-onMounted(async () => {
-  try {
-    const r = await fetch('/api/health')
-    aiHealth.value = await r.json()
-  } catch {}
-})
 </script>
 
 <style scoped>

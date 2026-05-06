@@ -2,5 +2,6 @@
   "javascript.validate.enable": false,
   "typescript.validate.enable": false,
   "js/ts.implicitProjectConfig.checkJs": false,
-  "typescript.tsdk": "node_modules/typescript/lib"
+  "volar.takeOverMode.enabled": false,
+  "vue.server.hybridMode": false
 }
