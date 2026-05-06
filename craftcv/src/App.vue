@@ -455,16 +455,18 @@ async function onAuthDone() {
 function onboardDone() {}
 
 function handleStripeReturn() {
-  const params = new URLSearchParams(window.location.search)
-  const hasSession = params.get('session') || params.get('session_id')
+  const params     = new URLSearchParams(window.location.search)
+  const sessionId  = params.get('session') || params.get('session_id')
+  const draftId    = params.get('draft') || 'current'
   const hasPending = sessionStorage.getItem('pcv_pending_download')
 
-  if (hasSession && hasPending) {
+  if (sessionId && hasPending) {
     sessionStorage.removeItem('pcv_pending_download')
+    // Clear URL AFTER saving the params
     window.history.replaceState({}, '', '/')
-    currentView.value = 'dashboard'
-    showPaywall.value = true
-    nextTick(() => paywallRef.value?.handleStripeReturn())
+    currentView.value  = 'dashboard'
+    showPaywall.value  = true
+    nextTick(() => paywallRef.value?.handleStripeReturn(sessionId, draftId))
   }
 }
 

@@ -489,16 +489,65 @@ function parseFallback(text) {
 // ── SEND CV BY EMAIL ─────────────────────────────────────────────────────────
 app.post('/api/cv/email', authMiddleware, async (req, res) => {
   try {
-    const { htmlContent, fileName, overrideEmail } = req.body;
+    const { htmlContent, fileName, overrideEmail, demoMode, sessionId, draftId = 'current' } = req.body;
     if (!htmlContent) return res.status(400).json({ error: 'CV content required.' });
 
     const { rows } = await query('SELECT * FROM users WHERE id = $1', [req.user.sub]);
     const user = rows[0];
     if (!user) return res.status(404).json({ error: 'User not found.' });
 
-    // Use override email (demo mode) or user's registered email
-    const toEmail = (overrideEmail && overrideEmail.includes('@')) ? overrideEmail : user.email;
-    console.log('[email] Sending CV to:', toEmail, '| SMTP_PASS set:', !!process.env.SMTP_PASS);
+    const stripeConfigured = !!process.env.STRIPE_SECRET_KEY;
+
+    if (stripeConfigured && !demoMode) {
+      let hasPaid = false;
+
+      // Step 1: If we have a fresh Stripe session ID, verify with Stripe and record it
+      if (sessionId) {
+        try {
+          const { default: Stripe } = await import('stripe');
+          const stripe  = new Stripe(process.env.STRIPE_SECRET_KEY);
+          const session = await stripe.checkout.sessions.retrieve(sessionId);
+          console.log('[email] Stripe session status:', session.payment_status);
+          if (session.payment_status === 'paid') {
+            await query(
+              `INSERT INTO payments (user_id, draft_id, session_id, paid)
+               VALUES ($1, $2, $3, TRUE)
+               ON CONFLICT DO NOTHING`,
+              [req.user.sub, draftId, sessionId]
+            );
+            hasPaid = true;
+          }
+        } catch (e) {
+          console.warn('[email] Stripe verify error:', e.message);
+        }
+      }
+
+      // Step 2: Fallback — check payments table
+      if (!hasPaid) {
+        const { rows: payRows } = await query(
+          'SELECT paid FROM payments WHERE user_id = $1 AND paid = TRUE LIMIT 1',
+          [req.user.sub]
+        );
+        hasPaid = payRows.length > 0;
+      }
+
+      if (!hasPaid) {
+        console.warn('[email] 403 — no payment found for user:', req.user.sub);
+        return res.status(403).json({ error: 'Payment required to export CV.' });
+      }
+    }
+
+    // Determine recipient
+    let toEmail;
+    if (demoMode) {
+      if (!overrideEmail || !overrideEmail.includes('@')) {
+        return res.status(400).json({ error: 'Please provide a valid email address.' });
+      }
+      toEmail = overrideEmail.trim().toLowerCase();
+    } else {
+      toEmail = (overrideEmail && overrideEmail.includes('@')) ? overrideEmail.trim() : user.email;
+    }
+    console.log('[email] Sending to:', toEmail, '| demo:', !!demoMode);
 
     // Generate PDF — try wkhtmltopdf first, then html-pdf-node, then HTML fallback
     let pdfBuffer = null;
@@ -697,13 +746,50 @@ app.post('/api/payment/create-session', authMiddleware, async (req, res) => {
 
 app.post('/api/payment/verify', authMiddleware, async (req, res) => {
   try {
-    const { draftId = 'current' } = req.body;
+    const { sessionId, draftId = 'current' } = req.body;
+
+    // If we have a Stripe session ID, verify it with Stripe and record payment
+    if (sessionId && STRIPE_KEY) {
+      const { default: Stripe } = await import('stripe');
+      const stripe = new Stripe(STRIPE_KEY);
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      if (session.payment_status === 'paid') {
+        await query(
+          `INSERT INTO payments (user_id, draft_id, session_id, paid)
+           VALUES ($1, $2, $3, TRUE)
+           ON CONFLICT (session_id) DO UPDATE SET paid = TRUE`,
+          [req.user.sub, draftId, sessionId]
+        ).catch(async () => {
+          // Fallback if no unique constraint yet on existing DB
+          const exists = await query('SELECT id FROM payments WHERE session_id = $1', [sessionId])
+          if (exists.rows.length === 0) {
+            await query(
+              'INSERT INTO payments (user_id, draft_id, session_id, paid) VALUES ($1, $2, $3, TRUE)',
+              [req.user.sub, draftId, sessionId]
+            )
+          }
+        });
+        await query(
+          `INSERT INTO notifications (user_id, type, title, body)
+           VALUES ($1, 'payment', 'Export Unlocked', 'Your CV is ready — check your email for the PDF.')
+           ON CONFLICT DO NOTHING`,
+          [req.user.sub]
+        );
+        return res.json({ paid: true, recorded: true });
+      }
+      return res.json({ paid: false });
+    }
+
+    // Fallback: just check the DB
     const { rows } = await query(
       'SELECT paid FROM payments WHERE (draft_id = $1 OR draft_id = $2) AND user_id = $3 AND paid = TRUE LIMIT 1',
       [draftId, 'current', req.user.sub]
     );
     res.json({ paid: rows.length > 0 });
-  } catch (e) { res.status(500).json({ error: 'Verification failed.' }); }
+  } catch (e) {
+    console.error('[verify]', e.message);
+    res.status(500).json({ error: 'Verification failed.' });
+  }
 });
 
 app.get('/api/payment/status/:draftId', authMiddleware, async (req, res) => {

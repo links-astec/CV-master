@@ -80,7 +80,7 @@
               </button>
               <div class="auth-sep"><div></div><span>or continue with</span><div></div></div>
               <!-- Google button rendered by GIS SDK -->
-              <div id="google-signin-login" class="google-btn-wrap"></div>
+              <div id="google-signin-login" ref="googleLoginEl" class="google-btn-wrap"></div>
               <div v-if="!googleConfigured" class="google-unavail">Google sign-in not configured</div>
               <button class="demo-btn" @click="demoLogin" :disabled="loading">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
@@ -131,16 +131,35 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 {{ serverError }}
               </div>
-              <button class="auth-submit" @click="submitRegister" :disabled="loading">
+              <!-- Terms checkbox -->
+              <label class="terms-check" :class="{ 'terms-check-err': errors.terms }">
+                <input type="checkbox" v-model="agreedToTerms" @change="errors.terms=''" />
+                <span>I agree to the
+                  <button type="button" class="terms-link" @click.prevent="legalPopup='terms'">Terms of Service</button>
+                  and
+                  <button type="button" class="terms-link" @click.prevent="legalPopup='privacy'">Privacy Policy</button>
+                </span>
+              </label>
+              <div v-if="errors.terms" class="field-err" style="margin-bottom:8px;">{{ errors.terms }}</div>
+
+              <button class="auth-submit" @click="submitRegister" :disabled="loading || !agreedToTerms">
                 <svg v-if="loading" class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" opacity=".25"/><path d="M21 12a9 9 0 00-9-9"/></svg>
                 <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                 {{ loading ? 'Creating account...' : 'Create account' }}
               </button>
               <div class="auth-sep"><div></div><span>or continue with</span><div></div></div>
-              <div id="google-signin-register" class="google-btn-wrap"></div>
+              <div class="google-btn-outer">
+                <div id="google-signin-register" ref="googleRegisterEl" class="google-btn-wrap"></div>
+                <!-- Overlay blocks Google button click when terms not agreed -->
+                <div
+                  v-if="!agreedToTerms"
+                  class="google-btn-blocker"
+                  @click="errors.terms='Please agree to our Terms and Privacy Policy to continue.'"
+                  title="Please agree to the Terms and Privacy Policy first"
+                ></div>
+              </div>
               <div v-if="!googleConfigured" class="google-unavail">Google sign-in not configured</div>
               <p class="auth-switch">Already have an account? <button @click="view='login'">Sign in</button></p>
-              <p class="auth-legal">By creating an account you agree to our <a href="/legal" target="_blank">Terms of Service</a> and <a href="/legal" target="_blank">Privacy Policy</a>.</p>
             </div>
 
             <!-- FORGOT PASSWORD -->
@@ -222,6 +241,71 @@
       </div>
     </div>
   </Teleport>
+    <!-- Legal popup -->
+    <Teleport to="body">
+      <Transition name="legal-fade">
+        <div v-if="legalPopup" class="legal-popup-backdrop" @click.self="legalPopup=null">
+          <div class="legal-popup">
+            <div class="legal-popup-hd">
+              <h3>{{ legalPopup === 'terms' ? 'Terms of Service' : 'Privacy Policy' }}</h3>
+              <button class="legal-popup-close" @click="legalPopup=null">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:15px;height:15px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div class="legal-popup-body">
+              <!-- TERMS -->
+              <template v-if="legalPopup === 'terms'">
+                <p>Last updated: May 2026</p>
+                <h4>1. Acceptance</h4>
+                <p>By using PerfectCV you agree to these Terms. If you do not agree, do not use the service.</p>
+                <h4>2. The service</h4>
+                <p>PerfectCV provides an AI-assisted CV builder. The service is provided "as is" without warranty.</p>
+                <h4>3. Your account</h4>
+                <p>You must provide accurate information. You are responsible for your account security. You must be at least 16 years old.</p>
+                <h4>4. Payments</h4>
+                <p>CV export is a one-time payment of £4.99 processed by Stripe. Payments are final once the PDF has been delivered. Contact us within 14 days if you did not receive your CV.</p>
+                <h4>5. Acceptable use</h4>
+                <p>You must not use the service for unlawful purposes, attempt to bypass payment gates, or reverse-engineer the platform.</p>
+                <h4>6. AI content</h4>
+                <p>AI-generated content may not be perfectly accurate. You are responsible for reviewing your CV before sending it to employers.</p>
+                <h4>7. Intellectual property</h4>
+                <p>You own the CV content you create. PerfectCV owns the platform and templates.</p>
+                <h4>8. Limitation of liability</h4>
+                <p>PerfectCV is not liable for any indirect or consequential damages arising from use of the service.</p>
+                <h4>9. Governing law</h4>
+                <p>These Terms are governed by the laws of England and Wales.</p>
+                <h4>10. Contact</h4>
+                <p>Questions? Email <a href="mailto:gabbyquaye2021@gmail.com">gabbyquaye2021@gmail.com</a></p>
+              </template>
+              <!-- PRIVACY -->
+              <template v-else>
+                <p>Last updated: May 2026</p>
+                <h4>1. Who we are</h4>
+                <p>PerfectCV is an AI-powered CV builder. Contact: <a href="mailto:gabbyquaye2021@gmail.com">gabbyquaye2021@gmail.com</a></p>
+                <h4>2. Data we collect</h4>
+                <p><strong>Account data:</strong> Name and email when you register. <strong>CV data:</strong> Career information you enter. <strong>Payment data:</strong> Processed by Stripe — we never store card details. <strong>Usage data:</strong> Basic server logs for security.</p>
+                <h4>3. How we use your data</h4>
+                <p>To manage your account, generate your CV, email your CV after purchase, process payments, and improve the service.</p>
+                <h4>4. Data sharing</h4>
+                <p>We do not sell your data. We share with: <strong>Stripe</strong> (payments), <strong>Groq</strong> (AI generation), <strong>Google</strong> (if you use Google Sign-In), <strong>Render/Vercel</strong> (hosting).</p>
+                <h4>5. Your rights (GDPR)</h4>
+                <p>You have the right to access, correct, delete, or export your data. Email us to exercise these rights.</p>
+                <h4>6. Cookies</h4>
+                <p>We use a single session cookie for authentication only. No tracking or advertising cookies.</p>
+                <h4>7. Security</h4>
+                <p>Passwords are hashed with bcrypt. All data is transmitted over HTTPS.</p>
+                <h4>8. Data retention</h4>
+                <p>Your data is retained until you delete your account. Email us to request deletion.</p>
+              </template>
+            </div>
+            <div class="legal-popup-ft">
+              <button class="btn-primary accent" @click="agreedToTerms=true; legalPopup=null">I Agree</button>
+              <button class="btn-secondary" @click="legalPopup=null">Close</button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
 </template>
 
 <script setup>
@@ -238,10 +322,14 @@ const serverError     = ref('')
 const forgotSent      = ref(false)
 const resetToken      = ref('')
 const resetTokenError = ref('')
-const googleConfigured = ref(false)
+const googleConfigured  = ref(false)
+const googleLoginEl    = ref(null)
+const googleRegisterEl = ref(null)
 
 const form   = ref({ name: '', email: '', password: '', confirm: '' })
-const errors = ref({ name: '', email: '', password: '', confirm: '' })
+const errors = ref({ name: '', email: '', password: '', confirm: '', terms: '' })
+const agreedToTerms = ref(false)
+const legalPopup    = ref(null) // 'terms' | 'privacy' | null
 
 const pwStrength = computed(() => {
   const p = form.value.password
@@ -292,22 +380,40 @@ function initGoogle() {
   renderGoogleButtons()
 }
 
-function renderGoogleButtons() {
-  nextTick(() => {
-    const loginEl    = document.getElementById('google-signin-login')
-    const registerEl = document.getElementById('google-signin-register')
-    const opts = { theme: 'outline', size: 'large', width: '100%', text: 'continue_with' }
-    if (loginEl    && window.google?.accounts?.id) window.google.accounts.id.renderButton(loginEl,    opts)
-    if (registerEl && window.google?.accounts?.id) window.google.accounts.id.renderButton(registerEl, opts)
+function renderInto(el) {
+  if (!el || !window.google?.accounts?.id) return
+  el.innerHTML = ''
+  window.google.accounts.id.renderButton(el, {
+    theme: 'outline', size: 'large', width: '100%', text: 'continue_with',
   })
 }
 
-// Re-render Google button when switching views
+function renderGoogleButtons() {
+  nextTick(() => {
+    renderInto(googleLoginEl.value)
+    renderInto(googleRegisterEl.value)
+  })
+}
+
+// Re-render when view changes
 watch(view, () => {
-  if (googleConfigured.value) renderGoogleButtons()
+  if (!googleConfigured.value) return
+  nextTick(() => setTimeout(() => {
+    renderInto(googleLoginEl.value)
+    renderInto(googleRegisterEl.value)
+  }, 50))
 })
 
+// Watch each ref — render as soon as the element mounts into the DOM
+watch(googleLoginEl, (el) => { if (el && googleConfigured.value) renderInto(el) })
+watch(googleRegisterEl, (el) => { if (el && googleConfigured.value) renderInto(el) })
+
 async function handleGoogleCredential(response) {
+  // On register view, require terms agreement
+  if (view.value === 'register' && !agreedToTerms.value) {
+    errors.value.terms = 'Please agree to our Terms and Privacy Policy to continue.'
+    return
+  }
   loading.value = true; serverError.value = ''
   try {
     await auth.loginWithGoogle(response.credential)
@@ -494,5 +600,90 @@ async function demoLogin() {
   .auth-form-wrap { padding-top:0; }
   .auth-mobile-logo { display:flex; }
   .auth-title { font-size:26px; }
+}
+
+/* ── TERMS CHECKBOX ──────────────────────────────────────────── */
+.terms-check {
+  display: flex; align-items: flex-start; gap: 10px;
+  cursor: pointer; margin-bottom: 4px;
+  padding: 10px 12px; border-radius: 8px;
+  border: 1.5px solid var(--c-border);
+  background: var(--c-bg); transition: border-color .15s;
+}
+.terms-check:hover { border-color: var(--c-accent); }
+.terms-check.terms-check-err { border-color: var(--c-rose); }
+.terms-check input[type="checkbox"] {
+  width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px;
+  cursor: pointer; accent-color: var(--c-accent);
+}
+.terms-check span { font-size: 12.5px; color: var(--c-text2); line-height: 1.5; }
+.terms-link {
+  background: none; border: none; padding: 0;
+  font-size: 12.5px; color: var(--c-accent); font-weight: 600;
+  cursor: pointer; font-family: 'DM Sans', sans-serif;
+  text-decoration: underline; text-decoration-color: transparent;
+  transition: text-decoration-color .15s;
+}
+.terms-link:hover { text-decoration-color: var(--c-accent); }
+
+/* ── LEGAL POPUP ─────────────────────────────────────────────── */
+.legal-fade-enter-active, .legal-fade-leave-active { transition: opacity .2s, transform .2s; }
+.legal-fade-enter-from, .legal-fade-leave-to { opacity: 0; transform: scale(.96); }
+
+.legal-popup-backdrop {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,.7); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.legal-popup {
+  background: var(--c-surface); border-radius: 16px;
+  width: 100%; max-width: 520px; max-height: 85dvh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 24px 64px rgba(0,0,0,.25);
+  overflow: hidden;
+}
+.legal-popup-hd {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid var(--c-border); flex-shrink: 0;
+}
+.legal-popup-hd h3 { font-size: 16px; font-weight: 700; color: var(--c-text); margin: 0; }
+.legal-popup-close {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--c-bg); border: 1px solid var(--c-border);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: var(--c-text2);
+}
+.legal-popup-body {
+  flex: 1; overflow-y: auto; padding: 20px;
+  font-size: 12.5px; color: var(--c-text2); line-height: 1.7;
+}
+.legal-popup-body h4 { font-size: 13px; font-weight: 700; color: var(--c-text); margin: 14px 0 4px; }
+.legal-popup-body p  { margin-bottom: 8px; }
+.legal-popup-body a  { color: var(--c-accent); }
+.legal-popup-ft {
+  display: flex; gap: 8px; padding: 14px 20px;
+  border-top: 1px solid var(--c-border); flex-shrink: 0;
+}
+.legal-popup-ft button { flex: 1; justify-content: center; }
+
+@media (max-width: 520px) {
+  .legal-popup-backdrop { padding: 0; align-items: flex-end; }
+  .legal-popup { border-radius: 20px 20px 0 0; max-height: 90dvh; max-width: 100%; }
+}
+
+/* ── GOOGLE BUTTON BLOCKER ────────────────────────────────── */
+.google-btn-outer {
+  position: relative;
+}
+.google-btn-blocker {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  cursor: not-allowed;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.01);
+}
+[data-theme="dark"] .google-btn-blocker {
+  background: rgba(0,0,0,0.01);
 }
 </style>
