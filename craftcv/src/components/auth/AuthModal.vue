@@ -140,7 +140,7 @@
               <div id="google-signin-register" class="google-btn-wrap"></div>
               <div v-if="!googleConfigured" class="google-unavail">Google sign-in not configured</div>
               <p class="auth-switch">Already have an account? <button @click="view='login'">Sign in</button></p>
-              <p class="auth-legal">By signing up you agree to our <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.</p>
+              <p class="auth-legal">By creating an account you agree to our <a href="/legal" target="_blank">Terms of Service</a> and <a href="/legal" target="_blank">Privacy Policy</a>.</p>
             </div>
 
             <!-- FORGOT PASSWORD -->

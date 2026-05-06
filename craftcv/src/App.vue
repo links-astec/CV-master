@@ -35,7 +35,7 @@
             <button class="nav-btn" :class="{ active: currentView==='templates' }" @click="go('templates','/templates')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
               Templates
-              <span class="nav-chip">25+</span>
+              <span class="nav-chip">107</span>
             </button>
             <button class="nav-btn" :class="{ active: currentView==='builder' }" @click="goBuilderView">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -49,6 +49,11 @@
           </nav>
 
           <div class="sb-footer">
+            <div class="legal-links">
+              <a @click.prevent="go('legal','/legal')" href="/legal">Privacy</a>
+              <span>·</span>
+              <a @click.prevent="go('legal','/legal')" href="/legal">Terms</a>
+            </div>
             <div class="user-row" @click="go('settings','/settings')">
               <div class="user-ava">{{ auth.user?.avatar || 'U' }}</div>
               <div style="flex:1;min-width:0;">
@@ -87,20 +92,13 @@
         </div>
 
         <!-- CONTENT AREA -->
-        <div class="content-area">
-          <!-- Always-mounted RouterView — never unmount pages -->
-          <div :style="currentView === 'builder' ? 'display:none' : 'display:contents'">
-            <RouterView v-slot="{ Component }">
-              <KeepAlive>
-                <component :is="Component" />
-              </KeepAlive>
-            </RouterView>
-          </div>
+        <div class="content-area" :class="{ 'hidden-view': currentView === 'builder' }">
+          <RouterView />
+        </div>
 
-          <!-- BUILDER VIEW -->
-          <div v-show="currentView === 'builder'" class="builder-wrap">
-
-            <!-- LEFT EDIT PANEL (desktop only shown when panelOpen) -->
+        <!-- BUILDER VIEW (separate, not inside content-area) -->
+        <div v-if="currentView === 'builder'" class="content-area">
+          <div class="builder-wrap">
             <div class="builder-panel" :class="{ 'panel-collapsed': !panelOpen }">
               <div class="builder-panel-inner">
                 <div class="ptabs">
@@ -228,8 +226,8 @@
                 </button>
               </div>
             </div>
-          </div>
-        </div>
+          </div><!-- end builder-wrap -->
+        </div><!-- end content-area for builder -->
 
         <!-- BOTTOM NAV (mobile only) -->
         <nav class="bottom-nav show-mobile">
@@ -322,7 +320,7 @@
 </template>
 
 <script setup>
-import { ref, computed, provide, onMounted, nextTick, onUnmounted, resolveComponent } from 'vue'
+import { ref, computed, provide, onMounted, nextTick, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth.js'
 import { useCvStore } from './stores/cv.js'
@@ -361,12 +359,12 @@ const pTabs = [
   { id: 'review', label: 'Score' },
 ]
 
-const TEMPLATES = ['executive','modern','minimal','bold','creative','academic','elegant','tech','pastel','teal','newspaper','swiss','gradient','compact','photo','infographic','corporate','magazine','midnight','clean','slate','terra','prism','ivory','split','forest','ruby','ocean','purple','charcoal','sunrise','silver','mint','indigo','amber','diamond','bloom','nordic','sakura','emerald','cobalt','lemon','graphite','vega','rose','onyx','aurora','carbon','sky','obsidian','slate2','crimson','sage','dusk','slate3','copper2','neon','blush','sand','phantom','electric','luxe','mono','wave','tealwave','navy','violet2','midnight2','glacier','lava','verdant','parchment','matrix','retro','prism2','zinc']
-const TEMPLATE_NAMES = { executive:'Executive Slate', modern:'Modern Azure', minimal:'Minimal Editorial', bold:'Bold Noir', creative:'Creative Violet', academic:'Academic', elegant:'Elegant Gold', tech:'Tech Dark', pastel:'Pastel Rose', teal:'Teal Sidebar', newspaper:'Newspaper', swiss:'Swiss Design', gradient:'Gradient Flow', compact:'Compact Grid', photo:'Photo Professional', infographic:'Infographic', corporate:'Corporate Blue', magazine:'Magazine Editorial', midnight:'Midnight Executive', clean:'Clean Professional', slate:'Slate Impact', terra:'Terra', prism:'Prism', ivory:'Ivory Luxury', split:'Bold Split', forest:'Forest Green', ruby:'Ruby Red', ocean:'Ocean Blue', purple:'Purple Reign', charcoal:'Charcoal Grid', sunrise:'Sunrise Orange', silver:'Silver Lining', mint:'Mint Fresh', indigo:'Indigo Wave', amber:'Dark Amber', diamond:'Diamond', bloom:'Pink Bloom', nordic:'Nordic', sakura:'Sakura', emerald:'Emerald', cobalt:'Cobalt Night', lemon:'Lemon Fresh', graphite:'Graphite', vega:'Vega', rose:'Rose Gold', onyx:'Onyx', aurora:'Aurora', carbon:'Carbon', sky:'Sky Blue', obsidian:'Obsidian', slate2:'Slate Pro', crimson:'Crimson', sage:'Sage Green', dusk:'Dusk', slate3:'Slate III', copper2:'Copper II', neon:'Neon Green', blush:'Blush', sand:'Sand', phantom:'Phantom', electric:'Electric', luxe:'Luxe Gold', mono:'Monospace', wave:'Wave' }
+const TEMPLATES = ['executive','modern','minimal','bold','creative','academic','elegant','tech','pastel','teal','newspaper','swiss','gradient','compact','photo','infographic','corporate','magazine','midnight','clean','slate','terra','prism','ivory','split','forest','ruby','ocean','purple','charcoal','sunrise','silver','mint','indigo','amber','diamond','bloom','nordic','sakura','emerald','cobalt','lemon','graphite','vega','rose','onyx','aurora','carbon','sky','obsidian','slate2','crimson','sage','dusk','slate3','copper2','neon','blush','sand','phantom','electric','luxe','mono','wave','tealwave','navy','violet2','midnight2','glacier','lava','verdant','parchment','matrix','retro','prism2','zinc','coral','tan','slate4','clay','frost','steel','mauve','brick','peach','plum','spruce','pine','ochre','ash','jade','wine','ultraviolet','blueprint','meadow','glacier2','garnet','topaz','walnut','ivory2','slate5','crimson2','sepia','lavender','ink','moss','futura']
+const TEMPLATE_NAMES = { executive:'Executive Slate', modern:'Modern Azure', minimal:'Minimal Editorial', bold:'Bold Noir', creative:'Creative Violet', academic:'Academic', elegant:'Elegant Gold', tech:'Tech Dark', pastel:'Pastel Rose', teal:'Teal Sidebar', newspaper:'Newspaper', swiss:'Swiss Design', gradient:'Gradient Flow', compact:'Compact Grid', photo:'Photo Professional', infographic:'Infographic', corporate:'Corporate Blue', magazine:'Magazine Editorial', midnight:'Midnight Executive', clean:'Clean Professional', slate:'Slate Impact', terra:'Terra', prism:'Prism', ivory:'Ivory Luxury', split:'Bold Split', forest:'Forest Green', ruby:'Ruby Red', ocean:'Ocean Blue', purple:'Purple Reign', charcoal:'Charcoal Grid', sunrise:'Sunrise Orange', silver:'Silver Lining', mint:'Mint Fresh', indigo:'Indigo Wave', amber:'Dark Amber', diamond:'Diamond', bloom:'Pink Bloom', nordic:'Nordic', sakura:'Sakura', emerald:'Emerald', cobalt:'Cobalt Night', lemon:'Lemon Fresh', graphite:'Graphite', vega:'Vega', rose:'Rose Gold', onyx:'Onyx', aurora:'Aurora', carbon:'Carbon', sky:'Sky Blue', obsidian:'Obsidian', slate2:'Slate Pro', crimson:'Crimson', sage:'Sage Green', dusk:'Dusk', slate3:'Slate III', copper2:'Copper II', neon:'Neon Green', blush:'Blush', sand:'Sand', phantom:'Phantom', electric:'Electric', luxe:'Luxe Gold', mono:'Monospace', wave:'Wave', tealwave:'Teal Wave', navy:'Navy Pro', violet2:'Violet', midnight2:'Midnight II', glacier:'Glacier', lava:'Lava', verdant:'Verdant', parchment:'Parchment', matrix:'Matrix', retro:'Retro Gold', prism2:'Prism II', zinc:'Zinc', coral:'Coral', tan:'Tan', slate4:'Slate IV', clay:'Clay Amber', frost:'Frost', steel:'Steel', mauve:'Mauve', brick:'Brick Red', peach:'Peach', plum:'Plum Dark', spruce:'Spruce', pine:'Pine', ochre:'Ochre', ash:'Ash', jade:'Jade', wine:'Wine', ultraviolet:'Ultraviolet', blueprint:'Blueprint', meadow:'Meadow', glacier2:'Glacier II', garnet:'Garnet', topaz:'Topaz', walnut:'Walnut', ivory2:'Ivory II', slate5:'Slate V', crimson2:'Crimson II', sepia:'Sepia', lavender:'Lavender', ink:'Ink', moss:'Moss', futura:'Futura' }
 
 const PAGE_META = {
   dashboard: { title: 'Dashboard',     sub: 'Your CVs at a glance' },
-  templates:  { title: 'Templates',    sub: '25+ professional designs' },
+  templates:  { title: 'Templates',    sub: '107 professional designs' },
   builder:    { title: 'CV Builder',   sub: 'Edit and preview live' },
   settings:   { title: 'Settings',     sub: 'Account & preferences' },
 }
@@ -384,43 +382,19 @@ const cvScale = computed(() => {
 })
 
 const cvOuterStyle = computed(() => {
-  if (isMobileView.value) {
-    // Outer is exactly as wide as scaled CV, tall enough to hold it
-    // Use padding-bottom trick: height = 0 + padding = aspect ratio of A4
-    const s = cvScale.value
-    const w = Math.round(700 * s)
-    return {
-      width: w + 'px',
-      // A4 aspect is ~1:1.414. Add extra for CVs that run longer.
-      paddingBottom: Math.round(700 * s * 1.6) + 'px',
-      position: 'relative',
-      flexShrink: '0',
-      margin: '0 8px',
-    }
-  }
-  // Desktop: flex container that centres the zoom-scaled CV
+  // Both mobile and desktop: flex container that centres the zoom-scaled CV
   return {
     width: '100%',
     display: 'flex',
-    justifyContent: 'center',
-    padding: '24px',
+    justifyContent: isMobileView.value ? 'flex-start' : 'center',
+    padding: isMobileView.value ? '8px' : '24px',
     boxSizing: 'border-box',
   }
 })
 
 const cvScalerStyle = computed(() => {
   const s = cvScale.value
-  if (isMobileView.value) {
-    return {
-      position: 'absolute',
-      top: '0',
-      left: '0',
-      width: '700px',
-      transformOrigin: 'top left',
-      transform: `scale(${s})`,
-    }
-  }
-  // Desktop: CSS zoom shrinks both visual AND layout space — no clipping
+  // Use CSS zoom for both mobile and desktop — shrinks layout AND visual, no clipping
   return {
     width: '700px',
     zoom: `${s}`,
@@ -445,6 +419,7 @@ function go(view, path) {
   if (route.path !== path) router.push(path)
   if (isMobile()) mobileSidebarOpen.value = false
 }
+function goLegal() { go('legal', '/legal') }
 
 function goBuilderView() { currentView.value = 'builder' }
 function newCV()         { store.resetData(); store.openWizard() }
@@ -481,9 +456,13 @@ function onboardDone() {}
 
 function handleStripeReturn() {
   const params = new URLSearchParams(window.location.search)
-  if (params.get('session') && sessionStorage.getItem('pcv_pending_download')) {
+  const hasSession = params.get('session') || params.get('session_id')
+  const hasPending = sessionStorage.getItem('pcv_pending_download')
+
+  if (hasSession && hasPending) {
     sessionStorage.removeItem('pcv_pending_download')
-    window.history.replaceState({}, '', window.location.pathname)
+    window.history.replaceState({}, '', '/')
+    currentView.value = 'dashboard'
     showPaywall.value = true
     nextTick(() => paywallRef.value?.handleStripeReturn())
   }
@@ -496,6 +475,12 @@ onMounted(async () => {
     await notifStore.fetch()
     handleStripeReturn()
   }
+  // Set currentView from current URL path
+  const path = window.location.pathname
+  if (path === '/templates') currentView.value = 'templates'
+  else if (path === '/settings') currentView.value = 'settings'
+  else if (path === '/legal' || path === '/privacy' || path === '/terms') currentView.value = 'legal'
+  else currentView.value = 'dashboard'
   nextTick(() => {
     ro = new ResizeObserver(measureCanvas)
     if (canvasRef.value) ro.observe(canvasRef.value)
@@ -611,6 +596,9 @@ onUnmounted(() => {
 
 /* ── TOPBAR RIGHT ───────────────────────────────────────────── */
 .topbar-right { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+
+/* Hide pages when builder is active — keep them mounted for KeepAlive */
+.hidden-view { display: none !important; }
 
 /* ── MISC ───────────────────────────────────────────────────── */
 .skill-rm svg { width: 11px; height: 11px; }

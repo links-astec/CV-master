@@ -75,33 +75,33 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onActivated } from 'vue'
+import { ref, computed, onMounted, onActivated, watch } from 'vue'
 import { useCvStore } from '../stores/cv.js'
+import { useAuthStore } from '../stores/auth.js'
 
-const store   = useCvStore()
-const drafts  = ref([])
-const loading = ref(true)
+const store     = useCvStore()
+const drafts    = ref([])
+const loading   = ref(true)
 const activeTab = ref('all')
+
+const COLORS  = ['#e8eefb','#f0ebfa','#fce9eb','#e6f5f4','#fdf0dc','#e6f5ed']
+const ACCENTS = ['#2a5bd7','#6236b0','#c52b3d','#0d7a72','#b56a0e','#1a7a4a']
+const cardColor   = (i) => COLORS[i % COLORS.length]
+const accentColor = (i) => ACCENTS[i % ACCENTS.length]
 
 function newCV() {
   store.resetData()
   store.openWizard()
 }
 
-const COLORS  = ['#e8eefb','#f0ebfa','#fce9eb','#e6f5f4','#fdf0dc','#e6f5ed']
-const ACCENTS = ['#2a5bd7','#6236b0','#c52b3d','#0d7a72','#b56a0e','#1a7a4a']
-const cardColor  = (i) => COLORS[i % COLORS.length]
-const accentColor= (i) => ACCENTS[i % ACCENTS.length]
-
 const tabs = computed(() => [
-  { id: 'all',      label: 'All',       count: drafts.value.length },
-  { id: 'active',   label: 'Active',    count: drafts.value.filter(d => progress(d) > 0 && progress(d) < 100).length },
-  { id: 'drafts',   label: 'Drafts',    count: drafts.value.filter(d => progress(d) === 0).length },
-  { id: 'done',     label: 'Completed', count: drafts.value.filter(d => progress(d) === 100).length },
+  { id: 'all',    label: 'All',       count: drafts.value.length },
+  { id: 'active', label: 'Active',    count: drafts.value.filter(d => progress(d) > 0 && progress(d) < 100).length },
+  { id: 'drafts', label: 'Drafts',    count: drafts.value.filter(d => progress(d) === 0).length },
+  { id: 'done',   label: 'Completed', count: drafts.value.filter(d => progress(d) === 100).length },
 ])
 
 const filteredDrafts = computed(() => {
-  if (activeTab.value === 'all') return drafts.value
   if (activeTab.value === 'active') return drafts.value.filter(d => progress(d) > 0 && progress(d) < 100)
   if (activeTab.value === 'drafts') return drafts.value.filter(d => progress(d) === 0)
   if (activeTab.value === 'done')   return drafts.value.filter(d => progress(d) === 100)
@@ -110,26 +110,26 @@ const filteredDrafts = computed(() => {
 
 function progress(draft) {
   const d = draft.data || {}
-  let score = 0
-  if (d.fn || d.ln) score += 20
-  if (d.sum && d.sum.length > 20) score += 20
-  if (d.experiences?.length) score += 20
-  if (d.skills?.length >= 3) score += 20
-  if (d.education?.degree) score += 20
-  return score
+  let s = 0
+  if (d.fn || d.ln) s += 20
+  if (d.sum && d.sum.length > 20) s += 20
+  if (d.experiences?.length) s += 20
+  if (d.skills?.length >= 3) s += 20
+  if (d.education?.degree) s += 20
+  return s
 }
 
 function statusLabel(draft) {
   const p = progress(draft)
-  if (p === 0)   return 'Draft'
   if (p === 100) return 'Complete'
+  if (p === 0)   return 'Draft'
   return 'In progress'
 }
 
 function statusClass(draft) {
   const p = progress(draft)
-  if (p === 0)   return 'status-draft'
   if (p === 100) return 'status-done'
+  if (p === 0)   return 'status-draft'
   return 'status-active'
 }
 
@@ -142,38 +142,40 @@ function timeAgo(ts) {
   return `${Math.floor(d/86400000)}d ago`
 }
 
+const auth = useAuthStore()
+
 async function loadDrafts() {
   loading.value = true
   try {
     const r = await fetch('/api/drafts', { credentials: 'include' })
     if (r.ok) {
       drafts.value = await r.json()
-      loading.value = false
     } else if (r.status === 401) {
-      // Just returned from Stripe — auth cookie may not be ready, retry after short delay
+      // Retry once after short delay — handles Stripe redirect timing
       setTimeout(async () => {
         try {
           const r2 = await fetch('/api/drafts', { credentials: 'include' })
           if (r2.ok) drafts.value = await r2.json()
         } catch {}
         loading.value = false
-      }, 1500)
-    } else {
-      loading.value = false
+      }, 1000)
+      return
     }
-  } catch {
-    loading.value = false
-  }
+  } catch {}
+  loading.value = false
 }
 
-onMounted(loadDrafts)
-onActivated(loadDrafts)
-  const cv = useCvStore()
-  if (draft.data) Object.assign(cv.data, draft.data)
-  if (draft.template) cv.template = draft.template
-  cv.currentDraftId = draft.id
-  cv.openWizard()
+// Also re-fetch when user becomes available (page reload race condition)
+watch(() => auth.user, (user) => {
+  if (user && drafts.value.length === 0 && !loading.value) loadDrafts()
+})
 
+function openDraft(draft) {
+  if (draft.data)     Object.assign(store.data, draft.data)
+  if (draft.template) store.template = draft.template
+  store.currentDraftId = draft.id
+  store.openWizard()
+}
 
 async function deleteDraft(id) {
   if (!confirm('Delete this CV?')) return
@@ -181,8 +183,9 @@ async function deleteDraft(id) {
   drafts.value = drafts.value.filter(d => d.id !== id)
 }
 
+onMounted(loadDrafts)
+onActivated(loadDrafts)
 </script>
-
 <style scoped>
 .dash-empty {
   display: flex; flex-direction: column; align-items: center; justify-content: center;

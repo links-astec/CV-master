@@ -1,0 +1,130 @@
+<template>
+  <div class="view-page legal-page">
+    <div class="legal-inner">
+      <div class="legal-tabs">
+        <button class="legal-tab" :class="{ active: tab === 'privacy' }" @click="tab='privacy'">Privacy Policy</button>
+        <button class="legal-tab" :class="{ active: tab === 'terms' }"   @click="tab='terms'">Terms of Service</button>
+      </div>
+
+      <!-- PRIVACY POLICY -->
+      <div v-if="tab === 'privacy'" class="legal-content">
+        <h1>Privacy Policy</h1>
+        <p class="legal-date">Last updated: {{ new Date().toLocaleDateString('en-GB', { year:'numeric', month:'long', day:'numeric' }) }}</p>
+
+        <h2>1. Who we are</h2>
+        <p>PerfectCV ("we", "us", "our") is an AI-powered CV builder operated by Gabriel Quaye. Our service is available at cv-master-rose.vercel.app. Contact: <a href="mailto:gabbyquaye2021@gmail.com">gabbyquaye2021@gmail.com</a></p>
+
+        <h2>2. What data we collect</h2>
+        <ul>
+          <li><strong>Account data:</strong> Name, email address, and password (hashed) when you register.</li>
+          <li><strong>CV data:</strong> Career information you enter — name, work history, skills, education, etc.</li>
+          <li><strong>Payment data:</strong> We use Stripe to process payments. We never store your card details. Stripe's privacy policy applies to payment data.</li>
+          <li><strong>Usage data:</strong> Basic server logs (IP address, timestamps) for security and debugging.</li>
+        </ul>
+
+        <h2>3. How we use your data</h2>
+        <ul>
+          <li>To create and manage your account.</li>
+          <li>To generate and store your CV drafts.</li>
+          <li>To email your CV to you after purchase.</li>
+          <li>To process payments via Stripe.</li>
+          <li>To improve the service.</li>
+        </ul>
+
+        <h2>4. Data sharing</h2>
+        <p>We do not sell your data. We share data only with:</p>
+        <ul>
+          <li><strong>Stripe</strong> — for payment processing.</li>
+          <li><strong>Groq</strong> — for AI-powered CV generation (your CV content is sent to Groq's API).</li>
+          <li><strong>Google</strong> — if you use Google Sign-In.</li>
+          <li><strong>Render / Vercel</strong> — hosting providers where your data is stored.</li>
+        </ul>
+
+        <h2>5. Data retention</h2>
+        <p>Your account and CV data are retained until you delete your account. You may request deletion at any time by emailing us.</p>
+
+        <h2>6. Your rights (GDPR)</h2>
+        <p>If you are in the EEA/UK, you have the right to access, correct, delete, or export your personal data. Contact us at <a href="mailto:gabbyquaye2021@gmail.com">gabbyquaye2021@gmail.com</a> to exercise these rights.</p>
+
+        <h2>7. Cookies</h2>
+        <p>We use a single session cookie for authentication. We do not use tracking or advertising cookies.</p>
+
+        <h2>8. Security</h2>
+        <p>Passwords are hashed using bcrypt. All data is transmitted over HTTPS. We follow industry-standard security practices.</p>
+
+        <h2>9. Changes</h2>
+        <p>We may update this policy. Continued use of the service after changes constitutes acceptance.</p>
+      </div>
+
+      <!-- TERMS OF SERVICE -->
+      <div v-if="tab === 'terms'" class="legal-content">
+        <h1>Terms of Service</h1>
+        <p class="legal-date">Last updated: {{ new Date().toLocaleDateString('en-GB', { year:'numeric', month:'long', day:'numeric' }) }}</p>
+
+        <h2>1. Acceptance</h2>
+        <p>By using PerfectCV you agree to these Terms. If you do not agree, do not use the service.</p>
+
+        <h2>2. The service</h2>
+        <p>PerfectCV provides an AI-assisted CV builder. We allow you to create, edit, and export professional CVs. The service is provided "as is".</p>
+
+        <h2>3. Your account</h2>
+        <ul>
+          <li>You must provide accurate information when registering.</li>
+          <li>You are responsible for keeping your password secure.</li>
+          <li>You must be at least 16 years old to use this service.</li>
+        </ul>
+
+        <h2>4. Payments</h2>
+        <ul>
+          <li>CV export (PDF delivery) is a one-time payment of £4.99.</li>
+          <li>Payments are processed by Stripe. All payments are final — no refunds once the PDF has been delivered to your email.</li>
+          <li>If you did not receive your CV, contact us within 14 days for a resend or refund.</li>
+        </ul>
+
+        <h2>5. Acceptable use</h2>
+        <p>You must not:</p>
+        <ul>
+          <li>Use the service for any unlawful purpose.</li>
+          <li>Attempt to bypass payment gates or access paid features without paying.</li>
+          <li>Reverse-engineer, copy, or resell any part of the service.</li>
+          <li>Upload content that is illegal, harmful, or infringes third-party rights.</li>
+        </ul>
+
+        <h2>6. AI-generated content</h2>
+        <p>CV content generated by AI may not be perfectly accurate. You are responsible for reviewing and verifying all content in your CV before sending it to employers.</p>
+
+        <h2>7. Intellectual property</h2>
+        <p>You own the CV content you create. PerfectCV owns the platform, templates, and software. You may not copy or redistribute our templates.</p>
+
+        <h2>8. Limitation of liability</h2>
+        <p>PerfectCV is not liable for any indirect, incidental, or consequential damages arising from use of the service, including but not limited to unsuccessful job applications.</p>
+
+        <h2>9. Governing law</h2>
+        <p>These Terms are governed by the laws of England and Wales.</p>
+
+        <h2>10. Contact</h2>
+        <p>Questions? Email us at <a href="mailto:gabbyquaye2021@gmail.com">gabbyquaye2021@gmail.com</a></p>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+const tab = ref('privacy')
+</script>
+
+<style scoped>
+.legal-page { padding: 0; overflow-y: auto; }
+.legal-inner { max-width: 720px; margin: 0 auto; padding: 32px 24px 64px; }
+.legal-tabs { display: flex; gap: 8px; margin-bottom: 28px; border-bottom: 1px solid var(--c-border); padding-bottom: 0; }
+.legal-tab { background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 10px 16px; font-size: 14px; font-weight: 600; color: var(--c-text3); cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all .15s; }
+.legal-tab.active { color: var(--c-accent); border-bottom-color: var(--c-accent); }
+.legal-content h1 { font-family: 'DM Serif Display', serif; font-size: 28px; color: var(--c-text); margin-bottom: 6px; }
+.legal-content h2 { font-size: 15px; font-weight: 700; color: var(--c-text); margin: 22px 0 8px; }
+.legal-content p { font-size: 13.5px; color: var(--c-text2); line-height: 1.75; margin-bottom: 10px; }
+.legal-content ul { padding-left: 20px; margin-bottom: 10px; }
+.legal-content li { font-size: 13.5px; color: var(--c-text2); line-height: 1.75; margin-bottom: 4px; }
+.legal-content a { color: var(--c-accent); }
+.legal-date { font-size: 12px; color: var(--c-text3); margin-bottom: 24px; }
+</style>

@@ -30,30 +30,38 @@ const FRONTEND_URL     = process.env.FRONTEND_URL || 'http://localhost:5173';
 let mailer = null;
 async function getMailer() {
   if (mailer) return mailer;
-  if (process.env.SMTP_HOST) {
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const port = parseInt(process.env.SMTP_PORT || '587');
+  const user = process.env.SMTP_USER || 'gabbyquaye2021@gmail.com';
+  const pass = process.env.SMTP_PASS || '';
+
+  if (pass) {
     mailer = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_PORT === '465',
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      host, port,
+      secure: port === 465,
+      auth: { user, pass },
     });
+    console.log('[mailer] Using SMTP:', host, 'as', user);
   } else {
+    // Dev fallback — Ethereal test account
     const acct = await nodemailer.createTestAccount();
     mailer = nodemailer.createTransport({
       host: 'smtp.ethereal.email', port: 587, secure: false,
       auth: { user: acct.user, pass: acct.pass },
     });
-    console.log('Dev email (Ethereal):', acct.user);
+    console.log('[mailer] SMTP_PASS not set — using Ethereal. Preview:', acct.user);
   }
   return mailer;
 }
 async function sendMail({ to, subject, html, attachments }) {
   const t = await getMailer();
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'gabbyquaye2021@gmail.com';
   const info = await t.sendMail({
-    from: `"PerfectCV" <${process.env.SMTP_FROM || 'noreply@perfectcv.app'}>`,
+    from: `"PerfectCV" <${from}>`,
     to, subject, html, attachments,
   });
-  if (!process.env.SMTP_HOST) console.log('Preview URL:', nodemailer.getTestMessageUrl(info));
+  console.log('[mailer] Sent to', to, '| msgId:', info.messageId);
+  if (!process.env.SMTP_PASS) console.log('[mailer] Preview URL:', nodemailer.getTestMessageUrl(info));
 }
 
 // ── Security ──────────────────────────────────────────────────────────────────
@@ -478,90 +486,137 @@ function parseFallback(text) {
   };
 }
 
-// ── SEND CV BY EMAIL (PDF attachment) ────────────────────────────────────────
+// ── SEND CV BY EMAIL ─────────────────────────────────────────────────────────
 app.post('/api/cv/email', authMiddleware, async (req, res) => {
   try {
-    const { htmlContent, fileName } = req.body;
+    const { htmlContent, fileName, overrideEmail } = req.body;
     if (!htmlContent) return res.status(400).json({ error: 'CV content required.' });
 
     const { rows } = await query('SELECT * FROM users WHERE id = $1', [req.user.sub]);
     const user = rows[0];
     if (!user) return res.status(404).json({ error: 'User not found.' });
 
-    const toEmail = user.email;
-    const pdfName = (fileName || 'my-cv').replace(/\.html?$/i, '') + '.pdf';
+    // Use override email (demo mode) or user's registered email
+    const toEmail = (overrideEmail && overrideEmail.includes('@')) ? overrideEmail : user.email;
+    console.log('[email] Sending CV to:', toEmail, '| SMTP_PASS set:', !!process.env.SMTP_PASS);
 
-    // Generate PDF using wkhtmltopdf (available on Linux/Render)
+    // Generate PDF — try wkhtmltopdf first, then html-pdf-node, then HTML fallback
     let pdfBuffer = null;
+
+    // Method 1: wkhtmltopdf (available on most Linux servers including Render)
     try {
       const { execFile } = await import('child_process');
-      const { writeFileSync, readFileSync, unlinkSync } = await import('fs');
+      const { writeFileSync, readFileSync, unlinkSync, existsSync } = await import('fs');
       const { tmpdir } = await import('os');
-      const { join } = await import('path');
-      const { promisify } = await import('util');
-      const execFileAsync = promisify(execFile);
+      const { join: pjoin } = await import('path');
 
-      const tmpHtml = join(tmpdir(), `cv_${Date.now()}.html`);
-      const tmpPdf  = join(tmpdir(), `cv_${Date.now()}.pdf`);
-
+      const tmpHtml = pjoin(tmpdir(), `cv_${Date.now()}.html`);
+      const tmpPdf  = pjoin(tmpdir(), `cv_${Date.now()}.pdf`);
       writeFileSync(tmpHtml, htmlContent, 'utf-8');
 
-      await execFileAsync('wkhtmltopdf', [
-        '--page-size', 'A4',
-        '--margin-top', '0',
-        '--margin-bottom', '0',
-        '--margin-left', '0',
-        '--margin-right', '0',
-        '--encoding', 'UTF-8',
-        '--enable-local-file-access',
-        '--quiet',
-        tmpHtml,
-        tmpPdf,
-      ], { timeout: 30000 });
+      await new Promise((resolve) => {
+        execFile('wkhtmltopdf', [
+          '--page-width',  '700px',
+          '--page-height', '990px',
+          '--margin-top', '0', '--margin-bottom', '0',
+          '--margin-left', '0', '--margin-right', '0',
+          '--encoding', 'UTF-8',
+          '--enable-local-file-access',
+          '--load-error-handling', 'ignore',
+          '--load-media-error-handling', 'ignore',
+          '--no-stop-slow-scripts',
+          '--javascript-delay', '500',
+          '--quiet',
+          tmpHtml, tmpPdf,
+        ], { timeout: 30000 }, (err) => resolve(err));
+      });
 
-      pdfBuffer = readFileSync(tmpPdf);
+      if (existsSync(tmpPdf)) {
+        pdfBuffer = readFileSync(tmpPdf);
+        console.log('[email] wkhtmltopdf PDF:', pdfBuffer.length, 'bytes');
+      }
       try { unlinkSync(tmpHtml); unlinkSync(tmpPdf); } catch {}
-    } catch (pdfErr) {
-      console.warn('wkhtmltopdf failed, falling back to HTML attachment:', pdfErr.message);
+    } catch (e) {
+      console.warn('[email] wkhtmltopdf not available:', e.message);
     }
 
+    // Method 2: html-pdf-node (puppeteer-based, works on Render)
+    if (!pdfBuffer) {
+      try {
+        const htmlPdf = await import('html-pdf-node');
+        const file = { content: htmlContent };
+        const opts = {
+          width: '700px',
+          height: '990px',
+          margin: { top: '0', bottom: '0', left: '0', right: '0' },
+          printBackground: true,
+          args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        };
+        pdfBuffer = await htmlPdf.default.generatePdf(file, opts);
+        console.log('[email] html-pdf-node PDF:', pdfBuffer.length, 'bytes');
+      } catch (e) {
+        console.warn('[email] html-pdf-node failed:', e.message);
+      }
+    }
+
+    if (pdfBuffer) {
+      console.log('[email] PDF ready, sending as attachment');
+    } else {
+      console.warn('[email] All PDF methods failed — sending HTML');
+    }
+
+    const attachFileName = pdfBuffer
+      ? (fileName || 'my-cv').replace(/\.pdf$/i,'').replace(/\.html?$/i,'') + '.pdf'
+      : (fileName || 'my-cv').replace(/\.pdf$/i,'').replace(/\.html?$/i,'') + '.html';
+
     const attachment = pdfBuffer
-      ? { filename: pdfName,                   content: pdfBuffer,   contentType: 'application/pdf' }
-      : { filename: pdfName.replace('.pdf','.html'), content: htmlContent, contentType: 'text/html' };
+      ? { filename: attachFileName, content: pdfBuffer,  contentType: 'application/pdf' }
+      : { filename: attachFileName, content: htmlContent, contentType: 'text/html' };
 
     await sendMail({
       to: toEmail,
-      subject: `Your CV from PerfectCV`,
-      html: `
-        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;padding:40px 24px;background:#fff;">
-          <div style="margin-bottom:28px;">
-            <div style="display:inline-flex;align-items:center;gap:10px;">
-              <div style="width:36px;height:36px;background:#2a5bd7;border-radius:9px;display:flex;align-items:center;justify-content:center;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              </div>
-              <span style="font-size:18px;font-weight:700;color:#1a1916;">PerfectCV</span>
-            </div>
+      subject: 'Your CV from PerfectCV',
+      html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:36px 24px;">
+        <div style="margin-bottom:24px;display:flex;align-items:center;gap:10px;">
+          <div style="width:36px;height:36px;background:#2a5bd7;border-radius:9px;display:flex;align-items:center;justify-content:center;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           </div>
-          <h1 style="font-size:24px;color:#1a1916;margin:0 0 10px;">Here's your CV, ${user.name}!</h1>
-          <p style="color:#6b6860;font-size:15px;line-height:1.7;margin:0 0 28px;">
-            Your professional CV is attached${pdfBuffer ? ' as a PDF' : ''} — ready to send to employers. Good luck with your applications!
-          </p>
-          <div style="border-top:1px solid #f0ede8;padding-top:20px;">
-            <p style="color:#b0ada6;font-size:12px;margin:0;">
-              Made with <a href="https://cv-master-rose.vercel.app" style="color:#2a5bd7;text-decoration:none;">PerfectCV</a>
-            </p>
-          </div>
-        </div>`,
+          <span style="font-size:18px;font-weight:700;color:#1a1916;">PerfectCV</span>
+        </div>
+        <h2 style="font-size:22px;color:#1a1916;margin:0 0 10px;">Your CV is attached, ${user.name || 'there'}!</h2>
+        <p style="color:#6b6860;font-size:14px;line-height:1.7;margin:0 0 20px;">
+          ${pdfBuffer
+            ? 'Your CV is attached as a ready-to-send PDF.'
+            : 'Your CV is attached as an HTML file. Open it in Chrome and press <strong>Ctrl+P → Save as PDF</strong> to get a PDF.'}
+        </p>
+        <p style="color:#b0ada6;font-size:12px;margin:0;">PerfectCV · <a href="https://cv-master-rose.vercel.app" style="color:#2a5bd7;">cv-master-rose.vercel.app</a></p>
+      </div>`,
       attachments: [attachment],
     });
 
+    console.log('[email] Sent successfully to:', toEmail);
     res.json({ ok: true, sentTo: toEmail, format: pdfBuffer ? 'pdf' : 'html' });
   } catch (e) {
-    console.error('Email send error:', e.message);
+    console.error('[email] FAILED:', e.message, e.stack);
     res.status(500).json({ error: 'Failed to send email: ' + e.message });
   }
 });
 
+// ── EMAIL TEST (dev only) ─────────────────────────────────────────────────────
+app.get('/api/email-test', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await query('SELECT email, name FROM users WHERE id = $1', [req.user.sub]);
+    const user = rows[0];
+    await sendMail({
+      to: user.email,
+      subject: 'PerfectCV — Email Test',
+      html: '<p>If you receive this, email is working correctly.</p>',
+    });
+    res.json({ ok: true, sentTo: user.email, smtp: process.env.SMTP_HOST || 'ethereal (dev)' });
+  } catch (e) {
+    res.status(500).json({ error: e.message, smtp: process.env.SMTP_HOST || 'NOT SET' });
+  }
+});
 // ── DRAFTS ────────────────────────────────────────────────────────────────────
 app.get('/api/drafts', authMiddleware, async (req, res) => {
   try {
@@ -687,6 +742,7 @@ if (process.env.VERCEL !== '1') {
     console.log(`  DB:     ${process.env.DATABASE_URL ? 'connected' : 'NOT SET — add DATABASE_URL'}`);
     console.log(`  Groq:   ${GROQ_KEY   ? 'configured' : 'NOT SET'}`);
     console.log(`  Stripe: ${STRIPE_KEY ? 'configured' : 'NOT SET (demo mode)'}`);
-    console.log(`  Google: ${GOOGLE_CLIENT_ID ? 'configured' : 'NOT SET'}\n`);
+    console.log(`  Google: ${GOOGLE_CLIENT_ID ? 'configured' : 'NOT SET'}`);
+    console.log(`  SMTP:   ${process.env.SMTP_HOST ? `${process.env.SMTP_HOST}:${process.env.SMTP_PORT||587} (user: ${process.env.SMTP_USER||'?'})` : 'NOT SET — emails go to Ethereal (dev only)'}\n`);
   });
 }

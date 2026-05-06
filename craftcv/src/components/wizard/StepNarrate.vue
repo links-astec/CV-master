@@ -251,16 +251,7 @@ JSON structure:
     const result = await store.callAi(prompt)
     const clean  = result.replace(/```json\s*/gi,'').replace(/```/g,'').trim()
     const p = JSON.parse(clean)
-    if (p.fn)    store.data.fn    = p.fn
-    if (p.ln)    store.data.ln    = p.ln
-    if (p.title) store.data.title = p.title
-    if (p.sum)   store.data.sum   = p.sum
-    if (p.loc)   store.data.loc   = p.loc
-    if (p.email) store.data.email = p.email
-    if (p.phone) store.data.phone = p.phone
-    if (p.skills?.length)       store.data.skills       = p.skills
-    if (p.experiences?.length)  store.data.experiences  = p.experiences.map((e,i) => ({...e, id: Date.now()+i}))
-    if (p.education?.degree)    store.data.education    = p.education
+    store.applyExtracted(p)
   } catch {
     store.data.sum = 'Experienced professional with a proven track record delivering measurable results across multiple organisations.'
   }

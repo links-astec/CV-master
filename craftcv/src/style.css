@@ -806,3 +806,9 @@ input, textarea, select, button { font-size: 16px; } /* prevent iOS zoom */
   .paywall-backdrop, .toast-wrap, .notif-wrap { display: none !important; }
   body { overflow: visible !important; }
 }
+
+/* ── LEGAL LINKS ──────────────────────────────────────────────────────────── */
+.legal-links { display:flex;align-items:center;gap:6px;padding:8px 14px;margin-bottom:4px; }
+.legal-links a { font-size:11px;color:var(--c-text3);cursor:pointer;text-decoration:none; }
+.legal-links a:hover { color:var(--c-accent); }
+.legal-links span { color:var(--c-border2);font-size:11px; }

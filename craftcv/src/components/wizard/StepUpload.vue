@@ -104,23 +104,7 @@ async function processFile(file) {
     const data = await r.json()
     if (!r.ok) throw new Error(data.error || 'Upload failed')
     if (data.extracted) {
-      const ext = data.extracted
-      if (ext.fn)    store.data.fn    = ext.fn
-      if (ext.ln)    store.data.ln    = ext.ln
-      if (ext.title) store.data.title = ext.title
-      if (ext.email) store.data.email = ext.email
-      if (ext.phone) store.data.phone = ext.phone
-      if (ext.loc)   store.data.loc   = ext.loc
-      if (ext.li)    store.data.li    = ext.li
-      if (ext.website) store.data.website = ext.website
-      if (ext.sum)   store.data.sum   = ext.sum
-      if (ext.skills?.length)      store.data.skills      = ext.skills
-      if (ext.education?.degree)   store.data.education   = ext.education
-      if (ext.certifications?.length) store.data.certifications = ext.certifications
-      if (ext.languages?.length)   store.data.languages   = ext.languages
-      if (ext.experiences?.length) {
-        store.data.experiences = ext.experiences.map((e, i) => ({ ...e, id: Date.now() + i }))
-      }
+      store.applyExtracted(data.extracted)
     }
     resultMessage.value = data.message || `Extracted from "${file.name}" successfully.`
     uploaded.value = true
