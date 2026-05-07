@@ -344,7 +344,7 @@ const pwStrength = computed(() => {
 
 const features = [
   { label: '16 professionally designed templates', icon: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>' },
-  { label: 'AI writing assistance powered by Groq', icon: '<path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2"/>' },
+  { label: 'AI writing assistance', icon: '<path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2"/>' },
   { label: 'ATS-optimised formatting',              icon: '<polyline points="20 6 9 17 4 12"/>' },
   { label: 'PDF export with one click',             icon: '<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>' },
 ]

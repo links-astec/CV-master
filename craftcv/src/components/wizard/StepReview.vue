@@ -29,7 +29,7 @@
 
       <div v-if="reviewing" class="thinking">
         <div class="thinking-dots"><span></span><span></span><span></span></div>
-        <div class="thinking-txt">Groq is reviewing your CV...</div>
+        <div class="thinking-txt">AI is reviewing your CV...</div>
       </div>
 
       <div v-for="s in suggestions" :key="s.id" class="sug-card" :class="s.type">

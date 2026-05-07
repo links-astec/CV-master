@@ -11,7 +11,8 @@ const emptyData = () => ({
     { id: 1, title: '', company: '', period: '', desc: '' },
   ],
   skills: [],
-  education: { degree: '', school: '', year: '' },
+  education: [{ degree: '', school: '', year: '' }],
+  projects: [],
   certifications: [],
   languages: [],
   lang: 'en',
@@ -51,11 +52,19 @@ export const useCvStore = defineStore('cv', () => {
     // Merge carefully — keep emptyData structure, overlay saved values
     const merged = { ...emptyData(), ...savedData }
     // Ensure arrays are plain arrays
-    if (!Array.isArray(merged.experiences)) merged.experiences = emptyData().experiences
-    if (!Array.isArray(merged.skills))      merged.skills = []
-    if (!Array.isArray(merged.certifications)) merged.certifications = []
-    if (!Array.isArray(merged.languages))   merged.languages = []
-    if (!merged.education || typeof merged.education !== 'object') merged.education = emptyData().education
+    if (!Array.isArray(merged.experiences))    merged.experiences = emptyData().experiences
+    if (!Array.isArray(merged.skills))          merged.skills = []
+    if (!Array.isArray(merged.certifications))  merged.certifications = []
+    if (!Array.isArray(merged.languages))       merged.languages = []
+    if (!Array.isArray(merged.projects))        merged.projects = []
+    // Migrate legacy single-object education to array
+    if (!Array.isArray(merged.education)) {
+      if (merged.education && typeof merged.education === 'object') {
+        merged.education = [merged.education]
+      } else {
+        merged.education = emptyData().education
+      }
+    }
     data.value = merged
   }
   const savedTpl = lsGet('pcv-template')
@@ -153,12 +162,36 @@ export const useCvStore = defineStore('cv', () => {
         }))
         .slice(0, 10)
     }
-    if (ext.education && typeof ext.education === 'object') {
-      d.education = {
-        degree: typeof ext.education.degree === 'string' ? ext.education.degree : '',
-        school: typeof ext.education.school === 'string' ? ext.education.school : '',
-        year:   typeof ext.education.year   === 'string' ? ext.education.year   : '',
+    if (ext.education) {
+      if (Array.isArray(ext.education)) {
+        d.education = ext.education
+          .filter(e => e && typeof e === 'object')
+          .map(e => ({
+            degree: typeof e.degree === 'string' ? e.degree : '',
+            school: typeof e.school === 'string' ? e.school : '',
+            year:   typeof e.year   === 'string' ? e.year   : '',
+          }))
+          .slice(0, 5)
+        if (d.education.length === 0) d.education = [{ degree: '', school: '', year: '' }]
+      } else if (typeof ext.education === 'object') {
+        d.education = [{
+          degree: typeof ext.education.degree === 'string' ? ext.education.degree : '',
+          school: typeof ext.education.school === 'string' ? ext.education.school : '',
+          year:   typeof ext.education.year   === 'string' ? ext.education.year   : '',
+        }]
       }
+    }
+    if (Array.isArray(ext.projects) && ext.projects.length) {
+      d.projects = ext.projects
+        .filter(p => p && typeof p === 'object')
+        .map((p, i) => ({
+          id:    Date.now() + i,
+          name:  typeof p.name  === 'string' ? p.name  : '',
+          desc:  typeof p.desc  === 'string' ? p.desc  : '',
+          url:   typeof p.url   === 'string' ? p.url   : '',
+          tech:  typeof p.tech  === 'string' ? p.tech  : '',
+        }))
+        .slice(0, 8)
     }
     if (Array.isArray(ext.certifications)) {
       d.certifications = ext.certifications.filter(c => typeof c === 'string').slice(0, 10)

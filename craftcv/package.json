@@ -31,7 +31,9 @@
     "stripe": "^14.11.0",
     "uuid": "^9.0.0",
     "vue": "^3.4.0",
-    "vue-router": "^4.2.5"
+    "vue-router": "^4.2.5",
+    "pdf-parse": "^1.1.1",
+    "mammoth": "^1.7.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",

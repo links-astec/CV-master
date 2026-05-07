@@ -60,7 +60,7 @@
               </div>
               <div class="ob-sum-item">
                 <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-green)" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-                Groq AI assistance enabled
+                AI assistance enabled
               </div>
             </div>
           </div>

@@ -417,52 +417,83 @@ app.post('/api/ai/enhance', authMiddleware, async (req, res) => {
 });
 
 // ── CV UPLOAD (real Groq extraction) ─────────────────────────────────────────
+async function extractTextFromBuffer(buffer, mimetype, originalname) {
+  const ext = originalname.split('.').pop().toLowerCase();
+
+  // PDF
+  if (ext === 'pdf' || (mimetype && mimetype.includes('pdf'))) {
+    try {
+      const mod = await import('pdf-parse').catch(() => null);
+      if (mod) {
+        const data = await mod.default(buffer);
+        if (data.text && data.text.trim().length > 50) return data.text;
+      }
+    } catch (e) { console.warn('[upload] pdf-parse:', e.message); }
+    // Fallback: extract readable text from PDF binary
+    const str = buffer.toString('latin1');
+    const readable = str.replace(/[^\x20-\x7E\n\r\t]/g, ' ').replace(/\s{3,}/g, '\n').trim();
+    return readable;
+  }
+
+  // DOCX
+  if (ext === 'docx' || (mimetype && mimetype.includes('wordprocessingml'))) {
+    try {
+      const mod = await import('mammoth').catch(() => null);
+      if (mod) {
+        const result = await mod.default.extractRawText({ buffer });
+        if (result.value && result.value.trim().length > 50) return result.value;
+      }
+    } catch (e) { console.warn('[upload] mammoth:', e.message); }
+  }
+
+  // Plain text / TXT / fallback
+  return buffer.toString('utf-8').replace(/[^\x20-\x7E\n\r\t]/g, ' ').replace(/\s{3,}/g, '\n').trim();
+}
+
 app.post('/api/cv/upload', authMiddleware, upload.single('cv'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
   try {
-    // Convert buffer to text — works for plain-text CVs and most PDFs
-    const rawText = req.file.buffer.toString('utf-8', 0, Math.min(req.file.buffer.length, 12000))
-      .replace(/[^\x20-\x7E\n\r\t]/g, ' ') // strip non-printable chars
-      .replace(/\s{3,}/g, '\n')
-      .trim();
+    const rawText   = await extractTextFromBuffer(req.file.buffer, req.file.mimetype, req.file.originalname);
+    const textSlice = rawText.slice(0, 8000).trim();
 
-    if (!GROQ_KEY) {
-      // No Groq key — return a best-effort parse from raw text
-      return res.json({ extracted: parseFallback(rawText), message: `Parsed ${req.file.originalname}` });
+    console.log('[upload] Extracted', textSlice.length, 'chars from', req.file.originalname);
+
+    if (textSlice.length < 30) {
+      return res.status(400).json({ error: 'Could not read text from this file. Try a text-based PDF or a .txt file.' });
     }
 
-    const prompt = `Extract CV/resume information from the following text and return ONLY a valid JSON object with these exact keys:
-{
-  "fn": "first name",
-  "ln": "last name",
-  "title": "current or target job title",
-  "email": "email address",
-  "phone": "phone number",
-  "loc": "city, country",
-  "li": "linkedin url or username",
-  "website": "personal website if present",
-  "sum": "professional summary (2-3 sentences)",
-  "experiences": [{"title":"","company":"","period":"","desc":""}],
-  "skills": ["skill1","skill2"],
-  "education": {"degree":"","school":"","year":""},
-  "certifications": ["cert1"],
-  "languages": [{"name":"","level":""}]
-}
-Return ONLY the JSON, no markdown, no explanation.
+    if (!GROQ_KEY) {
+      return res.json({ extracted: parseFallback(textSlice), message: `Parsed ${req.file.originalname}` });
+    }
 
-CV TEXT:
-${rawText.slice(0, 8000)}`;
+    const prompt = [
+      'Detect the language of the CV text below and use that same language for all extracted text fields (summary, job descriptions, etc).',
+      'Extract CV/resume information from the text below.',
+      'Return ONLY a valid JSON object with these keys (no markdown, no explanation):',
+      '{"fn":"","ln":"","title":"","email":"","phone":"","loc":"","li":"","website":"","sum":"",',
+      '"experiences":[{"title":"","company":"","period":"","desc":""}],',
+      '"skills":[],"education":[{"degree":"","school":"","year":""}],',
+      '"projects":[{"name":"","desc":"","tech":"","url":""}],',
+      '"certifications":[],"languages":[{"name":"","level":""}]}',
+      'Extract ALL education entries into the education array (degree, masters, bootcamp etc).',
+      'Extract projects/portfolio items into the projects array.',
+      '',
+      'CV TEXT:',
+      textSlice,
+    ].join('\n');
 
-    const raw = await callGroq(prompt, 'llama-3.3-70b-versatile');
-    // Strip any markdown fences Groq might add
-    const clean = raw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+    const raw   = await callGroq(prompt, 'llama-3.3-70b-versatile');
+    const clean = raw.replace(/```json/gi,'').replace(/```/g,'').trim();
     let extracted;
-    try { extracted = JSON.parse(clean); }
-    catch { extracted = parseFallback(rawText); }
+    try   { extracted = JSON.parse(clean); }
+    catch {
+      console.warn('[upload] JSON parse failed, first 200:', clean.slice(0, 200));
+      extracted = parseFallback(textSlice);
+    }
 
     res.json({ extracted, message: `Extracted from ${req.file.originalname} (${(req.file.size/1024).toFixed(0)} KB)` });
   } catch (e) {
-    console.error('Upload error:', e.message);
+    console.error('[upload] Error:', e.message);
     res.status(500).json({ error: 'Extraction failed: ' + e.message });
   }
 });

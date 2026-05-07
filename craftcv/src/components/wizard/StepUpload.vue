@@ -1,7 +1,7 @@
 <template>
   <div class="step-wrap">
     <h3 class="step-title">Import Existing CV</h3>
-    <p class="step-sub">Upload your CV and Groq AI will extract all the information and pre-fill every section.</p>
+    <p class="step-sub">Upload your CV and AI will extract all the information and pre-fill every section.</p>
 
     <div v-if="!uploaded && !uploading">
       <div class="upload-zone" :class="{ dragging }"
@@ -21,7 +21,7 @@
     <!-- Uploading state -->
     <div v-if="uploading" class="upload-progress">
       <div class="up-spinner"></div>
-      <div class="up-title">Extracting your CV with Groq AI...</div>
+      <div class="up-title">Extracting your CV with AI...</div>
       <div class="up-sub">Reading {{ uploadingFile }}...</div>
     </div>
 
@@ -65,7 +65,7 @@
 
     <div class="format-note">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px;flex-shrink:0;color:var(--c-text3);"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <div class="fn-txt">For best results use a text-based PDF (not a scanned image). Groq AI reads the text content and structures it into your CV.</div>
+      <div class="fn-txt">For best results use a text-based PDF (not a scanned image). AI reads the text content and structures it into your CV.</div>
     </div>
   </div>
 </template>

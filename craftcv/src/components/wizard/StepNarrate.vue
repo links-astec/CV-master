@@ -80,7 +80,7 @@
       <!-- AI loading -->
       <div v-if="aiLoading" class="thinking" style="margin-top:14px;">
         <div class="thinking-dots"><span></span><span></span><span></span></div>
-        <div class="thinking-txt">Groq is reading your story and building your CV...</div>
+        <div class="thinking-txt">AI is reading your story and building your CV...</div>
       </div>
 
       <div class="narrate-actions">
