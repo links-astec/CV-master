@@ -70,17 +70,26 @@ export const useCvStore = defineStore('cv', () => {
   const savedTpl = lsGet('pcv-template')
   if (savedTpl) template.value = savedTpl
 
-  // ── Persist on change (debounced to avoid thrashing) ─────────────────────
+  // ── Persist on change — localStorage immediately, DB debounced ────────────
   let saveTimer = null
   watch(data, (v) => {
+    // Always save to localStorage immediately
+    const clone = plainClone(v)
+    if (clone) lsSet('pcv-draft', JSON.stringify(clone))
+    // Debounce DB save — only if user is logged in and has a draft
     clearTimeout(saveTimer)
     saveTimer = setTimeout(() => {
-      const clone = plainClone(v)
-      if (clone) lsSet('pcv-draft', JSON.stringify(clone))
-    }, 500)
+      if (currentDraftId.value) saveDraft().catch(() => {})
+    }, 1500)
   }, { deep: true })
 
-  watch(template, (v) => lsSet('pcv-template', v))
+  watch(template, (v) => {
+    lsSet('pcv-template', v)
+    // Save to DB when template changes
+    if (currentDraftId.value) {
+      setTimeout(() => saveDraft().catch(() => {}), 500)
+    }
+  })
 
   watch(darkMode, (v) => {
     document.documentElement.setAttribute('data-theme', v ? 'dark' : 'light')
@@ -129,9 +138,11 @@ export const useCvStore = defineStore('cv', () => {
 
   function resetData() {
     data.value = emptyData()
-    wizardDraftId.value = null
+    wizardDraftId.value  = null
     currentDraftId.value = null
     lsSet('pcv-draft', '')
+    lsSet('pcv-template', 'executive')
+    template.value = 'executive'
   }
 
   // Safe way to apply extracted data from upload/narrate without crashing reactivity
@@ -212,16 +223,18 @@ export const useCvStore = defineStore('cv', () => {
         data: plainClone(data.value),
         template: template.value,
       }
-      const method = wizardDraftId.value ? 'PUT' : 'POST'
-      const url = wizardDraftId.value ? `/api/drafts/${wizardDraftId.value}` : '/api/drafts'
+      const draftId = currentDraftId.value || wizardDraftId.value
+      const method  = draftId ? 'PUT' : 'POST'
+      const url     = draftId ? `/api/drafts/${draftId}` : '/api/drafts'
       const r = await fetch(url, {
         method, credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
+      if (!r.ok) return
       const draft = await r.json()
-      wizardDraftId.value = draft.id
-      currentDraftId.value = draft.id
+      if (!wizardDraftId.value)  wizardDraftId.value  = draft.id
+      if (!currentDraftId.value) currentDraftId.value = draft.id
     } catch (e) { console.warn('Draft save failed:', e.message) }
   }
 

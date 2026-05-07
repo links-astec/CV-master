@@ -173,14 +173,19 @@ watch(() => auth.user, (user) => {
 function openDraft(draft) {
   if (draft.data)     Object.assign(store.data, draft.data)
   if (draft.template) store.template = draft.template
-  store.currentDraftId = draft.id
+  store.currentDraftId  = draft.id
+  store.wizardDraftId   = draft.id
   store.openWizard()
 }
 
 async function deleteDraft(id) {
-  if (!confirm('Delete this CV?')) return
+  if (!confirm('Delete this CV? This cannot be undone.')) return
   await fetch(`/api/drafts/${id}`, { method: 'DELETE', credentials: 'include' })
   drafts.value = drafts.value.filter(d => d.id !== id)
+  // If this was the active draft, clear localStorage so it doesn't restore on refresh
+  if (store.currentDraftId === id) {
+    store.resetData()
+  }
 }
 
 onMounted(loadDrafts)

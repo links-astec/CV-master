@@ -482,6 +482,8 @@ onMounted(async () => {
   if (auth.isLoggedIn) {
     await notifStore.fetch()
     handleStripeReturn()
+    // Restore most recent draft from DB — DB is source of truth over localStorage
+    restoreLatestDraft()
   }
   // Set currentView from current URL path
   const path = window.location.pathname
@@ -496,6 +498,23 @@ onMounted(async () => {
     window.addEventListener('resize', measureCanvas)
   })
 })
+
+async function restoreLatestDraft() {
+  try {
+    const r = await fetch('/api/drafts', { credentials: 'include' })
+    if (!r.ok) return
+    const drafts = await r.json()
+    if (!drafts.length) return
+    // Find the most recently updated draft
+    const latest = drafts.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))[0]
+    if (latest?.data) {
+      Object.assign(store.data, latest.data)
+      if (latest.template) store.template = latest.template
+      store.currentDraftId = latest.id
+      store.wizardDraftId  = latest.id
+    }
+  } catch {}
+}
 onUnmounted(() => {
   ro?.disconnect()
   window.removeEventListener('resize', measureCanvas)
