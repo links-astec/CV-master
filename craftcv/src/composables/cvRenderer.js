@@ -52,9 +52,33 @@ export function useCvRenderer() {
     const exp  = d.experiences?.filter(e => e.title || e.company || e.desc).length
       ? d.experiences
       : [{ title: 'Job Title', company: 'Company Name', period: '2020–Present', desc: 'Describe your key responsibilities and achievements here.' }]
-    const edu  = d.education?.degree
+    // Support both old single-object and new array format
+    const eduArr = Array.isArray(d.education)
       ? d.education
+      : (d.education?.degree ? [d.education] : [])
+    const edu  = (eduArr[0]?.degree || eduArr[0]?.school)
+      ? eduArr[0]
       : { degree: 'Your Degree', school: 'University Name', year: '2020' }
+    const eduExtra = eduArr.slice(1)
+
+    const eduExtraHtml = eduExtra.length ? eduExtra.map(e =>
+      '<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(0,0,0,.08);">' +
+      '<div style="font-size:11px;font-weight:600;">' + (e.degree||'') + '</div>' +
+      '<div style="font-size:10px;opacity:.65;">' + (e.school||'') + (e.year?' · '+e.year:'') + '</div>' +
+      '</div>'
+    ).join('') : ''
+
+    const proj = Array.isArray(d.projects) ? d.projects : []
+    const projSection = (accentColor, bgColor) => proj.length ? (
+      '<div style="font-size:8.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:' + accentColor + ';margin:18px 0 9px;padding-bottom:5px;border-bottom:1.5px solid ' + bgColor + ';">Projects</div>' +
+      proj.slice(0,4).map(p =>
+        '<div style="margin-bottom:10px;">' +
+        '<div style="font-size:11.5px;font-weight:700;">' + (p.name||'') + '</div>' +
+        (p.tech ? '<div style="font-size:10px;opacity:.65;margin-bottom:2px;">' + p.tech + '</div>' : '') +
+        '<div style="font-size:11px;opacity:.8;line-height:1.55;">' + (p.desc||'') + '</div>' +
+        '</div>'
+      ).join('')
+    ) : ''
     const cert = d.certifications || []
     const lang = d.languages || []
     const web  = d.website || ''

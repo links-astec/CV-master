@@ -369,7 +369,13 @@ const PAGE_META = {
   settings:   { title: 'Settings',     sub: 'Account & preferences' },
 }
 const pageMeta   = computed(() => PAGE_META[currentView.value] || { title: 'PerfectCV', sub: '' })
-const renderedCV = computed(() => render(store.template, store.data))
+// Deep-reactive CV render — JSON.stringify forces Vue to track ALL nested fields
+// so any change anywhere in store.data or template triggers a re-render
+const renderedCV = computed(() => {
+  // Touch every field deeply so Vue tracks them all
+  JSON.stringify(store.data)
+  return render(store.template, store.data)
+})
 
 // Auto-scale CV to fit canvas — on mobile fill width, on desktop use zoom
 const isMobileView = computed(() => canvasWidth.value > 0 && canvasWidth.value < 780)
