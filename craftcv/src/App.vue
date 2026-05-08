@@ -139,6 +139,40 @@
                   </div>
                 </div>
 
+                <!-- MORE tab — projects, education, languages -->
+                <div class="ptab-body" :class="{ active: panelTab==='more' }">
+                  <div class="f-sec">Projects</div>
+                  <div v-for="(proj, i) in store.data.projects" :key="proj.id" style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:8px;padding:10px;margin-bottom:8px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                      <span style="font-size:10px;font-weight:700;color:var(--c-accent);text-transform:uppercase;letter-spacing:.05em;">Project {{ i+1 }}</span>
+                      <button @click="store.data.projects.splice(i,1)" style="background:none;border:none;color:var(--c-text3);cursor:pointer;font-size:16px;padding:0 2px;">×</button>
+                    </div>
+                    <div class="f-grp"><input class="f-inp" v-model="proj.name" placeholder="Project name" style="font-size:12px;" /></div>
+                    <div class="f-grp"><input class="f-inp" v-model="proj.tech" placeholder="Tech / stack" style="font-size:12px;" /></div>
+                    <div class="f-grp"><textarea class="f-ta" v-model="proj.desc" placeholder="Description" rows="2" style="font-size:12px;"></textarea></div>
+                    <div class="f-grp"><input class="f-inp" v-model="proj.url" placeholder="URL (optional)" style="font-size:12px;" /></div>
+                  </div>
+                  <button class="btn-ai" @click="store.data.projects.push({id:Date.now(),name:'',desc:'',url:'',tech:''})">+ Add Project</button>
+                  <div class="f-sec" style="margin-top:14px;">Education</div>
+                  <div v-for="(edu, i) in store.data.education" :key="i" style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:8px;padding:10px;margin-bottom:8px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                      <span style="font-size:10px;font-weight:700;color:var(--c-accent);text-transform:uppercase;letter-spacing:.05em;">{{ i===0 ? 'Primary' : 'Additional' }}</span>
+                      <button v-if="i>0" @click="store.data.education.splice(i,1)" style="background:none;border:none;color:var(--c-text3);cursor:pointer;font-size:16px;padding:0 2px;">×</button>
+                    </div>
+                    <div class="f-grp"><input class="f-inp" v-model="edu.degree" placeholder="Degree" style="font-size:12px;" /></div>
+                    <div class="f-grp"><input class="f-inp" v-model="edu.school" placeholder="School" style="font-size:12px;" /></div>
+                    <div class="f-grp"><input class="f-inp" v-model="edu.year" placeholder="Year" style="font-size:12px;" /></div>
+                  </div>
+                  <button class="btn-ai" @click="store.data.education.push({degree:'',school:'',year:''})">+ Add Education</button>
+                  <div class="f-sec" style="margin-top:14px;">Languages</div>
+                  <div v-for="(lang, i) in store.data.languages" :key="i" style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
+                    <input class="f-inp" v-model="lang.name" placeholder="Language" style="font-size:12px;flex:1;" />
+                    <input class="f-inp" v-model="lang.level" placeholder="Level" style="font-size:12px;flex:1;" />
+                    <button @click="store.data.languages.splice(i,1)" style="background:none;border:none;color:var(--c-text3);cursor:pointer;font-size:16px;flex-shrink:0;">×</button>
+                  </div>
+                  <button class="btn-ai" @click="store.data.languages.push({name:'',level:''})">+ Add Language</button>
+                </div>
+
                 <!-- SCORE tab -->
                 <div class="ptab-body" :class="{ active: panelTab==='review' }">
                   <div class="score-wrap" style="padding-top:4px;">
@@ -306,6 +340,7 @@
     </Teleport>
 
     <WizardModal @open-builder="goBuilder" />
+    <ConfirmModal ref="confirmRef" />
     <PaywallModal ref="paywallRef" :show="showPaywall" @close="showPaywall=false" @paid="onPaid" />
 
     <div class="toast-wrap">
@@ -348,15 +383,17 @@ const zoom             = ref(75)
 const newSkill         = ref('')
 const showPaywall      = ref(false)
 const paywallRef       = ref(null)
+const confirmRef       = ref(null)
 const toasts           = ref([])
 const canvasRef        = ref(null)
 const showMobileEdit   = ref(false)
 const canvasWidth      = ref(0)
 
 const pTabs = [
-  { id: 'edit',   label: 'Edit' },
+  { id: 'edit',   label: 'Edit'   },
   { id: 'skills', label: 'Skills' },
-  { id: 'review', label: 'Score' },
+  { id: 'more',   label: 'More'   },
+  { id: 'review', label: 'Score'  },
 ]
 
 const TEMPLATES = ['executive','modern','minimal','bold','creative','academic','elegant','tech','pastel','teal','newspaper','swiss','gradient','compact','photo','infographic','corporate','magazine','midnight','clean','slate','terra','prism','ivory','split','forest','ruby','ocean','purple','charcoal','sunrise','silver','mint','indigo','amber','diamond','bloom','nordic','sakura','emerald','cobalt','lemon','graphite','vega','rose','onyx','aurora','carbon','sky','obsidian','slate2','crimson','sage','dusk','slate3','copper2','neon','blush','sand','phantom','electric','luxe','mono','wave','tealwave','navy','violet2','midnight2','glacier','lava','verdant','parchment','matrix','retro','prism2','zinc','coral','tan','slate4','clay','frost','steel','mauve','brick','peach','plum','spruce','pine','ochre','ash','jade','wine','ultraviolet','blueprint','meadow','glacier2','garnet','topaz','walnut','ivory2','slate5','crimson2','sepia','lavender','ink','moss','futura']
@@ -448,6 +485,7 @@ function showToast(msg, ms = 3500) {
   setTimeout(() => { toasts.value = toasts.value.filter(t => t.id !== id) }, ms)
 }
 provide('showToast', showToast)
+provide('confirm', (...args) => confirmRef.value?.ask(...args))
 
 function onPaid() {
   showPaywall.value = false

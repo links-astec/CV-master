@@ -386,12 +386,15 @@ app.post('/api/notifications/add', authMiddleware, async (req, res) => {
 });
 
 // ── AI PROXY ──────────────────────────────────────────────────────────────────
-async function callGroq(prompt, model = 'llama-3.3-70b-versatile') {
+async function callGroq(prompt, model = 'llama-3.3-70b-versatile', systemPrompt = null, maxTokens = 800) {
   if (!GROQ_KEY) throw new Error('AI is not configured. Add GROQ_API_KEY to your environment.');
+  const messages = [];
+  if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
+  messages.push({ role: 'user', content: prompt });
   const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_KEY}` },
-    body:    JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], max_tokens: 800, temperature: 0.72 }),
+    body:    JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.1 }),
   });
   const j = await r.json();
   if (!r.ok) throw new Error(j.error?.message || 'AI request failed.');
@@ -453,45 +456,139 @@ async function extractTextFromBuffer(buffer, mimetype, originalname) {
 app.post('/api/cv/upload', authMiddleware, upload.single('cv'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
   try {
-    const rawText   = await extractTextFromBuffer(req.file.buffer, req.file.mimetype, req.file.originalname);
-    const textSlice = rawText.slice(0, 8000).trim();
+    const rawText = await extractTextFromBuffer(req.file.buffer, req.file.mimetype, req.file.originalname);
+    const cleaned = rawText
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .replace(/[ \t]{2,}/g, ' ')
+      .replace(/\n{4,}/g, '\n\n')
+      .trim();
 
-    console.log('[upload] Extracted', textSlice.length, 'chars from', req.file.originalname);
+    console.log('[upload] Extracted', cleaned.length, 'chars from', req.file.originalname);
 
-    if (textSlice.length < 30) {
+    if (cleaned.length < 30) {
       return res.status(400).json({ error: 'Could not read text from this file. Try a text-based PDF or a .txt file.' });
     }
 
     if (!GROQ_KEY) {
-      return res.json({ extracted: parseFallback(textSlice), message: `Parsed ${req.file.originalname}` });
+      return res.json({ extracted: parseFallback(cleaned), message: `Parsed ${req.file.originalname}` });
     }
 
-    const prompt = [
-      'Detect the language of the CV text below and use that same language for all extracted text fields (summary, job descriptions, etc).',
-      'Extract CV/resume information from the text below.',
-      'Return ONLY a valid JSON object with these keys (no markdown, no explanation):',
-      '{"fn":"","ln":"","title":"","email":"","phone":"","loc":"","li":"","website":"","sum":"",',
-      '"experiences":[{"title":"","company":"","period":"","desc":""}],',
-      '"skills":[],"education":[{"degree":"","school":"","year":""}],',
-      '"projects":[{"name":"","desc":"","tech":"","url":""}],',
-      '"certifications":[],"languages":[{"name":"","level":""}]}',
-      'Extract ALL education entries into the education array (degree, masters, bootcamp etc).',
-      'Extract projects/portfolio items into the projects array.',
-      '',
-      'CV TEXT:',
-      textSlice,
-    ].join('\n');
+    // Use up to 12000 chars — covers most CVs fully
+    const textFull = cleaned.slice(0, 12000);
 
-    const raw   = await callGroq(prompt, 'llama-3.3-70b-versatile');
-    const clean = raw.replace(/```json/gi,'').replace(/```/g,'').trim();
+    const systemPrompt = `You are an expert CV/resume parser. Your job is to extract structured data from CV text with high accuracy.
+Rules:
+- Extract ALL work experiences, not just recent ones
+- For each experience, write a detailed desc summarising key responsibilities and achievements from the CV text
+- Extract ALL education entries (degrees, diplomas, bootcamps, courses)
+- Extract ALL skills mentioned anywhere in the CV
+- If a professional summary exists, use it verbatim or improve it slightly; if not, write one based on the experience
+- Detect the CV language and use that same language for all text fields
+- For LinkedIn: extract just the URL or username
+- For period: use the format found in the CV (e.g. "Jan 2020 – Mar 2023" or "2020–2023")
+- For certifications: extract full certification names
+- For languages: use levels like Native, Fluent, Advanced, Intermediate, Basic
+- NEVER invent data — only extract what is actually in the CV
+- Return ONLY valid JSON, no markdown fences, no explanation`;
+
+    const userPrompt = `Extract all information from this CV and return a JSON object with exactly these fields:
+
+{
+  "fn": "first name",
+  "ln": "last name", 
+  "title": "current job title or most recent role title",
+  "email": "email address",
+  "phone": "phone number with country code if present",
+  "loc": "city and country",
+  "li": "LinkedIn URL or username",
+  "website": "personal website or portfolio URL",
+  "sum": "professional summary (3-4 sentences highlighting experience, key skills, and value)",
+  "experiences": [
+    {
+      "title": "exact job title",
+      "company": "company name",
+      "period": "date range as written in CV",
+      "desc": "detailed description of responsibilities, achievements, and impact (2-4 sentences)"
+    }
+  ],
+  "skills": ["skill1", "skill2", "...all technical and soft skills mentioned"],
+  "education": [
+    {
+      "degree": "full degree/qualification name and field",
+      "school": "institution name",
+      "year": "graduation year or date range"
+    }
+  ],
+  "projects": [
+    {
+      "name": "project name",
+      "desc": "what it does and your role",
+      "tech": "technologies used",
+      "url": "project URL if mentioned"
+    }
+  ],
+  "certifications": ["full certification name with issuer if mentioned"],
+  "languages": [{"name": "language", "level": "proficiency level"}]
+}
+
+CV TEXT:
+${textFull}`;
+
+    // First pass: full extraction with system prompt and high token limit
+    let raw = await callGroq(userPrompt, 'llama-3.3-70b-versatile', systemPrompt, 4000);
+    let clean = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    
+    // Sometimes the model adds text before/after JSON — find the JSON object
+    const jsonStart = clean.indexOf('{');
+    const jsonEnd   = clean.lastIndexOf('}');
+    if (jsonStart !== -1 && jsonEnd !== -1) {
+      clean = clean.slice(jsonStart, jsonEnd + 1);
+    }
+
     let extracted;
-    try   { extracted = JSON.parse(clean); }
-    catch {
-      console.warn('[upload] JSON parse failed, first 200:', clean.slice(0, 200));
-      extracted = parseFallback(textSlice);
+    try {
+      extracted = JSON.parse(clean);
+    } catch (parseErr) {
+      console.warn('[upload] JSON parse failed, attempting repair...');
+      // Second attempt: ask AI to fix malformed JSON
+      try {
+        const fixPrompt = "The following text is supposed to be a JSON object but has syntax errors. Fix it and return ONLY valid JSON:\n\n" + clean.slice(0, 4000);
+        const fixed = await callGroq(fixPrompt, 'llama-3.3-70b-versatile');
+        const fixedClean = fixed.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+        extracted = JSON.parse(fixedClean.slice(fixedClean.indexOf('{'), fixedClean.lastIndexOf('}') + 1));
+      } catch {
+        console.warn('[upload] JSON repair failed, using fallback parser');
+        extracted = parseFallback(cleaned);
+      }
     }
 
-    res.json({ extracted, message: `Extracted from ${req.file.originalname} (${(req.file.size/1024).toFixed(0)} KB)` });
+    // Post-process: ensure arrays, clean empty entries
+    if (!Array.isArray(extracted.experiences))    extracted.experiences = [];
+    if (!Array.isArray(extracted.skills))         extracted.skills = [];
+    if (!Array.isArray(extracted.education))      extracted.education = (extracted.education && !Array.isArray(extracted.education)) ? [extracted.education] : [];
+    if (!Array.isArray(extracted.projects))       extracted.projects = [];
+    if (!Array.isArray(extracted.certifications)) extracted.certifications = [];
+    if (!Array.isArray(extracted.languages))      extracted.languages = [];
+
+    // Remove empty experience/education entries
+    extracted.experiences = extracted.experiences.filter(e => e.title || e.company);
+    extracted.education   = extracted.education.filter(e => e.degree || e.school);
+    extracted.projects    = extracted.projects.filter(p => p.name);
+    extracted.skills      = extracted.skills.filter(s => typeof s === 'string' && s.trim());
+    extracted.certifications = extracted.certifications.filter(c => typeof c === 'string' && c.trim());
+
+    const fieldsFound = [
+      extracted.fn, extracted.email, extracted.experiences.length,
+      extracted.skills.length, extracted.education.length,
+    ].filter(Boolean).length;
+
+    console.log(`[upload] Extracted: \${extracted.experiences.length} jobs, \${extracted.skills.length} skills, \${extracted.education.length} education, \${extracted.projects.length} projects`);
+
+    res.json({
+      extracted,
+      message: `Extracted from \${req.file.originalname} — \${extracted.experiences.length} jobs, \${extracted.skills.length} skills, \${extracted.education.length} education entries`,
+    });
   } catch (e) {
     console.error('[upload] Error:', e.message);
     res.status(500).json({ error: 'Extraction failed: ' + e.message });

@@ -75,11 +75,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onActivated, watch } from 'vue'
+import { ref, computed, onMounted, onActivated, watch, inject } from 'vue'
 import { useCvStore } from '../stores/cv.js'
 import { useAuthStore } from '../stores/auth.js'
 
 const store     = useCvStore()
+const confirm   = inject('confirm')
 const drafts    = ref([])
 const loading   = ref(true)
 const activeTab = ref('all')
@@ -179,7 +180,14 @@ function openDraft(draft) {
 }
 
 async function deleteDraft(id) {
-  if (!confirm('Delete this CV? This cannot be undone.')) return
+  const ok = await confirm({
+    title:   'Delete CV?',
+    message: 'This draft will be permanently deleted and cannot be recovered.',
+    ok:      'Delete',
+    cancel:  'Keep it',
+    mode:    'danger',
+  })
+  if (!ok) return
   await fetch(`/api/drafts/${id}`, { method: 'DELETE', credentials: 'include' })
   drafts.value = drafts.value.filter(d => d.id !== id)
   // If this was the active draft, clear localStorage so it doesn't restore on refresh
