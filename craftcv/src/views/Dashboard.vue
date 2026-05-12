@@ -111,12 +111,13 @@ const filteredDrafts = computed(() => {
 
 function progress(draft) {
   const d = draft.data || {}
+  const education = Array.isArray(d.education) ? d.education : (d.education ? [d.education] : [])
   let s = 0
   if (d.fn || d.ln) s += 20
   if (d.sum && d.sum.length > 20) s += 20
-  if (d.experiences?.length) s += 20
+  if (d.experiences?.some(e => e.title || e.company || e.desc)) s += 20
   if (d.skills?.length >= 3) s += 20
-  if (d.education?.degree) s += 20
+  if (education.some(e => e.degree || e.school)) s += 20
   return s
 }
 
@@ -172,23 +173,26 @@ watch(() => auth.user, (user) => {
 })
 
 function openDraft(draft) {
-  if (draft.data)     Object.assign(store.data, draft.data)
-  if (draft.template) store.template = draft.template
   store.currentDraftId  = draft.id
   store.wizardDraftId   = draft.id
+  if (draft.data)     Object.assign(store.data, draft.data)
+  if (draft.template) store.template = draft.template
   store.openWizard()
 }
 
 async function deleteDraft(id) {
-  const ok = await confirm({
-    title:   'Delete CV?',
-    message: 'This draft will be permanently deleted and cannot be recovered.',
-    ok:      'Delete',
-    cancel:  'Keep it',
-    mode:    'danger',
-  })
+  const ok = confirm
+    ? await confirm({
+        title:   'Delete CV?',
+        message: 'This draft will be permanently deleted and cannot be recovered.',
+        ok:      'Delete',
+        cancel:  'Keep it',
+        mode:    'danger',
+      })
+    : window.confirm('Delete this CV?')
   if (!ok) return
-  await fetch(`/api/drafts/${id}`, { method: 'DELETE', credentials: 'include' })
+  const r = await fetch(`/api/drafts/${id}`, { method: 'DELETE', credentials: 'include' })
+  if (!r.ok) return
   drafts.value = drafts.value.filter(d => d.id !== id)
   // If this was the active draft, clear localStorage so it doesn't restore on refresh
   if (store.currentDraftId === id) {

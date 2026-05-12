@@ -57,7 +57,8 @@ const SAMPLE = {
     { title: 'Senior PM', company: 'Nexus Digital', period: '2018–2021', desc: 'Launched 3 product lines generating £1.1M new revenue across 4 squads.' },
   ],
   skills: ['Product Strategy', 'SQL & Analytics', 'Figma', 'Agile/Scrum', 'OKRs & KPIs', 'Stakeholder Mgmt'],
-  education: { degree: 'MSc Product Management', school: 'UCL London', year: '2016' },
+  education: [{ degree: 'MSc Product Management', school: 'UCL London', year: '2016' }],
+  projects: [{ id: 1, name: 'Analytics Dashboard', desc: 'Built internal KPI dashboard used by 200+ employees.', tech: 'React, D3.js', url: '' }],
   certifications: ['PSPO II – Scrum Alliance'],
   languages: [{ name: 'English', level: 'Native' }, { name: 'French', level: 'B2' }],
 }

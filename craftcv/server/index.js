@@ -432,10 +432,7 @@ async function extractTextFromBuffer(buffer, mimetype, originalname) {
         if (data.text && data.text.trim().length > 50) return data.text;
       }
     } catch (e) { console.warn('[upload] pdf-parse:', e.message); }
-    // Fallback: extract readable text from PDF binary
-    const str = buffer.toString('latin1');
-    const readable = str.replace(/[^\x20-\x7E\n\r\t]/g, ' ').replace(/\s{3,}/g, '\n').trim();
-    return readable;
+    throw new Error('Could not read text from this PDF. Try exporting it as a text-based PDF or upload a DOCX/TXT version.');
   }
 
   // DOCX
@@ -447,6 +444,7 @@ async function extractTextFromBuffer(buffer, mimetype, originalname) {
         if (result.value && result.value.trim().length > 50) return result.value;
       }
     } catch (e) { console.warn('[upload] mammoth:', e.message); }
+    throw new Error('Could not read text from this Word document. Try saving it as DOCX again or upload a TXT/PDF version.');
   }
 
   // Plain text / TXT / fallback
@@ -471,7 +469,8 @@ app.post('/api/cv/upload', authMiddleware, upload.single('cv'), async (req, res)
     }
 
     if (!GROQ_KEY) {
-      return res.json({ extracted: parseFallback(cleaned), message: `Parsed ${req.file.originalname}` });
+      const extracted = normalizeExtracted(parseFallback(cleaned));
+      return res.json({ extracted, message: uploadMessage(req.file.originalname, extracted, 'Parsed') });
     }
 
     // Use up to 12000 chars — covers most CVs fully
@@ -536,7 +535,14 @@ CV TEXT:
 ${textFull}`;
 
     // First pass: full extraction with system prompt and high token limit
-    let raw = await callGroq(userPrompt, 'llama-3.3-70b-versatile', systemPrompt, 4000);
+    let raw = '';
+    try {
+      raw = await callGroq(userPrompt, 'llama-3.3-70b-versatile', systemPrompt, 4000);
+    } catch (aiErr) {
+      console.warn('[upload] AI extraction failed, using fallback parser:', aiErr.message);
+      const extracted = normalizeExtracted(parseFallback(cleaned));
+      return res.json({ extracted, message: uploadMessage(req.file.originalname, extracted, 'Parsed') });
+    }
     let clean = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
     
     // Sometimes the model adds text before/after JSON — find the JSON object
@@ -563,31 +569,13 @@ ${textFull}`;
       }
     }
 
-    // Post-process: ensure arrays, clean empty entries
-    if (!Array.isArray(extracted.experiences))    extracted.experiences = [];
-    if (!Array.isArray(extracted.skills))         extracted.skills = [];
-    if (!Array.isArray(extracted.education))      extracted.education = (extracted.education && !Array.isArray(extracted.education)) ? [extracted.education] : [];
-    if (!Array.isArray(extracted.projects))       extracted.projects = [];
-    if (!Array.isArray(extracted.certifications)) extracted.certifications = [];
-    if (!Array.isArray(extracted.languages))      extracted.languages = [];
+    extracted = normalizeExtracted(extracted);
 
-    // Remove empty experience/education entries
-    extracted.experiences = extracted.experiences.filter(e => e.title || e.company);
-    extracted.education   = extracted.education.filter(e => e.degree || e.school);
-    extracted.projects    = extracted.projects.filter(p => p.name);
-    extracted.skills      = extracted.skills.filter(s => typeof s === 'string' && s.trim());
-    extracted.certifications = extracted.certifications.filter(c => typeof c === 'string' && c.trim());
-
-    const fieldsFound = [
-      extracted.fn, extracted.email, extracted.experiences.length,
-      extracted.skills.length, extracted.education.length,
-    ].filter(Boolean).length;
-
-    console.log(`[upload] Extracted: \${extracted.experiences.length} jobs, \${extracted.skills.length} skills, \${extracted.education.length} education, \${extracted.projects.length} projects`);
+    console.log(`[upload] Extracted: ${extracted.experiences.length} jobs, ${extracted.skills.length} skills, ${extracted.education.length} education, ${extracted.projects.length} projects`);
 
     res.json({
       extracted,
-      message: `Extracted from \${req.file.originalname} — \${extracted.experiences.length} jobs, \${extracted.skills.length} skills, \${extracted.education.length} education entries`,
+      message: uploadMessage(req.file.originalname, extracted, 'Extracted from'),
     });
   } catch (e) {
     console.error('[upload] Error:', e.message);
@@ -599,19 +587,113 @@ function parseFallback(text) {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   const emailMatch = text.match(/[\w.+-]+@[\w-]+\.[a-z]{2,}/i);
   const phoneMatch = text.match(/[\+\d][\d\s\-\(\)]{8,}/);
+  const linkedInMatch = text.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[^\s,;]+/i);
+  const websiteMatch = text.match(/(?:https?:\/\/)?(?:www\.)?(?!linkedin\.com)(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s,;]*)?/i);
+  const nameLine = lines.find(l => !l.includes('@') && !/\d{4}/.test(l)) || lines[0] || '';
+  const nameParts = nameLine.split(/\s+/).filter(Boolean);
+  const titleLine = lines.find((l, i) =>
+    i > 0 &&
+    !l.includes('@') &&
+    !/^(experience|work|employment|education|skills|certifications|languages|profile|summary)$/i.test(l) &&
+    l.length < 90
+  ) || '';
+  const skills = extractListSection(text, ['skills', 'technical skills', 'core skills', 'competencies'])
+    .flatMap(v => v.split(/[,;|]/))
+    .map(v => v.replace(/^[•\-*]\s*/, '').trim())
+    .filter(v => v.length > 1 && v.length < 45)
+    .slice(0, 24);
+  const educationLines = extractListSection(text, ['education', 'academic background', 'qualifications']);
+  const experienceLines = extractListSection(text, ['experience', 'work experience', 'employment history', 'professional experience']);
+  const education = educationLines.slice(0, 4).map(line => ({
+    degree: line,
+    school: '',
+    year: line.match(/\b(19|20)\d{2}\b/)?.[0] || '',
+  }));
+  const experiences = experienceLines.slice(0, 6).map((line, i) => ({
+    id: Date.now() + i,
+    title: line.split(/\s+[-–—|]\s+/)[0] || line,
+    company: line.split(/\s+[-–—|]\s+/)[1] || '',
+    period: line.match(/\b(?:19|20)\d{2}\b.*?(?:present|current|\b(?:19|20)\d{2}\b)?/i)?.[0] || '',
+    desc: line,
+  }));
+  const summaryStart = lines.findIndex(l => /^(profile|summary|professional summary|about)$/i.test(l));
+  const sum = summaryStart >= 0
+    ? lines.slice(summaryStart + 1, summaryStart + 4).join(' ').slice(0, 500)
+    : lines.slice(2, 6).join(' ').slice(0, 500);
+
   return {
-    fn: lines[0]?.split(' ')[0] || 'First',
-    ln: lines[0]?.split(' ').slice(1).join(' ') || 'Last',
-    title: lines[1] || '',
+    fn: nameParts[0] || '',
+    ln: nameParts.slice(1).join(' '),
+    title: titleLine,
     email: emailMatch?.[0] || '',
     phone: phoneMatch?.[0]?.trim() || '',
-    loc: '', li: '', website: '',
-    sum: lines.slice(2,5).join(' ').slice(0,300),
-    experiences: [],
-    skills: [],
-    education: { degree: '', school: '', year: '' },
+    loc: '',
+    li: linkedInMatch?.[0] || '',
+    website: websiteMatch?.[0] || '',
+    sum,
+    experiences,
+    skills,
+    education,
     certifications: [], languages: [],
   };
+}
+
+function extractListSection(text, headings) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const start = lines.findIndex(l => headings.some(h => new RegExp(`^${h}:?$`, 'i').test(l)));
+  if (start === -1) return [];
+  const out = [];
+  for (const line of lines.slice(start + 1)) {
+    if (/^(experience|work experience|employment history|professional experience|education|academic background|qualifications|skills|technical skills|core skills|competencies|certifications|languages|profile|summary|projects):?$/i.test(line)) break;
+    if (line.length > 1) out.push(line);
+    if (out.length >= 12) break;
+  }
+  return out;
+}
+
+function normalizeExtracted(extracted = {}) {
+  const asString = v => typeof v === 'string' ? v.trim() : '';
+  const arr = v => Array.isArray(v) ? v : (v ? [v] : []);
+  return {
+    fn: asString(extracted.fn),
+    ln: asString(extracted.ln),
+    title: asString(extracted.title),
+    email: asString(extracted.email),
+    phone: asString(extracted.phone),
+    loc: asString(extracted.loc),
+    li: asString(extracted.li),
+    website: asString(extracted.website),
+    sum: asString(extracted.sum),
+    experiences: arr(extracted.experiences).filter(e => e && typeof e === 'object').map((e, i) => ({
+      id: e.id || Date.now() + i,
+      title: asString(e.title),
+      company: asString(e.company),
+      period: asString(e.period),
+      desc: asString(e.desc),
+    })).filter(e => e.title || e.company || e.desc).slice(0, 10),
+    skills: arr(extracted.skills).map(s => asString(s)).filter(Boolean).slice(0, 30),
+    education: arr(extracted.education).filter(e => e && typeof e === 'object').map(e => ({
+      degree: asString(e.degree),
+      school: asString(e.school),
+      year: asString(e.year),
+    })).filter(e => e.degree || e.school || e.year).slice(0, 6),
+    projects: arr(extracted.projects).filter(p => p && typeof p === 'object').map((p, i) => ({
+      id: p.id || Date.now() + 100 + i,
+      name: asString(p.name),
+      desc: asString(p.desc),
+      url: asString(p.url),
+      tech: asString(p.tech),
+    })).filter(p => p.name || p.desc).slice(0, 8),
+    certifications: arr(extracted.certifications).map(c => asString(c)).filter(Boolean).slice(0, 12),
+    languages: arr(extracted.languages).filter(l => l && typeof l === 'object').map(l => ({
+      name: asString(l.name),
+      level: asString(l.level),
+    })).filter(l => l.name || l.level).slice(0, 8),
+  };
+}
+
+function uploadMessage(fileName, extracted, prefix) {
+  return `${prefix} ${fileName}: ${extracted.experiences.length} roles, ${extracted.skills.length} skills, ${extracted.education.length} education entries`;
 }
 
 // ── SEND CV BY EMAIL ─────────────────────────────────────────────────────────

@@ -366,6 +366,7 @@ import OnboardingModal from './components/auth/OnboardingModal.vue'
 import WizardModal from './components/WizardModal.vue'
 import PaywallModal from './components/PaywallModal.vue'
 import NotificationDropdown from './components/NotificationDropdown.vue'
+import ConfirmModal from './components/ConfirmModal.vue'
 
 const auth       = useAuthStore()
 const store      = useCvStore()
@@ -546,10 +547,10 @@ async function restoreLatestDraft() {
     // Find the most recently updated draft
     const latest = drafts.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))[0]
     if (latest?.data) {
-      Object.assign(store.data, latest.data)
-      if (latest.template) store.template = latest.template
       store.currentDraftId = latest.id
       store.wizardDraftId  = latest.id
+      Object.assign(store.data, latest.data)
+      if (latest.template) store.template = latest.template
     }
   } catch {}
 }

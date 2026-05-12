@@ -90,6 +90,12 @@ function handleFile(e) { const f = e.target.files[0]; if (f) processFile(f) }
 
 async function processFile(file) {
   uploadError.value = ''
+  uploaded.value = false
+  if (!file) return
+  if (file.size > 10 * 1024 * 1024) {
+    uploadError.value = 'File must be under 10MB.'
+    return
+  }
   uploadingFile.value = file.name
   uploading.value = true
   emit('ai-thinking', true)
@@ -101,18 +107,22 @@ async function processFile(file) {
       credentials: 'include',
       body: formData,
     })
-    const data = await r.json()
+    const data = await r.json().catch(() => ({}))
+    if (r.status === 401) throw new Error('Please sign in again before uploading a CV.')
     if (!r.ok) throw new Error(data.error || 'Upload failed')
     if (data.extracted) {
       store.applyExtracted(data.extracted)
+      await store.saveDraft()
     }
     resultMessage.value = data.message || `Extracted from "${file.name}" successfully.`
     uploaded.value = true
   } catch (e) {
     uploadError.value = e.message || 'Failed to extract CV. Try a different file or fill in manually.'
+  } finally {
+    uploading.value = false
+    emit('ai-thinking', false)
+    if (fileInput.value) fileInput.value.value = ''
   }
-  uploading.value = false
-  emit('ai-thinking', false)
 }
 </script>
 

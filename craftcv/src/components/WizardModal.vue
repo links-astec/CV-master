@@ -90,8 +90,8 @@
                   </div>
                 </div>
                 <div class="wiz-preview-canvas">
-                  <div class="wiz-cv-scaler" :style="{ transform: `scale(${previewZoom/100})` }">
-                    <div v-html="renderedCV"></div>
+                  <div class="wiz-cv-outer" :style="{ width: '700px', zoom: previewZoom/100 }">
+                    <div :key="store.template" v-html="renderedCV"></div>
                   </div>
                 </div>
               </div>
@@ -127,14 +127,18 @@ const panelBody   = ref(null)
 const previewWrap = ref(null)
 const previewZoom = ref(72)
 
-const TPLS = ['executive','modern','minimal','bold','creative','academic','elegant','tech','pastel','teal','newspaper','swiss','gradient','compact','photo','infographic','corporate','magazine','midnight','clean','slate','terra','prism','ivory','split','forest','ruby','ocean','purple','charcoal','sunrise','silver','mint','indigo','amber','diamond','bloom','nordic','sakura','emerald','cobalt','lemon','graphite','vega','rose','onyx','aurora','carbon','sky','obsidian','slate2','crimson','sage','dusk','slate3','copper2','neon','blush','sand','phantom','electric','luxe','mono','wave','tealwave','navy','violet2','midnight2','glacier','lava','verdant','parchment','matrix','retro','prism2','zinc']
-const TPL_NAMES = { executive:'Executive Slate', modern:'Modern Azure', minimal:'Minimal Editorial', bold:'Bold Noir', creative:'Creative Violet', academic:'Academic', elegant:'Elegant Gold', tech:'Tech Dark', pastel:'Pastel Rose', teal:'Teal Sidebar', newspaper:'Newspaper', swiss:'Swiss Design', gradient:'Gradient Flow', compact:'Compact Grid', photo:'Photo Professional', infographic:'Infographic', corporate:'Corporate Blue', magazine:'Magazine Editorial', midnight:'Midnight Executive', clean:'Clean Professional' }
+const TPLS = ['executive','modern','minimal','bold','creative','academic','elegant','tech','pastel','teal','newspaper','swiss','gradient','compact','photo','infographic','corporate','magazine','midnight','clean','slate','terra','prism','ivory','split','forest','ruby','ocean','purple','charcoal','sunrise','silver','mint','indigo','amber','diamond','bloom','nordic','sakura','emerald','cobalt','lemon','graphite','vega','rose','onyx','aurora','carbon','sky','obsidian','slate2','crimson','sage','dusk','slate3','copper2','neon','blush','sand','phantom','electric','luxe','mono','wave','tealwave','navy','violet2','midnight2','glacier','lava','verdant','parchment','matrix','retro','prism2','zinc','coral','tan','slate4','clay','frost','steel','mauve','brick','peach','plum','spruce','pine','ochre','ash','jade','wine','ultraviolet','blueprint','meadow','glacier2','garnet','topaz','walnut','ivory2','slate5','crimson2','sepia','lavender','ink','moss','futura']
+const TPL_NAMES = { executive:'Executive Slate', modern:'Modern Azure', minimal:'Minimal Editorial', bold:'Bold Noir', creative:'Creative Violet', academic:'Academic', elegant:'Elegant Gold', tech:'Tech Dark', pastel:'Pastel Rose', teal:'Teal Sidebar', newspaper:'Newspaper', swiss:'Swiss Design', gradient:'Gradient Flow', compact:'Compact Grid', photo:'Photo Professional', infographic:'Infographic', corporate:'Corporate Blue', magazine:'Magazine Editorial', midnight:'Midnight Executive', clean:'Clean Professional', slate:'Slate Impact', terra:'Terra', prism:'Prism', ivory:'Ivory Luxury', split:'Bold Split', forest:'Forest Green', ruby:'Ruby Red', ocean:'Ocean Blue', purple:'Purple Reign', charcoal:'Charcoal Grid', sunrise:'Sunrise Orange', silver:'Silver Lining', mint:'Mint Fresh', indigo:'Indigo Wave', amber:'Dark Amber', diamond:'Diamond', bloom:'Pink Bloom', nordic:'Nordic', sakura:'Sakura', emerald:'Emerald', cobalt:'Cobalt Night', lemon:'Lemon Fresh', graphite:'Graphite', vega:'Vega', rose:'Rose Gold', onyx:'Onyx', aurora:'Aurora', carbon:'Carbon', sky:'Sky Blue', obsidian:'Obsidian', slate2:'Slate Pro', crimson:'Crimson', sage:'Sage Green', dusk:'Dusk', slate3:'Slate III', copper2:'Copper II', neon:'Neon Green', blush:'Blush', sand:'Sand', phantom:'Phantom', electric:'Electric', luxe:'Luxe Gold', mono:'Monospace', wave:'Wave', tealwave:'Teal Wave', navy:'Navy Pro', violet2:'Violet', midnight2:'Midnight II', glacier:'Glacier', lava:'Lava', verdant:'Verdant', parchment:'Parchment', matrix:'Matrix', retro:'Retro Gold', prism2:'Prism II', zinc:'Zinc', coral:'Coral', tan:'Tan', slate4:'Slate IV', clay:'Clay Amber', frost:'Frost', steel:'Steel', mauve:'Mauve', brick:'Brick Red', peach:'Peach', plum:'Plum Dark', spruce:'Spruce', pine:'Pine', ochre:'Ochre', ash:'Ash', jade:'Jade', wine:'Wine', ultraviolet:'Ultraviolet', blueprint:'Blueprint', meadow:'Meadow', glacier2:'Glacier II', garnet:'Garnet', topaz:'Topaz', walnut:'Walnut', ivory2:'Ivory II', slate5:'Slate V', crimson2:'Crimson II', sepia:'Sepia', lavender:'Lavender', ink:'Ink', moss:'Moss', futura:'Futura' }
 
 const currentTplName = computed(() => TPL_NAMES[store.template] || store.template)
-function prevTpl() { const i=TPLS.indexOf(store.template); store.template=TPLS[(i-1+TPLS.length)%TPLS.length] }
-function nextTpl() { const i=TPLS.indexOf(store.template); store.template=TPLS[(i+1)%TPLS.length] }
+function currentTplIndex() { return Math.max(0, TPLS.indexOf(store.template)) }
+function prevTpl() { const i=currentTplIndex(); store.template=TPLS[(i-1+TPLS.length)%TPLS.length] }
+function nextTpl() { const i=currentTplIndex(); store.template=TPLS[(i+1)%TPLS.length] }
 
-const renderedCV = computed(() => render(store.template, store.data))
+const renderedCV = computed(() => {
+  JSON.stringify(store.data)
+  return render(store.template, store.data)
+})
 
 const manualSteps  = [{label:'Personal',comp:StepPersonal},{label:'Summary',comp:StepSummary},{label:'Experience',comp:StepExperience},{label:'Skills',comp:StepSkills},{label:'Education',comp:StepEducation},{label:'Review',comp:StepReview}]
 const narrateSteps = [{label:'Your Story',comp:StepNarrate},...manualSteps]
@@ -328,7 +332,7 @@ watch(() => store.wizardOpen, v => {
 .wiz-tpl-name { font-size: 11px; font-weight: 600; color: var(--c-text2); min-width: 120px; text-align: center; }
 .wiz-zoom-lbl { font-size: 11px; font-weight: 700; color: var(--c-text3); min-width: 30px; text-align: center; }
 .wiz-preview-canvas { flex: 1; overflow: auto; padding: 20px; display: flex; align-items: flex-start; justify-content: center; }
-.wiz-cv-scaler { transform-origin: top center; transition: transform .2s; }
+.wiz-cv-outer { transform-origin: top left; flex-shrink: 0; }
 
 /* ── TRANSITIONS ───────────────────────────────────────────── */
 .wizard-fade-enter-active, .wizard-fade-leave-active { transition: opacity .3s, transform .3s; }

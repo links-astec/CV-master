@@ -36,6 +36,21 @@ function plainClone(obj) {
   try { return JSON.parse(JSON.stringify(obj)) } catch { return null }
 }
 
+function hasDraftableContent(d) {
+  if (!d || typeof d !== 'object') return false
+  return Boolean(
+    d.fn || d.ln || d.title || d.email || d.phone || d.loc || d.li || d.website || d.photo || d.sum ||
+    d.skills?.length ||
+    d.projects?.some(p => p?.name || p?.desc || p?.tech || p?.url) ||
+    d.certifications?.length ||
+    d.languages?.some(l => l?.name || l?.level) ||
+    d.experiences?.some(e => e?.title || e?.company || e?.period || e?.desc) ||
+    (Array.isArray(d.education)
+      ? d.education.some(e => e?.degree || e?.school || e?.year)
+      : (d.education?.degree || d.education?.school || d.education?.year))
+  )
+}
+
 export const useCvStore = defineStore('cv', () => {
   const data           = ref(emptyData())
   const template       = ref('executive')
@@ -72,6 +87,7 @@ export const useCvStore = defineStore('cv', () => {
 
   // ── Persist on change — localStorage immediately, DB debounced ────────────
   let saveTimer = null
+  let savePromise = null
   watch(data, (v) => {
     // Always save to localStorage immediately
     const clone = plainClone(v)
@@ -79,14 +95,14 @@ export const useCvStore = defineStore('cv', () => {
     // Debounce DB save — only if user is logged in and has a draft
     clearTimeout(saveTimer)
     saveTimer = setTimeout(() => {
-      if (currentDraftId.value) saveDraft().catch(() => {})
+      if (hasDraftableContent(v)) saveDraft().catch(() => {})
     }, 1500)
   }, { deep: true })
 
   watch(template, (v) => {
     lsSet('pcv-template', v)
     // Save to DB when template changes
-    if (currentDraftId.value) {
+    if (currentDraftId.value || hasDraftableContent(data.value)) {
       setTimeout(() => saveDraft().catch(() => {}), 500)
     }
   })
@@ -216,7 +232,9 @@ export const useCvStore = defineStore('cv', () => {
   }
 
   async function saveDraft() {
-    try {
+    if (savePromise) return savePromise
+    savePromise = (async () => {
+      if (!hasDraftableContent(data.value)) return false
       const name = fullName.value
       const payload = {
         title: `${name}${data.value.title ? ' — ' + data.value.title : ''}`,
@@ -231,11 +249,18 @@ export const useCvStore = defineStore('cv', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-      if (!r.ok) return
+      if (!r.ok) return false
       const draft = await r.json()
       if (!wizardDraftId.value)  wizardDraftId.value  = draft.id
       if (!currentDraftId.value) currentDraftId.value = draft.id
-    } catch (e) { console.warn('Draft save failed:', e.message) }
+      return true
+    })().catch((e) => {
+      console.warn('Draft save failed:', e.message)
+      return false
+    }).finally(() => {
+      savePromise = null
+    })
+    return savePromise
   }
 
   async function callAi(prompt, model) {
