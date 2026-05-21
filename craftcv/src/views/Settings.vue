@@ -309,7 +309,7 @@ async function useCredit() {
   usingCredit.value = false
 }
 
-onMounted(loadReferral)
+onMounted(() => { if (auth.isLoggedIn) loadReferral() })
 
 </script>
 
