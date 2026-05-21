@@ -194,13 +194,14 @@ function updateScales() {
   const updated = {}
   for (const [id, el] of Object.entries(cardEls)) {
     const w = el ? el.clientWidth : 185
-    updated[id] = { zoom: String(Math.max(0.1, w / 700)), transformOrigin: 'top left' }
+    updated[id] = Math.max(0.1, w / 700)
   }
   scaleMap.value = updated
 }
 
 function getScale(id) {
-  return scaleMap.value[id] || { zoom: String(185 / 700), transformOrigin: 'top left' }
+  const s = scaleMap.value[id] ?? (185 / 700)
+  return { transform: `scale(${s})`, transformOrigin: 'top left' }
 }
 
 function setCardEl(id, el) {
@@ -272,11 +273,13 @@ function pickTemplate(id) {
   background: #f0ede8;
 }
 .tpl-preview-scaler {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 700px;
   transform-origin: top left;
   pointer-events: none;
   user-select: none;
-  display: block;
 }
 .tpl-selected-overlay {
   position: absolute; inset: 0;
