@@ -392,8 +392,9 @@ function initGoogle() {
 function renderInto(el) {
   if (!el || !window.google?.accounts?.id) return
   el.innerHTML = ''
+  const w = Math.min(el.clientWidth || 320, 400)
   window.google.accounts.id.renderButton(el, {
-    theme: 'outline', size: 'large', width: '100%', text: 'continue_with',
+    theme: 'outline', size: 'large', width: w, text: 'continue_with',
   })
 }
 
