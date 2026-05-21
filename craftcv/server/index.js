@@ -39,7 +39,12 @@ async function getMailer() {
     mailer = nodemailer.createTransport({
       host, port,
       secure: port === 465,
+      requireTLS: port === 587,
       auth: { user, pass },
+      tls: { rejectUnauthorized: false },
+      connectionTimeout: 15000,
+      greetingTimeout:   10000,
+      socketTimeout:     20000,
     });
     console.log('[mailer] Using SMTP:', host, 'as', user);
   } else {
