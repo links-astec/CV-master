@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
+const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
+
 export const useAuthStore = defineStore('auth', () => {
   const user    = ref(null)
   const loading = ref(true)
@@ -10,14 +12,14 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function fetchMe() {
     try {
-      const r = await fetch('/api/auth/me', { credentials: 'include' })
+      const r = await fetch(apiUrl('/api/auth/me'), { credentials: 'include' })
       user.value = r.ok ? await r.json() : null
     } catch { user.value = null }
     loading.value = false
   }
 
   async function register(email, password, name, referredBy = '') {
-    const r = await fetch('/api/auth/register', {
+    const r = await fetch(apiUrl('/api/auth/register'), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, name, referredBy }),
@@ -29,7 +31,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function login(email, password) {
-    const r = await fetch('/api/auth/login', {
+    const r = await fetch(apiUrl('/api/auth/login'), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -41,7 +43,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function loginWithGoogle(credential, referredBy = '') {
-    const r = await fetch('/api/auth/google', {
+    const r = await fetch(apiUrl('/api/auth/google'), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ credential, referredBy }),
@@ -53,7 +55,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function forgotPassword(email) {
-    const r = await fetch('/api/auth/forgot-password', {
+    const r = await fetch(apiUrl('/api/auth/forgot-password'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
@@ -64,7 +66,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function resetPassword(token, password) {
-    const r = await fetch('/api/auth/reset-password', {
+    const r = await fetch(apiUrl('/api/auth/reset-password'), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token, password }),
@@ -76,12 +78,12 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function logout() {
-    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+    await fetch(apiUrl('/api/auth/logout'), { method: 'POST', credentials: 'include' })
     user.value = null
   }
 
   async function completeOnboarding(payload) {
-    const r = await fetch('/api/auth/onboard', {
+    const r = await fetch(apiUrl('/api/auth/onboard'), {
       method: 'PATCH', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
