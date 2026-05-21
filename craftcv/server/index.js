@@ -12,7 +12,7 @@ import { v4 as uuid } from 'uuid';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { OAuth2Client } from 'google-auth-library';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { query } from './db.js';
 
 const __dirname    = dirname(fileURLToPath(import.meta.url));
@@ -27,46 +27,27 @@ const IS_PROD          = process.env.NODE_ENV === 'production';
 const FRONTEND_URL     = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 // ── Mailer ────────────────────────────────────────────────────────────────────
-let mailer = null;
-async function getMailer() {
-  if (mailer) return mailer;
-  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = parseInt(process.env.SMTP_PORT || '587');
-  const user = process.env.SMTP_USER || 'gabbyquaye2021@gmail.com';
-  const pass = process.env.SMTP_PASS || '';
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
-  if (pass) {
-    mailer = nodemailer.createTransport({
-      host, port,
-      secure: port === 465,
-      requireTLS: port === 587,
-      auth: { user, pass },
-      tls: { rejectUnauthorized: false },
-      connectionTimeout: 15000,
-      greetingTimeout:   10000,
-      socketTimeout:     20000,
-    });
-    console.log('[mailer] Using SMTP:', host, 'as', user);
-  } else {
-    // Dev fallback — Ethereal test account
-    const acct = await nodemailer.createTestAccount();
-    mailer = nodemailer.createTransport({
-      host: 'smtp.ethereal.email', port: 587, secure: false,
-      auth: { user: acct.user, pass: acct.pass },
-    });
-    console.log('[mailer] SMTP_PASS not set — using Ethereal. Preview:', acct.user);
-  }
-  return mailer;
-}
 async function sendMail({ to, subject, html, attachments }) {
-  const t = await getMailer();
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'gabbyquaye2021@gmail.com';
-  const info = await t.sendMail({
-    from: `"CVMaster" <${from}>`,
-    to, subject, html, attachments,
-  });
-  console.log('[mailer] Sent to', to, '| msgId:', info.messageId);
-  if (!process.env.SMTP_PASS) console.log('[mailer] Preview URL:', nodemailer.getTestMessageUrl(info));
+  const from = process.env.SMTP_FROM || 'noreply@cvmaster.live';
+
+  if (resend) {
+    const payload = { from: `CVMaster <${from}>`, to, subject, html };
+    if (attachments?.length) {
+      payload.attachments = attachments.map(a => ({
+        filename: a.filename,
+        content:  Buffer.isBuffer(a.content) ? a.content : Buffer.from(a.content),
+      }));
+    }
+    const { error } = await resend.emails.send(payload);
+    if (error) throw new Error(error.message);
+    console.log('[mailer] Resend: sent to', to);
+  } else {
+    // Dev fallback — log only
+    console.log('[mailer] No RESEND_API_KEY — email skipped. To:', to, '| Subject:', subject);
+    throw new Error('Email not configured. Set RESEND_API_KEY in environment.');
+  }
 }
 
 // ── Security ──────────────────────────────────────────────────────────────────
@@ -1855,6 +1836,6 @@ if (process.env.VERCEL !== '1') {
     console.log(`  Groq:   ${GROQ_KEY   ? 'configured' : 'NOT SET'}`);
     console.log(`  Stripe: ${STRIPE_KEY ? 'configured' : 'NOT SET (demo mode)'}`);
     console.log(`  Google: ${GOOGLE_CLIENT_ID ? 'configured' : 'NOT SET'}`);
-    console.log(`  SMTP:   ${process.env.SMTP_HOST ? `${process.env.SMTP_HOST}:${process.env.SMTP_PORT||587} (user: ${process.env.SMTP_USER||'?'})` : 'NOT SET — emails go to Ethereal (dev only)'}\n`);
+    console.log(`  Email:  ${process.env.RESEND_API_KEY ? 'Resend (configured)' : 'NOT SET — emails will fail'}\n`);
   });
 }
