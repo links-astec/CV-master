@@ -1803,15 +1803,7 @@ app.get('/api/health', async (req, res) => {
   res.json({ ok: true, maintenance: false, db, groq: !!GROQ_KEY, stripe: !!STRIPE_KEY, google: !!GOOGLE_CLIENT_ID, time: new Date().toISOString() });
 });
 
-// ── STATIC (production) ───────────────────────────────────────────────────────
-if (IS_PROD) {
-  const distPath = join(__dirname, '../dist');
-  app.use(express.static(distPath, { maxAge: '7d' }));
-  app.get('*', (req, res) => {
-    if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found.' });
-    res.sendFile(join(distPath, 'index.html'));
-  });
-}
+// Frontend is served by Vercel — no static file serving needed here.
 
 export default app;
 
