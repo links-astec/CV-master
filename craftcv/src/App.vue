@@ -1,5 +1,19 @@
 <template>
-  <AuthModal v-if="!auth.loading && !auth.isLoggedIn" @done="onAuthDone" />
+  <!-- Maintenance mode page -->
+  <div v-if="maintenance" class="maint-page">
+    <div class="maint-box">
+      <div class="maint-logo">CV<b>Master</b></div>
+      <div class="maint-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+      </div>
+      <h1>Under Maintenance</h1>
+      <p>We're making improvements to CVMaster. We'll be back shortly. Thank you for your patience.</p>
+      <button @click="checkMaintenance" class="maint-btn">Check again</button>
+    </div>
+  </div>
+
+  <LandingPage v-else-if="!auth.loading && !auth.isLoggedIn && showLanding" @get-started="showLanding = false" />
+  <AuthModal v-else-if="!auth.loading && !auth.isLoggedIn" @done="onAuthDone" />
   <OnboardingModal v-else-if="auth.isLoggedIn && !auth.isOnboarded" @done="onboardDone" />
 
   <template v-else>
@@ -13,16 +27,20 @@
         <div class="sidebar-inner">
           <div class="logo-area">
             <div class="logo-mark">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <line x1="9" y1="12" x2="15" y2="12"/>
-                <line x1="9" y1="16" x2="13" y2="16"/>
+              <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
+                <rect x="5" y="2" width="16" height="22" rx="2" fill="white" opacity="0.95"/>
+                <path d="M21 2 L27 8 L21 8 Z" fill="#1d49b8"/>
+                <path d="M21 2 L21 8 L27 8" fill="none" stroke="white" stroke-width="1.2" opacity="0.4"/>
+                <line x1="8" y1="13" x2="18" y2="13" stroke="#2a5bd7" stroke-width="2" stroke-linecap="round"/>
+                <line x1="8" y1="17" x2="19" y2="17" stroke="#c0cef8" stroke-width="1.5" stroke-linecap="round"/>
+                <line x1="8" y1="21" x2="16" y2="21" stroke="#c0cef8" stroke-width="1.5" stroke-linecap="round"/>
+                <rect x="6" y="25" width="14" height="6" rx="2" fill="#1a1a2e"/>
+                <text x="13" y="30" font-family="system-ui,sans-serif" font-weight="800" font-size="4.5" fill="#7aa3f5" text-anchor="middle" letter-spacing="1">CV</text>
               </svg>
             </div>
             <div>
-              <div class="logo-title">PerfectCV</div>
-              <div class="logo-ver">AI Resume Builder</div>
+              <div class="logo-title">CVMaster</div>
+              <div class="logo-ver">AI CV Builder</div>
             </div>
           </div>
 
@@ -131,12 +149,23 @@
                     <input class="f-inp" v-model="newSkill" placeholder="Add skill…" @keydown.enter="addSkill"/>
                     <button style="background:var(--c-accent);color:#fff;border:none;padding:0 14px;border-radius:var(--radius-sm);font-weight:700;font-size:18px;cursor:pointer;flex-shrink:0;" @click="addSkill">+</button>
                   </div>
-                  <div class="skill-wrap">
-                    <span v-for="s in store.data.skills" :key="s" class="skill-tag">
-                      {{ s }}
+                  <template v-if="(store.fmt.skillStyle === 'bars' || store.fmt.skillStyle === 'dots') && store.fmt.showSkillPct && store.data.skills.length">
+                    <div class="f-sec" style="margin-top:12px;">Skill Levels</div>
+                    <div v-for="(s, i) in store.data.skills" :key="s" style="display:flex;align-items:center;gap:7px;margin-bottom:9px;">
+                      <span style="font-size:11px;color:var(--c-text2);min-width:80px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;" :title="s">{{ s }}</span>
+                      <input type="range" min="1" max="100" :value="store.data.skillLevels?.[i] ?? 80" @input="store.setSkillLevel(i, $event.target.value)" style="flex:1;min-width:0;accent-color:var(--c-accent);cursor:pointer;" />
+                      <input type="number" min="1" max="100" :value="store.data.skillLevels?.[i] ?? 80" @change="store.setSkillLevel(i, $event.target.value)" style="width:40px;border:1px solid var(--c-border);border-radius:4px;padding:2px 4px;font-size:11px;font-weight:700;color:var(--c-accent);text-align:center;background:var(--c-bg);flex-shrink:0;" />
                       <button class="skill-rm" @click="store.removeSkill(s)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:11px;height:11px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-                    </span>
-                  </div>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div class="skill-wrap">
+                      <span v-for="s in store.data.skills" :key="s" class="skill-tag">
+                        {{ s }}
+                        <button class="skill-rm" @click="store.removeSkill(s)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:11px;height:11px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                      </span>
+                    </div>
+                  </template>
                 </div>
 
                 <!-- MORE tab — projects, education, languages -->
@@ -173,28 +202,68 @@
                   <button class="btn-ai" @click="store.data.languages.push({name:'',level:''})">+ Add Language</button>
                 </div>
 
-                <!-- SCORE tab -->
-                <div class="ptab-body" :class="{ active: panelTab==='review' }">
-                  <div class="score-wrap" style="padding-top:4px;">
-                    <div class="score-hero">
-                      <div class="score-ring">
-                        <svg width="76" height="76" viewBox="0 0 76 76">
-                          <circle cx="38" cy="38" r="30" fill="none" stroke="var(--c-border2)" stroke-width="5.5"/>
-                          <circle cx="38" cy="38" r="30" fill="none" stroke="var(--c-accent)" stroke-width="5.5" stroke-dasharray="188.5" stroke-dashoffset="35.8" stroke-linecap="round" transform="rotate(-90 38 38)"/>
-                        </svg>
-                        <div class="score-mid"><div class="score-n">81</div><div class="score-m">/100</div></div>
-                      </div>
-                      <div class="score-info">
-                        <div class="score-ttl">Strong CV</div>
-                        <div class="score-chips"><span class="sc sc-g">ATS Ready</span><span class="sc sc-a">Add Metrics</span></div>
-                      </div>
-                    </div>
-                    <div class="sug-card warn">
-                      <div class="sug-ttl">Add quantified metrics</div>
-                      <div class="sug-txt">Numbers in bullets boost callback rate by 40%.</div>
-                      <button class="fix-btn" @click="store.openWizard()">Fix in Wizard</button>
+                <!-- FORMAT tab -->
+                <div class="ptab-body" :class="{ active: panelTab==='format' }">
+                  <div class="f-sec">Typography</div>
+                  <div class="f-grp">
+                    <div class="f-lbl">Font family</div>
+                    <select class="f-inp" v-model="store.fmt.fontFamily">
+                      <option value="DM Sans">DM Sans (default)</option>
+                      <option value="Georgia">Georgia (serif)</option>
+                      <option value="system-ui">System UI</option>
+                      <option value="Arial">Arial</option>
+                      <option value="Times New Roman">Times New Roman</option>
+                      <option value="Garamond">Garamond</option>
+                      <option value="Helvetica">Helvetica</option>
+                    </select>
+                  </div>
+                  <div class="f-grp">
+                    <div class="f-lbl">Text size</div>
+                    <div class="fmt-btn-group">
+                      <button v-for="s in [{v:'small',l:'Small'},{v:'normal',l:'Normal'},{v:'large',l:'Large'}]" :key="s.v"
+                        class="fmt-btn" :class="{active: store.fmt.fontSize===s.v}" @click="store.fmt.fontSize=s.v">{{ s.l }}</button>
                     </div>
                   </div>
+                  <div class="f-grp">
+                    <div class="f-lbl">Line spacing</div>
+                    <div class="fmt-btn-group">
+                      <button v-for="s in [{v:'compact',l:'Compact'},{v:'normal',l:'Normal'},{v:'relaxed',l:'Relaxed'}]" :key="s.v"
+                        class="fmt-btn" :class="{active: store.fmt.lineSpacing===s.v}" @click="store.fmt.lineSpacing=s.v">{{ s.l }}</button>
+                    </div>
+                  </div>
+                  <div class="f-sec">Skills section</div>
+                  <div class="f-grp">
+                    <div class="f-lbl">Display style</div>
+                    <select class="f-inp" v-model="store.fmt.skillStyle">
+                      <option value="bars">Progress bars</option>
+                      <option value="dots">Dots</option>
+                      <option value="chips">Chips / tags</option>
+                      <option value="list">Simple list</option>
+                      <option value="plain">Plain text (ATS safe)</option>
+                    </select>
+                  </div>
+                  <div class="f-grp" v-if="store.fmt.skillStyle === 'bars' || store.fmt.skillStyle === 'dots'">
+                    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+                      <input type="checkbox" v-model="store.fmt.showSkillPct" />
+                      Show skill percentages
+                    </label>
+                  </div>
+                  <div class="f-sec">Spacing</div>
+                  <div class="f-grp">
+                    <div class="f-lbl">Section spacing</div>
+                    <div class="fmt-btn-group">
+                      <button v-for="s in [{v:'compact',l:'Compact'},{v:'normal',l:'Normal'},{v:'relaxed',l:'Relaxed'}]" :key="s.v"
+                        class="fmt-btn" :class="{active: store.fmt.sectionSpacing===s.v}" @click="store.fmt.sectionSpacing=s.v">{{ s.l }}</button>
+                    </div>
+                  </div>
+                  <div class="f-grp" style="margin-top:8px;">
+                    <button class="btn-secondary" style="font-size:12px;" @click="Object.assign(store.fmt,{fontFamily:'DM Sans',fontSize:'normal',skillStyle:'bars',showSkillPct:true,lineSpacing:'normal',sectionSpacing:'normal'})">Reset to defaults</button>
+                  </div>
+                </div>
+
+                <!-- SCORE tab -->
+                <div class="ptab-body" :class="{ active: panelTab==='review' }">
+                  <StepReview />
                 </div>
               </div>
 
@@ -256,7 +325,7 @@
               <div class="mobile-export-bar show-mobile">
                 <button class="mobile-export-btn" @click="showPaywall=true">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                  Export PDF — £4.99
+                  Export PDF — £1.99
                 </button>
               </div>
             </div>
@@ -323,11 +392,117 @@
                   <input class="f-inp" v-model="newSkill" placeholder="Add skill…" @keydown.enter="addSkill"/>
                   <button style="background:var(--c-accent);color:#fff;border:none;padding:0 14px;border-radius:var(--radius-sm);font-weight:700;font-size:18px;cursor:pointer;flex-shrink:0;" @click="addSkill">+</button>
                 </div>
-                <div class="skill-wrap">
-                  <span v-for="s in store.data.skills" :key="s" class="skill-tag">
-                    {{ s }}<button class="skill-rm" @click="store.removeSkill(s)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:11px;height:11px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-                  </span>
+                <template v-if="(store.fmt.skillStyle === 'bars' || store.fmt.skillStyle === 'dots') && store.fmt.showSkillPct && store.data.skills.length">
+                  <div class="f-sec" style="margin-top:12px;">Skill Levels</div>
+                  <div v-for="(s, i) in store.data.skills" :key="s" style="display:flex;align-items:center;gap:7px;margin-bottom:9px;">
+                    <span style="font-size:11px;color:var(--c-text2);min-width:80px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;" :title="s">{{ s }}</span>
+                    <input type="range" min="1" max="100" :value="store.data.skillLevels?.[i] ?? 80" @input="store.setSkillLevel(i, $event.target.value)" style="flex:1;min-width:0;accent-color:var(--c-accent);" />
+                    <input type="number" min="1" max="100" :value="store.data.skillLevels?.[i] ?? 80" @change="store.setSkillLevel(i, $event.target.value)" style="width:40px;border:1px solid var(--c-border);border-radius:4px;padding:2px 4px;font-size:11px;font-weight:700;color:var(--c-accent);text-align:center;background:var(--c-bg);flex-shrink:0;" />
+                    <button class="skill-rm" @click="store.removeSkill(s)">×</button>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="skill-wrap">
+                    <span v-for="s in store.data.skills" :key="s" class="skill-tag">
+                      {{ s }}<button class="skill-rm" @click="store.removeSkill(s)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:11px;height:11px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                    </span>
+                  </div>
+                </template>
+              </div>
+              <div v-if="panelTab==='more'">
+                <div class="f-sec">Projects</div>
+                <div v-for="(proj, i) in store.data.projects" :key="proj.id" style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:8px;padding:10px;margin-bottom:8px;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <span style="font-size:10px;font-weight:700;color:var(--c-accent);text-transform:uppercase;letter-spacing:.05em;">Project {{ i+1 }}</span>
+                    <button @click="store.data.projects.splice(i,1)" style="background:none;border:none;color:var(--c-text3);cursor:pointer;font-size:16px;padding:0 2px;">×</button>
+                  </div>
+                  <div class="f-grp"><input class="f-inp" v-model="proj.name" placeholder="Project name" style="font-size:12px;" /></div>
+                  <div class="f-grp"><input class="f-inp" v-model="proj.tech" placeholder="Tech / stack" style="font-size:12px;" /></div>
+                  <div class="f-grp"><textarea class="f-ta" v-model="proj.desc" placeholder="Description" rows="2" style="font-size:12px;"></textarea></div>
+                  <div class="f-grp"><input class="f-inp" v-model="proj.url" placeholder="URL (optional)" style="font-size:12px;" /></div>
                 </div>
+                <button class="btn-ai" @click="store.data.projects.push({id:Date.now(),name:'',desc:'',url:'',tech:''})">+ Add Project</button>
+                <div class="f-sec" style="margin-top:14px;">Education</div>
+                <div v-for="(edu, i) in store.data.education" :key="i" style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:8px;padding:10px;margin-bottom:8px;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                    <span style="font-size:10px;font-weight:700;color:var(--c-accent);text-transform:uppercase;letter-spacing:.05em;">{{ i===0 ? 'Primary' : 'Additional' }}</span>
+                    <button v-if="i>0" @click="store.data.education.splice(i,1)" style="background:none;border:none;color:var(--c-text3);cursor:pointer;font-size:16px;padding:0 2px;">×</button>
+                  </div>
+                  <div class="f-grp"><input class="f-inp" v-model="edu.degree" placeholder="Degree" style="font-size:12px;" /></div>
+                  <div class="f-grp"><input class="f-inp" v-model="edu.school" placeholder="School" style="font-size:12px;" /></div>
+                  <div class="f-grp"><input class="f-inp" v-model="edu.year" placeholder="Year" style="font-size:12px;" /></div>
+                </div>
+                <button class="btn-ai" @click="store.data.education.push({degree:'',school:'',year:''})">+ Add Education</button>
+                <div class="f-sec" style="margin-top:14px;">Languages</div>
+                <div v-for="(lang, i) in store.data.languages" :key="i" style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
+                  <input class="f-inp" v-model="lang.name" placeholder="Language" style="font-size:12px;flex:1;" />
+                  <input class="f-inp" v-model="lang.level" placeholder="Level" style="font-size:12px;flex:1;" />
+                  <button @click="store.data.languages.splice(i,1)" style="background:none;border:none;color:var(--c-text3);cursor:pointer;font-size:16px;flex-shrink:0;">×</button>
+                </div>
+                <button class="btn-ai" @click="store.data.languages.push({name:'',level:''})">+ Add Language</button>
+                <div class="f-sec" style="margin-top:14px;">Certifications</div>
+                <div v-for="(cert, i) in store.data.certifications" :key="i" style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
+                  <input class="f-inp" v-model="store.data.certifications[i]" placeholder="Certification" style="font-size:12px;flex:1;" />
+                  <button @click="store.data.certifications.splice(i,1)" style="background:none;border:none;color:var(--c-text3);cursor:pointer;font-size:16px;flex-shrink:0;">×</button>
+                </div>
+                <button class="btn-ai" @click="store.data.certifications.push('')">+ Add Certification</button>
+              </div>
+              <div v-if="panelTab==='format'">
+                <div class="f-sec">Typography</div>
+                <div class="f-grp">
+                  <div class="f-lbl">Font family</div>
+                  <select class="f-inp" v-model="store.fmt.fontFamily">
+                    <option value="DM Sans">DM Sans (default)</option>
+                    <option value="Georgia">Georgia (serif)</option>
+                    <option value="system-ui">System UI</option>
+                    <option value="Arial">Arial</option>
+                    <option value="Times New Roman">Times New Roman</option>
+                    <option value="Garamond">Garamond</option>
+                    <option value="Helvetica">Helvetica</option>
+                  </select>
+                </div>
+                <div class="f-grp">
+                  <div class="f-lbl">Text size</div>
+                  <div class="fmt-btn-group">
+                    <button v-for="s in [{v:'small',l:'Small'},{v:'normal',l:'Normal'},{v:'large',l:'Large'}]" :key="s.v"
+                      class="fmt-btn" :class="{active: store.fmt.fontSize===s.v}" @click="store.fmt.fontSize=s.v">{{ s.l }}</button>
+                  </div>
+                </div>
+                <div class="f-grp">
+                  <div class="f-lbl">Line spacing</div>
+                  <div class="fmt-btn-group">
+                    <button v-for="s in [{v:'compact',l:'Compact'},{v:'normal',l:'Normal'},{v:'relaxed',l:'Relaxed'}]" :key="s.v"
+                      class="fmt-btn" :class="{active: store.fmt.lineSpacing===s.v}" @click="store.fmt.lineSpacing=s.v">{{ s.l }}</button>
+                  </div>
+                </div>
+                <div class="f-sec">Skills section</div>
+                <div class="f-grp">
+                  <div class="f-lbl">Display style</div>
+                  <select class="f-inp" v-model="store.fmt.skillStyle">
+                    <option value="bars">Progress bars</option>
+                    <option value="dots">Dots</option>
+                    <option value="chips">Chips / tags</option>
+                    <option value="list">Simple list</option>
+                    <option value="plain">Plain text (ATS safe)</option>
+                  </select>
+                </div>
+                <div class="f-grp" v-if="store.fmt.skillStyle === 'bars' || store.fmt.skillStyle === 'dots'">
+                  <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+                    <input type="checkbox" v-model="store.fmt.showSkillPct" />
+                    Show skill percentages
+                  </label>
+                </div>
+                <div class="f-sec">Spacing</div>
+                <div class="f-grp">
+                  <div class="f-lbl">Section spacing</div>
+                  <div class="fmt-btn-group">
+                    <button v-for="s in [{v:'compact',l:'Compact'},{v:'normal',l:'Normal'},{v:'relaxed',l:'Relaxed'}]" :key="s.v"
+                      class="fmt-btn" :class="{active: store.fmt.sectionSpacing===s.v}" @click="store.fmt.sectionSpacing=s.v">{{ s.l }}</button>
+                  </div>
+                </div>
+              </div>
+              <div v-if="panelTab==='review'">
+                <StepReview />
               </div>
               <div style="margin-top:16px;display:flex;gap:8px;">
                 <button class="btn-secondary" style="flex:1;" @click="store.openWizard(); showMobileEdit=false">Full Wizard</button>
@@ -352,23 +527,44 @@
       </TransitionGroup>
     </div>
   </template>
+
+  <!-- Tutorial overlay — lives outside app shell so it works right after onboarding -->
+  <TutorialOverlay :visible="showTutorial" @close="showTutorial = false" />
 </template>
 
 <script setup>
-import { ref, computed, provide, onMounted, nextTick, onUnmounted } from 'vue'
+import { ref, computed, watch, provide, onMounted, nextTick, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth.js'
 import { useCvStore } from './stores/cv.js'
 import { useNotifStore } from './stores/notifications.js'
 import { useCvRenderer } from './composables/cvRenderer.js'
+import LandingPage from './views/Landing.vue'
 import AuthModal from './components/auth/AuthModal.vue'
 import OnboardingModal from './components/auth/OnboardingModal.vue'
 import WizardModal from './components/WizardModal.vue'
 import PaywallModal from './components/PaywallModal.vue'
 import NotificationDropdown from './components/NotificationDropdown.vue'
-import ConfirmModal from './components/ConfirmModal.vue'
+import ConfirmModal     from './components/ConfirmModal.vue'
+import TutorialOverlay  from './components/TutorialOverlay.vue'
+import StepReview       from './components/wizard/StepReview.vue'
 
 const auth       = useAuthStore()
+
+const showLanding = ref(true)
+const maintenance = ref(false)
+watch(() => auth.isLoggedIn, (loggedIn) => {
+  if (loggedIn) showLanding.value = false
+}, { immediate: true })
+
+async function checkMaintenance() {
+  try {
+    const r = await fetch(apiUrl('/api/health'), { credentials: 'include' })
+    const d = await r.json().catch(() => ({}))
+    maintenance.value = r.status === 503 || !!d.maintenance
+  } catch { maintenance.value = false }
+}
+
 const store      = useCvStore()
 const notifStore = useNotifStore()
 const router     = useRouter()
@@ -383,6 +579,7 @@ const panelTab         = ref('edit')
 const zoom             = ref(75)
 const newSkill         = ref('')
 const showPaywall      = ref(false)
+const showTutorial     = ref(false)
 const paywallRef       = ref(null)
 const confirmRef       = ref(null)
 const toasts           = ref([])
@@ -390,10 +587,14 @@ const canvasRef        = ref(null)
 const showMobileEdit   = ref(false)
 const canvasWidth      = ref(0)
 
+// ── Formatting — stored in Pinia so builder + wizard share the same object ───
+const fmt = computed(() => store.fmt)
+
 const pTabs = [
   { id: 'edit',   label: 'Edit'   },
   { id: 'skills', label: 'Skills' },
   { id: 'more',   label: 'More'   },
+  { id: 'format', label: 'Format' },
   { id: 'review', label: 'Score'  },
 ]
 
@@ -406,13 +607,22 @@ const PAGE_META = {
   builder:    { title: 'CV Builder',   sub: 'Edit and preview live' },
   settings:   { title: 'Settings',     sub: 'Account & preferences' },
 }
-const pageMeta   = computed(() => PAGE_META[currentView.value] || { title: 'PerfectCV', sub: '' })
+const pageMeta   = computed(() => PAGE_META[currentView.value] || { title: 'CVMaster', sub: '' })
 // Deep-reactive CV render — JSON.stringify forces Vue to track ALL nested fields
 // so any change anywhere in store.data or template triggers a re-render
 const renderedCV = computed(() => {
-  // Touch every field deeply so Vue tracks them all
+  // Read every field explicitly so Vue tracks mutations on the shared store.fmt ref
   JSON.stringify(store.data)
-  return render(store.template, store.data)
+  const f = store.fmt
+  const _fmt = {
+    fontFamily:     f.fontFamily,
+    fontSize:       f.fontSize,
+    skillStyle:     f.skillStyle,
+    showSkillPct:   f.showSkillPct,
+    lineSpacing:    f.lineSpacing,
+    sectionSpacing: f.sectionSpacing,
+  }
+  return render(store.template, store.data, _fmt)
 })
 
 // Auto-scale CV to fit canvas — on mobile fill width, on desktop use zoom
@@ -486,7 +696,10 @@ function showToast(msg, ms = 3500) {
   setTimeout(() => { toasts.value = toasts.value.filter(t => t.id !== id) }, ms)
 }
 provide('showToast', showToast)
+provide('startTutorial', () => { showTutorial.value = true })
 provide('confirm', (...args) => confirmRef.value?.ask(...args))
+provide('fmt', computed(() => store.fmt))
+provide('builderFmt', computed(() => store.fmt))
 
 function onPaid() {
   showPaywall.value = false
@@ -496,18 +709,66 @@ function onPaid() {
 async function onAuthDone() {
   await notifStore.fetch()
   handleStripeReturn()
+  // Show tutorial if user has never seen it
+  nextTick(() => {
+    setTimeout(() => {
+      try {
+        if (!localStorage.getItem('cvmaster-tour-done')) {
+          showTutorial.value = true
+        }
+      } catch {}
+    }, 1000)
+  })
 }
-function onboardDone() {}
+function onboardDone() {
+  // Wait for app shell to fully mount, then show tutorial (first time only)
+  nextTick(() => {
+    setTimeout(() => {
+      try {
+        if (!localStorage.getItem('cvmaster-tour-done')) {
+          showTutorial.value = true
+        }
+      } catch {}
+    }, 800)
+  })
+}
 
 function handleStripeReturn() {
-  const params     = new URLSearchParams(window.location.search)
-  const sessionId  = params.get('session') || params.get('session_id')
-  const draftId    = params.get('draft') || 'current'
-  const hasPending = sessionStorage.getItem('pcv_pending_download')
+  const params    = new URLSearchParams(window.location.search)
+  const sessionId = params.get('session') || params.get('session_id')
+  const draftId   = params.get('draft') || 'current'
 
+  // ── Watermark clean download return ──
+  // Detected by pcv_wm_token in sessionStorage (set before Stripe redirect).
+  // Router preserves query so sessionId is available even after /download-clean → / redirect.
+  const wmToken = sessionStorage.getItem('pcv_wm_token')
+  if (wmToken && sessionId) {
+    const wmFilename = sessionStorage.getItem('pcv_wm_filename') || 'cv-clean.pdf'
+    sessionStorage.removeItem('pcv_wm_token')
+    sessionStorage.removeItem('pcv_wm_filename')
+    window.history.replaceState({}, '', '/')
+    currentView.value = 'dashboard'
+    const base = import.meta.env.VITE_API_URL || ''
+    fetch(`${base}/api/cv/clean/${wmToken}`, {
+      credentials: 'include',
+      headers: { 'x-payment-intent-id': sessionId },
+    }).then(r => r.ok ? r.blob() : Promise.reject(r.status))
+      .then(blob => {
+        const url = URL.createObjectURL(blob)
+        const a   = document.createElement('a')
+        a.href    = url
+        a.download = wmFilename.replace(/\.pdf$/i, '') + '-clean.pdf'
+        document.body.appendChild(a); a.click(); document.body.removeChild(a)
+        setTimeout(() => URL.revokeObjectURL(url), 1000)
+        showToast('Clean CV downloaded!')
+      }).catch(() => showToast('Download failed. Please try again from the dashboard.'))
+    return
+  }
+
+  // ── Email export (PaywallModal) return ──
+  const hasPending = sessionStorage.getItem('pcv_pending_download')
   if (sessionId && hasPending) {
     sessionStorage.removeItem('pcv_pending_download')
-    // Clear URL AFTER saving the params
     window.history.replaceState({}, '', '/')
     currentView.value  = 'dashboard'
     showPaywall.value  = true
@@ -517,12 +778,22 @@ function handleStripeReturn() {
 
 onMounted(async () => {
   store.initDarkMode()
+  // Check maintenance before anything else
+  try {
+    const r = await fetch(apiUrl('/api/health'), { credentials: 'include' })
+    if (r.status === 503) { maintenance.value = true; return }
+  } catch {}
   await auth.fetchMe()
   if (auth.isLoggedIn) {
     await notifStore.fetch()
     handleStripeReturn()
-    // Restore most recent draft from DB — DB is source of truth over localStorage
     restoreLatestDraft()
+    // Show tutorial if user has never seen it (covers page-refresh-while-logged-in case)
+    try {
+      if (!localStorage.getItem('cvmaster-tour-done')) {
+        setTimeout(() => { showTutorial.value = true }, 1200)
+      }
+    } catch {}
   }
   // Set currentView from current URL path
   const path = window.location.pathname
@@ -658,6 +929,7 @@ onUnmounted(() => {
   .builder-wrap    { flex-direction: column !important; }
   .builder-panel   { display: none !important; }
   .builder-preview { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+  .builder-canvas  { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
 }
 
 /* ── TOPBAR RIGHT ───────────────────────────────────────────── */
@@ -668,4 +940,26 @@ onUnmounted(() => {
 
 /* ── MISC ───────────────────────────────────────────────────── */
 .skill-rm svg { width: 11px; height: 11px; }
+
+/* ── FORMAT TAB ─────────────────────────────────────────────── */
+.fmt-btn-group { display:flex; gap:4px; }
+.fmt-btn {
+  flex:1; border:1.5px solid var(--c-border); background:var(--c-bg);
+  border-radius:var(--radius-sm); padding:7px 4px; font-size:11.5px;
+  font-weight:500; cursor:pointer; color:var(--c-text2);
+  font-family:'DM Sans',sans-serif; transition:all .15s;
+}
+.fmt-btn:hover { border-color:var(--c-border2); color:var(--c-text); }
+.fmt-btn.active { border-color:var(--c-accent); background:var(--c-accent-lt); color:var(--c-accent); font-weight:700; }
+
+.maint-page{position:fixed;inset:0;background:#0d1117;display:flex;align-items:center;justify-content:center;z-index:9999;padding:24px;}
+.maint-box{max-width:420px;width:100%;text-align:center;}
+.maint-logo{font-size:26px;font-weight:700;color:#fff;margin-bottom:28px;}
+.maint-logo b{color:#2f81f7;}
+.maint-icon{width:64px;height:64px;border-radius:16px;background:rgba(47,129,247,.12);border:1px solid rgba(47,129,247,.2);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;color:#2f81f7;}
+.maint-icon svg{width:28px;height:28px;}
+.maint-page h1{font-size:26px;font-weight:700;color:#e6edf3;margin-bottom:12px;}
+.maint-page p{font-size:15px;color:#8b949e;line-height:1.6;margin-bottom:24px;}
+.maint-btn{background:#2f81f7;color:#fff;border:none;padding:11px 24px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:opacity .15s;}
+.maint-btn:hover{opacity:.85;}
 </style>

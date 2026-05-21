@@ -27,9 +27,9 @@
       <!-- SPEAK mode -->
       <div v-if="inputMode === 'speak'" class="speak-section">
         <!-- Not supported warning -->
-        <div v-if="!micSupported" class="mic-error">
+        <div v-if="!micSupported || micError" class="mic-error">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          Microphone not available. Use Chrome or Edge, ensure microphone access is allowed, then try again. Or switch to Type mode.
+          {{ micError || 'Microphone not available. Use Chrome or Edge, ensure microphone access is allowed, then try again.' }}
         </div>
 
         <!-- Mic UI -->
@@ -128,6 +128,7 @@ const isRecording = ref(false)
 const aiLoading   = ref(false)
 const started     = ref(false)
 const micSupported = ref(true)
+const micError     = ref('')
 
 let recognition   = null
 let finalBuffer   = ''
@@ -144,16 +145,39 @@ function checkMic() {
   micSupported.value = !!SR
 }
 
-function toggleMic() {
+async function toggleMic() {
+  console.log('[MIC] Button clicked, isRecording:', isRecording.value)
   if (isRecording.value) stopMic()
-  else startMic()
+  else await startMic()
 }
 
-function startMic() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition
-  if (!SR) { micSupported.value = false; return }
+async function startMic() {
+  console.log('[MIC] toggleMic called, isRecording:', isRecording.value)
 
-  finalBuffer = story.value ? story.value.trimEnd() + ' ' : ''
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+  console.log('[MIC] SpeechRecognition available:', !!SR)
+  if (!SR) {
+    micSupported.value = false
+    console.warn('[MIC] SpeechRecognition not supported in this browser')
+    return
+  }
+
+  // Check/request mic permission
+  if (navigator.permissions) {
+    try {
+      const perm = await navigator.permissions.query({ name: 'microphone' })
+      console.log('[MIC] Permission state:', perm.state)
+      if (perm.state === 'denied') {
+        micSupported.value = false
+        micError.value = 'Microphone access denied. Please allow it in browser settings and refresh.'
+        return
+      }
+    } catch (e) {
+      console.log('[MIC] Permissions API not available:', e.message)
+    }
+  }
+
+  finalBuffer   = story.value ? story.value.trimEnd() + ' ' : ''
   interim.value = ''
 
   recognition = new SR()
@@ -161,59 +185,73 @@ function startMic() {
   recognition.interimResults  = true
   recognition.maxAlternatives = 1
   recognition.lang            = 'en-US'
+  console.log('[MIC] SpeechRecognition created, lang:', recognition.lang)
 
-  recognition.onstart = () => { isRecording.value = true }
+  recognition.onstart = () => {
+    console.log('[MIC] onstart fired — recording active')
+    isRecording.value = true
+  }
 
   recognition.onresult = (e) => {
     let interimText = ''
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const t = e.results[i][0].transcript
       if (e.results[i].isFinal) {
+        console.log('[MIC] Final result:', t)
         finalBuffer += t.trim() + ' '
         interimText = ''
       } else {
         interimText += t
       }
     }
-    // Always update story so the textarea shows something
-    story.value = (finalBuffer + interimText).trimEnd()
+    story.value   = (finalBuffer + interimText).trimEnd()
     interim.value = interimText
   }
 
   recognition.onerror = (e) => {
-    console.warn('Speech error:', e.error)
+    console.error('[MIC] Error:', e.error, e.message)
     if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
       micSupported.value = false
+      micError.value = 'Microphone access denied. Please allow microphone access in your browser settings.'
       stopMic()
-    } else if (e.error === 'no-speech' || e.error === 'network') {
-      // Auto-restart on silence or network glitch
+    } else if (e.error === 'no-speech') {
+      console.log('[MIC] No speech detected — restarting')
       if (isRecording.value) {
         clearTimeout(restartTimer)
         restartTimer = setTimeout(() => {
           if (isRecording.value) { stopMic(); startMic() }
         }, 300)
       }
+    } else if (e.error === 'network') {
+      console.warn('[MIC] Network error — retrying')
+      if (isRecording.value) {
+        clearTimeout(restartTimer)
+        restartTimer = setTimeout(() => {
+          if (isRecording.value) { stopMic(); startMic() }
+        }, 1000)
+      }
     }
   }
 
-  // Chrome stops after ~60s silence — auto restart
   recognition.onend = () => {
+    console.log('[MIC] onend fired, isRecording:', isRecording.value)
     interim.value = ''
     if (isRecording.value) {
-      // Still supposed to be recording — restart
       clearTimeout(restartTimer)
       restartTimer = setTimeout(() => {
         if (isRecording.value && recognition) {
-          try { recognition.start() } catch {}
+          console.log('[MIC] Auto-restarting after onend')
+          try { recognition.start() } catch (e) { console.warn('[MIC] Restart failed:', e) }
         }
       }, 250)
     }
   }
 
   try {
+    console.log('[MIC] Calling recognition.start()')
     recognition.start()
   } catch (e) {
-    console.warn('Could not start recognition:', e)
+    console.error('[MIC] recognition.start() threw:', e)
     micSupported.value = false
   }
 }

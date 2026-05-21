@@ -1,6 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 
+const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
+
+
 const emptyData = () => ({
   fn: '', ln: '',
   title: '',
@@ -56,6 +59,14 @@ export const useCvStore = defineStore('cv', () => {
   const template       = ref('executive')
   const darkMode       = ref(false)
   const wizardOpen     = ref(false)
+  const fmt            = ref({
+    fontFamily:     'DM Sans',
+    fontSize:       'normal',
+    skillStyle:     'bars',
+    showSkillPct:   true,
+    lineSpacing:    'normal',
+    sectionSpacing: 'normal',
+  })
   const wizardMode     = ref(null)
   const wizardStep     = ref(0)
   const wizardDraftId  = ref(null)
@@ -74,12 +85,14 @@ export const useCvStore = defineStore('cv', () => {
     if (!Array.isArray(merged.projects))        merged.projects = []
     // Migrate legacy single-object education to array
     if (!Array.isArray(merged.education)) {
-      if (merged.education && typeof merged.education === 'object') {
+      if (merged.education && typeof merged.education === 'object' && merged.education.degree !== undefined) {
         merged.education = [merged.education]
       } else {
         merged.education = emptyData().education
       }
     }
+    // Always ensure at least one education entry
+    if (merged.education.length === 0) merged.education = emptyData().education
     data.value = merged
   }
   const savedTpl = lsGet('pcv-template')
@@ -92,20 +105,23 @@ export const useCvStore = defineStore('cv', () => {
     // Always save to localStorage immediately
     const clone = plainClone(v)
     if (clone) lsSet('pcv-draft', JSON.stringify(clone))
-    // Debounce DB save — only if user is logged in and has a draft
+    // Debounce DB save
     clearTimeout(saveTimer)
     saveTimer = setTimeout(() => {
       if (hasDraftableContent(v)) saveDraft().catch(() => {})
     }, 1500)
-  }, { deep: true })
+  }, { deep: true, flush: 'post' })
 
   watch(template, (v) => {
     lsSet('pcv-template', v)
-    // Save to DB when template changes
-    if (currentDraftId.value || hasDraftableContent(data.value)) {
-      setTimeout(() => saveDraft().catch(() => {}), 500)
-    }
-  })
+    // Use setTimeout with longer delay to ensure we're outside any render cycle
+    // flush:'post' ensures this runs after Vue has finished rendering
+    setTimeout(() => {
+      if (currentDraftId.value || hasDraftableContent(data.value)) {
+        saveDraft().catch(() => {})
+      }
+    }, 1000)
+  }, { flush: 'post' })
 
   watch(darkMode, (v) => {
     document.documentElement.setAttribute('data-theme', v ? 'dark' : 'light')
@@ -201,12 +217,15 @@ export const useCvStore = defineStore('cv', () => {
           .slice(0, 5)
         if (d.education.length === 0) d.education = [{ degree: '', school: '', year: '' }]
       } else if (typeof ext.education === 'object') {
+        // AI returns plain object — wrap in array so StepEducation renders it correctly
         d.education = [{
           degree: typeof ext.education.degree === 'string' ? ext.education.degree : '',
           school: typeof ext.education.school === 'string' ? ext.education.school : '',
           year:   typeof ext.education.year   === 'string' ? ext.education.year   : '',
         }]
       }
+      // Ensure it's always an array after this block
+      if (!Array.isArray(d.education)) d.education = [{ degree: '', school: '', year: '' }]
     }
     if (Array.isArray(ext.projects) && ext.projects.length) {
       d.projects = ext.projects
@@ -251,8 +270,13 @@ export const useCvStore = defineStore('cv', () => {
       })
       if (!r.ok) return false
       const draft = await r.json()
-      if (!wizardDraftId.value)  wizardDraftId.value  = draft.id
-      if (!currentDraftId.value) currentDraftId.value = draft.id
+      // Use setTimeout to defer reactive mutations outside current render cycle
+      if (!wizardDraftId.value || !currentDraftId.value) {
+        setTimeout(() => {
+          if (!wizardDraftId.value)  wizardDraftId.value  = draft.id
+          if (!currentDraftId.value) currentDraftId.value = draft.id
+        }, 0)
+      }
       return true
     })().catch((e) => {
       console.warn('Draft save failed:', e.message)
@@ -264,7 +288,7 @@ export const useCvStore = defineStore('cv', () => {
   }
 
   async function callAi(prompt, model) {
-    const r = await fetch('/api/ai/complete', {
+    const r = await fetch(apiUrl('/api/ai/complete'),  {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt, model: model || 'llama-3.3-70b-versatile' }),
@@ -274,13 +298,39 @@ export const useCvStore = defineStore('cv', () => {
     return json.result
   }
 
+  function setSkillLevel(i, value) {
+    if (!data.value.skillLevels) data.value.skillLevels = {}
+    data.value.skillLevels[i] = Number(value)
+  }
+
+  const cvScore = computed(() => {
+    const d = data.value
+    const exp = d.experiences || []
+    const edu = Array.isArray(d.education) ? d.education : []
+    const skills = d.skills || []
+    let pts = 0
+    if (d.fn && d.ln) pts += 10
+    if (d.email) pts += 10
+    if (d.phone) pts += 5
+    if (d.title) pts += 5
+    if (d.loc) pts += 5
+    if ((d.sum?.length ?? 0) > 20) pts += 10
+    if ((d.sum?.length ?? 0) >= 100 && (d.sum?.length ?? 0) <= 600) pts += 5
+    if (exp.filter(e => e.title || e.company).length >= 1) pts += 15
+    if (exp.length > 0 && exp.every(e => (e.desc?.length ?? 0) > 30)) pts += 10
+    if (skills.length >= 6) pts += 10
+    if (edu.some(e => e.degree || e.school)) pts += 10
+    if (d.li) pts += 5
+    return pts
+  })
+
   return {
     data, template, darkMode, wizardOpen, wizardMode, wizardStep,
     wizardDraftId, currentDraftId,
-    fullName, initials,
+    fullName, initials, fmt,
     initDarkMode, openWizard, openWizardAtStep, closeWizard,
     setMode, nextStep, prevStep,
     addExperience, removeExperience, addSkill, removeSkill,
-    resetData, applyExtracted, saveDraft, callAi,
+    resetData, applyExtracted, saveDraft, callAi, setSkillLevel, cvScore,
   }
 })

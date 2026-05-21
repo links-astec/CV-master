@@ -19,7 +19,7 @@ const __dirname    = dirname(fileURLToPath(import.meta.url));
 const app          = express();
 const upload       = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
-const JWT_SECRET       = process.env.JWT_SECRET || 'perfectcv-dev-secret-change-in-prod';
+const JWT_SECRET       = process.env.JWT_SECRET || 'cvmaster-dev-secret-change-in-prod';
 const GROQ_KEY         = process.env.GROQ_API_KEY || '';
 const STRIPE_KEY       = process.env.STRIPE_SECRET_KEY || '';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
@@ -57,7 +57,7 @@ async function sendMail({ to, subject, html, attachments }) {
   const t = await getMailer();
   const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'gabbyquaye2021@gmail.com';
   const info = await t.sendMail({
-    from: `"PerfectCV" <${from}>`,
+    from: `"CVMaster" <${from}>`,
     to, subject, html, attachments,
   });
   console.log('[mailer] Sent to', to, '| msgId:', info.messageId);
@@ -81,9 +81,48 @@ app.use(helmet({
 }));
 app.use(compression());
 app.use(cookieParser());
-app.use(express.json({ limit: '5mb' }));
+
+// ── MAINTENANCE MODE ──────────────────────────────────────────────────────────
+let maintenanceMode = process.env.MAINTENANCE_MODE === 'true';
+
+app.use((req, res, next) => {
+  if (!maintenanceMode) return next();
+  if (
+    req.path.startsWith('/api/admin') ||
+    req.path === '/admin' ||
+    req.path === '/api/health' ||
+    req.path.startsWith('/assets')
+  ) return next();
+  if (req.path.startsWith('/api')) {
+    return res.status(503).json({
+      error: 'CVMaster is currently under maintenance. Please check back shortly.',
+      maintenance: true,
+    });
+  }
+  res.status(503).send(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>CVMaster — Maintenance</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,sans-serif;background:#0d1117;color:#e6edf3;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:24px}.box{max-width:420px}.logo{font-size:24px;font-weight:700;margin-bottom:24px}.logo b{color:#2f81f7}h1{font-size:28px;font-weight:700;margin-bottom:12px}p{color:#8b949e;font-size:15px;line-height:1.6}</style>
+</head><body><div class="box">
+<div class="logo">CV<b>Master</b></div>
+<h1>Under Maintenance</h1>
+<p>We're making improvements. CVMaster will be back shortly.</p>
+</div></body></html>`);
+});
+
+// Stripe webhook for watermark unlock — raw body required, must be BEFORE express.json
+app.post('/api/webhooks/stripe', express.raw({type:'application/json'}), handleWatermarkWebhook);
+
+app.use(express.json({ limit: '10mb' }));
 app.use(cors({
-  origin: IS_PROD ? FRONTEND_URL : ['http://localhost:5173', 'http://localhost:3000'],
+  origin: IS_PROD
+    ? [
+        FRONTEND_URL,
+        'https://cvmaster.live',
+        'https://www.cvmaster.live',
+        process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '',
+        /\.vercel\.app$/,
+      ].filter(Boolean)
+    : ['http://localhost:5173', 'http://localhost:3000'],
   credentials: true,
 }));
 
@@ -98,11 +137,19 @@ function signToken(userId) {
 }
 function setAuthCookie(res, token) {
   res.cookie('token', token, {
-    httpOnly: true, secure: IS_PROD,
-    sameSite: IS_PROD ? 'none' : 'lax',
+    httpOnly: true,
+    secure: IS_PROD,            // Render uses HTTPS in production
+    sameSite: IS_PROD ? 'none' : 'lax',  // 'none' required for cross-origin (Vercel → Render)
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 }
+// ── REFERRAL CODE GENERATOR ──────────────────────────────────────────────────
+function generateReferralCode(name, email) {
+  const prefix = (name || '').replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 4).padEnd(4, 'X')
+  const suffix = Math.random().toString(16).slice(2, 6).toUpperCase()
+  return `${prefix}-${suffix}`
+}
+
 function authMiddleware(req, res, next) {
   const token = req.cookies?.token || req.headers.authorization?.replace('Bearer ', '');
   if (!token) return res.status(401).json({ error: 'Unauthorized' });
@@ -124,7 +171,7 @@ function publicUser(row) {
 async function seedNotifications(userId) {
   await query(`
     INSERT INTO notifications (user_id, type, title, body, created_at) VALUES
-    ($1, 'welcome', 'Welcome to PerfectCV',  'Your account is ready. Start building your CV now.',                  NOW()),
+    ($1, 'welcome', 'Welcome to CVMaster',  'Your account is ready. Start building your CV now.',                  NOW()),
     ($1, 'tip',     'AI Tip',                'Use Narrate mode — tell your story and AI builds your whole CV.',      NOW() - INTERVAL '1 minute'),
     ($1, 'feature', 'Photo Templates',       'Upload a headshot to unlock the Photo Professional template.',         NOW() - INTERVAL '2 minutes')
   `, [userId]);
@@ -133,7 +180,7 @@ async function seedNotifications(userId) {
 // ── REGISTER ──────────────────────────────────────────────────────────────────
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { email, password, name } = req.body;
+    const { email, password, name, referredBy } = req.body;
     if (!email || !password || !name) return res.status(400).json({ error: 'All fields required.' });
     if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
     const key = email.toLowerCase().trim();
@@ -141,12 +188,38 @@ app.post('/api/auth/register', async (req, res) => {
     if (existing.rows.length) return res.status(409).json({ error: 'An account with this email already exists.' });
     const hash   = await bcrypt.hash(password, 12);
     const avatar = name.trim()[0].toUpperCase();
+
+    // Resolve referrer
+    let referrerId = null;
+    if (referredBy) {
+      const ref = await query('SELECT id FROM users WHERE UPPER(referral_code) = $1', [referredBy.trim().toUpperCase()]);
+      if (ref.rows.length) referrerId = ref.rows[0].id;
+    } else {
+    }
+
+    // Generate unique referral code
+    let referralCode = ''
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const candidate = generateReferralCode(name, key)
+      const existing  = await query('SELECT id FROM users WHERE referral_code = $1', [candidate])
+      if (!existing.rows.length) { referralCode = candidate; break }
+    }
+
     const { rows } = await query(
-      `INSERT INTO users (email, name, hash, provider, avatar)
-       VALUES ($1, $2, $3, 'email', $4) RETURNING *`,
-      [key, name.trim(), hash, avatar]
+      `INSERT INTO users (email, name, hash, provider, avatar, referred_by, referral_code)
+       VALUES ($1, $2, $3, 'email', $4, $5, $6) RETURNING *`,
+      [key, name.trim(), hash, avatar, referrerId, referralCode]
     );
     const user = rows[0];
+
+    // Credit referrer +1
+    if (referrerId) {
+      await query(
+        'UPDATE users SET referral_credits = referral_credits + 1 WHERE id = $1',
+        [referrerId]
+      );
+    }
+
     await seedNotifications(user.id);
     setAuthCookie(res, signToken(user.id));
     res.json({ user: publicUser(user) });
@@ -171,7 +244,7 @@ app.post('/api/auth/login', async (req, res) => {
 // ── GOOGLE OAUTH ──────────────────────────────────────────────────────────────
 app.post('/api/auth/google', async (req, res) => {
   try {
-    const { credential } = req.body;
+    const { credential, referredBy } = req.body;
     if (!credential) return res.status(400).json({ error: 'Google credential missing.' });
     if (!GOOGLE_CLIENT_ID) return res.status(503).json({ error: 'Google login is not configured on this server.' });
     const client  = new OAuth2Client(GOOGLE_CLIENT_ID);
@@ -180,21 +253,39 @@ app.post('/api/auth/google', async (req, res) => {
     const { email, name, picture, sub: googleId } = payload;
     const key = email.toLowerCase();
 
+    // Resolve referrer
+    let googleReferrerId = null;
+    if (referredBy) {
+      const ref = await query('SELECT id FROM users WHERE referral_code = $1', [referredBy.trim().toUpperCase()]);
+      if (ref.rows.length) googleReferrerId = ref.rows[0].id;
+    }
+
+    const googleRefCode = generateReferralCode(name || key.split('@')[0], key);
+    const avatar        = (name?.[0] || 'G').toUpperCase();
+
     // Upsert: if email exists link Google, otherwise create new user
     const { rows } = await query(
-      `INSERT INTO users (email, name, provider, google_id, google_picture, avatar)
-       VALUES ($1, $2, 'google', $3, $4, $5)
+      `INSERT INTO users (email, name, provider, google_id, google_picture, avatar, referral_code, referred_by)
+       VALUES ($1, $2, 'google', $3, $4, $5, $6, $7)
        ON CONFLICT (email) DO UPDATE
-         SET google_id = EXCLUDED.google_id,
+         SET google_id      = EXCLUDED.google_id,
              google_picture = COALESCE(users.google_picture, EXCLUDED.google_picture)
-       RETURNING *`,
-      [key, name || key.split('@')[0], googleId, picture, name?.[0]?.toUpperCase() || 'G']
+       RETURNING *, (xmax = 0) AS is_new_row`,
+      [key, name || key.split('@')[0], googleId, picture, avatar, googleRefCode, googleReferrerId]
     );
-    const user = rows[0];
+    const user      = rows[0];
+    const isNewUser = user.is_new_row;
 
-    // Seed notifications only for brand-new users (created_at very recent)
-    const age = Date.now() - new Date(user.created_at).getTime();
-    if (age < 5000) await seedNotifications(user.id);
+    // Credit referrer only for brand-new users
+    if (isNewUser && googleReferrerId) {
+      await query(
+        'UPDATE users SET referral_credits = referral_credits + 1 WHERE id = $1',
+        [googleReferrerId]
+      );
+    }
+
+    // Seed notifications only for brand-new users
+    if (isNewUser) await seedNotifications(user.id);
 
     setAuthCookie(res, signToken(user.id));
     res.json({ user: publicUser(user) });
@@ -227,14 +318,14 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     const resetUrl = `${FRONTEND_URL}/reset-password?token=${token}`;
     await sendMail({
       to: user.email,
-      subject: 'Reset your PerfectCV password',
+      subject: 'Reset your CVMaster password',
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#fff;">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:28px;">
             <div style="width:36px;height:36px;background:#2a5bd7;border-radius:9px;display:flex;align-items:center;justify-content:center;">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             </div>
-            <span style="font-size:18px;font-weight:700;color:#1a1916;">PerfectCV</span>
+            <span style="font-size:18px;font-weight:700;color:#1a1916;">CVMaster</span>
           </div>
           <h2 style="font-size:22px;color:#1a1916;margin-bottom:8px;">Reset your password</h2>
           <p style="color:#6b6860;line-height:1.65;margin-bottom:24px;">
@@ -410,7 +501,12 @@ app.post('/api/ai/complete', authMiddleware, async (req, res) => {
 
 app.post('/api/ai/enhance', authMiddleware, async (req, res) => {
   const { type, data } = req.body;
-  const prompts = {
+  const isFrench = data.lang === 'fr';
+  const prompts = isFrench ? {
+    summary:    `Rédige un résumé professionnel percutant en FRANÇAIS (2-3 phrases, optimisé ATS, moins de 60 mots). Nom: ${data.name}, Titre: ${data.title}. Actuel: "${data.current}". Retourne uniquement le texte du résumé en français.`,
+    experience: `Améliore cette description de poste en FRANÇAIS avec des verbes d'action forts et des métriques quantifiées (1-2 phrases). Rôle: ${data.title} chez ${data.company}. Actuel: "${data.desc}". Retourne uniquement le texte amélioré en français.`,
+    skills:     `Liste 10 compétences recherchées pour un poste de ${data.title}. Retourne uniquement un tableau JSON de chaînes en français — sans markdown, sans explication.`,
+  } : {
     summary:    `Write a compelling professional summary (2-3 sentences, ATS-optimised, under 60 words). Name: ${data.name}, Title: ${data.title}. Current: "${data.current}". Return only the summary text.`,
     experience: `Improve this job description with strong action verbs and quantified metrics (1-2 sentences). Role: ${data.title} at ${data.company}. Current: "${data.desc}". Return only improved text.`,
     skills:     `List 10 in-demand skills for a ${data.title} role. Return a JSON array of strings only — no markdown, no explanation.`,
@@ -697,6 +793,220 @@ function uploadMessage(fileName, extracted, prefix) {
 }
 
 // ── SEND CV BY EMAIL ─────────────────────────────────────────────────────────
+
+// Injects print-safe styles so Puppeteer captures colors and exact layout.
+function enforceSinglePage(html) {
+  let out = html
+    .replace(/max-height\s*:\s*\d+px\s*(!important)?/gi, '')
+    .replace(/@page\s*\{[^}]*\}/gi, '')
+
+  const style = `<style>
+*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;box-sizing:border-box;}
+html,body{margin:0!important;padding:0!important;background:#fff!important;}
+@page{margin:0;}
+</style>`;
+  if (out.includes('</head>')) return out.replace('</head>', style + '</head>');
+  if (out.includes('<body'))   return out.replace('<body',  style + '<body');
+  return style + out;
+}
+
+// ── SHARED PUPPETEER BROWSER ──────────────────────────────────────────────────
+// One browser instance shared across all PDF requests.
+// Avoids 3-8s cold-start per request — pages open in ~200ms instead.
+let _browser = null;
+let _browserReady = null;
+
+async function getBrowser() {
+  if (_browser && _browser.connected) return _browser;
+  if (_browserReady) return _browserReady; // wait if another request is launching it
+  _browserReady = (async () => {
+    const puppeteer = await import('puppeteer');
+    _browser = await puppeteer.default.launch({
+      headless: 'new',
+      args: [
+        '--no-sandbox', '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage', '--disable-gpu',
+        '--disable-web-security', '--font-render-hinting=none',
+      ],
+    });
+    _browser.on('disconnected', () => { _browser = null; _browserReady = null; });
+    return _browser;
+  })();
+  const b = await _browserReady;
+  _browserReady = null;
+  return b;
+}
+
+// Load local font files once at startup and cache as base64
+// Install with: npm install @fontsource/dm-sans @fontsource/dm-serif-display
+let _fontCss = null;
+async function getLocalFontCss() {
+  if (_fontCss !== null) return _fontCss;
+  try {
+    const { readFileSync, existsSync } = await import('fs');
+    const { join: pjoin } = await import('path');
+    const { fileURLToPath } = await import('url');
+    const root = pjoin(fileURLToPath(import.meta.url), '..', '..');
+    const fonts = [
+      // DM Sans weights
+      { pkg: '@fontsource/dm-sans/files/dm-sans-latin-300-normal.woff2',   family: 'DM Sans', weight: 300, style: 'normal' },
+      { pkg: '@fontsource/dm-sans/files/dm-sans-latin-400-normal.woff2',   family: 'DM Sans', weight: 400, style: 'normal' },
+      { pkg: '@fontsource/dm-sans/files/dm-sans-latin-400-italic.woff2',   family: 'DM Sans', weight: 400, style: 'italic' },
+      { pkg: '@fontsource/dm-sans/files/dm-sans-latin-500-normal.woff2',   family: 'DM Sans', weight: 500, style: 'normal' },
+      { pkg: '@fontsource/dm-sans/files/dm-sans-latin-600-normal.woff2',   family: 'DM Sans', weight: 600, style: 'normal' },
+      { pkg: '@fontsource/dm-sans/files/dm-sans-latin-700-normal.woff2',   family: 'DM Sans', weight: 700, style: 'normal' },
+      // DM Serif Display
+      { pkg: '@fontsource/dm-serif-display/files/dm-serif-display-latin-400-normal.woff2', family: 'DM Serif Display', weight: 400, style: 'normal' },
+      { pkg: '@fontsource/dm-serif-display/files/dm-serif-display-latin-400-italic.woff2', family: 'DM Serif Display', weight: 400, style: 'italic' },
+    ];
+    const faces = [];
+    for (const f of fonts) {
+      const fullPath = pjoin(root, 'node_modules', f.pkg);
+      if (!existsSync(fullPath)) continue;
+      const b64 = readFileSync(fullPath).toString('base64');
+      faces.push(`@font-face{font-family:'${f.family}';font-weight:${f.weight};font-style:${f.style};src:url(data:font/woff2;base64,${b64}) format('woff2');font-display:block;}`);
+    }
+    _fontCss = faces.length > 0 ? `<style>${faces.join('')}</style>` : '';
+    if (faces.length > 0) console.log(`[pdf] Loaded ${faces.length} local fonts for PDF rendering`);
+    else console.warn('[pdf] Local fonts not found — run: npm install @fontsource/dm-sans @fontsource/dm-serif-display');
+  } catch {
+    _fontCss = '';
+  }
+  return _fontCss;
+}
+
+async function renderPdfFromHtml(html) {
+  const browser = await getBrowser();
+  const page    = await browser.newPage();
+  try {
+    // Block Google Fonts network requests — we serve fonts locally or use system fallbacks
+    await page.setRequestInterception(true);
+    page.on('request', req => {
+      const u = req.url();
+      if (u.includes('fonts.googleapis.com') || u.includes('fonts.gstatic.com')) {
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
+
+    // Strip the <link> to Google Fonts and inject local fonts instead
+    const fontCss = await getLocalFontCss();
+    let prepared  = html.replace(/<link[^>]+fonts\.googleapis\.com[^>]*>/gi, '');
+    if (fontCss) {
+      prepared = prepared.includes('</head>')
+        ? prepared.replace('</head>', fontCss + '</head>')
+        : fontCss + prepared;
+    }
+
+    // domcontentloaded = instant — all fonts are inline, no network needed
+    await page.setViewport({ width: 700, height: 1400, deviceScaleFactor: 1 });
+    await page.setContent(enforceSinglePage(prepared), { waitUntil: 'domcontentloaded', timeout: 10000 });
+
+    // Measure actual rendered content height
+    const naturalH = await page.evaluate(() =>
+      Math.max(document.body.scrollHeight, document.body.offsetHeight,
+               document.documentElement.scrollHeight)
+    );
+
+    // PDF height = content height → always one page, no clipping, no side whitespace.
+    // Minimum 990px so short CVs don't look empty.
+    return await page.pdf({
+      width:             '700px',
+      height:            `${Math.max(naturalH, 990)}px`,
+      printBackground:   true,
+      preferCSSPageSize: false,
+      margin: { top: '0', right: '0', bottom: '0', left: '0' },
+    });
+  } finally {
+    await page.close();
+  }
+}
+
+// ── SHARED PDF GENERATOR ──────────────────────────────────────────────────────
+// Used by both the email route and the watermark clean download route.
+// Tries Puppeteer → wkhtmltopdf → html-pdf-node in order.
+// Returns a Buffer or null if all methods fail.
+// PDF method cache — auto-detected on first call, reused forever
+let _pdfMethod = null;
+
+async function generateCvPdf(htmlContent) {
+  const t0 = Date.now();
+
+  // ── Method: Puppeteer (shared browser, fonts blocked, domcontentloaded) ──
+  if (_pdfMethod === null || _pdfMethod === 'puppeteer') {
+    try {
+      const pdf = await Promise.race([
+        renderPdfFromHtml(htmlContent),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('puppeteer_timeout')), 6000)),
+      ]);
+      if (pdf && pdf.length > 1000) {
+        if (!_pdfMethod) { _pdfMethod = 'puppeteer'; console.log(`[pdf] Method: Puppeteer (${Date.now()-t0}ms)`); }
+        return pdf;
+      }
+    } catch (e) {
+      console.warn(`[pdf] Puppeteer failed (${Date.now()-t0}ms):`, e.message);
+      _pdfMethod = null; // try next
+    }
+  }
+
+  // ── Method: wkhtmltopdf ──
+  if (_pdfMethod === null || _pdfMethod === 'wkhtmltopdf') {
+    try {
+      const { execFile } = await import('child_process');
+      const { writeFileSync, readFileSync, unlinkSync, existsSync } = await import('fs');
+      const { tmpdir } = await import('os');
+      const { join: pj } = await import('path');
+      const tmpH = pj(tmpdir(), `cv_${Date.now()}.html`);
+      const tmpP = pj(tmpdir(), `cv_${Date.now()}.pdf`);
+      writeFileSync(tmpH, htmlContent, 'utf-8');
+      const err = await new Promise(res => {
+        execFile('wkhtmltopdf', [
+          '--page-width', '700px',
+          '--margin-top', '0', '--margin-bottom', '0', '--margin-left', '0', '--margin-right', '0',
+          '--encoding', 'UTF-8', '--enable-local-file-access',
+          '--load-error-handling', 'ignore', '--load-media-error-handling', 'ignore',
+          '--no-stop-slow-scripts', '--javascript-delay', '100', '--quiet',
+          tmpH, tmpP,
+        ], { timeout: 15000 }, res);
+      });
+      if (!err && existsSync(tmpP)) {
+        const pdf = readFileSync(tmpP);
+        try { unlinkSync(tmpH); unlinkSync(tmpP); } catch {}
+        if (pdf.length > 1000) {
+          if (!_pdfMethod) { _pdfMethod = 'wkhtmltopdf'; console.log(`[pdf] Method: wkhtmltopdf (${Date.now()-t0}ms)`); }
+          return pdf;
+        }
+      }
+      try { unlinkSync(tmpH); unlinkSync(tmpP); } catch {}
+    } catch (e) {
+      console.warn('[pdf] wkhtmltopdf failed:', e.message);
+      _pdfMethod = null;
+    }
+  }
+
+  // ── Method: html-pdf-node ──
+  if (_pdfMethod === null || _pdfMethod === 'htmlpdf') {
+    try {
+      const htmlPdf = await import('html-pdf-node');
+      const pdf = await htmlPdf.default.generatePdf(
+        { content: htmlContent },
+        { width: '700px', margin: { top:'0', bottom:'0', left:'0', right:'0' }, printBackground: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] }
+      );
+      if (pdf && pdf.length > 1000) {
+        if (!_pdfMethod) { _pdfMethod = 'htmlpdf'; console.log(`[pdf] Method: html-pdf-node (${Date.now()-t0}ms)`); }
+        return pdf;
+      }
+    } catch (e) {
+      console.warn('[pdf] html-pdf-node failed:', e.message);
+    }
+  }
+
+  console.error(`[pdf] All methods failed after ${Date.now()-t0}ms`);
+  return null;
+}
+
+
 app.post('/api/cv/email', authMiddleware, async (req, res) => {
   try {
     const { htmlContent, fileName, overrideEmail, demoMode, sessionId, draftId = 'current' } = req.body;
@@ -759,64 +1069,9 @@ app.post('/api/cv/email', authMiddleware, async (req, res) => {
     }
     console.log('[email] Sending to:', toEmail, '| demo:', !!demoMode);
 
-    // Generate PDF — try wkhtmltopdf first, then html-pdf-node, then HTML fallback
-    let pdfBuffer = null;
 
-    // Method 1: wkhtmltopdf (available on most Linux servers including Render)
-    try {
-      const { execFile } = await import('child_process');
-      const { writeFileSync, readFileSync, unlinkSync, existsSync } = await import('fs');
-      const { tmpdir } = await import('os');
-      const { join: pjoin } = await import('path');
-
-      const tmpHtml = pjoin(tmpdir(), `cv_${Date.now()}.html`);
-      const tmpPdf  = pjoin(tmpdir(), `cv_${Date.now()}.pdf`);
-      writeFileSync(tmpHtml, htmlContent, 'utf-8');
-
-      await new Promise((resolve) => {
-        execFile('wkhtmltopdf', [
-          '--page-width',  '700px',
-          '--page-height', '990px',
-          '--margin-top', '0', '--margin-bottom', '0',
-          '--margin-left', '0', '--margin-right', '0',
-          '--encoding', 'UTF-8',
-          '--enable-local-file-access',
-          '--load-error-handling', 'ignore',
-          '--load-media-error-handling', 'ignore',
-          '--no-stop-slow-scripts',
-          '--javascript-delay', '500',
-          '--quiet',
-          tmpHtml, tmpPdf,
-        ], { timeout: 30000 }, (err) => resolve(err));
-      });
-
-      if (existsSync(tmpPdf)) {
-        pdfBuffer = readFileSync(tmpPdf);
-        console.log('[email] wkhtmltopdf PDF:', pdfBuffer.length, 'bytes');
-      }
-      try { unlinkSync(tmpHtml); unlinkSync(tmpPdf); } catch {}
-    } catch (e) {
-      console.warn('[email] wkhtmltopdf not available:', e.message);
-    }
-
-    // Method 2: html-pdf-node (puppeteer-based, works on Render)
-    if (!pdfBuffer) {
-      try {
-        const htmlPdf = await import('html-pdf-node');
-        const file = { content: htmlContent };
-        const opts = {
-          width: '700px',
-          height: '990px',
-          margin: { top: '0', bottom: '0', left: '0', right: '0' },
-          printBackground: true,
-          args: ['--no-sandbox', '--disable-setuid-sandbox'],
-        };
-        pdfBuffer = await htmlPdf.default.generatePdf(file, opts);
-        console.log('[email] html-pdf-node PDF:', pdfBuffer.length, 'bytes');
-      } catch (e) {
-        console.warn('[email] html-pdf-node failed:', e.message);
-      }
-    }
+    // Generate PDF using shared helper (Puppeteer → wkhtmltopdf → html-pdf-node)
+    const pdfBuffer = await generateCvPdf(htmlContent);
 
     if (pdfBuffer) {
       console.log('[email] PDF ready, sending as attachment');
@@ -834,13 +1089,13 @@ app.post('/api/cv/email', authMiddleware, async (req, res) => {
 
     await sendMail({
       to: toEmail,
-      subject: 'Your CV from PerfectCV',
+      subject: 'Your CV from CVMaster',
       html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:36px 24px;">
         <div style="margin-bottom:24px;display:flex;align-items:center;gap:10px;">
           <div style="width:36px;height:36px;background:#2a5bd7;border-radius:9px;display:flex;align-items:center;justify-content:center;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           </div>
-          <span style="font-size:18px;font-weight:700;color:#1a1916;">PerfectCV</span>
+          <span style="font-size:18px;font-weight:700;color:#1a1916;">CVMaster</span>
         </div>
         <h2 style="font-size:22px;color:#1a1916;margin:0 0 10px;">Your CV is attached, ${user.name || 'there'}!</h2>
         <p style="color:#6b6860;font-size:14px;line-height:1.7;margin:0 0 20px;">
@@ -848,7 +1103,7 @@ app.post('/api/cv/email', authMiddleware, async (req, res) => {
             ? 'Your CV is attached as a ready-to-send PDF.'
             : 'Your CV is attached as an HTML file. Open it in Chrome and press <strong>Ctrl+P → Save as PDF</strong> to get a PDF.'}
         </p>
-        <p style="color:#b0ada6;font-size:12px;margin:0;">PerfectCV · <a href="https://cv-master-rose.vercel.app" style="color:#2a5bd7;">cv-master-rose.vercel.app</a></p>
+        <p style="color:#b0ada6;font-size:12px;margin:0;">CVMaster · <a href="https://cv-master-rose.vercel.app" style="color:#2a5bd7;">cv-master-rose.vercel.app</a></p>
       </div>`,
       attachments: [attachment],
     });
@@ -868,7 +1123,7 @@ app.get('/api/email-test', authMiddleware, async (req, res) => {
     const user = rows[0];
     await sendMail({
       to: user.email,
-      subject: 'PerfectCV — Email Test',
+      subject: 'CVMaster — Email Test',
       html: '<p>If you receive this, email is working correctly.</p>',
     });
     res.json({ ok: true, sentTo: user.email, smtp: process.env.SMTP_HOST || 'ethereal (dev)' });
@@ -944,7 +1199,7 @@ app.post('/api/payment/create-session', authMiddleware, async (req, res) => {
     const stripe  = new Stripe(STRIPE_KEY);
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      line_items: [{ price_data: { currency: 'gbp', product_data: { name: 'PerfectCV Export', description: 'Professional PDF CV download' }, unit_amount: 499 }, quantity: 1 }],
+      line_items: [{ price_data: { currency: 'gbp', product_data: { name: 'CVMaster Export', description: 'Professional PDF CV — emailed instantly' }, unit_amount: 199 }, quantity: 1 }],
       mode: 'payment',
       success_url: `${FRONTEND_URL}/export-success?session={CHECKOUT_SESSION_ID}&draft=${draftId}`,
       cancel_url:  `${FRONTEND_URL}/builder`,
@@ -1002,6 +1257,17 @@ app.post('/api/payment/verify', authMiddleware, async (req, res) => {
   }
 });
 
+// GET /api/payment/status/any — check if user has ANY paid export (for re-download)
+app.get('/api/payment/status/any', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await query(
+      'SELECT paid FROM payments WHERE user_id = $1 AND paid = TRUE LIMIT 1',
+      [req.user.sub]
+    );
+    res.json({ paid: rows.length > 0 });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/payment/status/:draftId', authMiddleware, async (req, res) => {
   try {
     const { rows } = await query(
@@ -1012,11 +1278,529 @@ app.get('/api/payment/status/:draftId', authMiddleware, async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Status check failed.' }); }
 });
 
+
+// ── CV WATERMARK DOWNLOAD ─────────────────────────────────────────────────────
+// CV WATERMARK DOWNLOAD SYSTEM
+// ─────────────────────────────────────────────────────────────────────────────
+// Flow:
+//  1. POST /api/cv/store-for-unlock  → stores HTML + token, returns immediately
+//  2. User chooses free or paid in modal
+//  3a. Free:  POST /api/cv/download-watermarked → generates watermarked PDF and returns it
+//  3b. Paid:  POST /api/cv/unlock → Stripe PaymentIntent
+//  4. Stripe confirms → GET /api/cv/clean/:token → generateCvPdf (same as email) → return bytes
+//
+// The clean download uses EXACTLY the same PDF pipeline as the email export.
+// Quality is identical to what the user sees in the preview.
+
+const cleanStore = new Map();
+
+function makeToken() {
+  return Array.from({length: 48}, () => Math.floor(Math.random() * 16).toString(16)).join('');
+}
+
+function addHtmlWatermark(html) {
+  const row  = '<div style="width:320px;padding:18px 0;font-family:sans-serif;font-size:13px;font-weight:700;color:#111;letter-spacing:.06em;white-space:nowrap;">CVMaster — upgrade at cvmaster.com</div>';
+  const rows = Array(80).fill(row).join('');
+  const wm   = `<div style="position:fixed;inset:0;pointer-events:none;z-index:99999;overflow:hidden;"><div style="position:absolute;inset:-50%;display:flex;flex-wrap:wrap;align-content:flex-start;transform:rotate(-28deg);opacity:0.14;">${rows}</div></div>`;
+  return html.includes('</body>') ? html.replace('</body>', wm + '</body>') : html + wm;
+}
+
+// renderPdf alias for compatibility
+async function renderPdf(html) { return renderPdfFromHtml(html); }
+
+// POST /api/cv/store-for-unlock
+// Returns token immediately. Kicks off background rendering of BOTH PDFs.
+// By the time user reads modal + enters card details (~15-30s), PDFs are ready.
+// cv/clean then serves pre-rendered bytes instantly — no wait after payment.
+app.post('/api/cv/store-for-unlock', authMiddleware, async (req, res) => {
+  try {
+    const { htmlContent, fileName = 'cv.pdf' } = req.body;
+    if (!htmlContent) return res.status(400).json({ error: 'htmlContent required.' });
+    const token   = makeToken();
+    const safe    = fileName.replace(/\.pdf$/i, '') + '.pdf';
+    const entry   = { html: htmlContent, fileName: safe, cleanPdf: null, watermarkedPdf: null, ready: false, expiresAt: Date.now() + 2 * 60 * 60 * 1000 };
+    cleanStore.set(token, entry);
+    setTimeout(() => cleanStore.delete(token), 2 * 60 * 60 * 1000);
+
+    // Respond immediately — don't wait for rendering
+    res.json({ token, fileName: safe });
+
+    // Render both PDFs concurrently in background
+    console.log('[pdf] Background render starting for token:', token.slice(0,8));
+    Promise.all([
+      generateCvPdf(htmlContent),
+      generateCvPdf(addHtmlWatermark(htmlContent)),
+    ]).then(([cleanPdf, watermarkedPdf]) => {
+      if (cleanStore.has(token)) {
+        entry.cleanPdf       = cleanPdf       ? Buffer.from(cleanPdf)       : null;
+        entry.watermarkedPdf = watermarkedPdf ? Buffer.from(watermarkedPdf) : null;
+        entry.ready          = true;
+        console.log('[pdf] Background render done, clean:', cleanPdf?.length, 'watermarked:', watermarkedPdf?.length);
+      }
+    }).catch((e) => {
+      console.error('[pdf] Background render FAILED:', e.message, e.stack?.split('\n')[1]);
+      entry.ready = false;
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'Could not prepare download: ' + e.message });
+  }
+});
+
+// POST /api/cv/download-watermarked — serves pre-rendered watermarked PDF instantly
+app.post('/api/cv/download-watermarked', authMiddleware, async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'token required.' });
+    const entry = cleanStore.get(token);
+    if (!entry || Date.now() > entry.expiresAt) {
+      return res.status(404).json({ error: 'Session expired. Please click download again.' });
+    }
+    // Wait up to 30s if still rendering (user clicked very fast)
+    let waited = 0;
+    while (!entry.ready && waited < 30000) { await new Promise(r => setTimeout(r, 300)); waited += 300; }
+    if (!entry.watermarkedPdf) {
+      // Fallback: generate now if background render failed
+      const pdf = await generateCvPdf(addHtmlWatermark(entry.html));
+      if (!pdf) return res.status(500).json({ error: 'PDF generation failed. Please try again.' });
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${entry.fileName.replace('.pdf', '-preview.pdf')}"`);
+      return res.send(Buffer.from(pdf));
+    }
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${entry.fileName.replace('.pdf', '-preview.pdf')}"`);
+    res.send(entry.watermarkedPdf);
+  } catch (e) {
+    res.status(500).json({ error: 'Download failed: ' + e.message });
+  }
+});
+
+// POST /api/cv/unlock — creates Stripe PaymentIntent for €0.50
+app.post('/api/cv/unlock', authMiddleware, async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'token required.' });
+    if (!cleanStore.has(token)) return res.status(404).json({ error: 'Session expired. Please click download again.' });
+
+    if (!STRIPE_KEY) {
+      await query(
+        `INSERT INTO payments (user_id, draft_id, session_id, paid) VALUES ($1,$2,$3,TRUE) ON CONFLICT (session_id) DO UPDATE SET paid=TRUE`,
+        [req.user.sub, 'wm_' + token, token]
+      );
+      return res.json({ demo: true });
+    }
+
+    const { default: Stripe } = await import('stripe');
+    const stripe  = new Stripe(STRIPE_KEY);
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'eur',
+          product_data: { name: 'CVMaster — Clean CV Download', description: 'Watermark-free PDF · ATS-ready' },
+          unit_amount: 50,
+        },
+        quantity: 1,
+      }],
+      mode: 'payment',
+      success_url: `${FRONTEND_URL}/download-clean?token=${token}&session={CHECKOUT_SESSION_ID}`,
+      cancel_url:  `${FRONTEND_URL}/`,
+      metadata: { product: 'cvmaster_clean_download', clean_token: token, user_id: req.user.sub },
+    });
+    res.json({ url: session.url });
+  } catch (e) {
+    res.status(500).json({ error: 'Could not create payment: ' + e.message });
+  }
+});
+
+// GET /api/cv/clean/:token
+// If X-Payment-Intent-Id header present: verify with Stripe directly (instant, no polling).
+// Otherwise: check payments DB (set by webhook or background poll).
+app.get('/api/cv/clean/:token', authMiddleware, async (req, res) => {
+  try {
+    const { token }       = req.params;
+    const paymentIntentId = req.headers['x-payment-intent-id'];
+
+    let paid = false;
+
+    // Fast path: frontend sends Checkout Session ID — verify with Stripe directly
+    if (paymentIntentId && STRIPE_KEY) {
+      try {
+        const { default: Stripe } = await import('stripe');
+        const stripe  = new Stripe(STRIPE_KEY);
+        const session = await stripe.checkout.sessions.retrieve(paymentIntentId);
+        if (session.payment_status === 'paid' && session.metadata?.clean_token === token) {
+          paid = true;
+          await query(
+            `INSERT INTO payments (user_id, draft_id, session_id, paid)
+             VALUES ($1, $2, $3, TRUE) ON CONFLICT (session_id) DO UPDATE SET paid = TRUE`,
+            [req.user.sub, 'wm_' + token, token]
+          ).catch(() => {});
+        }
+      } catch {}
+    }
+
+    // Fallback: check DB (set by webhook or background poll)
+    if (!paid) {
+      const { rows } = await query(
+        'SELECT paid FROM payments WHERE session_id=$1 AND paid=TRUE LIMIT 1', [token]
+      );
+      paid = rows.length > 0;
+    }
+
+    if (!paid) return res.status(402).json({ error: 'Payment not confirmed yet.' });
+
+    const entry = cleanStore.get(token);
+
+    // Entry missing (expired or server restarted) but payment IS confirmed
+    if (!entry || Date.now() > entry.expiresAt) {
+      cleanStore.delete(token);
+      return res.status(410).json({
+        error: 'Your download link has expired (2-hour limit). Please click Download again from the dashboard — your payment is saved and you will not be charged again.',
+        expired: true,
+      });
+    }
+
+    // If pre-rendered PDF is ready, serve instantly
+    if (entry.ready && entry.cleanPdf) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${entry.fileName}"`);
+      return res.send(entry.cleanPdf);
+    }
+
+    // Still rendering — wait up to 30s
+    let waited = 0;
+    while (!entry.ready && waited < 30000) { await new Promise(r => setTimeout(r, 300)); waited += 300; }
+    if (entry.ready && entry.cleanPdf) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${entry.fileName}"`);
+      return res.send(entry.cleanPdf);
+    }
+
+    // Last resort: generate now from stored HTML
+    const pdf = await generateCvPdf(entry.html);
+    if (!pdf) return res.status(500).json({ error: 'PDF generation failed. Please try again.' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${entry.fileName}"`);
+    res.send(Buffer.from(pdf));
+  } catch (e) {
+    res.status(500).json({ error: 'Could not generate clean PDF: ' + e.message });
+  }
+});
+
+// Stripe webhook — marks token paid
+async function handleWatermarkWebhook(req, res) {
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) return res.json({ received: true });
+  let event;
+  try {
+    const { default: Stripe } = await import('stripe');
+    event = new Stripe(STRIPE_KEY).webhooks.constructEvent(req.body, req.headers['stripe-signature'], webhookSecret);
+  } catch (e) {
+    return res.status(400).json({ error: 'Webhook signature invalid: ' + e.message });
+  }
+  if (event.type === 'payment_intent.succeeded') {
+    const pi = event.data.object, token = pi.metadata?.clean_token;
+    if (pi.metadata?.product === 'cvmaster_clean_download' && token) {
+      await query(
+        `INSERT INTO payments (user_id,draft_id,session_id,paid) VALUES ($1,$2,$3,TRUE) ON CONFLICT (session_id) DO UPDATE SET paid=TRUE`,
+        [pi.metadata.user_id || '00000000-0000-0000-0000-000000000000', 'wm_' + token, token]
+      ).catch(() => {});
+    }
+  }
+  res.json({ received: true });
+}
+
+// ── CV RE-DOWNLOAD (paid users only) ─────────────────────────────────────────
+// If a user has already paid for a draft, allow them to re-export it for free.
+// They still go through the PaywallModal but we skip Stripe and send immediately.
+app.post('/api/cv/redownload', authMiddleware, async (req, res) => {
+  try {
+    const { draftId, htmlContent, fileName, overrideEmail } = req.body;
+    if (!htmlContent) return res.status(400).json({ error: 'htmlContent required.' });
+
+    // Verify this user has paid for this draft (or any draft — one-time unlocks all)
+    const { rows } = await query(
+      `SELECT paid FROM payments
+       WHERE user_id = $1 AND paid = TRUE LIMIT 1`,
+      [req.user.sub]
+    );
+    if (!rows.length) {
+      return res.status(402).json({ error: 'No paid export found for this account.' });
+    }
+
+    // Send the PDF — reuse the same email logic
+    // JWT only carries sub (user ID) — fetch email from DB
+    const { rows: userRows } = await query('SELECT email FROM users WHERE id = $1', [req.user.sub]);
+    const toEmail = overrideEmail || userRows[0]?.email;
+    if (!toEmail) return res.status(400).json({ error: 'No email address found for this account.' });
+
+    // Generate PDF
+    let pdfBuffer = null;
+    try {
+      pdfBuffer = await renderPdfFromHtml(htmlContent);
+    } catch (e) {
+      console.warn('[redownload] Puppeteer failed:', e.message);
+    }
+
+    const safeName = (fileName || 'cv.pdf').replace(/[^a-zA-Z0-9-_.]/g, '-');
+    const attachment = pdfBuffer
+      ? { filename: safeName, content: Buffer.from(pdfBuffer), contentType: 'application/pdf' }
+      : { filename: safeName.replace('.pdf', '.html'), content: htmlContent, contentType: 'text/html' };
+
+    await sendMail({
+      to: toEmail,
+      subject: `Your CVMaster — ${safeName.replace('-CV.pdf','').replace(/-/g,' ')}`,
+      html: `<p>Hi! Here's your CV re-sent as requested.</p>
+             <p>Your CV is attached as a ${pdfBuffer ? 'PDF' : 'HTML'} file.</p>
+             <p style="color:#888;font-size:12px;">CVMaster — cvmaster.com</p>`,
+      attachments: [attachment],
+    });
+
+    res.json({ ok: true, sentTo: toEmail, format: pdfBuffer ? 'pdf' : 'html' });
+  } catch (e) {
+    console.error('[cv/redownload]', e.message);
+    res.status(500).json({ error: 'Re-send failed: ' + e.message });
+  }
+});
+
+// ── ADMIN PANEL ───────────────────────────────────────────────────────────────
+// Serve admin.html at /admin — protected by its own JWT (no user auth crossover)
+import { readFileSync as _readFileSync } from 'fs';
+import { join as _join } from 'path';
+import { fileURLToPath as _fileURLToPath } from 'url';
+const _dirname = _join(_fileURLToPath(import.meta.url), '..');
+
+app.get('/admin', (req, res) => {
+  try {
+    const html = _readFileSync(_join(_dirname, '../admin.html'), 'utf-8');
+    res.setHeader('Content-Type', 'text/html');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.send(html);
+  } catch {
+    res.status(404).send('Admin panel not found. Place admin.html in the project root.');
+  }
+});
+
+// ── ADMIN AUTH ────────────────────────────────────────────────────────────────
+const ADMIN_JWT_SECRET    = process.env.ADMIN_JWT_SECRET || 'admin-change-this-secret';
+const adminLoginAttempts  = new Map(); // ip → { count, lockedUntil }
+
+function adminAuthMiddleware(req, res, next) {
+  const token = req.cookies?.admin_token || req.headers['x-admin-token'];
+  if (!token) return res.status(401).json({ error: 'Admin authentication required.' });
+  try {
+    req.admin = jwt.verify(token, ADMIN_JWT_SECRET);
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid or expired admin session.' });
+  }
+}
+
+// POST /api/admin/login
+app.post('/api/admin/login', async (req, res) => {
+  const ip  = req.ip || 'unknown';
+  const now = Date.now();
+  const att = adminLoginAttempts.get(ip) || { count: 0, lockedUntil: 0 };
+  if (att.lockedUntil > now) {
+    const wait = Math.ceil((att.lockedUntil - now) / 60000);
+    return res.status(429).json({ error: `Too many attempts. Try again in ${wait} minute(s).` });
+  }
+  const { email, password } = req.body || {};
+  if (!email || !password) return res.status(400).json({ error: 'Email and password required.' });
+  try {
+    const { rows } = await query('SELECT * FROM admins WHERE email = $1', [email.toLowerCase().trim()]);
+    const admin = rows[0];
+    const valid = admin && await bcrypt.compare(password, admin.password_hash);
+    if (!valid) {
+      att.count += 1;
+      if (att.count >= 5) att.lockedUntil = now + 15 * 60 * 1000;
+      adminLoginAttempts.set(ip, att);
+      return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+    adminLoginAttempts.delete(ip);
+    await query('UPDATE admins SET last_login = NOW() WHERE id = $1', [admin.id]).catch(() => {});
+    const token = jwt.sign({ id: admin.id, email: admin.email, role: admin.role }, ADMIN_JWT_SECRET, { expiresIn: '8h' });
+    res.cookie('admin_token', token, { httpOnly: true, secure: IS_PROD, sameSite: IS_PROD ? 'none' : 'lax', maxAge: 8 * 60 * 60 * 1000 });
+    res.json({ ok: true, email: admin.email, role: admin.role });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/admin/logout
+app.post('/api/admin/logout', (req, res) => {
+  res.clearCookie('admin_token');
+  res.json({ ok: true });
+});
+
+// GET /api/admin/me
+app.get('/api/admin/me', adminAuthMiddleware, (req, res) => {
+  res.json({ email: req.admin.email, role: req.admin.role });
+});
+
+// GET /api/admin/stats
+app.get('/api/admin/stats', adminAuthMiddleware, async (req, res) => {
+  try {
+    const [users, payments, drafts, referrals, recentPayments] = await Promise.all([
+      query(`SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') AS week FROM users`),
+      query(`SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') AS week FROM payments WHERE paid = TRUE`),
+      query(`SELECT COUNT(*) AS total FROM drafts`),
+      query(`SELECT COUNT(*) AS total FROM users WHERE referred_by IS NOT NULL`),
+      query(`SELECT u.email, p.created_at FROM payments p JOIN users u ON u.id = p.user_id WHERE p.paid = TRUE ORDER BY p.created_at DESC LIMIT 10`),
+    ]);
+    res.json({
+      users:           { total: Number(users.rows[0].total), week: Number(users.rows[0].week) },
+      payments:        { total: Number(payments.rows[0].total), week: Number(payments.rows[0].week) },
+      drafts:          { total: Number(drafts.rows[0].total) },
+      referrals:       { total: Number(referrals.rows[0].total) },
+      revenue_pence:   Number(payments.rows[0].total) * 199,
+      recent_payments: recentPayments.rows,
+      maintenance:     maintenanceMode,
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/admin/users
+app.get('/api/admin/users', adminAuthMiddleware, async (req, res) => {
+  try {
+    const { page = 1, search = '', plan = '' } = req.query;
+    const limit = 25, offset = (Number(page) - 1) * limit;
+    const params = [], conds = ['1=1'];
+    if (search) { params.push(`%${search}%`); conds.push(`(email ILIKE $${params.length} OR name ILIKE $${params.length})`); }
+    if (plan)   { params.push(plan); conds.push(`plan = $${params.length}`); }
+    const where = 'WHERE ' + conds.join(' AND ');
+    params.push(limit, offset);
+    const { rows } = await query(
+      `SELECT id, email, name, plan, provider, onboarded, referral_code, referral_credits,
+              (SELECT COUNT(*) FROM payments WHERE user_id = users.id AND paid = TRUE) AS payment_count,
+              (SELECT COUNT(*) FROM drafts WHERE user_id = users.id) AS draft_count,
+              created_at
+       FROM users ${where} ORDER BY created_at DESC LIMIT $${params.length-1} OFFSET $${params.length}`,
+      params
+    );
+    const { rows: tot } = await query(`SELECT COUNT(*) FROM users ${where}`, params.slice(0, -2));
+    res.json({ users: rows, total: Number(tot[0].count), page: Number(page), pages: Math.ceil(Number(tot[0].count) / limit) });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// PATCH /api/admin/users/:id
+app.patch('/api/admin/users/:id', adminAuthMiddleware, async (req, res) => {
+  try {
+    const { plan, referral_credits } = req.body;
+    const sets = [], params = [req.params.id];
+    if (plan !== undefined)             { params.push(plan); sets.push(`plan = $${params.length}`); }
+    if (referral_credits !== undefined) { params.push(Number(referral_credits)); sets.push(`referral_credits = $${params.length}`); }
+    if (!sets.length) return res.status(400).json({ error: 'Nothing to update.' });
+    const { rows } = await query(`UPDATE users SET ${sets.join(', ')} WHERE id = $1 RETURNING id, email, plan, referral_credits`, params);
+    res.json(rows[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// DELETE /api/admin/users/:id
+app.delete('/api/admin/users/:id', adminAuthMiddleware, async (req, res) => {
+  try {
+    await query('DELETE FROM users WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/email/send
+app.post('/api/admin/email/send', adminAuthMiddleware, async (req, res) => {
+  try {
+    const { subject, body, plan_filter, test_email } = req.body;
+    if (!subject || !body) return res.status(400).json({ error: 'subject and body required.' });
+    if (test_email) {
+      await sendMail({ to: test_email, subject: `[TEST] ${subject}`, html: body });
+      return res.json({ ok: true, sent: 1, test: true });
+    }
+    let sql = 'SELECT email FROM users WHERE email IS NOT NULL';
+    const p = [];
+    if (plan_filter && plan_filter !== 'all') { p.push(plan_filter); sql += ` AND plan = $${p.length}`; }
+    const { rows } = await query(sql, p);
+    let sent = 0;
+    for (let i = 0; i < rows.length; i += 10) {
+      await Promise.allSettled(rows.slice(i, i + 10).map(r => sendMail({ to: r.email, subject, html: body })));
+      sent += Math.min(10, rows.length - i);
+      if (i + 10 < rows.length) await new Promise(r => setTimeout(r, 300));
+    }
+    res.json({ ok: true, sent });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/maintenance — toggle maintenance mode
+app.post('/api/admin/maintenance', adminAuthMiddleware, (req, res) => {
+  const { enabled } = req.body;
+  maintenanceMode = !!enabled;
+  res.json({ ok: true, maintenance: maintenanceMode });
+});
+
+// ── REFERRAL ROUTES ───────────────────────────────────────────────────────────
+// GET /api/referral/lookup?code=XXX — public, returns referrer name for banner
+app.get('/api/referral/lookup', async (req, res) => {
+  try {
+    const code = (req.query.code || '').trim().toUpperCase();
+    if (!code) return res.status(400).json({ error: 'code required' });
+    const { rows } = await query('SELECT name FROM users WHERE UPPER(referral_code) = $1', [code.toUpperCase()]);
+    if (!rows.length) return res.status(404).json({ error: 'Invalid code' });
+    res.json({ name: rows[0].name });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/referral/info', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT referral_code, referral_credits,
+              (SELECT COUNT(*) FROM users WHERE referred_by = $1) AS referral_count,
+              (SELECT COUNT(*) FROM users WHERE referred_by = $1 AND created_at > NOW() - INTERVAL '30 days') AS recent_count
+       FROM users WHERE id = $1`, [req.user.sub]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'User not found.' });
+    const { referral_code, referral_credits, referral_count, recent_count } = rows[0];
+    res.json({
+      code:        referral_code,
+      credits:     Number(referral_credits),
+      count:       Number(referral_count),
+      recentCount: Number(recent_count),
+      link:        `${FRONTEND_URL}?ref=${referral_code}`,
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/referral/apply', async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ error: 'code required.' });
+    const { rows } = await query('SELECT id FROM users WHERE referral_code = $1', [code]);
+    if (!rows.length) return res.status(404).json({ error: 'Invalid referral code.' });
+    res.cookie('pcv_ref', code, { httpOnly: true, maxAge: 30 * 24 * 60 * 60 * 1000, sameSite: 'lax' });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/referral/use-credit', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await query(
+      `UPDATE users SET referral_credits = referral_credits - 1
+       WHERE id = $1 AND referral_credits > 0
+       RETURNING referral_credits`,
+      [req.user.sub]
+    );
+    if (!rows.length) return res.status(400).json({ error: 'No credits available.' });
+    res.json({ ok: true, credits: Number(rows[0].referral_credits) });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── ADMIN PANEL (serve HTML) ──────────────────────────────────────────────────
+
 // ── HEALTH ────────────────────────────────────────────────────────────────────
 app.get('/api/health', async (req, res) => {
   let db = false;
   try { await query('SELECT 1'); db = true; } catch {}
-  res.json({ ok: true, db, groq: !!GROQ_KEY, stripe: !!STRIPE_KEY, google: !!GOOGLE_CLIENT_ID, time: new Date().toISOString() });
+  if (maintenanceMode) {
+    return res.status(503).json({ ok: false, maintenance: true, message: 'Under maintenance' });
+  }
+  res.json({ ok: true, maintenance: false, db, groq: !!GROQ_KEY, stripe: !!STRIPE_KEY, google: !!GOOGLE_CLIENT_ID, time: new Date().toISOString() });
 });
 
 // ── STATIC (production) ───────────────────────────────────────────────────────
@@ -1033,8 +1817,15 @@ export default app;
 
 if (process.env.VERCEL !== '1') {
   const PORT = process.env.PORT || 3001;
+  // Warm up Puppeteer on server start so first PDF is fast
+  getBrowser().then(() => {
+    console.log('  PDF:    Puppeteer ready');
+  }).catch(() => {
+    console.warn('  PDF:    Puppeteer warmup failed — will retry on first request');
+  });
+
   app.listen(PORT, () => {
-    console.log(`\nPerfectCV API → http://localhost:${PORT}`);
+    console.log(`\nCVMaster API → http://localhost:${PORT}`);
     console.log(`  DB:     ${process.env.DATABASE_URL ? 'connected' : 'NOT SET — add DATABASE_URL'}`);
     console.log(`  Groq:   ${GROQ_KEY   ? 'configured' : 'NOT SET'}`);
     console.log(`  Stripe: ${STRIPE_KEY ? 'configured' : 'NOT SET (demo mode)'}`);

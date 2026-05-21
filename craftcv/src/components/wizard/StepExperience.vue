@@ -28,8 +28,9 @@
         </div>
         <div class="f-grp">
           <div class="f-lbl">Description / Achievements</div>
-          <textarea class="f-ta" v-model="exp.desc" rows="3"
-            placeholder="Led product strategy, growing revenue by..."></textarea>
+          <textarea class="f-ta" v-model="exp.desc" rows="4"
+            placeholder="• Led product strategy...&#10;• Grew revenue by 30%...&#10;• Managed a team of 8..."></textarea>
+          <div class="f-hint">Tip: start each line with • for bullet points on your CV</div>
         </div>
         <button class="btn-ai-sm" @click="quantifyExp(exp, idx)" :disabled="quantifyIdx === idx">
           <svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
@@ -37,11 +38,11 @@
         </button>
         <div v-if="quantifyIdx === idx" class="thinking" style="margin-top:8px;">
           <div class="thinking-dots"><span></span><span></span><span></span></div>
-          <div class="thinking-txt">Adding metrics...</div>
+          <div class="thinking-txt">Adding metrics & bullet points...</div>
         </div>
         <div v-if="suggestions[idx]" class="ai-suggestion">
-          <div class="ai-sug-lbl">✨ Enhanced Version</div>
-          <div class="ai-sug-txt">{{ suggestions[idx] }}</div>
+          <div class="ai-sug-lbl">✨ Enhanced Version — with bullet points & metrics</div>
+          <div class="ai-sug-txt" style="white-space:pre-line;">{{ suggestions[idx] }}</div>
           <div class="ai-sug-actions">
             <button class="btn-sug-use" @click="applySuggestion(exp, idx)">Apply</button>
             <button class="btn-sug-dismiss" @click="delete suggestions[idx]">Dismiss</button>
@@ -70,14 +71,29 @@ async function quantifyExp(exp, idx) {
   quantifyIdx.value = idx
   emit('ai-thinking', true)
   try {
-    const prompt = `Improve this CV bullet point with specific metrics, strong action verbs, and measurable impact. Keep it 1-2 sentences, professional, and impressive.
-Job title: ${exp.title} at ${exp.company}
-Current: ${exp.desc}
-Return only the improved text, no quotes or preamble.`
+    const prompt = `You are a professional CV writer. Rewrite the following work experience description as 3-4 concise bullet points using strong action verbs and specific metrics/numbers wherever possible.
+
+Job: ${exp.title} at ${exp.company}
+Current description: ${exp.desc || 'No description yet'}
+
+Rules:
+- Return ONLY the bullet points, each starting with "• "
+- Each bullet on its own line
+- Use specific numbers (%, £/$, headcount, timeframes) — invent plausible ones if none given
+- Strong action verbs: Led, Built, Grew, Reduced, Launched, Managed, Delivered, Increased, Streamlined
+- No preamble, no explanation, just the bullet points
+
+Example output:
+• Led cross-functional team of 8 engineers to launch product used by 50,000+ users
+• Grew quarterly revenue by 34% through data-driven pricing optimisation
+• Reduced customer churn by 18% via proactive onboarding programme`
+
     const result = await store.callAi(prompt)
-    suggestions[idx] = result
+    // Ensure it starts cleanly with bullets
+    const cleaned = result.trim().replace(/^[^•\n].*\n/m, '').trim()
+    suggestions[idx] = cleaned || result.trim()
   } catch {
-    suggestions[idx] = `Spearheaded ${exp.title?.toLowerCase() || 'product'} initiatives at ${exp.company || 'the company'}, delivering measurable impact across key business metrics and driving year-over-year growth of 20%+.`
+    suggestions[idx] = `• Spearheaded ${exp.title?.toLowerCase() || 'product'} initiatives at ${exp.company || 'the company'}, delivering 25%+ improvement in key metrics\n• Managed cross-functional stakeholders and aligned teams around quarterly OKRs\n• Reduced operational inefficiencies by 20% through process redesign and automation`
   }
   quantifyIdx.value = null
   emit('ai-thinking', false)
@@ -94,6 +110,7 @@ function applySuggestion(exp, idx) {
 .step-icon{font-size:28px;margin-bottom:8px;}
 h3{font-size:18px;font-weight:700;color:var(--c-text);margin-bottom:5px;font-family:'DM Serif Display',serif;}
 p{font-size:13px;color:var(--c-text2);line-height:1.5;}
+.f-hint{font-size:11px;color:var(--c-text3);margin-top:4px;}
 .exp-card{background:var(--c-surface2);border:1px solid var(--c-border);border-radius:var(--radius);padding:16px;margin-bottom:12px;}
 .exp-card-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
 .exp-num{font-size:11px;font-weight:700;color:var(--c-accent);letter-spacing:.06em;text-transform:uppercase;}
@@ -107,7 +124,7 @@ p{font-size:13px;color:var(--c-text2);line-height:1.5;}
 .add-exp-btn:hover{border-color:var(--c-accent);color:var(--c-accent);background:var(--c-accent-lt);}
 .ai-suggestion{background:linear-gradient(135deg,#f0f8e8,#e8f4f0);border:1px solid #b8ddc8;border-radius:var(--radius-sm);padding:12px;margin-top:8px;}
 .ai-sug-lbl{font-size:9.5px;font-weight:800;color:var(--c-green);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px;}
-.ai-sug-txt{font-size:12px;color:var(--c-text);line-height:1.6;margin-bottom:8px;}
+.ai-sug-txt{font-size:12px;color:var(--c-text);line-height:1.7;margin-bottom:8px;}
 .ai-sug-actions{display:flex;gap:6px;}
 .btn-sug-use{background:var(--c-green);color:#fff;border:none;padding:4px 12px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;}
 .btn-sug-dismiss{background:none;border:1px solid var(--c-border);padding:4px 10px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;color:var(--c-text2);font-family:'DM Sans',sans-serif;}

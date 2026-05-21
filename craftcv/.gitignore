@@ -4,3 +4,7 @@ dist/
 *.local
 .DS_Store
 .vercel
+.venv
+venv/
+patch_lang_cert.cjs
+patch_renderer.cjs

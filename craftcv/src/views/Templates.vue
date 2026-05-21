@@ -18,7 +18,7 @@
           :class="{ sel: store.template === t.id }"
           @click="pickTemplate(t.id)"
         >
-          <div class="tpl-thumb" :ref="el => { if(el) cardEls[t.id]=el }">
+          <div class="tpl-thumb" :ref="el => setCardEl(t.id, el)">
             <div class="tpl-preview-scaler" :style="getScale(t.id)">
               <div v-html="renderSample(t.id)"></div>
             </div>
@@ -28,6 +28,7 @@
               </div>
             </div>
             <div v-if="t.badge" class="tpl-badge" :class="`b-${t.badge}`">{{ t.badgeLabel }}</div>
+            <div v-if="t.limitedFmt" class="tpl-badge b-fmt-warn" title="Font family formatting does not apply to this template">Fixed Font</div>
           </div>
           <div class="tpl-info">
             <div class="tpl-name">{{ t.name }}</div>
@@ -40,7 +41,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useCvStore } from '../stores/cv.js'
 import { useCvRenderer } from '../composables/cvRenderer.js'
 
@@ -105,7 +106,7 @@ const TEMPLATES = [
   { id: 'compact',    name: 'Compact Grid',        cat: 'Minimal',      badge: null,    badgeLabel: '',        desc: 'Dense two-column layout' },
   { id: 'academic',   name: 'Academic',            cat: 'Minimal',      badge: null,    badgeLabel: '',        desc: 'Timeline layout · Traditional' },
   { id: 'ivory',      name: 'Ivory Luxury',        cat: 'Minimal',      badge: 'new',   badgeLabel: 'New',     desc: 'Off-white · Centred · Refined' },
-  { id: 'ivory2',     name: 'Ivory II',            cat: 'Minimal',      badge: 'new',   badgeLabel: 'New',     desc: 'Double rule · Serif centred' },
+  { id: 'ivory2',     name: 'Ivory II',            cat: 'Minimal',      badge: 'new',   badgeLabel: 'New',     desc: 'Double rule · Serif centred' , limitedFmt: true },
   { id: 'silver',     name: 'Silver Lining',       cat: 'Minimal',      badge: 'new',   badgeLabel: 'New',     desc: 'Cool grey · Refined layout' },
   { id: 'rose',       name: 'Rose Gold',           cat: 'Minimal',      badge: 'new',   badgeLabel: 'New',     desc: 'Soft rose · Elegant' },
   { id: 'sky',        name: 'Sky Blue',            cat: 'Minimal',      badge: 'new',   badgeLabel: 'New',     desc: 'Centred · Sky blue' },
@@ -160,7 +161,7 @@ const TEMPLATES = [
   { id: 'carbon',     name: 'Carbon',              cat: 'Tech',         badge: 'new',   badgeLabel: 'New',     desc: 'Carbon black · Orange accents' },
   { id: 'obsidian',   name: 'Obsidian',            cat: 'Tech',         badge: 'new',   badgeLabel: 'New',     desc: 'Deep dark · Tricolour bar' },
   { id: 'neon',       name: 'Neon Green',          cat: 'Tech',         badge: 'new',   badgeLabel: 'New',     desc: 'Dark · Neon green accents' },
-  { id: 'matrix',     name: 'Matrix',              cat: 'Tech',         badge: 'new',   badgeLabel: 'New',     desc: 'Terminal green · Hacker' },
+  { id: 'matrix',     name: 'Matrix',              cat: 'Tech',         badge: 'new',   badgeLabel: 'New',     desc: 'Terminal green · Hacker' , limitedFmt: true },
   { id: 'phantom',    name: 'Phantom',             cat: 'Tech',         badge: 'new',   badgeLabel: 'New',     desc: 'Pure black · Minimal' },
   { id: 'midnight2',  name: 'Midnight II',         cat: 'Tech',         badge: 'new',   badgeLabel: 'New',     desc: 'Pure black · Stark minimal' },
   { id: 'zinc',       name: 'Zinc',                cat: 'Tech',         badge: 'new',   badgeLabel: 'New',     desc: 'Dark zinc · Grey tones' },
@@ -175,7 +176,7 @@ const TEMPLATES = [
   { id: 'split',      name: 'Bold Split',          cat: 'Unique',       badge: 'new',   badgeLabel: 'New',     desc: 'Dark sidebar · Amber accents' },
   { id: 'retro',      name: 'Retro Gold',          cat: 'Unique',       badge: 'new',   badgeLabel: 'New',     desc: 'Retro gold · Bold stripes' },
   { id: 'luxe',       name: 'Luxe Gold',           cat: 'Unique',       badge: 'new',   badgeLabel: 'New',     desc: 'Dark gold luxury' },
-  { id: 'mono',       name: 'Monospace',           cat: 'Unique',       badge: 'new',   badgeLabel: 'New',     desc: 'Monospace terminal' },
+  { id: 'mono',       name: 'Monospace',           cat: 'Unique',       badge: 'new',   badgeLabel: 'New',     desc: 'Monospace terminal' , limitedFmt: true },
   { id: 'wave',       name: 'Wave',                cat: 'Unique',       badge: 'new',   badgeLabel: 'New',     desc: 'Wave cutout header' },
   { id: 'parchment',  name: 'Parchment',           cat: 'Unique',       badge: 'new',   badgeLabel: 'New',     desc: 'Cream serif · Elegant' },
 ]
@@ -186,17 +187,33 @@ function renderSample(id) {
   return renderCache.get(id)
 }
 
-const cardEls = ref({})
+const cardEls = {}
+const scaleMap = ref({})
+
+function updateScales() {
+  const updated = {}
+  for (const [id, el] of Object.entries(cardEls)) {
+    const w = el ? el.clientWidth : 185
+    updated[id] = { zoom: String(Math.max(0.1, w / 700)), transformOrigin: 'top left' }
+  }
+  scaleMap.value = updated
+}
+
 function getScale(id) {
-  const el = cardEls.value[id]
-  const w  = el ? el.clientWidth : 185
-  return { zoom: String(Math.max(0.1, w / 700)), transformOrigin: 'top left' }
+  return scaleMap.value[id] || { zoom: String(185 / 700), transformOrigin: 'top left' }
+}
+
+function setCardEl(id, el) {
+  if (el) { cardEls[id] = el } else { delete cardEls[id] }
 }
 
 let _ro
 onMounted(() => {
-  _ro = new ResizeObserver(() => {})
-  document.querySelectorAll('.tpl-thumb').forEach(el => _ro.observe(el))
+  _ro = new ResizeObserver(() => { updateScales() })
+  nextTick(() => {
+    document.querySelectorAll('.tpl-thumb').forEach(el => _ro.observe(el))
+    updateScales()
+  })
 })
 onUnmounted(() => _ro?.disconnect())
 
@@ -226,7 +243,7 @@ function countFor(cat) {
 
 function pickTemplate(id) {
   store.template = id
-  store.openWizard(true)
+  nextTick(() => store.openWizard(true))
 }
 </script>
 <style scoped>
@@ -283,6 +300,7 @@ function pickTemplate(id) {
 .b-new   { background: #dcfce7; color: #15803d; }
 .b-pro   { background: #f0ebfa; color: #6236b0; }
 .b-photo { background: #fce9eb; color: #c52b3d; }
+.b-fmt-warn { background: #fef9c3; color: #92400e; border: 1px solid #fde68a; }
 .tpl-info { padding: 10px 12px; border-top: 1px solid var(--c-border); }
 .tpl-name { font-size: 12.5px; font-weight: 600; color: var(--c-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tpl-cat  { font-size: 10.5px; color: var(--c-text3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

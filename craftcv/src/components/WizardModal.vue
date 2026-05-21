@@ -67,7 +67,7 @@
                 </div>
 
                 <div class="wiz-panel-ft">
-                  <button class="btn-secondary" @click="handleBack" :disabled="store.wizardStep===0">← Back</button>
+                  <button class="btn-secondary" @click="handleBack">← Back</button>
                   <span class="wiz-step-num">{{ store.wizardStep+1 }}/{{ steps.length }}</span>
                   <button v-if="store.wizardStep < steps.length-1" class="btn-primary accent" @click="handleNext" :disabled="aiThinking">
                     {{ store.wizardStep === steps.length-2 ? 'Review' : 'Continue' }} →
@@ -81,19 +81,103 @@
                 <div class="wiz-preview-hd">
                   <div class="live-pill"><div class="live-dot"></div>Live Preview</div>
                   <div class="wiz-preview-ctrls">
-                    <button class="ctrl-pill" @click="prevTpl">‹</button>
-                    <span class="wiz-tpl-name">{{ currentTplName }}</span>
-                    <button class="ctrl-pill" @click="nextTpl">›</button>
-                    <button class="ctrl-pill" @click="previewZoom=Math.max(35,previewZoom-5)">−</button>
-                    <span class="wiz-zoom-lbl">{{ previewZoom }}%</span>
-                    <button class="ctrl-pill" @click="previewZoom=Math.min(100,previewZoom+5)">+</button>
+                    <div class="ctrl-group">
+                      <button class="ctrl-pill" @click.stop="prevTpl" title="Previous template">‹</button>
+                      <span class="wiz-tpl-name">{{ currentTplName }}</span>
+                      <button class="ctrl-pill" @click.stop="nextTpl" title="Next template">›</button>
+                    </div>
+                    <div class="ctrl-sep"></div>
+                    <div class="ctrl-group">
+                      <button class="ctrl-pill" @click.stop="previewZoom=Math.max(35,previewZoom-5)" title="Zoom out">−</button>
+                      <span class="wiz-zoom-lbl">{{ previewZoom }}%</span>
+                      <button class="ctrl-pill" @click.stop="previewZoom=Math.min(100,previewZoom+5)" title="Zoom in">+</button>
+                    </div>
+                    <div class="ctrl-sep"></div>
+                    <button class="ctrl-pill" :class="{active: showFormat}" @click.stop="showFormat=!showFormat" title="Format CV">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:12px;height:12px"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="15" y2="18"/></svg>
+                      Format
+                    </button>
                   </div>
                 </div>
-                <div class="wiz-preview-canvas">
+
+                <!-- Format panel — slides over preview -->
+                <Transition name="fmt-slide">
+                  <div v-if="showFormat" class="fmt-panel">
+                    <div class="fmt-panel-hd">
+                      <span>CV Formatting</span>
+                      <button class="fmt-close" @click="showFormat=false">×</button>
+                    </div>
+                    <div class="fmt-panel-body">
+                      <div class="fmt-sec">Typography</div>
+                      <div class="fmt-row">
+                        <div class="fmt-lbl">Font family</div>
+                        <select class="fmt-sel" v-model="fmt.fontFamily">
+                          <option value="DM Sans">DM Sans (default)</option>
+                          <option value="Georgia">Georgia (classic serif)</option>
+                          <option value="Arial">Arial (clean sans)</option>
+                          <option value="Times New Roman">Times New Roman</option>
+                          <option value="Garamond">Garamond (elegant)</option>
+                          <option value="Helvetica">Helvetica</option>
+                        </select>
+                      </div>
+                      <div class="fmt-row">
+                        <div class="fmt-lbl">Text size</div>
+                        <div class="fmt-btns">
+                          <button v-for="s in [{v:'small',l:'S'},{v:'normal',l:'M'},{v:'large',l:'L'}]" :key="s.v"
+                            class="fmt-btn" :class="{active:fmt.fontSize===s.v}" @click="fmt.fontSize=s.v">{{ s.l }}</button>
+                        </div>
+                      </div>
+                      <div class="fmt-row">
+                        <div class="fmt-lbl">Line spacing</div>
+                        <div class="fmt-btns">
+                          <button v-for="s in [{v:'compact',l:'Compact'},{v:'normal',l:'Normal'},{v:'relaxed',l:'Relaxed'}]" :key="s.v"
+                            class="fmt-btn" :class="{active:fmt.lineSpacing===s.v}" @click="fmt.lineSpacing=s.v">{{ s.l }}</button>
+                        </div>
+                      </div>
+                      <div class="fmt-sec">Skills display</div>
+                      <div class="fmt-row">
+                        <div class="fmt-lbl">Style</div>
+                        <select class="fmt-sel" v-model="fmt.skillStyle">
+                          <option value="bars">Progress bars</option>
+                          <option value="dots">Dot rating</option>
+                          <option value="chips">Chips / tags</option>
+                          <option value="list">Simple list</option>
+                          <option value="plain">Plain text (ATS safe)</option>
+                        </select>
+                      </div>
+                      <div class="fmt-row" v-if="fmt.skillStyle==='bars'||fmt.skillStyle==='dots'">
+                        <label class="fmt-check">
+                          <input type="checkbox" v-model="fmt.showSkillPct"/>
+                          Show percentages
+                        </label>
+                      </div>
+                      <div class="fmt-sec">Spacing</div>
+                      <div class="fmt-row">
+                        <div class="fmt-lbl">Sections</div>
+                        <div class="fmt-btns">
+                          <button v-for="s in [{v:'compact',l:'Compact'},{v:'normal',l:'Normal'},{v:'relaxed',l:'Relaxed'}]" :key="s.v"
+                            class="fmt-btn" :class="{active:fmt.sectionSpacing===s.v}" @click="fmt.sectionSpacing=s.v">{{ s.l }}</button>
+                        </div>
+                      </div>
+                      <button class="fmt-reset" @click="Object.assign(store.fmt,{fontFamily:'DM Sans',fontSize:'normal',skillStyle:'bars',showSkillPct:true,lineSpacing:'normal',sectionSpacing:'normal'})">
+                        Reset to defaults
+                      </button>
+                    </div>
+                  </div>
+                </Transition>
+
+                <div class="wiz-preview-canvas" @click="handlePreviewClick">
                   <div class="wiz-cv-outer" :style="{ width: '700px', zoom: previewZoom/100 }">
-                    <div :key="store.template" v-html="renderedCV"></div>
+                    <div v-html="renderedCV"></div>
                   </div>
                 </div>
+                <!-- Click-to-edit toast -->
+                <Transition name="edit-toast">
+                  <div v-if="editToast" class="edit-toast">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:13px;height:13px;flex-shrink:0"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    {{ editToast }}
+                  </div>
+                </Transition>
               </div>
             </div>
           </Transition>
@@ -104,7 +188,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted, defineAsyncComponent, provide, inject } from 'vue'
 import { useCvStore } from '../stores/cv.js'
 import { useCvRenderer } from '../composables/cvRenderer.js'
 
@@ -126,6 +210,11 @@ const stepDir     = ref(1)
 const panelBody   = ref(null)
 const previewWrap = ref(null)
 const previewZoom = ref(72)
+const showFormat  = ref(false)  // toggle format panel in preview area
+const editToast   = ref('')     // shown when user clicks on preview
+
+const fmt = inject('fmt')
+provide('wizardFmt', fmt)
 
 const TPLS = ['executive','modern','minimal','bold','creative','academic','elegant','tech','pastel','teal','newspaper','swiss','gradient','compact','photo','infographic','corporate','magazine','midnight','clean','slate','terra','prism','ivory','split','forest','ruby','ocean','purple','charcoal','sunrise','silver','mint','indigo','amber','diamond','bloom','nordic','sakura','emerald','cobalt','lemon','graphite','vega','rose','onyx','aurora','carbon','sky','obsidian','slate2','crimson','sage','dusk','slate3','copper2','neon','blush','sand','phantom','electric','luxe','mono','wave','tealwave','navy','violet2','midnight2','glacier','lava','verdant','parchment','matrix','retro','prism2','zinc','coral','tan','slate4','clay','frost','steel','mauve','brick','peach','plum','spruce','pine','ochre','ash','jade','wine','ultraviolet','blueprint','meadow','glacier2','garnet','topaz','walnut','ivory2','slate5','crimson2','sepia','lavender','ink','moss','futura']
 const TPL_NAMES = { executive:'Executive Slate', modern:'Modern Azure', minimal:'Minimal Editorial', bold:'Bold Noir', creative:'Creative Violet', academic:'Academic', elegant:'Elegant Gold', tech:'Tech Dark', pastel:'Pastel Rose', teal:'Teal Sidebar', newspaper:'Newspaper', swiss:'Swiss Design', gradient:'Gradient Flow', compact:'Compact Grid', photo:'Photo Professional', infographic:'Infographic', corporate:'Corporate Blue', magazine:'Magazine Editorial', midnight:'Midnight Executive', clean:'Clean Professional', slate:'Slate Impact', terra:'Terra', prism:'Prism', ivory:'Ivory Luxury', split:'Bold Split', forest:'Forest Green', ruby:'Ruby Red', ocean:'Ocean Blue', purple:'Purple Reign', charcoal:'Charcoal Grid', sunrise:'Sunrise Orange', silver:'Silver Lining', mint:'Mint Fresh', indigo:'Indigo Wave', amber:'Dark Amber', diamond:'Diamond', bloom:'Pink Bloom', nordic:'Nordic', sakura:'Sakura', emerald:'Emerald', cobalt:'Cobalt Night', lemon:'Lemon Fresh', graphite:'Graphite', vega:'Vega', rose:'Rose Gold', onyx:'Onyx', aurora:'Aurora', carbon:'Carbon', sky:'Sky Blue', obsidian:'Obsidian', slate2:'Slate Pro', crimson:'Crimson', sage:'Sage Green', dusk:'Dusk', slate3:'Slate III', copper2:'Copper II', neon:'Neon Green', blush:'Blush', sand:'Sand', phantom:'Phantom', electric:'Electric', luxe:'Luxe Gold', mono:'Monospace', wave:'Wave', tealwave:'Teal Wave', navy:'Navy Pro', violet2:'Violet', midnight2:'Midnight II', glacier:'Glacier', lava:'Lava', verdant:'Verdant', parchment:'Parchment', matrix:'Matrix', retro:'Retro Gold', prism2:'Prism II', zinc:'Zinc', coral:'Coral', tan:'Tan', slate4:'Slate IV', clay:'Clay Amber', frost:'Frost', steel:'Steel', mauve:'Mauve', brick:'Brick Red', peach:'Peach', plum:'Plum Dark', spruce:'Spruce', pine:'Pine', ochre:'Ochre', ash:'Ash', jade:'Jade', wine:'Wine', ultraviolet:'Ultraviolet', blueprint:'Blueprint', meadow:'Meadow', glacier2:'Glacier II', garnet:'Garnet', topaz:'Topaz', walnut:'Walnut', ivory2:'Ivory II', slate5:'Slate V', crimson2:'Crimson II', sepia:'Sepia', lavender:'Lavender', ink:'Ink', moss:'Moss', futura:'Futura' }
@@ -136,8 +225,11 @@ function prevTpl() { const i=currentTplIndex(); store.template=TPLS[(i-1+TPLS.le
 function nextTpl() { const i=currentTplIndex(); store.template=TPLS[(i+1)%TPLS.length] }
 
 const renderedCV = computed(() => {
+  // Track ALL reactive dependencies for live update
+  const tpl = store.template
   JSON.stringify(store.data)
-  return render(store.template, store.data)
+  JSON.stringify(fmt.value)
+  return render(tpl, store.data, fmt.value)
 })
 
 const manualSteps  = [{label:'Personal',comp:StepPersonal},{label:'Summary',comp:StepSummary},{label:'Experience',comp:StepExperience},{label:'Skills',comp:StepSkills},{label:'Education',comp:StepEducation},{label:'Review',comp:StepReview}]
@@ -159,7 +251,13 @@ function handleNext() {
 }
 function handleBack() {
   stepDir.value = -1
-  store.prevStep()
+  if (store.wizardStep === 0) {
+    // At first step — return to mode picker
+    store.wizardMode = null
+    store.wizardStep = 0
+  } else {
+    store.prevStep()
+  }
   nextTick(() => panelBody.value?.scrollTo({ top: 0, behavior: 'smooth' }))
 }
 
@@ -173,23 +271,83 @@ async function finish() {
   emit('open-builder')
 }
 
-function calcZoom() {
-  if (!previewWrap.value) return
-  const h = previewWrap.value.clientHeight - 52
-  previewZoom.value = Math.min(Math.round((h / 990) * 100), 85)
+// Interactive preview — click a section to jump to that wizard step
+let editToastTimer = null
+function handlePreviewClick(e) {
+  const el   = e.target
+  const text = (el.textContent || '').toLowerCase()
+  const tag  = el.tagName?.toLowerCase()
+
+  // Walk up to find a meaningful section
+  let matched = null
+
+  // Check element and its parents for clues about which section was clicked
+  let node = el
+  for (let depth = 0; depth < 6; depth++) {
+    if (!node || node.classList?.contains('wiz-cv-outer')) break
+    const t = (node.textContent || '').slice(0, 80).toLowerCase()
+
+    // Name / contact / personal info
+    if (node.tagName === 'H1' || t.includes('@') || t.includes('phone') ||
+        /^[a-z]+ [a-z]+$/i.test(node.textContent?.trim() || '') ) {
+      matched = { step: 0, label: 'Edit Personal Info' }; break
+    }
+    // Summary / profile / about
+    if (/profile|about|summary|objective/i.test(t) && t.length < 40) {
+      matched = { step: 1, label: 'Edit Summary' }; break
+    }
+    // Experience
+    if (/experience|employment|work history|career/i.test(t) && t.length < 40) {
+      matched = { step: 2, label: 'Edit Experience' }; break
+    }
+    // Skills
+    if (/skills|expertise|competencies|technologies/i.test(t) && t.length < 40) {
+      matched = { step: 3, label: 'Edit Skills' }; break
+    }
+    // Education
+    if (/education|qualifications|degree|university|college|school/i.test(t) && t.length < 40) {
+      matched = { step: 4, label: 'Edit Education' }; break
+    }
+    node = node.parentElement
+  }
+
+  // Default: click anywhere goes to personal (step 0)
+  if (!matched) matched = { step: 0, label: 'Click to edit' }
+
+  // Jump to matched step
+  const targetStep = store.wizardMode === 'narrate'
+    ? matched.step + 1
+    : store.wizardMode === 'upload'
+    ? matched.step + 1
+    : matched.step
+
+  store.wizardStep = Math.min(targetStep, steps.value.length - 1)
+  stepDir.value = 1
+  nextTick(() => panelBody.value?.scrollTo({ top: 0, behavior: 'smooth' }))
+
+  // Show toast
+  clearTimeout(editToastTimer)
+  editToast.value = matched.label
+  editToastTimer = setTimeout(() => { editToast.value = '' }, 2000)
 }
 
 let ro
 onMounted(() => {
-  ro = new ResizeObserver(calcZoom)
+  // Calculate zoom ONCE when wizard panel is available
+  ro = new ResizeObserver(entries => {
+    if (!entries[0]) return
+    const h = entries[0].contentRect.height - 52
+    previewZoom.value = Math.min(Math.round((h / 990) * 100), 85)
+    ro?.disconnect()  // disconnect immediately — never fire again
+    ro = null
+  })
   if (previewWrap.value) ro.observe(previewWrap.value)
-  calcZoom()
 })
 onUnmounted(() => ro?.disconnect())
 
 watch(() => store.wizardOpen, v => {
   document.body.style.overflow = v ? 'hidden' : ''
-  if (v) nextTick(calcZoom)
+  // Do NOT call calcZoom here — ResizeObserver handles it on mount
 })
 </script>
 
@@ -404,4 +562,80 @@ watch(() => store.wizardOpen, v => {
   .wiz-panel-ft { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
   .wiz-modal { padding-bottom: env(safe-area-inset-bottom); }
 }
+
+/* ── CONTROL GROUPS ──────────────────────────────────────── */
+.ctrl-group { display: flex; align-items: center; gap: 4px; }
+.ctrl-sep   { width: 1px; height: 16px; background: var(--c-border); margin: 0 3px; }
+.ctrl-pill.active { background: var(--c-accent-lt); border-color: var(--c-accent); color: var(--c-accent); }
+
+/* ── FORMAT PANEL ────────────────────────────────────────── */
+.fmt-panel {
+  position: absolute; top: 44px; right: 0; bottom: 0;
+  width: 280px; background: var(--c-surface);
+  border-left: 1px solid var(--c-border);
+  display: flex; flex-direction: column;
+  z-index: 10; box-shadow: -4px 0 20px rgba(0,0,0,.08);
+}
+.fmt-panel-hd {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-bottom: 1px solid var(--c-border);
+  font-size: 13px; font-weight: 700; color: var(--c-text); flex-shrink: 0;
+}
+.fmt-close {
+  background: none; border: none; font-size: 20px; cursor: pointer;
+  color: var(--c-text3); line-height: 1; padding: 0;
+}
+.fmt-close:hover { color: var(--c-text); }
+.fmt-panel-body { flex: 1; overflow-y: auto; padding: 14px 16px; }
+.fmt-sec {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .09em; color: var(--c-text3); margin: 16px 0 8px;
+}
+.fmt-sec:first-child { margin-top: 0; }
+.fmt-row { margin-bottom: 10px; }
+.fmt-lbl { font-size: 12px; color: var(--c-text2); margin-bottom: 5px; }
+.fmt-sel {
+  width: 100%; border: 1.5px solid var(--c-border); border-radius: var(--radius-sm);
+  padding: 7px 10px; font-size: 12.5px; color: var(--c-text); background: var(--c-bg);
+  font-family: 'DM Sans', sans-serif; cursor: pointer;
+}
+.fmt-sel:focus { outline: none; border-color: var(--c-accent); }
+.fmt-btns { display: flex; gap: 4px; }
+.fmt-btn {
+  flex: 1; border: 1.5px solid var(--c-border); background: var(--c-bg);
+  border-radius: var(--radius-sm); padding: 6px 4px; font-size: 12px;
+  font-weight: 500; cursor: pointer; color: var(--c-text2);
+  font-family: 'DM Sans', sans-serif; transition: all .14s;
+}
+.fmt-btn:hover { border-color: var(--c-border2); color: var(--c-text); }
+.fmt-btn.active { border-color: var(--c-accent); background: var(--c-accent-lt); color: var(--c-accent); font-weight: 700; }
+.fmt-check {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12.5px; color: var(--c-text2); cursor: pointer;
+}
+.fmt-reset {
+  width: 100%; margin-top: 16px; background: none; border: 1px solid var(--c-border);
+  border-radius: var(--radius-sm); padding: 8px; font-size: 12px;
+  color: var(--c-text3); cursor: pointer; font-family: 'DM Sans', sans-serif;
+}
+.fmt-reset:hover { border-color: var(--c-border2); color: var(--c-text); }
+.fmt-slide-enter-active, .fmt-slide-leave-active { transition: transform .22s ease, opacity .22s ease; }
+.fmt-slide-enter-from, .fmt-slide-leave-to { transform: translateX(100%); opacity: 0; }
+
+/* Interactive preview */
+.wiz-preview-canvas { cursor: pointer; }
+.wiz-cv-outer:hover { outline: 2px solid var(--c-accent); outline-offset: 4px; border-radius: 2px; }
+.edit-toast {
+  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+  background: var(--c-text); color: var(--c-surface);
+  padding: 8px 16px; border-radius: 20px; font-size: 12.5px; font-weight: 600;
+  display: flex; align-items: center; gap: 7px; white-space: nowrap;
+  box-shadow: var(--shadow-lg); z-index: 20; pointer-events: none;
+}
+.edit-toast-enter-active, .edit-toast-leave-active { transition: opacity .2s, transform .2s; }
+.edit-toast-enter-from, .edit-toast-leave-to { opacity: 0; transform: translateX(-50%) translateY(8px); }
+
+/* Make preview area position:relative so fmt-panel absolute works */
+.wiz-preview { position: relative; }
+
 </style>

@@ -16,11 +16,11 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = false
   }
 
-  async function register(email, password, name) {
+  async function register(email, password, name, referredBy = '') {
     const r = await fetch('/api/auth/register', {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, name }),
+      body: JSON.stringify({ email, password, name, referredBy }),
     })
     const data = await r.json()
     if (!r.ok) throw new Error(data.error)
@@ -40,11 +40,11 @@ export const useAuthStore = defineStore('auth', () => {
     return data.user
   }
 
-  async function loginWithGoogle(credential) {
+  async function loginWithGoogle(credential, referredBy = '') {
     const r = await fetch('/api/auth/google', {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ credential }),
+      body: JSON.stringify({ credential, referredBy }),
     })
     const data = await r.json()
     if (!r.ok) throw new Error(data.error)
