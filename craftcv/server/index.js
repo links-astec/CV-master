@@ -281,8 +281,8 @@ app.post('/api/auth/google', async (req, res) => {
     setAuthCookie(res, signToken(user.id));
     res.json({ user: publicUser(user) });
   } catch (e) {
-    console.error('Google auth error:', e.message);
-    res.status(401).json({ error: 'Google sign-in failed. Please try again.' });
+    console.error('Google auth error:', e.message, '| audience:', GOOGLE_CLIENT_ID?.slice(0,20));
+    res.status(401).json({ error: `Google sign-in failed: ${e.message}` });
   }
 });
 
