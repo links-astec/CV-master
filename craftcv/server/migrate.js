@@ -1,10 +1,13 @@
-// Run once to create all tables: node server/migrate.js
-// Safe to re-run — uses CREATE TABLE IF NOT EXISTS
+// server/migrate.js — UPDATED
+// Run: node server/migrate.js
+// Safe to re-run — uses IF NOT EXISTS and ADD COLUMN IF NOT EXISTS
 import 'dotenv/config';
 import { query } from './db.js';
+import bcrypt from 'bcryptjs';
+import { randomBytes } from 'crypto';
 
 const SQL = `
--- USERS
+-- USERS (existing table — add new columns safely)
 CREATE TABLE IF NOT EXISTS users (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email         TEXT UNIQUE NOT NULL,
@@ -21,7 +24,21 @@ CREATE TABLE IF NOT EXISTS users (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- DRAFTS  (cv_data is stored as JSONB so we can query it if needed later)
+-- REFERRAL COLUMNS (safe to run on existing DB — ignored if already exist)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code    TEXT UNIQUE DEFAULT NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_credits INT  NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by      UUID REFERENCES users(id) ON DELETE SET NULL;
+
+-- Backfill referral codes for existing users who do not have one yet
+UPDATE users
+SET referral_code = UPPER(
+  SUBSTRING(REGEXP_REPLACE(name, '[^a-zA-Z]', '', 'g') FROM 1 FOR 4) ||
+  '-' ||
+  SUBSTRING(MD5(id::TEXT) FROM 1 FOR 4)
+)
+WHERE referral_code IS NULL;
+
+-- DRAFTS
 CREATE TABLE IF NOT EXISTS drafts (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -63,13 +80,46 @@ CREATE TABLE IF NOT EXISTS payments (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS payments_draft_id ON payments(draft_id);
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS content_hash TEXT;
+
+-- ADMINS (separate table from users)
+CREATE TABLE IF NOT EXISTS admins (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email         TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  role          TEXT NOT NULL DEFAULT 'admin',
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_login    TIMESTAMPTZ
+);
 `;
 
 async function migrate() {
   console.log('Running migrations...');
   try {
     await query(SQL);
-    console.log('Migrations complete.');
+    console.log('✓ Schema migrations complete.');
+    console.log('✓ Referral columns ready (referral_code, referral_credits, referred_by).');
+    console.log('✓ Existing users backfilled with referral codes.');
+
+    // Create default admin if none exists
+    const { rows } = await query('SELECT COUNT(*) AS cnt FROM admins');
+    if (Number(rows[0].cnt) === 0) {
+      const email    = process.env.ADMIN_EMAIL    || 'admin@cvmaster.com';
+      const password = process.env.ADMIN_PASSWORD || randomBytes(12).toString('hex');
+      const hash     = await bcrypt.hash(password, 12);
+      await query(
+        'INSERT INTO admins (email, password_hash, role) VALUES ($1, $2, $3)',
+        [email, hash, 'superadmin']
+      );
+      console.log('\n✓ Admin account created:');
+      console.log(`  Email:    ${email}`);
+      if (!process.env.ADMIN_PASSWORD) {
+        console.log(`  Password: ${password}  <- SAVE THIS NOW`);
+      }
+    } else {
+      console.log('✓ Admin accounts already exist — skipping creation.');
+    }
+
     process.exit(0);
   } catch (e) {
     console.error('Migration failed:', e.message);

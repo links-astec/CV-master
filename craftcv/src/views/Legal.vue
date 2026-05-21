@@ -76,7 +76,7 @@
 
         <h2>4. Payments</h2>
         <ul>
-          <li>CV export (PDF delivery) is a one-time payment of £4.99.</li>
+          <li>CV export (PDF delivery) is a one-time payment of £1.99.</li>
           <li>Payments are processed by Stripe. All payments are final — no refunds once the PDF has been delivered to your email.</li>
           <li>If you did not receive your CV, contact us within 14 days for a resend or refund.</li>
         </ul>

@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CVMaster Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--s1:#161b22;--s2:#1c2333;--s3:#21262d;
+  --b1:#30363d;--b2:#3d444d;
+  --t1:#e6edf3;--t2:#8b949e;--t3:#484f58;
+  --accent:#2f81f7;--accent-dim:rgba(47,129,247,.12);
+  --green:#3fb950;--green-dim:rgba(63,185,80,.1);
+  --amber:#d29922;--amber-dim:rgba(210,153,34,.1);
+  --red:#f85149;--red-dim:rgba(248,81,73,.1);
+  --purple:#bc8cff;--purple-dim:rgba(188,140,255,.1);
+  --r:8px;--f:'Inter',-apple-system,sans-serif;
+}
+html,body{height:100%;background:var(--bg);color:var(--t1);font-family:var(--f);font-size:14px;line-height:1.5;}
+
+.app{display:flex;height:100vh;overflow:hidden;}
+.sidebar{width:230px;background:var(--s1);border-right:1px solid var(--b1);display:flex;flex-direction:column;flex-shrink:0;}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.content{flex:1;overflow-y:auto;padding:20px 24px;}
+
+.sb-head{padding:18px 16px 14px;border-bottom:1px solid var(--b1);display:flex;align-items:center;gap:10px;}
+.sb-logo{font-size:15px;font-weight:700;color:var(--t1);}
+.sb-logo b{color:var(--accent);}
+.sb-badge{font-size:10px;font-weight:600;background:var(--accent-dim);color:var(--accent);padding:2px 7px;border-radius:20px;border:1px solid rgba(47,129,247,.3);}
+.sb-nav{flex:1;padding:8px 0;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 16px;cursor:pointer;color:var(--t2);font-size:13.5px;font-weight:500;border-left:2px solid transparent;transition:all .12s;}
+.nav-item:hover{background:var(--s2);color:var(--t1);}
+.nav-item.active{background:var(--accent-dim);color:var(--accent);border-left-color:var(--accent);}
+.nav-item svg{width:16px;height:16px;flex-shrink:0;}
+.sb-foot{padding:14px 16px;border-top:1px solid var(--b1);}
+.admin-info{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.admin-av{width:30px;height:30px;border-radius:50%;background:var(--accent-dim);border:1px solid rgba(47,129,247,.3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--accent);flex-shrink:0;}
+.admin-email{font-size:12px;color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.btn-logout{width:100%;padding:7px;background:transparent;color:var(--t2);border:1px solid var(--b1);border-radius:var(--r);cursor:pointer;font-size:12.5px;font-family:var(--f);display:flex;align-items:center;justify-content:center;gap:6px;transition:all .12s;}
+.btn-logout:hover{background:var(--red-dim);color:var(--red);border-color:rgba(248,81,73,.3);}
+.topbar{padding:12px 24px;border-bottom:1px solid var(--b1);background:var(--s1);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.page-title{font-size:15px;font-weight:600;}
+.page-sub{font-size:11px;color:var(--t3);}
+
+.btn{padding:7px 14px;border-radius:var(--r);border:1px solid var(--b1);cursor:pointer;font-size:13px;font-weight:500;font-family:var(--f);display:inline-flex;align-items:center;gap:7px;transition:all .12s;white-space:nowrap;}
+.btn-default{background:var(--s2);color:var(--t1);}
+.btn-default:hover{background:var(--s3);}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-primary:hover:not(:disabled){background:#388bfd;}
+.btn-danger{background:var(--red-dim);color:var(--red);border-color:rgba(248,81,73,.25);}
+.btn-sm{padding:4px 10px;font-size:12px;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+
+.inp{background:var(--s2);border:1px solid var(--b1);border-radius:var(--r);padding:8px 12px;color:var(--t1);font-size:13px;font-family:var(--f);outline:none;transition:border .12s;width:100%;}
+.inp:focus{border-color:var(--accent);}
+.inp::placeholder{color:var(--t3);}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-label{font-size:12px;font-weight:500;color:var(--t2);}
+
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;margin-bottom:18px;}
+.stat-card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:14px;}
+.stat-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;margin-bottom:8px;}
+.stat-icon svg{width:14px;height:14px;}
+.stat-icon.blue{background:var(--accent-dim);color:var(--accent);}
+.stat-icon.green{background:var(--green-dim);color:var(--green);}
+.stat-icon.amber{background:var(--amber-dim);color:var(--amber);}
+.stat-icon.purple{background:var(--purple-dim);color:var(--purple);}
+.stat-label{font-size:11px;color:var(--t2);margin-bottom:2px;}
+.stat-val{font-size:22px;font-weight:700;color:var(--t1);}
+.stat-sub{font-size:11px;color:var(--t3);margin-top:2px;}
+
+.card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);margin-bottom:14px;overflow:hidden;}
+.card-head{padding:12px 16px;border-bottom:1px solid var(--b1);display:flex;align-items:center;justify-content:space-between;}
+.card-head h3{font-size:13px;font-weight:600;}
+.card-body{padding:14px 16px;}
+
+.maint-row{display:flex;align-items:center;justify-content:space-between;gap:16px;}
+.maint-info h4{font-size:13px;font-weight:600;margin-bottom:2px;}
+.maint-info p{font-size:12px;color:var(--t2);}
+.toggle{position:relative;width:42px;height:22px;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;position:absolute;}
+.toggle-track{display:block;width:42px;height:22px;background:var(--b1);border-radius:11px;cursor:pointer;transition:background .2s;position:relative;}
+.toggle input:checked ~ .toggle-track{background:var(--red);}
+.toggle-track::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s;}
+.toggle input:checked ~ .toggle-track::after{transform:translateX(20px);}
+.maint-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;margin-left:8px;}
+.maint-badge.on{background:var(--red-dim);color:var(--red);}
+.maint-badge.off{background:var(--green-dim);color:var(--green);}
+
+table{width:100%;border-collapse:collapse;}
+thead th{padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;background:var(--s2);}
+tbody td{padding:10px 12px;border-top:1px solid var(--b1);font-size:13px;color:var(--t2);}
+tbody tr:hover td{background:rgba(255,255,255,.015);}
+td.emph{color:var(--t1);font-weight:500;}
+.badge{display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;}
+.badge-blue{background:var(--accent-dim);color:var(--accent);}
+.badge-gray{background:var(--s3);color:var(--t3);}
+.pg{display:flex;align-items:center;gap:4px;}
+.pg-btn{width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:6px;border:1px solid var(--b1);background:var(--s2);cursor:pointer;font-size:12px;color:var(--t2);}
+.pg-btn:hover{color:var(--t1);}
+.pg-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.pg-info{font-size:11px;color:var(--t3);}
+.pay-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--b1);}
+.pay-row:last-child{border-bottom:none;}
+.pay-av{width:26px;height:26px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--t2);flex-shrink:0;}
+.pay-email{font-size:12.5px;font-weight:500;color:var(--t1);}
+.pay-date{font-size:11px;color:var(--t3);}
+.pay-amt{font-size:12.5px;font-weight:600;color:var(--green);}
+.alert{padding:10px 14px;border-radius:var(--r);font-size:13px;margin-bottom:10px;}
+.alert-success{background:var(--green-dim);color:var(--green);border:1px solid rgba(63,185,80,.25);}
+.alert-error{background:var(--red-dim);color:var(--red);border:1px solid rgba(248,81,73,.25);}
+.spinner{width:16px;height:16px;border:2px solid var(--b1);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;display:inline-block;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading{display:flex;align-items:center;justify-content:center;padding:40px;}
+.empty{text-align:center;padding:28px;color:var(--t3);font-size:13px;}
+.flex{display:flex;align-items:center;gap:8px;}
+
+/* ── EMAIL BUILDER ─────────────────────────────────────────── */
+.email-layout{display:grid;grid-template-columns:380px 1fr;gap:14px;height:calc(100vh - 110px);}
+.email-left{display:flex;flex-direction:column;gap:0;overflow-y:auto;padding-right:2px;}
+.email-right{display:flex;flex-direction:column;min-height:0;}
+.email-right .card{flex:1;display:flex;flex-direction:column;min-height:0;margin-bottom:0;}
+.email-right .card-body{flex:1;padding:0;min-height:0;}
+.preview-iframe{width:100%;height:100%;border:none;background:#f4f4f5;border-radius:0 0 var(--r) var(--r);}
+
+/* Toolbar */
+.email-toolbar{display:flex;align-items:center;gap:6px;padding:10px 14px;background:var(--s2);border:1px solid var(--b1);border-radius:var(--r);margin-bottom:10px;flex-wrap:wrap;}
+.tb-label{font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-right:2px;}
+.tb-btn{padding:5px 9px;border-radius:5px;border:1px solid var(--b1);background:var(--s1);color:var(--t2);cursor:pointer;font-size:12px;font-family:var(--f);font-weight:500;transition:all .12s;display:inline-flex;align-items:center;gap:4px;}
+.tb-btn:hover{background:var(--s3);color:var(--t1);border-color:var(--b2);}
+.tb-sep{width:1px;height:18px;background:var(--b1);margin:0 2px;}
+
+/* Blocks */
+.blocks-container{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+.block-wrap{border:1px solid var(--b1);border-radius:var(--r);background:var(--s1);overflow:hidden;cursor:grab;transition:border-color .12s,box-shadow .12s;}
+.block-wrap:active{cursor:grabbing;}
+.block-wrap.drag-over{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-dim);}
+.block-wrap.dragging{opacity:.4;}
+.block-header{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--s2);border-bottom:1px solid var(--b1);user-select:none;}
+.block-grip{color:var(--t3);font-size:14px;cursor:grab;flex-shrink:0;}
+.block-type-label{font-size:10.5px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;flex:1;}
+.block-actions{display:flex;gap:3px;}
+.bc-btn{width:22px;height:22px;border-radius:4px;border:1px solid var(--b1);background:none;cursor:pointer;color:var(--t3);font-size:11px;display:flex;align-items:center;justify-content:center;transition:all .12s;}
+.bc-btn:hover{background:var(--s3);color:var(--t1);}
+.bc-btn.del:hover{background:var(--red-dim);color:var(--red);border-color:rgba(248,81,73,.25);}
+.bc-btn:disabled{opacity:.25;cursor:not-allowed;}
+.block-body{padding:10px 12px;display:flex;flex-direction:column;gap:7px;}
+
+/* Block inputs */
+.bi{width:100%;background:var(--s2);border:1px solid var(--b1);border-radius:5px;padding:6px 9px;color:var(--t1);font-size:12.5px;font-family:var(--f);outline:none;transition:border .12s;}
+.bi:focus{border-color:var(--accent);}
+.bi::placeholder{color:var(--t3);}
+textarea.bi{resize:vertical;min-height:60px;line-height:1.6;}
+select.bi{cursor:pointer;}
+.bi-row{display:flex;gap:7px;align-items:center;}
+.bi-label{font-size:11px;color:var(--t3);white-space:nowrap;flex-shrink:0;}
+input[type=color].bi-color{width:32px;height:28px;padding:1px;border-radius:5px;border:1px solid var(--b1);background:var(--s2);cursor:pointer;flex-shrink:0;}
+input[type=range]{flex:1;accent-color:var(--accent);}
+
+/* Send panel */
+.send-panel{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:14px;margin-top:10px;}
+
+/* Login */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px;}
+.login-card{background:var(--s1);border:1px solid var(--b1);border-radius:12px;padding:36px;width:100%;max-width:360px;}
+.login-logo{text-align:center;margin-bottom:6px;font-size:20px;font-weight:700;}
+.login-logo b{color:var(--accent);}
+.login-sub{text-align:center;font-size:13px;color:var(--t3);margin-bottom:22px;}
+.login-form{display:flex;flex-direction:column;gap:13px;}
+.login-submit{width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:600;font-family:var(--f);cursor:pointer;}
+.login-submit:hover:not(:disabled){background:#388bfd;}
+.login-submit:disabled{opacity:.5;cursor:not-allowed;}
+.login-err{background:var(--red-dim);color:var(--red);border:1px solid rgba(248,81,73,.25);padding:9px 12px;border-radius:var(--r);font-size:13px;}
+
+/* ── RESPONSIVE ─────────────────────────────────────────────────────── */
+
+/* Tablet 900px */
+@media (max-width:900px) {
+  .email-layout { grid-template-columns:1fr; height:auto; }
+  .email-right { height:500px; }
+  .preview-iframe { height:500px; }
+}
+
+/* Mobile 768px */
+@media (max-width:768px) {
+  /* App layout */
+  .app { flex-direction:column; height:auto; min-height:100vh; }
+  .sidebar { width:100%; border-right:none; border-bottom:1px solid var(--b1); flex-shrink:0; }
+  .sidebar .sb-nav { display:flex; flex-direction:row; flex-wrap:wrap; padding:6px 8px; gap:4px; }
+  .nav-item { border-left:none; border-radius:var(--r); padding:7px 12px; font-size:12.5px; }
+  .nav-item.active { border-left:none; }
+  .sb-head { padding:12px 14px 10px; }
+  .sb-foot { border-top:1px solid var(--b1); padding:10px 14px; }
+  .admin-info { display:none; }
+  .main { overflow:visible; }
+  .content { padding:14px 16px; overflow:visible; }
+  .topbar { padding:10px 16px; }
+
+  /* Stats */
+  .stats-grid { grid-template-columns:1fr 1fr; gap:8px; }
+
+  /* Cards */
+  .card-head { flex-direction:column; align-items:flex-start; gap:10px; }
+  .card-head .flex,.card-head > div:last-child { width:100%; }
+  .card-head input.inp { width:100%; }
+
+  /* Table scroll */
+  table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+
+  /* Maintenance row */
+  .maint-row { flex-direction:column; gap:12px; align-items:flex-start; }
+
+  /* Email builder */
+  .email-layout { grid-template-columns:1fr; height:auto; gap:12px; }
+  .email-left { overflow-y:visible; padding-right:0; }
+  .email-right { height:400px; }
+  .preview-iframe { height:400px; }
+  .email-toolbar { gap:4px; }
+  .tb-btn { padding:4px 7px; font-size:11.5px; }
+  .block-palette { grid-template-columns:repeat(3,1fr); }
+
+  /* Pagination */
+  .foot .flex { flex-direction:column; gap:8px; align-items:flex-start; }
+
+  /* Login */
+  .login-card { padding:28px 20px; }
+}
+
+/* Small mobile 480px */
+@media (max-width:480px) {
+  .stats-grid { grid-template-columns:1fr; }
+  .sidebar .sb-nav { flex-direction:column; }
+  .nav-item { width:100%; }
+  .card-head { padding:10px 12px; }
+  .card-body { padding:12px; }
+  .block-palette { grid-template-columns:repeat(2,1fr); }
+  .tb-btn span { display:none; }
+  .pay-row { flex-wrap:wrap; gap:8px; }
+  .email-right { height:320px; }
+  .preview-iframe { height:320px; }
+}
+
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+const S = {
+  auth:null, page:'dashboard',
+  stats:null, statsLoading:false, maintenance:false, maintLoading:false,
+  users:[], userTotal:0, userPage:1, userPages:1, usersLoading:false, uSearch:'', uPlan:'',
+  email:{ subject:'', plan:'all', testTo:'', sending:false, sent:false, sentCount:0, err:'' },
+  blocks:[], dragSrc:null,
+  login:{ email:'', password:'', err:'', loading:false },
+};
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const fmt = n => Number(n||0).toLocaleString();
+const fmtDate = s => s ? new Date(s).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '—';
+const initials = s => (s||'?').split('@')[0].slice(0,2).toUpperCase();
+let _uid = 0; const uid = () => ++_uid;
+
+// ── API ───────────────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const r = await fetch('/api/admin'+path,{method,credentials:'include',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});
+  const d = await r.json().catch(()=>({error:`HTTP ${r.status}`}));
+  if(!r.ok) throw new Error(d.error||'Request failed');
+  return d;
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+async function checkAuth() {
+  try { S.auth = await api('GET','/me'); await loadPage('dashboard'); }
+  catch { S.auth=null; render(); }
+}
+async function login() {
+  S.login.loading=true; S.login.err=''; render();
+  try { await api('POST','/login',{email:S.login.email,password:S.login.password}); S.auth=await api('GET','/me'); await loadPage('dashboard'); }
+  catch(e){ S.login.err=e.message; S.login.loading=false; render(); }
+}
+async function logout() { await api('POST','/logout').catch(()=>{}); S.auth=null; render(); }
+
+// ── Data ──────────────────────────────────────────────────────────────────────
+async function loadStats() {
+  S.statsLoading=true; render();
+  try { const d=await api('GET','/stats'); S.stats=d; S.maintenance=!!d.maintenance; } catch {}
+  S.statsLoading=false; render();
+}
+async function toggleMaintenance() {
+  S.maintLoading=true; render();
+  try { const d=await api('POST','/maintenance',{enabled:!S.maintenance}); S.maintenance=!!d.maintenance; } catch(e){alert(e.message);}
+  S.maintLoading=false; render();
+}
+async function loadUsers(page=1) {
+  S.usersLoading=true; S.userPage=page; render();
+  try { const q=new URLSearchParams({page,search:S.uSearch,plan:S.uPlan}); const d=await api('GET','/users?'+q); S.users=d.users; S.userTotal=d.total; S.userPages=d.pages; } catch {}
+  S.usersLoading=false; render();
+}
+async function patchUser(id,updates) { try{await api('PATCH',`/users/${id}`,updates);await loadUsers(S.userPage);}catch(e){alert(e.message);} }
+async function deleteUser(id,email) {
+  if(!confirm(`Delete ${email} permanently?`)) return;
+  try{await api('DELETE',`/users/${id}`);await loadUsers(S.userPage);}catch(e){alert(e.message);}
+}
+async function loadPage(p) {
+  S.page=p;
+  if(p==='dashboard') await loadStats();
+  if(p==='users'&&!S.users.length) await loadUsers(1);
+  render();
+}
+
+// ── EMAIL BUILDER ─────────────────────────────────────────────────────────────
+const BLOCK_DEFS = {
+  heading:   { label:'Heading',      icon:'H',   defaults:{ text:'Your heading here', align:'left', size:28, color:'#1a1a1a', bold:true, italic:false } },
+  subheading:{ label:'Subheading',   icon:'h2',  defaults:{ text:'Subheading text', align:'left', size:18, color:'#444444', bold:true } },
+  text:      { label:'Text',         icon:'¶',   defaults:{ text:'Your paragraph text here.', align:'left', size:15, color:'#333333', lineHeight:1.7 } },
+  button:    { label:'Button',       icon:'▶',   defaults:{ text:'Click here', url:'https://', align:'center', bgColor:'#1a1a1a', textColor:'#ffffff', radius:8, size:'md' } },
+  image:     { label:'Image',        icon:'IMG', defaults:{ url:'', alt:'', align:'center', width:100, radius:0, link:'' } },
+  hero:      { label:'Hero Banner',  icon:'★',   defaults:{ title:'Big headline here', subtitle:'Supporting text goes here', bgColor:'#1a1a2e', textColor:'#ffffff', btnText:'Get started', btnUrl:'https://', btnColor:'#2a5bd7' } },
+  divider:   { label:'Divider',      icon:'—',   defaults:{ color:'#e5e5e5', thickness:1, style:'solid' } },
+  spacer:    { label:'Spacer',       icon:'↕',   defaults:{ height:32 } },
+  columns:   { label:'2 Columns',    icon:'⊞',  defaults:{ col1:'**Left column**\n\nYour left content here.', col2:'**Right column**\n\nYour right content here.' } },
+  quote:     { label:'Quote',        icon:'"',   defaults:{ text:'Inspiring quote goes here.', author:'', color:'#2f81f7', bgColor:'#f0f4ff' } },
+  list:      { label:'Feature List', icon:'≡',   defaults:{ items:['First key point or feature','Second key point or feature','Third key point or feature'], color:'#2f81f7' } },
+  callout:   { label:'Callout Box',  icon:'!',   defaults:{ text:'Important message or highlight here.', bgColor:'#fff8e1', borderColor:'#f59e0b', icon:'⚡' } },
+  social:    { label:'Social Links', icon:'@',   defaults:{ links:[{name:'Twitter',url:'https://twitter.com/',emoji:'𝕏'},{name:'LinkedIn',url:'https://linkedin.com/',emoji:'in'},{name:'Instagram',url:'https://instagram.com/',emoji:'IG'}] } },
+  footer:    { label:'Footer Text',  icon:'ft',  defaults:{ text:'© 2025 CVMaster · cvmaster.com', color:'#999999', size:12 } },
+  html:      { label:'Raw HTML',     icon:'</>',  defaults:{ code:'<p style="color:#333;font-family:Arial,sans-serif">Custom HTML here</p>' } },
+};
+
+function addBlock(type) {
+  const def = BLOCK_DEFS[type];
+  if(!def) return;
+  S.blocks.push({ id:uid(), type, ...JSON.parse(JSON.stringify(def.defaults)) });
+  render(); refreshPreview();
+}
+function removeBlock(id) { S.blocks=S.blocks.filter(b=>b.id!==id); render(); refreshPreview(); }
+function moveBlock(id,dir) {
+  const i=S.blocks.findIndex(b=>b.id===id);
+  if(dir===-1&&i>0){[S.blocks[i-1],S.blocks[i]]=[S.blocks[i],S.blocks[i-1]];}
+  if(dir===1&&i<S.blocks.length-1){[S.blocks[i],S.blocks[i+1]]=[S.blocks[i+1],S.blocks[i]];}
+  render(); refreshPreview();
+}
+function updateBlock(id,field,value,subIdx) {
+  const b=S.blocks.find(b=>b.id===id); if(!b) return;
+  if(subIdx!==undefined&&Array.isArray(b.links)){b.links[subIdx][field]=value;}
+  else b[field]=value;
+  refreshPreview();
+}
+
+// ── HTML GENERATION ───────────────────────────────────────────────────────────
+function simpleMarkdown(text) {
+  // Support **bold** and *italic* in text blocks
+  return (text||'')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/\n/g,'<br>');
+}
+
+function blockToHtml(b) {
+  if(b.type==='heading'){
+    const fw=b.bold!==false?'700':'400';
+    const fs=b.italic?'italic':'normal';
+    return `<h1 style="font-family:Georgia,serif;font-size:${b.size||28}px;font-weight:${fw};font-style:${fs};color:${b.color||'#1a1a1a'};margin:0 0 16px;text-align:${b.align||'left'};line-height:1.25;letter-spacing:-0.01em">${esc(b.text||'')}</h1>`;
+  }
+  if(b.type==='subheading'){
+    return `<h2 style="font-family:Arial,sans-serif;font-size:${b.size||18}px;font-weight:${b.bold?'700':'500'};color:${b.color||'#444'};margin:0 0 12px;text-align:${b.align||'left'};line-height:1.35">${esc(b.text||'')}</h2>`;
+  }
+  if(b.type==='text'){
+    return `<p style="font-family:Arial,sans-serif;font-size:${b.size||15}px;color:${b.color||'#333'};line-height:${b.lineHeight||1.7};margin:0 0 14px;text-align:${b.align||'left'}">${simpleMarkdown(b.text)}</p>`;
+  }
+  if(b.type==='button'){
+    const pad=b.size==='lg'?'15px 36px':b.size==='sm'?'8px 18px':'12px 28px';
+    const fsize=b.size==='lg'?'17px':b.size==='sm'?'13px':'15px';
+    return `<table width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0"><tr><td align="${b.align||'center'}" style="padding:12px 0">
+<a href="${esc(b.url||'#')}" style="display:inline-block;background:${b.bgColor||'#1a1a1a'};color:${b.textColor||'#fff'};font-family:Arial,sans-serif;font-size:${fsize};font-weight:700;padding:${pad};border-radius:${b.radius||8}px;text-decoration:none;letter-spacing:.01em">${esc(b.text||'Click here')}</a>
+</td></tr></table>`;
+  }
+  if(b.type==='image'){
+    const w=b.width&&b.width<100?`width="${b.width}%" `:'style="max-width:100%;" ';
+    const img=`<img src="${esc(b.url||'')}" alt="${esc(b.alt||'')}" ${w}style="border-radius:${b.radius||0}px;display:block" />`;
+    const wrapped=b.link?`<a href="${esc(b.link)}" style="display:block">${img}</a>`:img;
+    return `<div style="text-align:${b.align||'center'};margin:16px 0">${wrapped}</div>`;
+  }
+  if(b.type==='hero'){
+    return `<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 -40px;width:calc(100% + 80px)">
+<tr><td style="background:${b.bgColor||'#1a1a2e'};padding:48px 40px;text-align:center">
+<h1 style="font-family:Georgia,serif;font-size:32px;font-weight:700;color:${b.textColor||'#fff'};margin:0 0 14px;line-height:1.2">${esc(b.title||'')}</h1>
+<p style="font-family:Arial,sans-serif;font-size:16px;color:${b.textColor||'#fff'};opacity:.75;margin:0 0 28px;line-height:1.6">${esc(b.subtitle||'')}</p>
+<a href="${esc(b.btnUrl||'#')}" style="display:inline-block;background:${b.btnColor||'#2a5bd7'};color:#fff;font-family:Arial,sans-serif;font-size:15px;font-weight:700;padding:13px 32px;border-radius:8px;text-decoration:none">${esc(b.btnText||'Get started')}</a>
+</td></tr></table>`;
+  }
+  if(b.type==='divider'){
+    const s=b.style||'solid';
+    return `<hr style="border:none;border-top:${b.thickness||1}px ${s} ${b.color||'#e5e5e5'};margin:24px 0" />`;
+  }
+  if(b.type==='spacer'){
+    return `<div style="height:${b.height||32}px;line-height:${b.height||32}px;font-size:1px">&nbsp;</div>`;
+  }
+  if(b.type==='columns'){
+    return `<table width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0"><tr>
+<td width="50%" style="vertical-align:top;padding-right:14px;font-family:Arial,sans-serif;font-size:14px;color:#333;line-height:1.65">${simpleMarkdown(b.col1)}</td>
+<td width="50%" style="vertical-align:top;padding-left:14px;font-family:Arial,sans-serif;font-size:14px;color:#333;line-height:1.65">${simpleMarkdown(b.col2)}</td>
+</tr></table>`;
+  }
+  if(b.type==='quote'){
+    return `<table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0"><tr>
+<td style="background:${b.bgColor||'#f0f4ff'};border-left:4px solid ${b.color||'#2f81f7'};padding:18px 22px;border-radius:0 8px 8px 0">
+<p style="font-family:Georgia,serif;font-size:17px;font-style:italic;color:#333;margin:0 0 ${b.author?'10px':'0'};line-height:1.6">&ldquo;${esc(b.text||'')}&rdquo;</p>
+${b.author?`<cite style="font-family:Arial,sans-serif;font-size:13px;color:#888;font-style:normal;font-weight:600">&#8212; ${esc(b.author)}</cite>`:''}
+</td></tr></table>`;
+  }
+  if(b.type==='list'){
+    const items=(b.items||[]).map(item=>`
+<tr><td style="padding:6px 0;vertical-align:top">
+<table cellpadding="0" cellspacing="0"><tr>
+<td style="width:24px;padding-right:10px;color:${b.color||'#2f81f7'};font-weight:700;font-size:16px;vertical-align:top;line-height:1.5">✓</td>
+<td style="font-family:Arial,sans-serif;font-size:15px;color:#333;line-height:1.6">${simpleMarkdown(item)}</td>
+</tr></table>
+</td></tr>`).join('');
+    return `<table width="100%" cellpadding="0" cellspacing="0" style="margin:12px 0">${items}</table>`;
+  }
+  if(b.type==='callout'){
+    return `<table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0"><tr>
+<td style="background:${b.bgColor||'#fff8e1'};border:2px solid ${b.borderColor||'#f59e0b'};border-radius:10px;padding:16px 20px">
+<p style="font-family:Arial,sans-serif;font-size:15px;color:#333;margin:0;line-height:1.65">
+<span style="font-size:18px;margin-right:8px">${b.icon||'⚡'}</span>${simpleMarkdown(b.text)}
+</p></td></tr></table>`;
+  }
+  if(b.type==='social'){
+    const links=(b.links||[]).map(l=>`<a href="${esc(l.url||'#')}" style="display:inline-block;margin:0 6px;background:#f4f4f5;border-radius:6px;padding:8px 14px;text-decoration:none;font-family:Arial,sans-serif;font-size:13px;font-weight:600;color:#333">${esc(l.emoji||'')} ${esc(l.name||'')}</a>`).join('');
+    return `<div style="text-align:center;padding:16px 0">${links}</div>`;
+  }
+  if(b.type==='footer'){
+    return `<p style="font-family:Arial,sans-serif;font-size:${b.size||12}px;color:${b.color||'#999'};text-align:center;margin:8px 0;line-height:1.6">${simpleMarkdown(b.text)}</p>`;
+  }
+  if(b.type==='html'){
+    return b.code||'';
+  }
+  return '';
+}
+
+function buildEmailHtml() {
+  const body = S.blocks.map(blockToHtml).join('\n');
+  const subject = S.email.subject || 'Email from CVMaster';
+  return `<!DOCTYPE html>
+<html xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<title>${esc(subject)}</title>
+<!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
+</head>
+<body style="margin:0;padding:0;background:#f0f2f5;font-family:Arial,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%">
+<table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+<tr><td align="center" style="padding:32px 16px">
+<!--[if mso]><table width="600" cellpadding="0" cellspacing="0"><tr><td><![endif]-->
+<table width="600" cellpadding="0" cellspacing="0" role="presentation" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.08)">
+<tr><td style="padding:36px 44px">${body}</td></tr>
+<tr><td style="padding:18px 44px;background:#f8f9fa;border-top:1px solid #e5e5e5;text-align:center">
+<p style="font-family:Arial,sans-serif;font-size:12px;color:#999;margin:0">
+Sent by <strong>CVMaster</strong> &nbsp;·&nbsp; <a href="%UNSUBSCRIBE%" style="color:#999">Unsubscribe</a>
+</p>
+</td></tr>
+</table>
+<!--[if mso]></td></tr></table><![endif]-->
+</td></tr>
+</table>
+</body></html>`;
+}
+
+function refreshPreview() {
+  const f=$('e-preview'); if(f) f.srcdoc=buildEmailHtml();
+}
+
+async function copyHtml() {
+  try { await navigator.clipboard.writeText(buildEmailHtml()); alert('Email HTML copied to clipboard!'); }
+  catch { alert('Could not copy — try again.'); }
+}
+
+function clearBlocks() {
+  if(S.blocks.length&&!confirm('Clear all blocks?')) return;
+  S.blocks=[]; render(); refreshPreview();
+}
+
+function loadTemplate(t) {
+  S.blocks=[];
+  if(t==='welcome') {
+    S.blocks=[
+      {id:uid(),type:'image',url:'https://via.placeholder.com/120x40/2f81f7/ffffff?text=CVMaster',alt:'CVMaster',align:'center',width:30,radius:4},
+      {id:uid(),type:'spacer',height:24},
+      {id:uid(),type:'heading',text:'Welcome to CVMaster! 🎉',align:'center',size:28,color:'#1a1a1a',bold:true},
+      {id:uid(),type:'text',text:'We\'re thrilled to have you on board. CVMaster helps you create professional CVs that stand out. Here\'s what you can do:',align:'center',size:15,color:'#555'},
+      {id:uid(),type:'divider',color:'#e5e5e5',thickness:1},
+      {id:uid(),type:'columns',col1:'✅ 107+ professional templates\n\nChoose from our library of stunning CV designs.',col2:'🤖 AI-powered writing\n\nLet AI enhance your experience and skills sections.'},
+      {id:uid(),type:'spacer',height:16},
+      {id:uid(),type:'button',text:'Build My CV Now',url:'https://cvmaster.com',align:'center',bgColor:'#2f81f7',textColor:'#ffffff',radius:8},
+      {id:uid(),type:'spacer',height:8},
+      {id:uid(),type:'text',text:'If you have any questions, just reply to this email. We\'re here to help!',align:'center',size:13,color:'#999'},
+    ];
+  } else if(t==='update') {
+    S.blocks=[
+      {id:uid(),type:'heading',text:'New update — what\'s new in CVMaster',align:'left',size:26,color:'#1a1a1a',bold:true},
+      {id:uid(),type:'text',text:'Here\'s a roundup of what we\'ve shipped this month.',align:'left',size:15,color:'#333'},
+      {id:uid(),type:'divider',color:'#e5e5e5',thickness:1},
+      {id:uid(),type:'quote',text:'The best CV is the one that gets you the interview.',author:'CVMaster team',color:'#2f81f7'},
+      {id:uid(),type:'button',text:'See What\'s New',url:'https://cvmaster.com',align:'center',bgColor:'#1a1a1a',textColor:'#ffffff',radius:8},
+    ];
+  }
+  render(); refreshPreview();
+}
+
+// ── DRAG AND DROP ─────────────────────────────────────────────────────────────
+function onDragStart(e, id) {
+  S.dragSrc = id;
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+function onDragEnd(e) {
+  e.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
+}
+function onDragOver(e, id) {
+  e.preventDefault(); e.dataTransfer.dropEffect='move';
+  document.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  if(id !== S.dragSrc) e.currentTarget.closest('.block-wrap')?.classList.add('drag-over');
+}
+function onDrop(e, targetId) {
+  e.preventDefault();
+  document.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  if(!S.dragSrc||S.dragSrc===targetId) return;
+  const from=S.blocks.findIndex(b=>b.id===S.dragSrc);
+  const to=S.blocks.findIndex(b=>b.id===targetId);
+  if(from<0||to<0) return;
+  const [moved]=S.blocks.splice(from,1);
+  S.blocks.splice(to,0,moved);
+  S.dragSrc=null;
+  render(); refreshPreview();
+}
+
+// ── SEND ──────────────────────────────────────────────────────────────────────
+async function sendEmail(test=false) {
+  const subject=$('e-subject')?.value||S.email.subject;
+  const plan=$('e-plan-sel')?.value||S.email.plan;
+  const testTo=$('e-test')?.value||S.email.testTo;
+  if(!subject){alert('Please add a subject line.');return;}
+  if(S.blocks.length===0){alert('Please add at least one content block.');return;}
+  S.email.subject=subject; S.email.plan=plan;
+  S.email.sending=true; S.email.err=''; S.email.sent=false; render();
+  try {
+    const payload={subject,body:buildEmailHtml(),plan_filter:plan};
+    if(test&&testTo) payload.test_email=testTo;
+    const d=await api('POST','/email/send',payload);
+    S.email.sent=true; S.email.sentCount=d.sent;
+  } catch(e){ S.email.err=e.message; }
+  S.email.sending=false; render();
+}
+
+// ── BLOCK EDITOR ──────────────────────────────────────────────────────────────
+function renderBlockEditor(b) {
+  const {id,type}=b;
+  const rows=[];
+  const up=(f)=>`updateBlock(${id},'${f}',this.value)`;
+  const upChk=(f)=>`updateBlock(${id},'${f}',this.checked)`;
+  const alignSel=(val)=>`<select class="bi" onchange="${up('align')}" style="flex:1">${['left','center','right'].map(a=>`<option value="${a}"${val===a?' selected':''}>${a[0].toUpperCase()+a.slice(1)}</option>`).join('')}</select>`;
+  const colPick=(f,v,lbl)=>`<label class="bi-label">${lbl}</label><input type="color" class="bi-color" value="${v||'#333333'}" onchange="updateBlock(${id},'${f}',this.value)">`;
+
+  if(type==='heading'||type==='subheading'){
+    rows.push(`<textarea class="bi" rows="2" oninput="${up('text')}" placeholder="Text">${esc(b.text||'')}</textarea>`);
+    rows.push(`<div class="bi-row" style="margin-top:6px"><label class="bi-label">Align</label>${alignSel(b.align)}<label class="bi-label">Size</label><input type="number" class="bi" value="${b.size||26}" min="12" max="60" oninput="${up('size')}" style="width:58px">${colPick('color',b.color||'#1a1a1a','Color')}</div>`);
+    rows.push(`<div class="bi-row" style="margin-top:4px"><label class="bi-label">Bold</label><input type="checkbox" ${b.bold!==false?'checked':''} onchange="${upChk('bold')}"><label class="bi-label" style="margin-left:10px">Italic</label><input type="checkbox" ${b.italic?'checked':''} onchange="${upChk('italic')}"></div>`);
+  }
+  if(type==='text'){
+    rows.push(`<textarea class="bi" rows="4" oninput="${up('text')}" placeholder="Text — supports **bold** and *italic*">${esc(b.text||'')}</textarea>`);
+    rows.push(`<div class="bi-row" style="margin-top:6px"><label class="bi-label">Align</label>${alignSel(b.align)}<label class="bi-label">Size</label><input type="number" class="bi" value="${b.size||15}" min="11" max="24" oninput="${up('size')}" style="width:58px">${colPick('color',b.color||'#333333','Color')}</div>`);
+    rows.push(`<div class="bi-row" style="margin-top:4px"><label class="bi-label">Line height</label><input type="range" min="1.2" max="2.2" step="0.1" value="${b.lineHeight||1.7}" oninput="${up('lineHeight')}" style="flex:1"><span class="bi-label">${b.lineHeight||1.7}</span></div>`);
+  }
+  if(type==='button'){
+    rows.push(`<input class="bi" value="${esc(b.text||'')}" placeholder="Button label" oninput="${up('text')}">`);
+    rows.push(`<input class="bi" value="${esc(b.url||'')}" placeholder="URL (https://...)" oninput="${up('url')}" style="margin-top:6px">`);
+    rows.push(`<div class="bi-row" style="margin-top:6px"><label class="bi-label">Align</label>${alignSel(b.align)}<label class="bi-label">Size</label><select class="bi" onchange="${up('size')}" style="width:70px">${['sm','md','lg'].map(s=>`<option value="${s}"${b.size===s?' selected':''}>${s.toUpperCase()}</option>`).join('')}</select></div>`);
+    rows.push(`<div class="bi-row" style="margin-top:6px">${colPick('bgColor',b.bgColor||'#1a1a1a','BG')}${colPick('textColor',b.textColor||'#ffffff','Text')}<label class="bi-label">Radius</label><input type="range" min="0" max="30" value="${b.radius||8}" oninput="${up('radius')}" style="flex:1"><span class="bi-label">${b.radius||8}px</span></div>`);
+  }
+  if(type==='image'){
+    rows.push(`<input class="bi" value="${esc(b.url||'')}" placeholder="Image URL" oninput="${up('url')}">`);
+    rows.push(`<input class="bi" value="${esc(b.alt||'')}" placeholder="Alt text" oninput="${up('alt')}" style="margin-top:5px">`);
+    rows.push(`<input class="bi" value="${esc(b.link||'')}" placeholder="Click link (optional)" oninput="${up('link')}" style="margin-top:5px">`);
+    rows.push(`<div class="bi-row" style="margin-top:6px"><label class="bi-label">Align</label>${alignSel(b.align)}<label class="bi-label">Width</label><input type="range" min="20" max="100" value="${b.width||100}" oninput="${up('width')}" style="flex:1"><span class="bi-label">${b.width||100}%</span></div>`);
+    rows.push(`<div class="bi-row"><label class="bi-label">Radius</label><input type="range" min="0" max="48" value="${b.radius||0}" oninput="${up('radius')}" style="flex:1"><span class="bi-label">${b.radius||0}px</span></div>`);
+  }
+  if(type==='hero'){
+    rows.push(`<input class="bi" value="${esc(b.title||'')}" placeholder="Big headline" oninput="${up('title')}">`);
+    rows.push(`<textarea class="bi" rows="2" placeholder="Subtitle" oninput="${up('subtitle')}" style="margin-top:5px">${esc(b.subtitle||'')}</textarea>`);
+    rows.push(`<div class="bi-row" style="margin-top:5px"><input class="bi" value="${esc(b.btnText||'')}" placeholder="Button text" oninput="${up('btnText')}" style="flex:1"><input class="bi" value="${esc(b.btnUrl||'')}" placeholder="Button URL" oninput="${up('btnUrl')}" style="flex:2"></div>`);
+    rows.push(`<div class="bi-row" style="margin-top:5px">${colPick('bgColor',b.bgColor||'#1a1a2e','BG')}${colPick('textColor',b.textColor||'#ffffff','Text')}${colPick('btnColor',b.btnColor||'#2a5bd7','Button')}</div>`);
+  }
+  if(type==='divider'){
+    rows.push(`<div class="bi-row">${colPick('color',b.color||'#e5e5e5','Color')}<label class="bi-label">Style</label><select class="bi" onchange="${up('style')}" style="flex:1">${['solid','dashed','dotted'].map(s=>`<option value="${s}"${b.style===s?' selected':''}>${s}</option>`).join('')}</select><label class="bi-label">Thickness</label><input type="range" min="1" max="6" value="${b.thickness||1}" oninput="${up('thickness')}" style="flex:1"><span class="bi-label">${b.thickness||1}px</span></div>`);
+  }
+  if(type==='spacer'){
+    rows.push(`<div class="bi-row"><label class="bi-label">Height</label><input type="range" min="8" max="100" value="${b.height||32}" oninput="${up('height')}" style="flex:1"><span class="bi-label">${b.height||32}px</span></div>`);
+  }
+  if(type==='columns'){
+    rows.push(`<label class="bi-label">Left (supports **bold** *italic*)</label><textarea class="bi" rows="3" oninput="${up('col1')}" style="margin-top:3px">${esc(b.col1||'')}</textarea>`);
+    rows.push(`<label class="bi-label" style="margin-top:7px">Right column</label><textarea class="bi" rows="3" oninput="${up('col2')}" style="margin-top:3px">${esc(b.col2||'')}</textarea>`);
+  }
+  if(type==='quote'){
+    rows.push(`<textarea class="bi" rows="3" placeholder="Quote text" oninput="${up('text')}">${esc(b.text||'')}</textarea>`);
+    rows.push(`<input class="bi" value="${esc(b.author||'')}" placeholder="— Author name" oninput="${up('author')}" style="margin-top:5px">`);
+    rows.push(`<div class="bi-row" style="margin-top:5px">${colPick('color',b.color||'#2f81f7','Accent')}${colPick('bgColor',b.bgColor||'#f0f4ff','Background')}</div>`);
+  }
+  if(type==='list'){
+    rows.push(`<label class="bi-label">Items — one per line (supports **bold**)</label><textarea class="bi" rows="4" oninput="updateBlock(${id},'items',this.value.split('\n').filter(x=>x.trim()))" style="margin-top:3px">${(b.items||[]).join('\n')}</textarea>`);
+    rows.push(`<div class="bi-row" style="margin-top:5px">${colPick('color',b.color||'#2f81f7','Check color')}</div>`);
+  }
+  if(type==='callout'){
+    rows.push(`<textarea class="bi" rows="3" placeholder="Message (supports **bold** *italic*)" oninput="${up('text')}">${esc(b.text||'')}</textarea>`);
+    rows.push(`<div class="bi-row" style="margin-top:5px"><label class="bi-label">Icon</label><input class="bi" value="${esc(b.icon||'⚡')}" oninput="${up('icon')}" style="width:50px">${colPick('bgColor',b.bgColor||'#fff8e1','BG')}${colPick('borderColor',b.borderColor||'#f59e0b','Border')}</div>`);
+  }
+  if(type==='social'){
+    rows.push(`<label class="bi-label">Social links</label>`);
+    rows.push((b.links||[]).map((l,i)=>`<div class="bi-row" style="margin-top:5px"><input class="bi" value="${esc(l.emoji||'')}" placeholder="𝕏" oninput="updateBlock(${id},'emoji',this.value,${i})" style="width:44px"><input class="bi" value="${esc(l.name||'')}" placeholder="Name" oninput="updateBlock(${id},'name',this.value,${i})" style="flex:1"><input class="bi" value="${esc(l.url||'')}" placeholder="URL" oninput="updateBlock(${id},'url',this.value,${i})" style="flex:2"></div>`).join(''));
+  }
+  if(type==='footer'){
+    rows.push(`<textarea class="bi" rows="2" placeholder="Footer text" oninput="${up('text')}">${esc(b.text||'')}</textarea>`);
+    rows.push(`<div class="bi-row" style="margin-top:5px">${colPick('color',b.color||'#999999','Color')}<label class="bi-label">Size</label><input type="number" class="bi" value="${b.size||12}" min="10" max="16" oninput="${up('size')}" style="width:55px"></div>`);
+  }
+  if(type==='html'){
+    rows.push(`<label class="bi-label">Raw HTML (email-client safe)</label><textarea class="bi" rows="5" oninput="${up('code')}" style="font-family:monospace;font-size:12px;margin-top:3px">${esc(b.code||'')}</textarea>`);
+  }
+  return rows.join('\n');
+}
+
+function render() {
+  $('app').innerHTML = !S.auth ? renderLogin() : renderApp();
+  bind();
+}
+
+function renderLogin() {
+  return `<div class="login-wrap"><div class="login-card">
+  <div class="login-logo" style="display:flex;align-items:center;justify-content:center;gap:10px;">
+  <div style="width:36px;height:36px;background:#2a5bd7;border-radius:9px;display:flex;align-items:center;justify-content:center;">
+    <svg viewBox="0 0 32 32" fill="none" style="width:100%;height:100%"><rect x="5" y="2" width="16" height="22" rx="2" fill="white" opacity="0.95"/><path d="M21 2 L27 8 L21 8 Z" fill="#1d49b8"/><line x1="8" y1="13" x2="18" y2="13" stroke="#2a5bd7" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="17" x2="19" y2="17" stroke="#c0cef8" stroke-width="1.5" stroke-linecap="round"/><rect x="6" y="25" width="14" height="6" rx="2" fill="#1a1a2e"/><text x="13" y="30" font-family="system-ui,sans-serif" font-weight="800" font-size="4.5" fill="#7aa3f5" text-anchor="middle" letter-spacing="1">CV</text></svg>
+  </div>
+  CV<b>Master</b>
+</div>
+  <div class="login-sub">Admin panel — authorised access only</div>
+  ${S.login.err?`<div class="login-err">${esc(S.login.err)}</div>`:''}
+  <div class="login-form">
+    <div class="form-group"><label class="form-label">Email</label><input class="inp" id="li-email" type="email" placeholder="admin@cvmaster.com" value="${esc(S.login.email)}" autocomplete="email" /></div>
+    <div class="form-group"><label class="form-label">Password</label><input class="inp" id="li-pass" type="password" placeholder="••••••••" autocomplete="current-password" /></div>
+    <button class="login-submit" id="li-btn" ${S.login.loading?'disabled':''}>${S.login.loading?'<span class="spinner"></span>':'Sign in to admin'}</button>
+  </div>
+</div></div>`;
+}
+
+function renderApp() {
+  const nav=[
+    {id:'dashboard',label:'Dashboard',icon:'<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>'},
+    {id:'users',label:'Users',icon:'<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>'},
+    {id:'email',label:'Newsletter',icon:'<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8l10 7 10-7"/>'},
+  ];
+  const titles={dashboard:['Dashboard','Platform overview'],users:['Users','Manage accounts'],email:['Newsletter','Email builder']};
+  const [title,sub]=titles[S.page]||['Admin',''];
+  return `<div class="app">
+  <div class="sidebar">
+    <div class="sb-head"><div class="sb-logo">
+  <div style="width:28px;height:28px;background:#2a5bd7;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;vertical-align:middle;margin-right:8px;">
+    <svg viewBox="0 0 32 32" fill="none" style="width:100%;height:100%"><rect x="5" y="2" width="16" height="22" rx="2" fill="white" opacity="0.95"/><path d="M21 2 L27 8 L21 8 Z" fill="#1d49b8"/><line x1="8" y1="13" x2="18" y2="13" stroke="#2a5bd7" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="17" x2="19" y2="17" stroke="#c0cef8" stroke-width="1.5" stroke-linecap="round"/><rect x="6" y="25" width="14" height="6" rx="2" fill="#1a1a2e"/><text x="13" y="30" font-family="system-ui,sans-serif" font-weight="800" font-size="4.5" fill="#7aa3f5" text-anchor="middle" letter-spacing="1">CV</text></svg>
+  </div>CV<b>Master</b></div><span class="sb-badge">Admin</span></div>
+    <nav class="sb-nav">${nav.map(n=>`<div class="nav-item${S.page===n.id?' active':''}" data-page="${n.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><${n.icon}/></svg>${n.label}</div>`).join('')}</nav>
+    <div class="sb-foot">
+      <div class="admin-info"><div class="admin-av">${initials(S.auth?.email||'')}</div><div class="admin-email">${esc(S.auth?.email||'')}</div></div>
+      <button class="btn-logout" id="btn-logout">Sign out</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="topbar"><div><div class="page-title">${title}</div><div class="page-sub">${sub}</div></div>
+      ${S.page==='dashboard'?`<button class="btn btn-default btn-sm" id="btn-refresh">↺ Refresh</button>`:''}
+    </div>
+    <div class="content">
+      ${S.page==='dashboard'?renderDashboard():''}
+      ${S.page==='users'?renderUsers():''}
+      ${S.page==='email'?renderEmail():''}
+    </div>
+  </div>
+</div>`;
+}
+
+function renderDashboard() {
+  if(S.statsLoading||!S.stats) return`<div class="loading"><div class="spinner"></div></div>`;
+  const s=S.stats; const rev=((s.revenue_pence||0)/100).toFixed(2);
+  return `
+<div class="card" style="border-color:${S.maintenance?'rgba(248,81,73,.4)':'var(--b1)'}">
+  <div class="card-body"><div class="maint-row">
+    <div class="maint-info"><h4>Maintenance Mode<span class="maint-badge ${S.maintenance?'on':'off'}">${S.maintenance?'🔴 ON — site down':'🟢 OFF — site live'}</span></h4>
+    <p>Puts the site into maintenance. Admin panel remains accessible.</p></div>
+    <label class="toggle"><input type="checkbox" id="maint-toggle" ${S.maintenance?'checked':''} ${S.maintLoading?'disabled':''} /><span class="toggle-track"></span></label>
+  </div></div>
+</div>
+<div class="stats-grid">
+  <div class="stat-card"><div class="stat-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><div class="stat-label">Total users</div><div class="stat-val">${fmt(s.users?.total)}</div><div class="stat-sub">+${fmt(s.users?.week)} this week</div></div>
+  <div class="stat-card"><div class="stat-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8l10 7 10-7"/></svg></div><div class="stat-label">Paid exports</div><div class="stat-val">${fmt(s.payments?.total)}</div><div class="stat-sub">+${fmt(s.payments?.week)} this week</div></div>
+  <div class="stat-card"><div class="stat-icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div><div class="stat-label">Revenue (est.)</div><div class="stat-val">£${rev}</div><div class="stat-sub">at £1.99/export</div></div>
+  <div class="stat-card"><div class="stat-icon purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></div><div class="stat-label">Referrals</div><div class="stat-val">${fmt(s.referrals?.total)}</div><div class="stat-sub">via referral links</div></div>
+  <div class="stat-card"><div class="stat-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div class="stat-label">CVs created</div><div class="stat-val">${fmt(s.drafts?.total)}</div><div class="stat-sub">all time</div></div>
+</div>
+<div class="card"><div class="card-head"><h3>Recent payments</h3></div><div class="card-body">
+${!s.recent_payments?.length?'<div class="empty">No payments yet</div>':s.recent_payments.map(p=>`
+<div class="pay-row"><div class="flex" style="gap:10px"><div class="pay-av">${initials(p.email)}</div><div><div class="pay-email">${esc(p.email)}</div><div class="pay-date">${fmtDate(p.created_at)}</div></div></div><div class="pay-amt">£1.99</div></div>`).join('')}
+</div></div>`;
+}
+
+function renderUsers() {
+  return `<div class="card">
+  <div class="card-head"><h3>Users <span style="color:var(--t3);font-weight:400">(${fmt(S.userTotal)})</span></h3>
+    <div class="flex">
+      <input class="inp" id="u-q" placeholder="Search…" value="${esc(S.uSearch)}" style="width:170px">
+      <select class="inp" id="u-plan" style="width:120px"><option value="">All plans</option><option value="free"${S.uPlan==='free'?' selected':''}>Free</option><option value="pro"${S.uPlan==='pro'?' selected':''}>Pro</option></select>
+      <button class="btn btn-default btn-sm" id="u-search-btn">Search</button>
+    </div>
+  </div>
+  ${S.usersLoading?`<div class="loading"><div class="spinner"></div></div>`:`
+  <div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table>
+    <thead><tr><th>User</th><th>Plan</th><th>Exports</th><th>CVs</th><th>Credits</th><th>Joined</th><th>Actions</th></tr></thead>
+    <tbody>${!S.users.length?`<tr><td colspan="7"><div class="empty">No users</div></td></tr>`:
+    S.users.map(u=>`<tr>
+      <td><div class="flex"><div class="pay-av">${initials(u.email)}</div><div><div class="emph">${esc(u.name||u.email.split('@')[0])}</div><div style="font-size:11px;color:var(--t3)">${esc(u.email)}</div></div></div></td>
+      <td><span class="badge ${u.plan==='pro'?'badge-blue':'badge-gray'}">${u.plan}</span></td>
+      <td>${u.payment_count}</td><td>${u.draft_count}</td>
+      <td><div class="flex">${u.referral_credits}<button class="btn btn-default btn-sm" onclick="addCredit('${u.id}','${esc(u.email)}',${u.referral_credits})">+</button></div></td>
+      <td>${fmtDate(u.created_at)}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}','${esc(u.email)}')">Delete</button></td>
+    </tr>`).join('')}</tbody>
+  </table>
+  </div><div class="flex" style="padding:10px 14px;justify-content:space-between">
+    <span class="pg-info">Page ${S.userPage}/${S.userPages} · ${fmt(S.userTotal)} users</span>
+    <div class="pg">
+      ${S.userPage>1?`<button class="pg-btn" onclick="loadUsers(${S.userPage-1})">‹</button>`:''}
+      ${Array.from({length:Math.min(7,S.userPages)},(_,i)=>Math.max(1,Math.min(S.userPages-6,S.userPage-3))+i).map(p=>`<button class="pg-btn${p===S.userPage?' active':''}" onclick="loadUsers(${p})">${p}</button>`).join('')}
+      ${S.userPage<S.userPages?`<button class="pg-btn" onclick="loadUsers(${S.userPage+1})">›</button>`:''}
+    </div>
+  </div>`}
+</div>`;
+}
+
+function renderEmail() {
+  const blocks=S.blocks;
+  return `<div class="email-layout">
+  <!-- LEFT: Builder -->
+  <div class="email-left">
+    <!-- Meta -->
+    <div class="card">
+      <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+        <div class="form-group"><label class="form-label">Subject line</label><input class="inp" id="e-subject" placeholder="e.g. New templates just dropped! 🎨" value="${esc(S.email.subject)}" /></div>
+        <div class="form-group"><label class="form-label">Send to</label>
+          <select class="inp" id="e-plan-sel">
+            <option value="all"${S.email.plan==='all'?' selected':''}>All users</option>
+            <option value="free"${S.email.plan==='free'?' selected':''}>Free users only</option>
+            <option value="pro"${S.email.plan==='pro'?' selected':''}>Pro users only</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="email-toolbar">
+      <span class="tb-label">Add</span>
+      ${Object.entries(BLOCK_DEFS).map(([k,v])=>`<button class="tb-btn" onclick="addBlock('${k}')" title="${v.label}">${v.icon} ${v.label}</button>`).join('')}
+      <div class="tb-sep"></div>
+      <span class="tb-label">Template</span>
+      <button class="tb-btn" onclick="loadTemplate('welcome')">Welcome</button>
+      <button class="tb-btn" onclick="loadTemplate('update')">Update</button>
+      <div class="tb-sep"></div>
+      <button class="tb-btn" onclick="clearBlocks()">🗑 Clear</button>
+    </div>
+
+    <!-- Blocks -->
+    <div class="blocks-container" id="blocks-list">
+      ${blocks.length===0?`<div class="card"><div class="empty" style="padding:24px">Add a block above to start building your email</div></div>`
+      :blocks.map((b,i)=>`
+      <div class="block-wrap" data-id="${b.id}"
+        draggable="true"
+        ondragstart="onDragStart(event,${b.id})"
+        ondragend="onDragEnd(event)"
+        ondragover="onDragOver(event,${b.id})"
+        ondrop="onDrop(event,${b.id})">
+        <div class="block-header">
+          <span class="block-grip">⋮⋮</span>
+          <span class="block-type-label">${BLOCK_DEFS[b.type]?.label||b.type}</span>
+          <div class="block-actions">
+            <button class="bc-btn" onclick="moveBlock(${b.id},-1)" ${i===0?'disabled':''} title="Move up">↑</button>
+            <button class="bc-btn" onclick="moveBlock(${b.id},1)" ${i===blocks.length-1?'disabled':''} title="Move down">↓</button>
+            <button class="bc-btn del" onclick="removeBlock(${b.id})" title="Remove">✕</button>
+          </div>
+        </div>
+        <div class="block-body">${renderBlockEditor(b)}</div>
+      </div>`).join('')}
+    </div>
+
+    <!-- Send -->
+    <div class="send-panel">
+      ${S.email.err?`<div class="alert alert-error">${esc(S.email.err)}</div>`:''}
+      ${S.email.sent?`<div class="alert alert-success">✓ Sent to ${S.email.sentCount} recipient${S.email.sentCount!==1?'s':''}.</div>`:''}
+      <div class="flex" style="margin-bottom:8px">
+        <input class="inp" id="e-test" type="email" placeholder="test@example.com" value="${esc(S.email.testTo)}" />
+        <button class="btn btn-default" id="e-test-btn" ${S.email.sending?'disabled':''} style="white-space:nowrap">Send test</button>
+      </div>
+      <button class="btn btn-primary" id="e-send-btn" ${S.email.sending?'disabled':''} style="width:100%;justify-content:center;padding:10px">
+        ${S.email.sending?'<span class="spinner"></span>&nbsp;Sending…':'🚀 Send to all recipients'}
+      </button>
+    </div>
+  </div>
+
+  <!-- RIGHT: Preview -->
+  <div class="email-right">
+    <div class="card">
+      <div class="card-head">
+        <h3>Live Preview</h3>
+        <div class="flex">
+          <button class="btn btn-default btn-sm" onclick="copyHtml()">Copy HTML</button>
+        </div>
+      </div>
+      <div class="card-body" style="padding:0;flex:1">
+        <iframe id="e-preview" class="preview-iframe" srcdoc="${esc(buildEmailHtml())}"></iframe>
+      </div>
+    </div>
+  </div>
+</div>`;
+}
+
+// ── BIND ──────────────────────────────────────────────────────────────────────
+function bind() {
+  $('li-email')?.addEventListener('input',e=>S.login.email=e.target.value);
+  $('li-pass')?.addEventListener('input',e=>S.login.password=e.target.value);
+  $('li-pass')?.addEventListener('keydown',e=>e.key==='Enter'&&login());
+  $('li-btn')?.addEventListener('click',login);
+  document.querySelectorAll('.nav-item[data-page]').forEach(el=>el.addEventListener('click',()=>loadPage(el.dataset.page)));
+  $('btn-logout')?.addEventListener('click',logout);
+  $('btn-refresh')?.addEventListener('click',()=>{S.stats=null;loadStats();});
+  $('maint-toggle')?.addEventListener('change',toggleMaintenance);
+  $('u-search-btn')?.addEventListener('click',()=>{S.uSearch=$('u-q')?.value||'';S.uPlan=$('u-plan')?.value||'';loadUsers(1);});
+  $('u-q')?.addEventListener('keydown',e=>{if(e.key==='Enter'){S.uSearch=e.target.value;loadUsers(1);}});
+  $('e-subject')?.addEventListener('input',e=>{S.email.subject=e.target.value;});
+  $('e-plan-sel')?.addEventListener('change',e=>{S.email.plan=e.target.value;});
+  $('e-test')?.addEventListener('input',e=>S.email.testTo=e.target.value);
+  $('e-test-btn')?.addEventListener('click',()=>sendEmail(true));
+  $('e-send-btn')?.addEventListener('click',()=>{
+    if(!confirm(`Send to all ${$('e-plan-sel')?.value==='all'?'':''+($('e-plan-sel')?.value||'')+' '}users?`)) return;
+    S.email.sent=false; sendEmail(false);
+  });
+  // Refresh preview after any block input change (range sliders etc)
+  document.querySelectorAll('.block-body input,.block-body textarea,.block-body select').forEach(el=>{
+    el.addEventListener('input',()=>{ const f=$('e-preview'); if(f) f.srcdoc=buildEmailHtml(); });
+    el.addEventListener('change',()=>{ const f=$('e-preview'); if(f) f.srcdoc=buildEmailHtml(); });
+  });
+}
+
+// Global handlers
+window.addBlock=addBlock; window.removeBlock=removeBlock; window.moveBlock=moveBlock;
+window.updateBlock=updateBlock; window.loadTemplate=loadTemplate; window.clearBlocks=clearBlocks;
+window.copyHtml=copyHtml; window.onDragStart=onDragStart; window.onDragEnd=onDragEnd;
+window.onDragOver=onDragOver; window.onDrop=onDrop; window.loadUsers=loadUsers;
+window.deleteUser=deleteUser;
+window.addCredit=async(id,email,cur)=>{
+  const v=prompt(`Credits for ${email}\nCurrent: ${cur}\nNew total:`,cur);
+  if(v===null) return; const n=parseInt(v);
+  if(isNaN(n)||n<0){alert('Enter a valid number.');return;}
+  await patchUser(id,{referral_credits:n});
+};
+
+checkAuth();
+</script>
+</body>
+</html>

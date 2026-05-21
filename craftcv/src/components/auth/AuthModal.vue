@@ -6,9 +6,9 @@
         <div class="auth-left-inner">
           <div class="al-logo">
             <div class="al-logo-mark">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
+              <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%"><rect x="5" y="2" width="16" height="22" rx="2" fill="white" opacity="0.95"/><path d="M21 2 L27 8 L21 8 Z" fill="#1d49b8"/><path d="M21 2 L21 8 L27 8" fill="none" stroke="white" stroke-width="1.2" opacity="0.4"/><line x1="8" y1="13" x2="18" y2="13" stroke="#2a5bd7" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="17" x2="19" y2="17" stroke="#c0cef8" stroke-width="1.5" stroke-linecap="round"/><line x1="8" y1="21" x2="16" y2="21" stroke="#c0cef8" stroke-width="1.5" stroke-linecap="round"/><rect x="6" y="25" width="14" height="6" rx="2" fill="#1a1a2e"/><text x="13" y="30" font-family="system-ui,sans-serif" font-weight="800" font-size="4.5" fill="#7aa3f5" text-anchor="middle" letter-spacing="1">CV</text></svg>
             </div>
-            <span>PerfectCV</span>
+            <span>CVMaster</span>
           </div>
           <div class="al-hero">
             <h1>Land your<br/><em>dream role</em></h1>
@@ -33,9 +33,9 @@
         <div class="auth-form-wrap">
           <div class="auth-mobile-logo">
             <div class="al-logo-mark" style="width:34px;height:34px;">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
+              <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%"><rect x="5" y="2" width="16" height="22" rx="2" fill="white" opacity="0.95"/><path d="M21 2 L27 8 L21 8 Z" fill="#1d49b8"/><path d="M21 2 L21 8 L27 8" fill="none" stroke="white" stroke-width="1.2" opacity="0.4"/><line x1="8" y1="13" x2="18" y2="13" stroke="#2a5bd7" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="17" x2="19" y2="17" stroke="#c0cef8" stroke-width="1.5" stroke-linecap="round"/><line x1="8" y1="21" x2="16" y2="21" stroke="#c0cef8" stroke-width="1.5" stroke-linecap="round"/><rect x="6" y="25" width="14" height="6" rx="2" fill="#1a1a2e"/><text x="13" y="30" font-family="system-ui,sans-serif" font-weight="800" font-size="4.5" fill="#7aa3f5" text-anchor="middle" letter-spacing="1">CV</text></svg>
             </div>
-            <span class="al-logo-text">PerfectCV</span>
+            <span class="al-logo-text">CVMaster</span>
           </div>
 
           <Transition name="auth-slide" mode="out-in">
@@ -93,6 +93,14 @@
             <div v-else-if="view === 'register'" key="register">
               <h2 class="auth-title">Create account</h2>
               <p class="auth-sub">Free to start — no credit card needed.</p>
+              <!-- Referral banner -->
+              <div v-if="refCode" class="ref-banner">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;flex-shrink:0;color:var(--c-green)"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                <span>
+                  <strong>{{ refName ? refName + ' invited you!' : 'You were referred!' }}</strong>
+                  Sign up and your friend earns a free export credit.
+                </span>
+              </div>
               <div class="auth-fields">
                 <div class="auth-field">
                   <label>Full name</label>
@@ -257,21 +265,21 @@
               <template v-if="legalPopup === 'terms'">
                 <p>Last updated: May 2026</p>
                 <h4>1. Acceptance</h4>
-                <p>By using PerfectCV you agree to these Terms. If you do not agree, do not use the service.</p>
+                <p>By using CVMaster you agree to these Terms. If you do not agree, do not use the service.</p>
                 <h4>2. The service</h4>
-                <p>PerfectCV provides an AI-assisted CV builder. The service is provided "as is" without warranty.</p>
+                <p>CVMaster provides an AI-assisted CV builder. The service is provided "as is" without warranty.</p>
                 <h4>3. Your account</h4>
                 <p>You must provide accurate information. You are responsible for your account security. You must be at least 16 years old.</p>
                 <h4>4. Payments</h4>
-                <p>CV export is a one-time payment of £4.99 processed by Stripe. Payments are final once the PDF has been delivered. Contact us within 14 days if you did not receive your CV.</p>
+                <p>CV export is a one-time payment of £1.99 processed by Stripe. Payments are final once the PDF has been delivered. Contact us within 14 days if you did not receive your CV.</p>
                 <h4>5. Acceptable use</h4>
                 <p>You must not use the service for unlawful purposes, attempt to bypass payment gates, or reverse-engineer the platform.</p>
                 <h4>6. AI content</h4>
                 <p>AI-generated content may not be perfectly accurate. You are responsible for reviewing your CV before sending it to employers.</p>
                 <h4>7. Intellectual property</h4>
-                <p>You own the CV content you create. PerfectCV owns the platform and templates.</p>
+                <p>You own the CV content you create. CVMaster owns the platform and templates.</p>
                 <h4>8. Limitation of liability</h4>
-                <p>PerfectCV is not liable for any indirect or consequential damages arising from use of the service.</p>
+                <p>CVMaster is not liable for any indirect or consequential damages arising from use of the service.</p>
                 <h4>9. Governing law</h4>
                 <p>These Terms are governed by the laws of England and Wales.</p>
                 <h4>10. Contact</h4>
@@ -281,7 +289,7 @@
               <template v-else>
                 <p>Last updated: May 2026</p>
                 <h4>1. Who we are</h4>
-                <p>PerfectCV is an AI-powered CV builder. Contact: <a href="mailto:gabbyquaye2021@gmail.com">gabbyquaye2021@gmail.com</a></p>
+                <p>CVMaster is an AI-powered CV builder. Contact: <a href="mailto:gabbyquaye2021@gmail.com">gabbyquaye2021@gmail.com</a></p>
                 <h4>2. Data we collect</h4>
                 <p><strong>Account data:</strong> Name and email when you register. <strong>CV data:</strong> Career information you enter. <strong>Payment data:</strong> Processed by Stripe — we never store card details. <strong>Usage data:</strong> Basic server logs for security.</p>
                 <h4>3. How we use your data</h4>
@@ -343,7 +351,7 @@ const pwStrength = computed(() => {
 })
 
 const features = [
-  { label: '16 professionally designed templates', icon: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>' },
+  { label: '107+ professionally designed templates', icon: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>' },
   { label: 'AI writing assistance', icon: '<path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2"/>' },
   { label: 'ATS-optimised formatting',              icon: '<polyline points="20 6 9 17 4 12"/>' },
   { label: 'PDF export with one click',             icon: '<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>' },
@@ -360,7 +368,8 @@ const tplPills = [
 // ── Google Identity Services ──────────────────────────────────
 function initGoogle() {
   // Get client ID from meta tag injected at build time, or from window
-  const clientId = document.querySelector('meta[name="google-client-id"]')?.content
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+                || document.querySelector('meta[name="google-client-id"]')?.content
                 || window.__GOOGLE_CLIENT_ID__
 
   if (!clientId || clientId === 'undefined' || !window.google?.accounts?.id) {
@@ -409,22 +418,43 @@ watch(googleLoginEl, (el) => { if (el && googleConfigured.value) renderInto(el) 
 watch(googleRegisterEl, (el) => { if (el && googleConfigured.value) renderInto(el) })
 
 async function handleGoogleCredential(response) {
-  // On register view, require terms agreement
   if (view.value === 'register' && !agreedToTerms.value) {
     errors.value.terms = 'Please agree to our Terms and Privacy Policy to continue.'
     return
   }
   loading.value = true; serverError.value = ''
   try {
-    await auth.loginWithGoogle(response.credential)
+    await auth.loginWithGoogle(response.credential, refCode.value)
+    try { localStorage.removeItem('cvmaster_ref') } catch {}
     emit('done')
   } catch (e) { serverError.value = e.message }
   loading.value = false
 }
 
-onMounted(() => {
-  // Check for reset token in URL
+// Referral code — read from URL ?ref= or localStorage
+const refCode = ref('')
+const refName = ref('')  // referrer's name shown in banner
+
+onMounted(async () => {
+  // Read referral code from URL or localStorage
   const params = new URLSearchParams(window.location.search)
+  const urlRef = params.get('ref') || params.get('referral') || ''
+  const lsRef  = (() => { try { return localStorage.getItem('cvmaster_ref') || '' } catch { return '' } })()
+  const code   = urlRef || lsRef
+  if (code) {
+    refCode.value = code
+    // Persist in localStorage so it survives navigation
+    try { localStorage.setItem('cvmaster_ref', code) } catch {}
+    // Fetch referrer name to show in banner
+    try {
+      const r = await fetch(`/api/referral/lookup?code=${encodeURIComponent(code)}`)
+      if (r.ok) { const d = await r.json(); refName.value = d.name || '' }
+    } catch {}
+    // Switch to register since they came via referral link
+    if (urlRef) view.value = 'register'
+  }
+
+  // Check for reset token in URL
   const token  = params.get('token')
   if (token) {
     resetToken.value = token
@@ -435,17 +465,31 @@ onMounted(() => {
       .catch(() => { resetTokenError.value = 'Could not validate reset link.' })
   }
 
-  // Wait for Google script to load then init
-  if (window.google?.accounts?.id) {
-    initGoogle()
-  } else {
-    window.addEventListener('load', initGoogle, { once: true })
-    // Fallback poll in case load already fired
-    const poll = setInterval(() => {
-      if (window.google?.accounts?.id) { clearInterval(poll); initGoogle() }
-    }, 300)
-    setTimeout(() => clearInterval(poll), 10000)
+  // Inject GSI script dynamically if not already on page
+  function loadGsiAndInit() {
+    if (window.google?.accounts?.id) {
+      initGoogle()
+      return
+    }
+    // If script not already in DOM, inject it
+    if (!document.querySelector('script[src*="accounts.google.com/gsi"]')) {
+      const script = document.createElement('script')
+      script.src = 'https://accounts.google.com/gsi/client'
+      script.async = true
+      script.defer = true
+      script.onload = () => initGoogle()
+      script.onerror = () => { googleConfigured.value = false }
+      document.head.appendChild(script)
+    } else {
+      // Script tag exists but not loaded yet — poll
+      const poll = setInterval(() => {
+        if (window.google?.accounts?.id) { clearInterval(poll); initGoogle() }
+      }, 200)
+      setTimeout(() => clearInterval(poll), 10000)
+    }
   }
+
+  loadGsiAndInit()
 })
 
 // ── Validation ────────────────────────────────────────────────
@@ -478,7 +522,12 @@ async function submitRegister() {
   if (!validateEmail()) return
   if (!validatePassword()) return
   loading.value = true
-  try { await auth.register(form.value.email, form.value.password, form.value.name); emit('done') }
+  try {
+    await auth.register(form.value.email, form.value.password, form.value.name, refCode.value)
+    // Clear referral from localStorage after successful registration
+    try { localStorage.removeItem('cvmaster_ref') } catch {}
+    emit('done')
+  }
   catch (e) { serverError.value = e.message }
   loading.value = false
 }
@@ -507,7 +556,7 @@ async function submitReset() {
 
 async function demoLogin() {
   loading.value = true; serverError.value = ''
-  const demoEmail = `demo_${Date.now()}@perfectcv.app`
+  const demoEmail = `demo_${Date.now()}@cvmaster.app`
   try {
     await auth.register(demoEmail, 'Demo1234!', 'Demo User')
     emit('done')
@@ -669,6 +718,15 @@ async function demoLogin() {
 @media (max-width: 520px) {
   .legal-popup-backdrop { padding: 0; align-items: flex-end; }
   .legal-popup { border-radius: 20px 20px 0 0; max-height: 90dvh; max-width: 100%; }
+}
+
+/* Referral banner */
+.ref-banner {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: #f0faf5; border: 1.5px solid #a0e0b8;
+  border-radius: 10px; padding: 12px 14px;
+  font-size: 13px; color: #1a7a4a; line-height: 1.5;
+  margin-bottom: 18px;
 }
 
 /* ── GOOGLE BUTTON BLOCKER ────────────────────────────────── */

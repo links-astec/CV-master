@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="7" fill="#2a5bd7"/>
+  <rect x="7" y="4" width="13" height="18" rx="2" fill="white"/>
+  <path d="M20 4 L26 10 L20 10 Z" fill="#1d49b8"/>
+  <path d="M20 4 L20 10 L26 10" fill="none" stroke="white" stroke-width="1.2" opacity="0.4"/>
+  <line x1="10" y1="12" x2="18" y2="12" stroke="#2a5bd7" stroke-width="2" stroke-linecap="round"/>
+  <line x1="10" y1="16" x2="19" y2="16" stroke="#c0cef8" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="10" y1="20" x2="17" y2="20" stroke="#c0cef8" stroke-width="1.5" stroke-linecap="round"/>
+  <text x="11" y="27.5" font-family="system-ui,sans-serif" font-weight="800" font-size="5" fill="white" letter-spacing="1.5">CV</text>
+</svg>

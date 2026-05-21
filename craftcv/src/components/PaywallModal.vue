@@ -34,12 +34,34 @@
               <div class="paywall-cv-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
               </div>
-              <h2 class="paywall-title">{{ demoMode ? 'Demo Export' : 'Export Your CV' }}</h2>
-              <p class="paywall-sub">{{ demoMode ? "Enter your email — we'll send your CV as a PDF." : 'Your CV will be emailed as a PDF.' }}</p>
+              <h2 class="paywall-title">{{ demoMode ? 'Demo Export' : isPaidState ? 'Re-send CV' : 'Export Your CV' }}</h2>
+              <p class="paywall-sub">{{ demoMode ? "Enter your email — we'll send your CV as a PDF." : isPaidState ? 'Your CV is unchanged — re-send for free.' : 'Your CV will be emailed as a PDF.' }}</p>
+            </div>
+
+            <!-- Free re-send (already paid, CV unchanged) -->
+            <div v-if="isPaidState" class="demo-email-section">
+              <div class="paywall-feature" style="margin-bottom:12px;padding:10px 12px;background:var(--c-green-lt);border:1px solid #a0d8b8;border-radius:8px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-green)" stroke-width="2.5" style="width:14px;height:14px;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
+                <span style="font-size:12px;color:var(--c-text2);">CV is unchanged from your last paid export — re-send for free.</span>
+              </div>
+              <label class="f-lbl">Send to (optional)</label>
+              <input class="f-inp" v-model="deliveryEmail" type="email" :placeholder="userEmail" />
+              <button class="btn-pay" @click="freeResend" :disabled="sending">
+                <svg v-if="sending" class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" opacity=".2"/><path d="M21 12a9 9 0 00-9-9"/></svg>
+                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8l10 7 10-7"/></svg>
+                Re-send My CV — Free
+              </button>
+              <p class="paywall-secure" style="margin-top:6px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:13px;height:13px;"><polyline points="20 6 9 17 4 12"/></svg>
+                Unchanged since last payment · No charge
+              </p>
+              <button class="btn-secondary" style="width:100%;justify-content:center;margin-top:8px;font-size:12px;" @click="isPaidOverride=true">
+                I've made changes — export updated version
+              </button>
             </div>
 
             <!-- Demo mode -->
-            <div v-if="demoMode" class="demo-email-section">
+            <div v-else-if="demoMode" class="demo-email-section">
               <label class="f-lbl">Your email address</label>
               <input class="f-inp" v-model="demoEmail" type="email" placeholder="your@email.com" @keydown.enter="sendDemo" autofocus />
               <button class="btn-pay" @click="sendDemo" :disabled="sending || !isValidEmail(demoEmail)">
@@ -53,7 +75,7 @@
             <!-- Paid mode -->
             <template v-else>
               <div class="paywall-price-wrap">
-                <div class="paywall-price">£4.99</div>
+                <div class="paywall-price">£1.99</div>
                 <div class="paywall-price-sub">one-time · no subscription</div>
               </div>
               <div class="paywall-features">
@@ -72,7 +94,7 @@
               <button class="btn-pay" @click="pay" :disabled="loading">
                 <svg v-if="loading" class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" opacity=".2"/><path d="M21 12a9 9 0 00-9-9"/></svg>
                 <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8l10 7 10-7"/></svg>
-                {{ loading ? 'Processing...' : 'Pay £4.99 — Email My CV' }}
+                {{ loading ? 'Processing...' : 'Pay £1.99 — Email My CV' }}
               </button>
               <p class="paywall-secure">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:13px;height:13px;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
@@ -109,13 +131,14 @@
 </template>
 
 <script setup>
+const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
 import { ref, computed, inject, watch, nextTick, onUnmounted } from 'vue'
 import { useCvStore }    from '../stores/cv.js'
 import { useAuthStore }  from '../stores/auth.js'
 import { useNotifStore } from '../stores/notifications.js'
 import { useCvRenderer } from '../composables/cvRenderer.js'
 
-defineProps({ show: Boolean })
+const props = defineProps({ show: Boolean })
 const emit = defineEmits(['close', 'paid'])
 
 const store      = useCvStore()
@@ -128,6 +151,7 @@ const loading       = ref(false)
 const sending       = ref(false)
 const sent          = ref(false)
 const demoMode      = ref(false)
+const isPaidOverride = ref(false)
 const demoEmail     = ref('')
 const deliveryEmail = ref('')
 const sentTo        = ref('')
@@ -141,6 +165,30 @@ const previewCanvasW   = ref(0)
 const userEmail = computed(() => auth.user?.email || 'your email')
 function isValidEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e || '') }
 
+// ── Paid-state fingerprint: free re-export if CV unchanged since last payment ──
+function cvFingerprint(data, template) {
+  const s = JSON.stringify(data) + template
+  let h = 5381
+  for (let i = 0; i < s.length; i++) { h = ((h << 5) + h) ^ s.charCodeAt(i); h = h & h }
+  return (h >>> 0).toString(36)
+}
+const isPaidState = computed(() => {
+  if (isPaidOverride.value) return false
+  const draftId = store.currentDraftId || 'current'
+  try {
+    const stored = localStorage.getItem(`pcv-paid-fp-${draftId}`)
+    return !!stored && stored === cvFingerprint(store.data, store.template)
+  } catch { return false }
+})
+function savePaidFingerprint() {
+  const draftId = store.currentDraftId || 'current'
+  try { localStorage.setItem(`pcv-paid-fp-${draftId}`, cvFingerprint(store.data, store.template)) } catch {}
+}
+
+async function freeResend() {
+  await sendCvEmail(deliveryEmail.value.trim() || null)
+}
+
 const previewScale = computed(() => {
   const w = previewCanvasW.value
   return w ? Math.min(0.9, (w - 48) / 700) : 0.8
@@ -148,10 +196,12 @@ const previewScale = computed(() => {
 const previewOuterStyle  = computed(() => ({ width: '100%', display: 'flex', justifyContent: 'center' }))
 const previewScalerStyle = computed(() => ({ width: '700px', zoom: String(previewScale.value), flexShrink: '0' }))
 
+watch(() => props.show, (v) => { if (!v) isPaidOverride.value = false })
+
 let _ro
 watch(showPreview, async (v) => {
   if (v) {
-    cvHtmlContent.value = render(store.template, store.data)
+    cvHtmlContent.value = render(store.template, normalisedData())
     await nextTick()
     if (previewCanvasRef.value) {
       previewCanvasW.value = previewCanvasRef.value.clientWidth
@@ -169,15 +219,23 @@ const features = [
   'Keep forever — yours to use',
 ]
 
+function normalisedData() {
+  // Fix education being stored as plain object in older drafts
+  const d = { ...store.data }
+  if (d.education && !Array.isArray(d.education)) d.education = [d.education]
+  if (!d.education || d.education.length === 0) d.education = [{ degree: '', school: '', year: '' }]
+  return d
+}
+
 function buildCvHtml() {
-  const cvHtml = render(store.template, store.data)
+  const cvHtml = render(store.template, normalisedData(), store.fmt)
   const name   = `${store.data.fn || 'My'} ${store.data.ln || 'CV'}`.trim()
   const html   = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><title>${name}</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-html,body{background:#fff;width:700px;margin:0;padding:0;overflow:hidden;}
-@page{size:700px auto;margin:0;}</style>
+html,body{background:#fff;width:700px;margin:0;padding:0;}
+@page{margin:0;}</style>
 </head><body>${cvHtml}</body></html>`
   return { html, name }
 }
@@ -188,7 +246,7 @@ async function sendCvEmail(overrideEmail, sessionId, draftId) {
   sendSub.value    = `Sending to ${overrideEmail || userEmail.value}`
   try {
     const { html, name } = buildCvHtml()
-    const r = await fetch('/api/cv/email', {
+    const r = await fetch(apiUrl('/api/cv/email'),  {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -204,6 +262,7 @@ async function sendCvEmail(overrideEmail, sessionId, draftId) {
     if (!r.ok) throw new Error(data.error || 'Failed to send email')
     sentTo.value  = overrideEmail || userEmail.value
     await notifStore.fetch()
+    savePaidFingerprint()
     sending.value = false
     sent.value    = true
   } catch (e) {
@@ -222,7 +281,7 @@ async function sendDemo() {
 async function pay() {
   loading.value = true
   try {
-    const r = await fetch('/api/payment/create-session', {
+    const r = await fetch(apiUrl('/api/payment/create-session'),  {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ draftId: store.currentDraftId || 'current', templateId: store.template }),
@@ -236,6 +295,9 @@ async function pay() {
     } else if (data.url) {
       sessionStorage.setItem('pcv_pending_download', '1')
       if (deliveryEmail.value.trim()) sessionStorage.setItem('pcv_delivery_email', deliveryEmail.value.trim())
+      // Save fingerprint so it can be persisted after the Stripe redirect
+      sessionStorage.setItem('pcv_paid_fp', cvFingerprint(store.data, store.template))
+      sessionStorage.setItem('pcv_paid_fp_draft', store.currentDraftId || 'current')
       window.location.href = data.url
     }
   } catch (e) {
@@ -248,8 +310,18 @@ async function handleStripeReturn(sessionId, draftId) {
   const saved = sessionStorage.getItem('pcv_delivery_email')
   if (saved) { deliveryEmail.value = saved; sessionStorage.removeItem('pcv_delivery_email') }
 
+  // Restore fingerprint saved before Stripe redirect, persist to localStorage after send
+  const fp      = sessionStorage.getItem('pcv_paid_fp')
+  const fpDraft = sessionStorage.getItem('pcv_paid_fp_draft') || draftId || 'current'
+  sessionStorage.removeItem('pcv_paid_fp')
+  sessionStorage.removeItem('pcv_paid_fp_draft')
+
   console.log('[paywall] handleStripeReturn sessionId:', sessionId, 'draftId:', draftId)
   await sendCvEmail(deliveryEmail.value.trim() || null, sessionId, draftId)
+
+  if (fp) {
+    try { localStorage.setItem(`pcv-paid-fp-${fpDraft}`, fp) } catch {}
+  }
 }
 
 defineExpose({ handleStripeReturn })

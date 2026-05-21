@@ -11,8 +11,9 @@ const routes = [
   { path: '/legal',          component: Legal     },
   { path: '/privacy',        redirect: '/legal'   },
   { path: '/terms',          redirect: '/legal'   },
-  { path: '/export-success', redirect: to => ({ path: '/', query: to.query }) },
-  { path: '/:pathMatch(.*)*', redirect: '/' },
+  { path: '/export-success',  redirect: to => ({ path: '/', query: to.query }) },
+  { path: '/download-clean',  redirect: to => ({ path: '/', query: to.query }) },
+  { path: '/:pathMatch(.*)*', redirect: '/'       },
 ]
 
 export default createRouter({ history: createWebHistory(), routes })

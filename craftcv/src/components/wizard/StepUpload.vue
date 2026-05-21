@@ -71,6 +71,7 @@
 </template>
 
 <script setup>
+const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
 import { ref } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
 
@@ -102,7 +103,7 @@ async function processFile(file) {
   try {
     const formData = new FormData()
     formData.append('cv', file)
-    const r = await fetch('/api/cv/upload', {
+    const r = await fetch(apiUrl('/api/cv/upload'),  {
       method: 'POST',
       credentials: 'include',
       body: formData,
