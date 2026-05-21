@@ -793,7 +793,7 @@ function enforceSinglePage(html) {
 
   const style = `<style>
 *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;box-sizing:border-box;}
-html,body{margin:0!important;padding:0!important;background:#fff!important;}
+html,body{margin:0!important;padding:0!important;background:#fff!important;width:700px!important;max-width:700px!important;overflow-x:hidden!important;}
 @page{margin:0;}
 </style>`;
   if (out.includes('</head>')) return out.replace('</head>', style + '</head>');
@@ -1314,10 +1314,15 @@ function makeToken() {
 }
 
 function addHtmlWatermark(html) {
-  const row  = '<div style="width:320px;padding:18px 0;font-family:sans-serif;font-size:13px;font-weight:700;color:#111;letter-spacing:.06em;white-space:nowrap;">CVMaster — upgrade at cvmaster.com</div>';
-  const rows = Array(80).fill(row).join('');
-  const wm   = `<div style="position:fixed;inset:0;pointer-events:none;z-index:99999;overflow:hidden;"><div style="position:absolute;inset:-50%;display:flex;flex-wrap:wrap;align-content:flex-start;transform:rotate(-28deg);opacity:0.14;">${rows}</div></div>`;
-  return html.includes('</body>') ? html.replace('</body>', wm + '</body>') : html + wm;
+  const row  = '<div style="width:320px;padding:18px 0;font-family:sans-serif;font-size:13px;font-weight:700;color:#111;letter-spacing:.06em;white-space:nowrap;">CVMaster — upgrade at cvmaster.live</div>';
+  const rows = Array(120).fill(row).join('');
+  // Use position:absolute (not fixed) — Puppeteer PDF ignores fixed positioning
+  // The wrapper must be inside a position:relative container (body) to fill the whole page
+  const wm   = `<div style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;"><div style="position:absolute;top:-50%;left:-50%;width:200%;height:200%;display:flex;flex-wrap:wrap;align-content:flex-start;transform:rotate(-28deg);opacity:0.18;">${rows}</div></div>`;
+  // Make body position:relative so absolute watermark is relative to it
+  const bodyStyle = '<style>body{position:relative!important;}</style>';
+  let out = html.includes('</head>') ? html.replace('</head>', bodyStyle + '</head>') : bodyStyle + html;
+  return out.includes('</body>') ? out.replace('</body>', wm + '</body>') : out + wm;
 }
 
 // renderPdf alias for compatibility
