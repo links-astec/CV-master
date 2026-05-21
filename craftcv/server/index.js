@@ -867,21 +867,19 @@ async function getLocalFontCss() {
 }
 
 async function renderPdfFromHtml(html) {
+  const PAGE_W = 700;
+  const PAGE_H = 990; // A4 proportions at 700px width (700 × 297/210 ≈ 990)
+
   const browser = await getBrowser();
   const page    = await browser.newPage();
   try {
-    // Block Google Fonts network requests — we serve fonts locally or use system fallbacks
     await page.setRequestInterception(true);
     page.on('request', req => {
       const u = req.url();
-      if (u.includes('fonts.googleapis.com') || u.includes('fonts.gstatic.com')) {
-        req.abort();
-      } else {
-        req.continue();
-      }
+      if (u.includes('fonts.googleapis.com') || u.includes('fonts.gstatic.com')) req.abort();
+      else req.continue();
     });
 
-    // Strip the <link> to Google Fonts and inject local fonts instead
     const fontCss = await getLocalFontCss();
     let prepared  = html.replace(/<link[^>]+fonts\.googleapis\.com[^>]*>/gi, '');
     if (fontCss) {
@@ -890,21 +888,28 @@ async function renderPdfFromHtml(html) {
         : fontCss + prepared;
     }
 
-    // domcontentloaded = instant — all fonts are inline, no network needed
-    await page.setViewport({ width: 700, height: 1400, deviceScaleFactor: 1 });
+    await page.setViewport({ width: PAGE_W, height: PAGE_H, deviceScaleFactor: 1 });
     await page.setContent(enforceSinglePage(prepared), { waitUntil: 'domcontentloaded', timeout: 10000 });
 
-    // Measure actual rendered content height
+    // Measure natural content height at full 700px width
     const naturalH = await page.evaluate(() =>
       Math.max(document.body.scrollHeight, document.body.offsetHeight,
                document.documentElement.scrollHeight)
     );
 
-    // PDF height = content height → always one page, no clipping, no side whitespace.
-    // Minimum 990px so short CVs don't look empty.
+    // If content overflows the page, scale it down to fit exactly one page.
+    // Widen the body to 700/scale so after zoom it renders at exactly 700px wide.
+    if (naturalH > PAGE_H) {
+      const scale = PAGE_H / naturalH;
+      const widerW = Math.ceil(PAGE_W / scale);
+      await page.addStyleTag({ content:
+        `html,body { zoom:${scale} !important; width:${widerW}px !important; max-width:${widerW}px !important; }`
+      });
+    }
+
     return await page.pdf({
-      width:             '700px',
-      height:            `${Math.max(naturalH, 990)}px`,
+      width:             `${PAGE_W}px`,
+      height:            `${PAGE_H}px`,
       printBackground:   true,
       preferCSSPageSize: false,
       margin: { top: '0', right: '0', bottom: '0', left: '0' },
