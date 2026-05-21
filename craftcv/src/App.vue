@@ -766,13 +766,14 @@ function handleStripeReturn() {
   }
 
   // ── Email export (PaywallModal) return ──
-  const hasPending = sessionStorage.getItem('pcv_pending_download')
-  if (sessionId && hasPending) {
+  // sessionId present = always a Stripe return for email export (watermark handled above).
+  // Don't gate on sessionStorage — it's lost when origin changes (cvmaster.live ↔ www.cvmaster.live).
+  if (sessionId) {
     sessionStorage.removeItem('pcv_pending_download')
     window.history.replaceState({}, '', '/')
     currentView.value  = 'dashboard'
     showPaywall.value  = true
-    nextTick(() => paywallRef.value?.handleStripeReturn(sessionId, draftId))
+    nextTick(() => nextTick(() => paywallRef.value?.handleStripeReturn(sessionId, draftId)))
   }
 }
 
