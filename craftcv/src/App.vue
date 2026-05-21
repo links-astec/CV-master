@@ -587,6 +587,14 @@ const canvasRef        = ref(null)
 const showMobileEdit   = ref(false)
 const canvasWidth      = ref(0)
 
+// Re-observe when builder mounts (canvasRef is inside v-if so it's null at onMounted)
+watch(canvasRef, (el) => {
+  if (el) {
+    ro?.observe(el)
+    measureCanvas()
+  }
+})
+
 // ── Formatting — stored in Pinia so builder + wizard share the same object ───
 const fmt = computed(() => store.fmt)
 
