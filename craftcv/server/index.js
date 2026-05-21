@@ -1011,14 +1011,37 @@ async function generateCvPdf(htmlContent) {
 }
 
 
-app.post('/api/cv/email', authMiddleware, async (req, res) => {
+app.post('/api/cv/email', async (req, res) => {
   try {
     const { htmlContent, fileName, overrideEmail, demoMode, sessionId, draftId = 'current' } = req.body;
     if (!htmlContent) return res.status(400).json({ error: 'CV content required.' });
 
-    const { rows } = await query('SELECT * FROM users WHERE id = $1', [req.user.sub]);
+    // Auth via cookie, or fall back to Stripe session (handles cross-site cookie loss after redirect)
+    let userId;
+    try {
+      const token = req.cookies?.token || req.headers.authorization?.replace('Bearer ', '');
+      if (token) userId = jwt.verify(token, JWT_SECRET).sub;
+    } catch {}
+
+    if (!userId && sessionId && !demoMode) {
+      try {
+        const { default: Stripe } = await import('stripe');
+        const stripe   = new Stripe(process.env.STRIPE_SECRET_KEY);
+        const session  = await stripe.checkout.sessions.retrieve(sessionId);
+        if (session.payment_status === 'paid') {
+          userId = session.client_reference_id || session.metadata?.userId;
+        }
+      } catch (e) { console.warn('[email] Stripe session fallback failed:', e.message); }
+    }
+
+    if (!userId && !demoMode) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { rows } = await query('SELECT * FROM users WHERE id = $1', [userId]);
     const user = rows[0];
-    if (!user) return res.status(404).json({ error: 'User not found.' });
+    if (!user && !demoMode) return res.status(404).json({ error: 'User not found.' });
+
+    // Attach to req so downstream code can use req.user.sub
+    req.user = { sub: userId };
 
     const stripeConfigured = !!process.env.STRIPE_SECRET_KEY;
 
@@ -1207,6 +1230,7 @@ app.post('/api/payment/create-session', authMiddleware, async (req, res) => {
       mode: 'payment',
       success_url: `${FRONTEND_URL}/export-success?session={CHECKOUT_SESSION_ID}&draft=${draftId}`,
       cancel_url:  `${FRONTEND_URL}/builder`,
+      client_reference_id: req.user.sub,
       metadata: { draftId, userId: req.user.sub },
     });
     res.json({ url: session.url, sessionId: session.id });

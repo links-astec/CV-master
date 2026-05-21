@@ -784,9 +784,9 @@ onMounted(async () => {
     if (r.status === 503) { maintenance.value = true; return }
   } catch {}
   await auth.fetchMe()
+  handleStripeReturn()
   if (auth.isLoggedIn) {
     await notifStore.fetch()
-    handleStripeReturn()
     restoreLatestDraft()
     // Show tutorial if user has never seen it (covers page-refresh-while-logged-in case)
     try {
