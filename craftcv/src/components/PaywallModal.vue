@@ -55,9 +55,6 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:13px;height:13px;"><polyline points="20 6 9 17 4 12"/></svg>
                 Unchanged since last payment · No charge
               </p>
-              <button class="btn-secondary" style="width:100%;justify-content:center;margin-top:8px;font-size:12px;" @click="isPaidOverride=true">
-                I've made changes — export updated version
-              </button>
             </div>
 
             <!-- Demo mode -->
