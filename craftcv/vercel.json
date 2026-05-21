@@ -2,7 +2,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "env": {
-    "VITE_API_URL": "https://cv-master-qfz5.onrender.com"
+    "VITE_API_URL": "https://api.cvmaster.live"
   },
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }

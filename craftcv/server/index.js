@@ -141,8 +141,9 @@ function signToken(userId) {
 function setAuthCookie(res, token) {
   res.cookie('token', token, {
     httpOnly: true,
-    secure: IS_PROD,            // Render uses HTTPS in production
-    sameSite: IS_PROD ? 'none' : 'lax',  // 'none' required for cross-origin (Vercel → Render)
+    secure: IS_PROD,
+    sameSite: IS_PROD ? 'none' : 'lax',
+    domain: IS_PROD ? '.cvmaster.live' : undefined,
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 }
@@ -387,7 +388,7 @@ app.get('/api/auth/reset-password/:token', async (req, res) => {
 
 // ── LOGOUT ────────────────────────────────────────────────────────────────────
 app.post('/api/auth/logout', (req, res) => {
-  res.clearCookie('token');
+  res.clearCookie('token', { domain: IS_PROD ? '.cvmaster.live' : undefined });
   res.json({ ok: true });
 });
 
