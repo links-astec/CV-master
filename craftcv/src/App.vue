@@ -785,10 +785,9 @@ onMounted(async () => {
     if (r.status === 503) { maintenance.value = true; return }
   } catch {}
   await auth.fetchMe()
-  handleStripeReturn()
   if (auth.isLoggedIn) {
     await notifStore.fetch()
-    restoreLatestDraft()
+    await restoreLatestDraft()
     // Show tutorial if user has never seen it (covers page-refresh-while-logged-in case)
     try {
       if (!localStorage.getItem('cvmaster-tour-done')) {
@@ -796,6 +795,7 @@ onMounted(async () => {
       }
     } catch {}
   }
+  handleStripeReturn()
   // Set currentView from current URL path
   const path = window.location.pathname
   if (path === '/templates') currentView.value = 'templates'
@@ -812,7 +812,7 @@ onMounted(async () => {
 
 async function restoreLatestDraft() {
   try {
-    const r = await fetch('/api/drafts', { credentials: 'include' })
+    const r = await fetch(apiUrl('/api/drafts'), { credentials: 'include' })
     if (!r.ok) return
     const drafts = await r.json()
     if (!drafts.length) return
