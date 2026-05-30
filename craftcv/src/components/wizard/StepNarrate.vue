@@ -117,8 +117,10 @@
 <script setup>
 import { ref, onUnmounted } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
+import { useAuthStore } from '../../stores/auth.js'
 
 const store = useCvStore()
+const auth  = useAuthStore()
 const emit  = defineEmits(['next', 'ai-thinking'])
 
 const story       = ref('')
@@ -133,6 +135,7 @@ const micError     = ref('')
 let recognition   = null
 let finalBuffer   = ''
 let restartTimer  = null
+let _stopping     = false
 
 function switchMode(mode) {
   if (isRecording.value) stopMic()
@@ -193,11 +196,11 @@ async function startMic() {
   }
 
   recognition.onresult = (e) => {
+    if (_stopping) return  // prevent duplicate commit when stop() triggers a final result
     let interimText = ''
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const t = e.results[i][0].transcript
       if (e.results[i].isFinal) {
-        console.log('[MIC] Final result:', t)
         finalBuffer += t.trim() + ' '
         interimText = ''
       } else {
@@ -259,7 +262,8 @@ async function startMic() {
 function stopMic() {
   clearTimeout(restartTimer)
   isRecording.value = false
-  // Commit any interim text that wasn't finalised
+  _stopping = true
+  // Manually commit any interim text not yet finalised by the browser
   if (interim.value.trim()) {
     finalBuffer += interim.value.trim() + ' '
     story.value = finalBuffer.trimEnd()
@@ -267,6 +271,8 @@ function stopMic() {
   interim.value = ''
   try { recognition?.stop() } catch {}
   recognition = null
+  // Reset guard after browser finalization events have fired
+  setTimeout(() => { _stopping = false }, 600)
 }
 
 function clearTranscript() {
@@ -280,11 +286,18 @@ async function startNarrate() {
   aiLoading.value = true
   emit('ai-thinking', true)
   try {
-    const prompt = `Extract structured CV info from this career story. Return ONLY valid JSON, no markdown:
+    const u = auth.user
+    const ctx = [
+      u?.industry   ? `Industry: ${u.industry}`                  : '',
+      u?.goal       ? `Career goal: ${u.goal}`                   : '',
+      u?.experience ? `Experience level: ${u.experience}`        : '',
+    ].filter(Boolean).join(' | ')
+
+    const prompt = `Extract structured CV info from this career story.${ctx ? ` User context: ${ctx}.` : ''} Return ONLY valid JSON, no markdown:
 "${story.value.slice(0, 3000)}"
 
 JSON structure:
-{"fn":"","ln":"","title":"","sum":"2-3 sentence professional summary","skills":["","","","","",""],"experiences":[{"title":"","company":"","period":"","desc":"achievement with metric"}],"education":{"degree":"","school":"","year":""},"loc":"","email":"","phone":""}`
+{"fn":"","ln":"","title":"","sum":"2-3 sentence professional summary tailored to their industry and goal","skills":["","","","","",""],"experiences":[{"title":"","company":"","period":"","desc":"achievement with metric"}],"education":{"degree":"","school":"","year":""},"loc":"","email":"","phone":""}`
 
     const result = await store.callAi(prompt)
     const clean  = result.replace(/```json\s*/gi,'').replace(/```/g,'').trim()

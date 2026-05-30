@@ -24,6 +24,9 @@ CREATE TABLE IF NOT EXISTS users (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- EXPERIENCE COLUMN
+ALTER TABLE users ADD COLUMN IF NOT EXISTS experience TEXT;
+
 -- REFERRAL COLUMNS (safe to run on existing DB — ignored if already exist)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code    TEXT UNIQUE DEFAULT NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_credits INT  NOT NULL DEFAULT 0;
