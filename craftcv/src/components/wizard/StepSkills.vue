@@ -85,8 +85,10 @@
 <script setup>
 import { ref, computed, inject } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
+import { useAuthStore } from '../../stores/auth.js'
 
 const store = useCvStore()
+const auth  = useAuthStore()
 const emit = defineEmits(['next', 'ai-thinking'])
 
 // Inject fmt from the nearest parent that provides it
@@ -120,7 +122,12 @@ async function suggestSkills() {
   aiLoading.value = true
   emit('ai-thinking', true)
   try {
-    const prompt = `List 10 highly relevant skills for a ${store.data.title || 'professional'} role at a modern company. Return ONLY a JSON array of strings, no markdown, no explanation.`
+    const u = auth.user
+    const ctx = [
+      u?.industry   ? `in the ${u.industry} industry` : '',
+      u?.experience ? `at ${u.experience} level`      : '',
+    ].filter(Boolean).join(' ')
+    const prompt = `List 10 highly relevant skills for a ${store.data.title || 'professional'} role${ctx ? ' ' + ctx : ''} at a modern company. Return ONLY a JSON array of strings, no markdown, no explanation.`
     const result = await store.callAi(prompt)
     const parsed = JSON.parse(result.replace(/```json|```/g, '').trim())
     suggested.value = Array.isArray(parsed) ? parsed : parsed.skills || []

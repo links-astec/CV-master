@@ -88,7 +88,12 @@ export const useAuthStore = defineStore('auth', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
-    if (r.ok && user.value) user.value.onboarded = true
+    if (r.ok && user.value) {
+      user.value.onboarded  = true
+      user.value.industry   = payload.industry   || user.value.industry
+      user.value.goal       = payload.goal       || user.value.goal
+      user.value.experience = payload.experience || user.value.experience
+    }
   }
 
   return {

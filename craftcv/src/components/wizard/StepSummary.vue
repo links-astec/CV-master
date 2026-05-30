@@ -46,9 +46,11 @@
 <script setup>
 import { ref } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
+import { useAuthStore } from '../../stores/auth.js'
 
 const store = useCvStore()
-const emit = defineEmits(['next', 'ai-thinking'])
+const auth  = useAuthStore()
+const emit  = defineEmits(['next', 'ai-thinking'])
 
 const aiLoading = ref(false)
 const aiResult = ref('')
@@ -66,11 +68,17 @@ async function enhanceSummary() {
   emit('ai-thinking', true)
   aiResult.value = ''
   try {
+    const u = auth.user
+    const ctx = [
+      u?.industry   ? `Industry: ${u.industry}`           : '',
+      u?.goal       ? `Career goal: ${u.goal}`            : '',
+      u?.experience ? `Seniority: ${u.experience}`        : '',
+    ].filter(Boolean).join(', ')
     const prompt = `Write a compelling ${selectedTone.value} professional summary (2-3 sentences, ATS-optimized, under 60 words) for:
 Name: ${store.data.fn} ${store.data.ln}
 Title: ${store.data.title}
-Current summary: ${store.data.sum || 'none'}
-Focus on measurable impact and value. Return only the summary text, no quotes.`
+Current summary: ${store.data.sum || 'none'}${ctx ? `\nUser profile: ${ctx}` : ''}
+Tailor the tone and focus to their industry and career goal. Focus on measurable impact and value. Return only the summary text, no quotes.`
     const text = await store.callAi(prompt)
     aiResult.value = text || ''
   } catch {

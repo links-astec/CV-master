@@ -149,13 +149,16 @@ function authMiddleware(req, res, next) {
 }
 function publicUser(row) {
   return {
-    id:        row.id,
-    email:     row.email,
-    name:      row.name,
-    plan:      row.plan,
-    onboarded: row.onboarded,
-    avatar:    row.avatar,
-    provider:  row.provider,
+    id:         row.id,
+    email:      row.email,
+    name:       row.name,
+    plan:       row.plan,
+    onboarded:  row.onboarded,
+    avatar:     row.avatar,
+    provider:   row.provider,
+    industry:   row.industry   || null,
+    goal:       row.goal       || null,
+    experience: row.experience || null,
   };
 }
 
@@ -392,8 +395,8 @@ app.get('/api/auth/me', authMiddleware, async (req, res) => {
 app.patch('/api/auth/onboard', authMiddleware, async (req, res) => {
   try {
     await query(
-      'UPDATE users SET onboarded = TRUE, industry = $1, goal = $2 WHERE id = $3',
-      [req.body.industry || null, req.body.goal || null, req.user.sub]
+      'UPDATE users SET onboarded = TRUE, industry = $1, goal = $2, experience = $3 WHERE id = $4',
+      [req.body.industry || null, req.body.goal || null, req.body.experience || null, req.user.sub]
     );
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'Onboarding update failed.' }); }
