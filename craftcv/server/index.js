@@ -13,6 +13,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { OAuth2Client } from 'google-auth-library';
 import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import { query } from './db.js';
 
 const __dirname    = dirname(fileURLToPath(import.meta.url));
@@ -29,25 +30,52 @@ const FRONTEND_URL     = process.env.FRONTEND_URL || 'http://localhost:5173';
 // ── Mailer ────────────────────────────────────────────────────────────────────
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
-async function sendMail({ to, subject, html, attachments }) {
-  const from = process.env.SMTP_FROM || 'noreply@cvmaster.live';
+// Gmail/SMTP fallback — used when Resend isn't configured, or its send fails
+// (e.g. the "from" domain isn't verified with Resend yet).
+const smtpTransport = (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
+  ? nodemailer.createTransport({
+      host:   process.env.SMTP_HOST,
+      port:   Number(process.env.SMTP_PORT) || 587,
+      secure: Number(process.env.SMTP_PORT) === 465,
+      auth:   { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    })
+  : null;
 
-  if (resend) {
-    const payload = { from: `CVMaster <${from}>`, to, subject, html };
-    if (attachments?.length) {
-      payload.attachments = attachments.map(a => ({
-        filename: a.filename,
-        content:  Buffer.isBuffer(a.content) ? a.content : Buffer.from(a.content),
-      }));
-    }
-    const { error } = await resend.emails.send(payload);
-    if (error) throw new Error(error.message);
-    console.log('[mailer] Resend: sent to', to);
-  } else {
-    // Dev fallback — log only
-    console.log('[mailer] No RESEND_API_KEY — email skipped. To:', to, '| Subject:', subject);
-    throw new Error('Email not configured. Set RESEND_API_KEY in environment.');
+async function sendViaResend({ to, subject, html, attachments }) {
+  const from = process.env.SMTP_FROM || 'noreply@cvmaster.live';
+  const payload = { from: `CVMaster <${from}>`, to, subject, html };
+  if (attachments?.length) {
+    payload.attachments = attachments.map(a => ({
+      filename: a.filename,
+      content:  Buffer.isBuffer(a.content) ? a.content : Buffer.from(a.content),
+    }));
   }
+  const { error } = await resend.emails.send(payload);
+  if (error) throw new Error(error.message);
+  console.log('[mailer] Resend: sent to', to);
+}
+
+async function sendViaSmtp({ to, subject, html, attachments }) {
+  await smtpTransport.sendMail({
+    from: `CVMaster <${process.env.SMTP_USER}>`,
+    to, subject, html,
+    attachments: attachments?.map(a => ({ filename: a.filename, content: a.content, contentType: a.contentType })),
+  });
+  console.log('[mailer] SMTP: sent to', to);
+}
+
+async function sendMail(opts) {
+  if (resend) {
+    try { return await sendViaResend(opts); }
+    catch (e) {
+      if (!smtpTransport) throw e;
+      console.warn('[mailer] Resend failed, falling back to SMTP:', e.message);
+    }
+  }
+  if (smtpTransport) return sendViaSmtp(opts);
+
+  console.log('[mailer] No mail provider configured — email skipped. To:', opts.to, '| Subject:', opts.subject);
+  throw new Error('Email not configured. Set RESEND_API_KEY or SMTP_HOST/USER/PASS in environment.');
 }
 
 // ── Security ──────────────────────────────────────────────────────────────────
