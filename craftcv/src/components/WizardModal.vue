@@ -62,7 +62,7 @@
 
                 <div class="wiz-panel-body" ref="panelBody">
                   <Transition :name="stepDir > 0 ? 'slide-left' : 'slide-right'" mode="out-in">
-                    <component :is="currentStepComp" :key="store.wizardStep" @next="handleNext" @ai-thinking="v => aiThinking=v" />
+                    <component :is="currentStepComp" :key="store.wizardStep" @next="handleNext" @ai-thinking="v => aiThinking=v" @pay="payFromWizard" />
                   </Transition>
                 </div>
 
@@ -197,13 +197,14 @@ const StepSummary    = defineAsyncComponent(() => import('./wizard/StepSummary.v
 const StepExperience = defineAsyncComponent(() => import('./wizard/StepExperience.vue'))
 const StepSkills     = defineAsyncComponent(() => import('./wizard/StepSkills.vue'))
 const StepEducation  = defineAsyncComponent(() => import('./wizard/StepEducation.vue'))
+const StepTailor     = defineAsyncComponent(() => import('./wizard/StepTailor.vue'))
 const StepReview     = defineAsyncComponent(() => import('./wizard/StepReview.vue'))
 const StepNarrate    = defineAsyncComponent(() => import('./wizard/StepNarrate.vue'))
 const StepUpload     = defineAsyncComponent(() => import('./wizard/StepUpload.vue'))
 
 const store = useCvStore()
 const { render } = useCvRenderer()
-const emit = defineEmits(['open-builder'])
+const emit = defineEmits(['open-builder', 'pay'])
 
 const aiThinking  = ref(false)
 const stepDir     = ref(1)
@@ -232,7 +233,7 @@ const renderedCV = computed(() => {
   return render(tpl, store.data, fmt.value)
 })
 
-const manualSteps  = [{label:'Personal',comp:StepPersonal},{label:'Summary',comp:StepSummary},{label:'Experience',comp:StepExperience},{label:'Skills',comp:StepSkills},{label:'Education',comp:StepEducation},{label:'Review',comp:StepReview}]
+const manualSteps  = [{label:'Personal',comp:StepPersonal},{label:'Summary',comp:StepSummary},{label:'Experience',comp:StepExperience},{label:'Skills',comp:StepSkills},{label:'Education',comp:StepEducation},{label:'Tailor',comp:StepTailor},{label:'Review',comp:StepReview}]
 const narrateSteps = [{label:'Your Story',comp:StepNarrate},...manualSteps]
 const uploadSteps  = [{label:'Upload',comp:StepUpload},...manualSteps]
 
@@ -264,6 +265,12 @@ function handleBack() {
 async function handleClose() {
   await store.saveDraft()
   store.closeWizard()
+}
+// Review step's "Get my CV" button — close the wizard and open the paywall over the builder
+async function payFromWizard() {
+  await store.saveDraft()
+  store.closeWizard()
+  emit('pay')
 }
 async function finish() {
   await store.saveDraft()

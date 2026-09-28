@@ -44,11 +44,12 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, inject } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
 import { useAuthStore } from '../../stores/auth.js'
 
 const store = useCvStore()
+const showToast = inject('showToast', null)
 const auth  = useAuthStore()
 const emit  = defineEmits(['next', 'ai-thinking'])
 
@@ -82,8 +83,7 @@ Tailor the tone and focus to their industry and career goal. Focus on measurable
     const text = await store.callAi(prompt)
     aiResult.value = text || ''
   } catch {
-    // Fallback demo
-    aiResult.value = `Accomplished ${store.data.title || 'professional'} with a proven track record of delivering measurable business impact. Expert in translating complex challenges into strategic solutions, driving growth, and leading high-performance teams. Passionate about creating value through data-driven decisions and cross-functional collaboration.`
+    showToast?.('AI is unavailable right now — please try again in a moment.')
   }
   aiLoading.value = false
   emit('ai-thinking', false)

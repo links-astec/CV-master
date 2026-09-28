@@ -28,52 +28,40 @@
             <button class="btn-secondary" style="width:100%;justify-content:center;margin-top:8px;" @click="$emit('close')">Done</button>
           </div>
 
+          <!-- Checking this CV's payment status -->
+          <div v-else-if="checking" class="paywall-sending">
+            <div class="send-spinner"></div>
+            <div class="send-title">Preparing your CV…</div>
+          </div>
+
           <!-- Normal / demo -->
           <template v-else>
             <div class="paywall-head">
               <div class="paywall-cv-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               </div>
-              <h2 class="paywall-title">{{ demoMode ? 'Demo Export' : isPaidState ? 'Re-send CV' : 'Export Your CV' }}</h2>
-              <p class="paywall-sub">{{ demoMode ? "Enter your email — we'll send your CV as a PDF." : isPaidState ? 'Your CV is unchanged — re-send for free.' : 'Your CV will be emailed as a PDF.' }}</p>
+              <h2 class="paywall-title">{{ paidForDraft ? 'Send your CV' : demoMode ? 'Demo Export' : 'Export Your CV' }}</h2>
+              <p class="paywall-sub">{{ paidForDraft ? 'This CV is already paid for — send it as often as you like, even after edits.' : demoMode ? "Payments aren't switched on yet — sending is free for now." : 'Your CV will be emailed as a PDF.' }}</p>
             </div>
 
-            <!-- Free re-send (already paid, CV unchanged) -->
-            <div v-if="isPaidState" class="demo-email-section">
-              <div class="paywall-feature" style="margin-bottom:12px;padding:10px 12px;background:var(--c-green-lt);border:1px solid #a0d8b8;border-radius:8px;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-green)" stroke-width="2.5" style="width:14px;height:14px;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
-                <span style="font-size:12px;color:var(--c-text2);">CV is unchanged from your last paid export — re-send for free.</span>
-              </div>
+            <div v-if="loadError" class="paywall-error">{{ loadError }}</div>
+
+            <!-- Already paid for this draft, or demo mode: just send -->
+            <div v-if="paidForDraft || demoMode" class="demo-email-section">
               <label class="f-lbl">Send to (optional)</label>
-              <input class="f-inp" v-model="deliveryEmail" type="email" :placeholder="userEmail" />
-              <button class="btn-pay" @click="freeResend" :disabled="sending">
-                <svg v-if="sending" class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" opacity=".2"/><path d="M21 12a9 9 0 00-9-9"/></svg>
-                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8l10 7 10-7"/></svg>
-                Re-send My CV — Free
+              <input class="f-inp" v-model="deliveryEmail" type="email" :placeholder="userEmail" @keydown.enter="sendNow" />
+              <button class="btn-pay" @click="sendNow" :disabled="sending || !deliveryOk">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8l10 7 10-7"/></svg>
+                {{ paidForDraft ? 'Send My CV — Free' : 'Send My CV — Free Demo' }}
               </button>
-              <p class="paywall-secure" style="margin-top:6px;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:13px;height:13px;"><polyline points="20 6 9 17 4 12"/></svg>
-                Unchanged since last payment · No charge
-              </p>
-            </div>
-
-            <!-- Demo mode -->
-            <div v-else-if="demoMode" class="demo-email-section">
-              <label class="f-lbl">Your email address</label>
-              <input class="f-inp" v-model="demoEmail" type="email" placeholder="your@email.com" @keydown.enter="sendDemo" autofocus />
-              <button class="btn-pay" @click="sendDemo" :disabled="sending || !isValidEmail(demoEmail)">
-                <svg v-if="sending" class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" opacity=".2"/><path d="M21 12a9 9 0 00-9-9"/></svg>
-                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8l10 7 10-7"/></svg>
-                Send My CV — Free Demo
-              </button>
-              <p class="paywall-secure">Demo mode — Stripe not configured</p>
+              <p class="paywall-secure">PDF sent to {{ deliveryEmail.trim() || userEmail }}</p>
             </div>
 
             <!-- Paid mode -->
             <template v-else>
               <div class="paywall-price-wrap">
                 <div class="paywall-price">£1.99</div>
-                <div class="paywall-price-sub">one-time · no subscription</div>
+                <div class="paywall-price-sub">one-time for this CV · re-send free anytime</div>
               </div>
               <div class="paywall-features">
                 <div class="paywall-feature" v-for="f in features" :key="f">
@@ -85,14 +73,19 @@
               <div class="delivery-email-wrap">
                 <label class="f-lbl">Send PDF to (optional)</label>
                 <input class="f-inp" v-model="deliveryEmail" type="email" :placeholder="userEmail" />
-                <p class="f-hint">Leave blank to use your account email</p>
+                <p class="f-hint" :class="{ 'f-hint-err': !deliveryOk }">{{ deliveryOk ? 'Leave blank to use your account email' : 'Enter a valid email address' }}</p>
               </div>
 
-              <button class="btn-pay" @click="pay" :disabled="loading">
+              <button class="btn-pay" @click="pay" :disabled="loading || !deliveryOk">
                 <svg v-if="loading" class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" opacity=".2"/><path d="M21 12a9 9 0 00-9-9"/></svg>
                 <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8l10 7 10-7"/></svg>
                 {{ loading ? 'Processing...' : 'Pay £1.99 — Email My CV' }}
               </button>
+
+              <button v-if="credits > 0" class="btn-credit" @click="useCredit" :disabled="loading || !deliveryOk">
+                🎁 Use 1 referral credit instead — free ({{ credits }} left)
+              </button>
+
               <p class="paywall-secure">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:13px;height:13px;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
                 Secured by Stripe · PDF sent to {{ deliveryEmail.trim() || userEmail }}
@@ -128,12 +121,13 @@
 </template>
 
 <script setup>
-const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
 import { ref, computed, inject, watch, nextTick, onUnmounted } from 'vue'
 import { useCvStore }    from '../stores/cv.js'
 import { useAuthStore }  from '../stores/auth.js'
 import { useNotifStore } from '../stores/notifications.js'
 import { useCvRenderer } from '../composables/cvRenderer.js'
+
+const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
 
 const props = defineProps({ show: Boolean })
 const emit = defineEmits(['close', 'paid'])
@@ -145,11 +139,13 @@ const { render } = useCvRenderer()
 const showToast  = inject('showToast')
 
 const loading       = ref(false)
+const checking      = ref(false)
 const sending       = ref(false)
 const sent          = ref(false)
 const demoMode      = ref(false)
-const isPaidOverride = ref(false)
-const demoEmail     = ref('')
+const paidForDraft  = ref(false)   // £1.99 already paid for this draft → re-sends are free
+const credits       = ref(0)       // referral credits available
+const loadError     = ref('')
 const deliveryEmail = ref('')
 const sentTo        = ref('')
 const sendStatus    = ref('Generating your PDF...')
@@ -161,30 +157,43 @@ const previewCanvasW   = ref(0)
 
 const userEmail = computed(() => auth.user?.email || 'your email')
 function isValidEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e || '') }
+const deliveryOk = computed(() => !deliveryEmail.value.trim() || isValidEmail(deliveryEmail.value.trim()))
 
-// ── Paid-state fingerprint: free re-export if CV unchanged since last payment ──
-function cvFingerprint(data, template) {
-  const s = JSON.stringify(data) + template
-  let h = 5381
-  for (let i = 0; i < s.length; i++) { h = ((h << 5) + h) ^ s.charCodeAt(i); h = h & h }
-  return (h >>> 0).toString(36)
+async function getJson(path, opts = {}) {
+  const r = await fetch(apiUrl(path), { credentials: 'include', ...opts })
+  const data = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(data.error || `Request failed (${r.status})`)
+  return data
 }
-const isPaidState = computed(() => {
-  if (isPaidOverride.value) return false
-  const draftId = store.currentDraftId || 'current'
+
+// On open: make sure the CV is saved (payment is per draft), then look up its status
+async function prepare() {
+  sent.value = false
+  loadError.value = ''
+  checking.value = true
   try {
-    const stored = localStorage.getItem(`pcv-paid-fp-${draftId}`)
-    return !!stored && stored === cvFingerprint(store.data, store.template)
-  } catch { return false }
-})
-function savePaidFingerprint() {
-  const draftId = store.currentDraftId || 'current'
-  try { localStorage.setItem(`pcv-paid-fp-${draftId}`, cvFingerprint(store.data, store.template)) } catch {}
+    const draftId = await store.ensureSavedDraftId()
+    if (!draftId) {
+      loadError.value = "We couldn't save your CV. Check your connection and try again."
+      return
+    }
+    const [status, refInfo] = await Promise.all([
+      getJson(`/api/payment/status/${draftId}`).catch(() => ({ paid: false })),
+      getJson('/api/referral/info').catch(() => ({ credits: 0 })),
+    ])
+    paidForDraft.value = !!status.paid
+    credits.value      = Number(refInfo.credits) || 0
+  } finally {
+    checking.value = false
+  }
 }
 
-async function freeResend() {
-  await sendCvEmail(deliveryEmail.value.trim() || null)
-}
+// Stripe returns are handled by handleStripeReturn — don't run prepare over the top of them
+let handlingReturn = false
+watch(() => props.show, (v) => {
+  if (v && !handlingReturn) prepare()
+  if (!v) { sent.value = false; demoMode.value = false }
+})
 
 const previewScale = computed(() => {
   const w = previewCanvasW.value
@@ -193,12 +202,10 @@ const previewScale = computed(() => {
 const previewOuterStyle  = computed(() => ({ width: '100%', display: 'flex', justifyContent: 'center' }))
 const previewScalerStyle = computed(() => ({ width: '700px', zoom: String(previewScale.value), flexShrink: '0' }))
 
-watch(() => props.show, (v) => { if (!v) isPaidOverride.value = false })
-
 let _ro
 watch(showPreview, async (v) => {
   if (v) {
-    cvHtmlContent.value = render(store.template, normalisedData())
+    cvHtmlContent.value = render(store.template, normalisedData(), store.fmt)
     await nextTick()
     if (previewCanvasRef.value) {
       previewCanvasW.value = previewCanvasRef.value.clientWidth
@@ -212,7 +219,7 @@ onUnmounted(() => _ro?.disconnect())
 const features = [
   'CV emailed directly as a PDF',
   'ATS-optimised formatting',
-  'Professional quality output',
+  'Re-send this CV free, even after edits',
   'Keep forever — yours to use',
 ]
 
@@ -228,8 +235,7 @@ function buildCvHtml() {
   const cvHtml = render(store.template, normalisedData(), store.fmt)
   const name   = `${store.data.fn || 'My'} ${store.data.ln || 'CV'}`.trim()
   const html   = `<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>${name}</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<html lang="en"><head><meta charset="UTF-8"><title>CV</title>
 <style>*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
 html,body{background:#fff;width:700px;margin:0;padding:0;}
 @page{margin:0;}</style>
@@ -237,29 +243,27 @@ html,body{background:#fff;width:700px;margin:0;padding:0;}
   return { html, name }
 }
 
-async function sendCvEmail(overrideEmail, sessionId, draftId) {
+async function sendCvEmail(sessionId, draftId) {
   sending.value    = true
   sendStatus.value = 'Generating your PDF...'
-  sendSub.value    = `Sending to ${overrideEmail || userEmail.value}`
+  const to = deliveryEmail.value.trim() || null
+  sendSub.value    = `Sending to ${to || userEmail.value}`
   try {
     const { html, name } = buildCvHtml()
-    const r = await fetch(apiUrl('/api/cv/email'),  {
-      method: 'POST', credentials: 'include',
+    const data = await getJson('/api/cv/email', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         htmlContent:   html,
         fileName:      `${name.replace(/\s+/g, '-')}-CV.pdf`,
-        overrideEmail: overrideEmail || null,
-        demoMode:      demoMode.value,
+        overrideEmail: to,
         sessionId:     sessionId || null,
-        draftId:       draftId   || 'current',
+        draftId:       draftId || store.currentDraftId,
       }),
     })
-    const data = await r.json()
-    if (!r.ok) throw new Error(data.error || 'Failed to send email')
-    sentTo.value  = overrideEmail || userEmail.value
-    await notifStore.fetch()
-    savePaidFingerprint()
+    sentTo.value       = data.sentTo || to || userEmail.value
+    paidForDraft.value = true
+    notifStore.fetch()
     sending.value = false
     sent.value    = true
   } catch (e) {
@@ -269,33 +273,33 @@ async function sendCvEmail(overrideEmail, sessionId, draftId) {
   }
 }
 
-async function sendDemo() {
-  const email = demoEmail.value.trim()
-  if (!isValidEmail(email)) return
-  await sendCvEmail(email)
+// Paid already (or demo mode): send straight away
+async function sendNow() {
+  if (!deliveryOk.value) return
+  await sendCvEmail(null, store.currentDraftId)
 }
 
 async function pay() {
   loading.value = true
   try {
-    const r = await fetch(apiUrl('/api/payment/create-session'),  {
-      method: 'POST', credentials: 'include',
+    const draftId = await store.ensureSavedDraftId()
+    if (!draftId) throw new Error("We couldn't save your CV. Check your connection and try again.")
+    const data = await getJson('/api/payment/create-session', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ draftId: store.currentDraftId || 'current', templateId: store.template }),
+      body: JSON.stringify({ draftId }),
     })
-    const data = await r.json()
-    if (!r.ok) throw new Error(data.error || 'Payment failed')
-
-    if (data.demo) {
+    if (data.alreadyPaid) {
+      paidForDraft.value = true
+      loading.value = false
+    } else if (data.demo) {
       demoMode.value = true
       loading.value  = false
     } else if (data.url) {
-      sessionStorage.setItem('pcv_pending_download', '1')
       if (deliveryEmail.value.trim()) sessionStorage.setItem('pcv_delivery_email', deliveryEmail.value.trim())
-      // Save fingerprint so it can be persisted after the Stripe redirect
-      sessionStorage.setItem('pcv_paid_fp', cvFingerprint(store.data, store.template))
-      sessionStorage.setItem('pcv_paid_fp_draft', store.currentDraftId || 'current')
       window.location.href = data.url
+    } else {
+      throw new Error('Payment could not be started.')
     }
   } catch (e) {
     showToast?.('Error: ' + e.message)
@@ -303,21 +307,49 @@ async function pay() {
   }
 }
 
+async function useCredit() {
+  loading.value = true
+  try {
+    const draftId = await store.ensureSavedDraftId()
+    if (!draftId) throw new Error("We couldn't save your CV. Check your connection and try again.")
+    const data = await getJson('/api/referral/redeem', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product: 'email_export', draftId }),
+    })
+    if (typeof data.credits === 'number') credits.value = data.credits
+    paidForDraft.value = true
+    loading.value = false
+    await sendCvEmail(null, draftId)
+  } catch (e) {
+    showToast?.(e.message)
+    loading.value = false
+  }
+}
+
+// After Stripe redirects back, the paid draft must be the one in the editor before we render it
+async function loadDraft(draftId) {
+  if (!draftId || store.currentDraftId === draftId) return
+  const drafts = await getJson('/api/drafts')
+  const d = drafts.find(x => x.id === draftId)
+  if (!d?.data) return
+  store.currentDraftId = d.id
+  store.wizardDraftId  = d.id
+  Object.assign(store.data, d.data)
+  store.data.jobOffer    = d.data.jobOffer    || ''
+  store.data.skillLevels = d.data.skillLevels || {}
+  if (d.template) store.template = d.template
+}
+
 async function handleStripeReturn(sessionId, draftId) {
-  const saved = sessionStorage.getItem('pcv_delivery_email')
-  if (saved) { deliveryEmail.value = saved; sessionStorage.removeItem('pcv_delivery_email') }
-
-  // Restore fingerprint saved before Stripe redirect, persist to localStorage after send
-  const fp      = sessionStorage.getItem('pcv_paid_fp')
-  const fpDraft = sessionStorage.getItem('pcv_paid_fp_draft') || draftId || 'current'
-  sessionStorage.removeItem('pcv_paid_fp')
-  sessionStorage.removeItem('pcv_paid_fp_draft')
-
-  console.log('[paywall] handleStripeReturn sessionId:', sessionId, 'draftId:', draftId)
-  await sendCvEmail(deliveryEmail.value.trim() || null, sessionId, draftId)
-
-  if (fp) {
-    try { localStorage.setItem(`pcv-paid-fp-${fpDraft}`, fp) } catch {}
+  handlingReturn = true
+  try {
+    const saved = sessionStorage.getItem('pcv_delivery_email')
+    if (saved) { deliveryEmail.value = saved; sessionStorage.removeItem('pcv_delivery_email') }
+    try { await loadDraft(draftId) } catch (e) { console.warn('[paywall] could not load paid draft:', e.message) }
+    await sendCvEmail(sessionId, draftId)
+  } finally {
+    handlingReturn = false
   }
 }
 
@@ -363,6 +395,10 @@ defineExpose({ handleStripeReturn })
 
 .btn-pay{width:100%;background:var(--c-accent);color:#fff;border:none;padding:14px 20px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;font-family:'DM Sans',sans-serif;transition:opacity .15s;margin-bottom:10px;}
 .btn-pay:hover:not(:disabled){opacity:.88;}
+.btn-credit{width:100%;background:var(--c-green-lt);color:var(--c-green);border:1.5px solid var(--c-green);padding:11px 16px;border-radius:12px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:10px;}
+.btn-credit:disabled{opacity:.45;cursor:not-allowed;}
+.paywall-error{background:var(--c-rose-lt);color:var(--c-rose);border-radius:10px;padding:10px 12px;font-size:12.5px;margin-bottom:12px;}
+.f-hint-err{color:var(--c-rose)!important;}
 .btn-pay:disabled{opacity:.45;cursor:not-allowed;}
 
 .paywall-secure{display:flex;align-items:center;justify-content:center;gap:6px;font-size:11.5px;color:var(--c-text3);margin:0;}

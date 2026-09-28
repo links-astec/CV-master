@@ -28,11 +28,15 @@
           <div class="wm-card-inner">
             <span class="wm-check">✅</span>
             <div class="wm-card-body">
-              <p class="wm-feature-title">Clean PDF + DOCX</p>
-              <p class="wm-feature-sub">{{ loading ? 'Redirecting to payment…' : 'No watermark · ATS-ready · All 107 templates' }}</p>
+              <p class="wm-feature-title">Clean PDF</p>
+              <p class="wm-feature-sub">{{ loading ? 'Redirecting to payment…' : 'No watermark · ATS-ready' }}</p>
             </div>
             <span class="wm-price">€0.50</span>
           </div>
+        </button>
+
+        <button v-if="credits > 0" class="wm-credit" :disabled="loading || freeDownloading" @click="useCredit">
+          🎁 Use 1 referral credit instead — free ({{ credits }} left)
         </button>
 
         <p class="wm-footer-note">One-time charge · No subscription · Powered by Stripe</p>
@@ -46,7 +50,7 @@
         <button class="wm-btn-outline" :disabled="downloading" @click="redownload">
           {{ downloading ? 'Downloading…' : 'Download again' }}
         </button>
-        <p class="wm-footer-note">Link valid for 1 hour</p>
+        <p class="wm-footer-note">Link valid for 2 hours</p>
       </div>
     </div>
   </div>
@@ -67,6 +71,7 @@ const phase           = ref('teaser')
 const loading         = ref(false)
 const freeDownloading = ref(false)
 const downloading     = ref(false)
+const credits         = ref(0)
 
 const apiUrl = (p) => (import.meta.env.VITE_API_URL || '') + p
 
@@ -105,6 +110,33 @@ async function downloadFree() {
   }
 }
 
+async function loadCredits() {
+  try {
+    const r = await fetch(apiUrl('/api/referral/info'), { credentials: 'include' })
+    if (r.ok) credits.value = Number((await r.json()).credits) || 0
+  } catch {}
+}
+
+// Spend a referral credit on this clean download, then download it
+async function useCredit() {
+  loading.value = true
+  try {
+    const r = await fetch(apiUrl('/api/referral/redeem'), {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product: 'clean_download', token: props.cleanToken }),
+    })
+    const d = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(d.error || 'Could not apply credit.')
+    credits.value = d.credits ?? Math.max(0, credits.value - 1)
+    await downloadClean(props.cleanToken, null)
+  } catch (e) {
+    emit('show-toast', e.message)
+  } finally {
+    loading.value = false
+  }
+}
+
 // PAID: redirect to Stripe Checkout — no window.Stripe or script tag needed
 async function initPayment() {
   loading.value = true
@@ -118,9 +150,9 @@ async function initPayment() {
     const data = await res.json()
 
     if (data.demo) {
-      // No Stripe configured on server — skip to done
-      phase.value = 'done'
+      // No Stripe configured on server — the unlock is recorded, so download it now
       loading.value = false
+      await downloadClean(props.cleanToken, null)
       return
     }
 
@@ -173,6 +205,7 @@ async function redownload() {
 defineExpose({ downloadClean })
 
 watch(() => props.visible, (val) => {
+  if (val) loadCredits()
   if (!val) {
     setTimeout(() => {
       phase.value           = 'teaser'
@@ -247,4 +280,6 @@ watch(() => props.visible, (val) => {
 .wm-btn-outline:disabled { opacity: .5; cursor: not-allowed; }
 
 .wm-footer-note { text-align: center; font-size: 12px; color: #aaa; margin: 10px 0 0; }
+.wm-credit{width:100%;margin-top:10px;background:var(--c-green-lt,#e6f5ed);color:var(--c-green,#1a7a4a);border:1.5px solid var(--c-green,#1a7a4a);padding:11px 16px;border-radius:12px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.wm-credit:disabled{opacity:.45;cursor:not-allowed;}
 </style>

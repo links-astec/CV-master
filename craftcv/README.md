@@ -1,112 +1,71 @@
-# PerfectCV — AI Resume Builder
+# CVMaster — AI CV Builder
 
-**Vue 3 + Express + Groq** · Production-ready CV builder with auth, 16 templates, AI writing, dark mode, and Stripe paywall.
+**Vue 3 + Express + Groq + PostgreSQL** · Live at [cvmaster.live](https://cvmaster.live)
+
+Build a CV (step by step, by narrating your story, or by uploading an old CV), tailor it to a
+job offer with AI, check it against applicant tracking systems (ATS), then export it as a PDF.
 
 ---
 
-## Quick Start
+## Quick start
 
 ```bash
-unzip perfectcv.zip && cd craftcv
+cd craftcv
 npm install
-cp .env.example .env        # Add your GROQ_API_KEY
-npm run dev                  # Starts frontend :5173 + API :3001
+cp .env.example .env     # add DATABASE_URL, JWT_SECRET, GROQ_API_KEY at minimum
+npm run db:migrate
+npm run dev              # Vite on :5173 + API on :3001
 ```
 
-Open → **http://localhost:5173**
+Deployment (Vercel + Render + Neon): see [DEPLOY.md](DEPLOY.md).
 
 ---
 
-## Environment Variables
+## The main flow
 
-| Variable | Required | Description |
+1. **Pick a template** → asked for the **job offer** (optional, can be skipped).
+2. **Build the CV** in the wizard: Manual, Narrate (story → AI extraction) or Upload (PDF/DOCX/TXT).
+3. **Tailor** step: AI proposes a before/after for the headline, summary, experience bullets and
+   skill order, using the job offer's wording. The user ticks which changes to apply. The AI is
+   told never to invent facts; job keywords the CV doesn't show are offered separately, unticked.
+4. **Review** step: the ATS job-match check runs automatically against the saved job offer
+   (score, matched/missing keywords, gaps, suggestions) alongside the general quality check.
+5. **Get my CV** → paywall → the PDF is emailed.
+
+The job offer is stored on the draft (`cv_data.jobOffer`), so it follows the CV everywhere.
+
+## Pricing and payments
+
+| Product | Price | What it unlocks |
 |---|---|---|
-| `GROQ_API_KEY` | ✅ Yes | Get free at [console.groq.com](https://console.groq.com) |
-| `JWT_SECRET` | ✅ Yes | Long random string for auth tokens |
-| `STRIPE_SECRET_KEY` | Optional | Paywall (runs in demo mode without it) |
-| `PORT` | Optional | API port (default: 3001) |
+| Emailed export | £1.99 | That one CV — re-send it free as often as you like, even after edits |
+| Clean download | €0.50 | One watermark-free PDF download (the watermarked one is free) |
+| Referral credit | free | One of the above, chosen at checkout. Earned when someone signs up with your link |
 
----
+Payments are rows in `payments` with a `product` (`email_export` / `clean_download`) and a
+`source` (`stripe` / `demo` / `credit`). Without `STRIPE_SECRET_KEY` the server runs in
+**demo mode** and exports are free.
 
-## What's Built
+## Structure
 
-### Auth & Onboarding
-- Register / Login / Logout with **JWT httpOnly cookies**
-- 3-step onboarding (industry + goal + summary)
-- Demo login (one click, no email needed)
-- Passwords hashed with bcrypt (12 rounds)
-
-### CV Wizard
-- **3 modes**: Manual (6-step), Narrate (story → AI extraction), Upload (import PDF/DOCX)  
-- Live preview scales automatically to fill the right panel
-- Template cycling with ◀ ▶ buttons — all 16 templates
-- Auto-saves draft on close (X button)
-- Photo upload for "Photo Professional" template
-
-### 16 CV Templates
-| Category | Templates |
+| Path | What |
 |---|---|
-| Professional | Executive Slate, Modern Azure, Gradient Flow, Swiss Design, Elegant Gold, **Photo Professional** |
-| Minimal | Minimal Editorial, Compact Grid, Academic |
-| Creative | Creative Violet, Teal Sidebar, Pastel Rose, Infographic |
-| Tech | Bold Noir, Tech Dark |
-| Unique | Newspaper |
-
-### AI Features (Groq — server-side only, no key in UI)
-- Enhance summary with tone picker (Professional / Creative / Concise)
-- Quantify experience bullets with metrics
-- Suggest skills for any job title
-- Narrate mode: paste your story → full CV auto-filled
-- CV score + improvement suggestions in Review step
-
-### Notifications
-- Bell icon with unread count badge
-- Dropdown with mark-read / mark-all-read
-- Auto-seeded on register: welcome + tips + feature alerts
-- Payment notification on successful export unlock
-
-### Dark Mode
-- CSS variable swap (`data-theme="dark"`)  
-- Persisted in `localStorage`  
-- Toggle in Settings + quick icon in topbar
-
-### Paywall (Stripe)
-- £4.99 one-time export fee  
-- Runs in **demo mode** if `STRIPE_SECRET_KEY` not set  
-- Payment unlocks PDF download + fires notification
-
-### Security
-- `helmet` with strict CSP headers
-- Rate limiting: 200/15min API · 20/min AI · 10/15min auth
-- `httpOnly` + `SameSite=lax` cookies
-- Groq API key **never sent to client**
-- `compression` + CORS locked to frontend URL in prod
-
-### SEO
-- Full OG + Twitter Card meta tags
-- `schema.org/WebApplication` structured data
-- Canonical URL, robots index/follow
-- Preconnect for Google Fonts
-
----
-
-## Production Deployment
-
-1. `npm run build` → builds to `dist/`
-2. Set `NODE_ENV=production` and `FRONTEND_URL=https://yourdomain.com`
-3. `npm start` serves both API + static frontend
-
-**Replace before going live:**
-- In-memory `Map` stores → PostgreSQL / SQLite
-- CV upload stub → `pdf-parse` + Groq extraction
-- PDF export → Puppeteer or `wkhtmltopdf`
-
----
+| `server/index.js` | All API routes: auth, drafts, AI proxy + `/api/ai/tailor`, CV upload, PDF (Puppeteer), payments, admin |
+| `server/migrate.js` | Idempotent schema migrations (runs on every Render deploy) |
+| `src/composables/cvRenderer.js` | 107 templates → 700px HTML strings. All user text is escaped once at the entry point |
+| `src/stores/cv.js` | CV data, autosave (localStorage + debounced DB save) |
+| `src/components/WizardModal.vue` | Wizard shell; steps live in `src/components/wizard/` |
+| `src/components/PaywallModal.vue` | £1.99 email export |
+| `src/components/WatermarkUnlock.vue` | Free watermarked / €0.50 clean download |
+| `admin.html` | Admin panel served at `/admin` |
 
 ## Scripts
 
 | Command | What |
 |---|---|
-| `npm run dev` | Start both servers (Vite + Express) |
+| `npm run dev` | Vite + Express together |
 | `npm run build` | Production frontend build |
-| `npm start` | Production server |
+| `npm start` | Production API server |
+| `npm run db:migrate` | Create/upgrade the database schema |
+
+See [CHANGES.md](CHANGES.md) for the change log.

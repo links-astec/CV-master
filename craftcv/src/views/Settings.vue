@@ -108,11 +108,8 @@
               <div style="font-size:13.5px;font-weight:700;color:var(--c-text);margin-bottom:3px;">
                 🎉 You have {{ referralInfo.credits }} free export{{ referralInfo.credits > 1 ? 's' : '' }}!
               </div>
-              <div style="font-size:12.5px;color:var(--c-text2);">Your next export is on us. Credits apply automatically at checkout.</div>
+              <div style="font-size:12.5px;color:var(--c-text2);">Each credit covers one emailed CV export or one watermark-free download. Choose "Use 1 referral credit" at checkout.</div>
             </div>
-            <button class="btn-primary accent" @click="useCredit" :disabled="usingCredit" style="flex-shrink:0;white-space:nowrap;">
-              {{ usingCredit ? 'Applying…' : 'Use 1 credit' }}
-            </button>
           </div>
 
           <!-- How it works -->
@@ -203,6 +200,7 @@ import { ref, computed, onMounted, onActivated, inject } from 'vue'
 import { useAuthStore } from '../stores/auth.js'
 import { useCvStore } from '../stores/cv.js'
 
+const apiUrl    = (p) => (import.meta.env.VITE_API_URL || '') + p
 const auth      = useAuthStore()
 const store     = useCvStore()
 const showToast = inject('showToast')
@@ -225,7 +223,7 @@ async function saveProfile() {
     if (name.value && name.value !== auth.user?.name) body.name = name.value
     if (newPassword.value) body.password = newPassword.value
     if (!Object.keys(body).length) { showToast('Nothing to update'); saving.value = false; return }
-    const r = await fetch('/api/auth/settings', {
+    const r = await fetch(apiUrl('/api/auth/settings'), {
       method: 'PATCH', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -251,16 +249,14 @@ function restartTour() {
 }
 
 // ── Referral ──────────────────────────────────────────────────────────────────
-const apiUrl          = (p) => (import.meta.env.VITE_API_URL || '') + p
 const referralInfo    = ref(null)
 const referralLoading = ref(true)
 const copied          = ref(false)
-const usingCredit     = ref(false)
 
 const refSteps = [
   { title:'Share your link', sub:'Send it to friends looking for a job', bg:'var(--c-accent-lt)', color:'var(--c-accent)', icon:'<path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/>' },
   { title:'Friend signs up', sub:'They create their free CVMaster account', bg:'var(--c-teal-lt)', color:'var(--c-teal)', icon:'<path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>' },
-  { title:'You earn a credit', sub:'1 free PDF export added to your account', bg:'var(--c-green-lt)', color:'var(--c-green)', icon:'<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>' },
+  { title:'You earn a credit', sub:'1 free export or clean download for you', bg:'var(--c-green-lt)', color:'var(--c-green)', icon:'<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>' },
 ]
 
 async function loadReferral() {
@@ -293,20 +289,6 @@ function shareTwitter() {
 function shareLinkedIn() {
   const link = encodeURIComponent(referralInfo.value?.link || '')
   window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${link}`, '_blank')
-}
-
-async function useCredit() {
-  usingCredit.value = true
-  try {
-    const r = await fetch(apiUrl('/api/referral/use-credit'), {
-      method:'POST', credentials:'include',
-      headers:{'Content-Type':'application/json'},
-    })
-    const d = await r.json()
-    if (r.ok) { referralInfo.value.credits = d.credits; showToast('🎉 Credit applied — your next export is free!') }
-    else showToast(d.error || 'No credits available')
-  } catch { showToast('Error applying credit') }
-  usingCredit.value = false
 }
 
 onMounted(() => { if (auth.isLoggedIn) loadReferral() })

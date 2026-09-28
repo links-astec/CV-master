@@ -3,6 +3,9 @@
     <h3 class="step-title">CV Quality Check</h3>
     <p class="step-sub">ATS compliance, content standards and recruiter best practices.</p>
 
+    <!-- With a job offer, the job-specific ATS match is the headline check -->
+    <AtsScorer v-if="jobFirst" style="margin-bottom:20px" />
+
     <!-- Score ring -->
     <div class="score-hero">
       <div class="score-ring">
@@ -87,18 +90,21 @@
       After export, your CV is emailed to <strong>{{ userEmail }}</strong>
     </div>
 
-    <div class="next-hint">
-      <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-green)" stroke-width="2" style="width:18px;height:18px;flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>
-      <div>
-        <div class="next-hint-ttl">Ready to export?</div>
-        <div class="next-hint-sub">Click "Open Builder" to fine-tune and export your CV as a PDF.</div>
+    <template v-if="!jobFirst">
+      <div class="ats-divider">
+        <span>Job-specific ATS check</span>
       </div>
-    </div>
+      <AtsScorer />
+    </template>
 
-    <div class="ats-divider">
-      <span>Job-specific ATS check</span>
+    <div class="next-hint pay-cta">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-green)" stroke-width="2" style="width:18px;height:18px;flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>
+      <div style="flex:1;min-width:0">
+        <div class="next-hint-ttl">Happy with your CV?</div>
+        <div class="next-hint-sub">Get it as a polished PDF, emailed to you — or open the builder to fine-tune it first.</div>
+      </div>
+      <button class="btn-primary accent" @click="$emit('pay')">Get my CV →</button>
     </div>
-    <AtsScorer />
   </div>
 </template>
 
@@ -110,11 +116,13 @@ import { useAuthStore } from '../../stores/auth.js'
 
 const store = useCvStore()
 const auth  = useAuthStore()
-defineEmits(['next'])
+defineEmits(['next', 'pay'])
 
 const reviewing    = ref(false)
 const aiSuggestions = ref([])
 const circ = 2 * Math.PI * 36
+// Decided once on mount so the ATS box doesn't jump position while the user types into it
+const jobFirst = !!store.data.jobOffer?.trim()
 const userEmail = computed(() => auth.user?.email || 'your email')
 
 // ── RULES ENGINE ─────────────────────────────────────────────────────────────
@@ -412,6 +420,7 @@ onMounted(runAiReview)
 .next-hint { display:flex; align-items:flex-start; gap:12px; background:var(--c-green-lt); border:1px solid #a0d8b8; border-radius:var(--radius); padding:14px; }
 .next-hint-ttl { font-size:13px; font-weight:700; color:var(--c-green); margin-bottom:2px; }
 .next-hint-sub { font-size:11.5px; color:var(--c-text2); }
+.pay-cta { align-items:center; margin-top:20px; flex-wrap:wrap; }
 .ats-divider { display:flex; align-items:center; gap:12px; margin:20px 0 4px; }
 .ats-divider span { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--c-text3); white-space:nowrap; }
 .ats-divider::before,.ats-divider::after { content:''; flex:1; height:1px; background:var(--c-border); }

@@ -244,12 +244,14 @@ async function loadDrafts() {
   loading.value = false
 }
 
+// £1.99 unlocks one draft; only those drafts get the free "Re-send" button
 async function checkPaidStatus(draftList) {
   try {
-    const r = await fetch(apiUrl('/api/payment/status/any'),  { credentials: 'include' })
+    const r = await fetch(apiUrl('/api/payment/paid-drafts'),  { credentials: 'include' })
     if (r.ok) {
-      const { paid } = await r.json()
-      if (paid) paidDraftIds.value = new Set(draftList.map(d => d.id))
+      const { draftIds, legacyAll } = await r.json()
+      // legacyAll: paid before per-draft tracking existed — that payment covered every CV
+      paidDraftIds.value = new Set(legacyAll ? draftList.map(d => d.id) : draftIds)
     }
   } catch {}
 }
@@ -266,6 +268,9 @@ function openDraft(draft) {
     // Assign scalar fields directly
     const scalars = ['fn','ln','title','email','phone','loc','li','website','photo','sum','lang']
     scalars.forEach(k => { if (normData[k] !== undefined) store.data[k] = normData[k] })
+    // Per-CV fields — reset rather than inherit them from whichever CV was open before
+    store.data.jobOffer    = normData.jobOffer    || ''
+    store.data.skillLevels = normData.skillLevels || {}
     // Replace arrays entirely — never use Object.assign for arrays (corrupts multi-entry)
     if (Array.isArray(normData.education))      store.data.education      = normData.education
     if (Array.isArray(normData.experiences))    store.data.experiences    = normData.experiences
@@ -292,63 +297,39 @@ async function deleteDraft(id) {
 // ── Open download choice modal ────────────────────────────────────────────────
 // Renders the CV HTML locally (fast, no network), then opens the modal
 // which lets the user choose: free watermarked download OR pay €0.50 for clean.
-async function openDownloadChoice(draft) {
-  preparingId.value = draft.id
-
-  // Snapshot store
-  const savedData     = JSON.parse(JSON.stringify(store.data))
-  const savedTemplate = store.template
-  const savedDraftId  = store.currentDraftId
-
-  // Load draft data for rendering
-  const normData = normaliseDraftData(draft.data)
-  // Use store's applyExtracted to properly handle arrays (education, skills etc)
-  // Object.assign merges by index which corrupts multi-entry arrays
-  if (normData) store.applyExtracted(normData)
-  // applyExtracted doesn't handle all fields — patch the rest manually
-  if (normData) {
-    const fields = ['fn','ln','title','email','phone','loc','li','website','photo','sum','lang']
-    fields.forEach(k => { if (normData[k] !== undefined) store.data[k] = normData[k] })
-    // Education needs explicit full replacement since applyExtracted normalises it
-    if (Array.isArray(normData.education) && normData.education.length > 0) {
-      store.data.education = normData.education
-    }
-  }
-  store.template = draft.template || 'executive'
-
-  // Render CV HTML using the same composable PaywallModal uses
-  const cvHtml  = render(store.template, store.data, store.fmt)
-  const name    = `${store.data.fn || 'My'} ${store.data.ln || 'CV'}`.trim()
+// Renders a saved draft to a full HTML document without touching the editor's state
+function draftHtml(draft) {
+  const data   = normaliseDraftData(draft.data) || {}
+  const cvHtml = render(draft.template || 'executive', data, store.fmt)
+  const name   = `${data.fn || 'My'} ${data.ln || 'CV'}`.trim()
   const fileName = name.replace(/[^a-zA-Z0-9\s-]/g,'').trim().replace(/\s+/g,'-') + '-CV.pdf'
-
-  const fullHtml = `<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>${name}</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>CV</title>
 <style>*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
 html,body{background:#fff;width:700px;margin:0;padding:0;}
 @page{margin:0;}</style>
 </head><body>${cvHtml}</body></html>`
+  return { html, cvHtml, fileName }
+}
 
-  // Restore store immediately so UI doesn't flicker
-  Object.assign(store.data, savedData)
-  store.template       = savedTemplate
-  store.currentDraftId = savedDraftId
-  // Keep preparingId set during the server round-trip so spinner stays visible
-
-  // Guard: ensure we actually have HTML to send
+// ── Open download choice modal ────────────────────────────────────────────────
+// Renders the CV HTML locally, stores it server-side (which starts rendering both
+// PDFs), then lets the user choose: free watermarked download OR €0.50 clean copy.
+async function openDownloadChoice(draft) {
+  preparingId.value = draft.id
+  const { html, cvHtml, fileName } = draftHtml(draft)
   if (!cvHtml || cvHtml.length < 100) {
     toast('Failed to render CV. Please open the CV in the builder first.')
     preparingId.value = null
     return
   }
 
-  // Store the HTML server-side and get a token BEFORE opening the modal
   try {
     const res = await fetch(apiUrl('/api/cv/store-for-unlock'),  {
       method:      'POST',
       credentials: 'include',
       headers:     { 'Content-Type': 'application/json' },
-      body:        JSON.stringify({ htmlContent: fullHtml, fileName }),
+      body:        JSON.stringify({ htmlContent: html, fileName }),
     })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
@@ -363,57 +344,21 @@ html,body{background:#fff;width:700px;margin:0;padding:0;}
     return
   }
 
-  // Token ready — open modal
   preparingId.value = null
-  pendingHtml.value = fullHtml
+  pendingHtml.value = html
   showUnlock.value  = true
 }
 
-// ── Re-send paid CV ───────────────────────────────────────────────────────────
+// ── Re-send a paid CV (free for drafts already paid for) ─────────────────────
 async function resendCv(draft) {
   resendingId.value = draft.id
-
-  const savedData     = JSON.parse(JSON.stringify(store.data))
-  const savedTemplate = store.template
-  const savedDraftId  = store.currentDraftId
-
-  const normData = normaliseDraftData(draft.data)
-  // Use store's applyExtracted to properly handle arrays (education, skills etc)
-  // Object.assign merges by index which corrupts multi-entry arrays
-  if (normData) store.applyExtracted(normData)
-  // applyExtracted doesn't handle all fields — patch the rest manually
-  if (normData) {
-    const fields = ['fn','ln','title','email','phone','loc','li','website','photo','sum','lang']
-    fields.forEach(k => { if (normData[k] !== undefined) store.data[k] = normData[k] })
-    // Education needs explicit full replacement since applyExtracted normalises it
-    if (Array.isArray(normData.education) && normData.education.length > 0) {
-      store.data.education = normData.education
-    }
-  }
-  store.template = draft.template || 'executive'
-
-  const cvHtml  = render(store.template, store.data, store.fmt)
-  const name    = `${store.data.fn || 'My'} ${store.data.ln || 'CV'}`.trim()
-  const fileName = name.replace(/[^a-zA-Z0-9\s-]/g,'').trim().replace(/\s+/g,'-') + '-CV.pdf'
-
-  const fullHtml = `<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>${name}</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<style>*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-html,body{background:#fff;width:700px;margin:0;padding:0;}
-@page{margin:0;}</style>
-</head><body>${cvHtml}</body></html>`
-
-  Object.assign(store.data, savedData)
-  store.template       = savedTemplate
-  store.currentDraftId = savedDraftId
-
+  const { html, fileName } = draftHtml(draft)
   try {
     const res = await fetch(apiUrl('/api/cv/redownload'),  {
       method:      'POST',
       credentials: 'include',
       headers:     { 'Content-Type': 'application/json' },
-      body:        JSON.stringify({ draftId: draft.id, htmlContent: fullHtml, fileName }),
+      body:        JSON.stringify({ draftId: draft.id, htmlContent: html, fileName }),
     })
     if (!res.ok) throw new Error((await res.json().catch(()=>({}))).error || 'Re-send failed')
     const data = await res.json()

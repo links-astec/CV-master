@@ -12,7 +12,7 @@
 
     <!-- Job description input -->
     <textarea
-      v-model="jobDesc"
+      v-model="store.data.jobOffer"
       class="ats-textarea"
       placeholder="Paste the full job description here..."
       rows="6"
@@ -96,12 +96,18 @@
   </div>
 </template>
 
+<script>
+// Module scope: shared by every AtsScorer instance. Key = job offer + CV text.
+const atsCache = new Map()
+</script>
+
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useCvStore } from '../stores/cv.js'
 
 const store   = useCvStore()
-const jobDesc = ref('')
+// The job offer lives on the CV itself, so the Tailor step, this check and the saved draft share it
+const jobDesc = computed(() => store.data.jobOffer || '')
 const scoring = ref(false)
 const result  = ref(null)
 const error   = ref('')
@@ -140,12 +146,30 @@ async function runScore() {
   const cvText = [
     d.fn, d.ln, d.title, d.sum,
     ...(d.experiences || []).map(e => `${e.title} ${e.company} ${e.desc}`),
+    ...(d.projects || []).map(p => `${p.name} ${p.tech} ${p.desc}`),
+    ...(d.languages || []).map(l => `${l.name} ${l.level}`),
     ...(d.skills || []),
     ...(Array.isArray(d.education) ? d.education : [d.education]).map(e => `${e?.degree} ${e?.school}`),
     ...(d.certifications || []),
   ].filter(Boolean).join(' ')
 
+  // Same CV + same job → same analysis. Shared across instances (the builder keeps a
+  // hidden Score tab mounted), so auto-runs don't fire duplicate AI calls.
+  const key = jobDesc.value.trim() + '\n--\n' + cvText
   try {
+    if (!atsCache.has(key)) {
+      atsCache.set(key, analyse(cvText, jobDesc.value))
+      atsCache.get(key).catch(() => atsCache.delete(key)) // don't cache failures
+    }
+    result.value = await atsCache.get(key)
+  } catch (e) {
+    error.value = 'Analysis failed. Please try again — make sure your CV has some content filled in.'
+    console.error('ATS score error:', e)
+  }
+  scoring.value = false
+}
+
+async function analyse(cvText, job) {
     const prompt = `You are an expert ATS (Applicant Tracking System) analyser.
 
 Compare this CV against the job description and return ONLY valid JSON with this exact structure:
@@ -165,23 +189,28 @@ Rules:
 - suggestions: concrete actions to improve match — be specific, not generic (max 4)
 
 CV:
-${cvText.slice(0, 1500)}
+${cvText.slice(0, 4000)}
 
 JOB DESCRIPTION:
-${jobDesc.value.slice(0, 1500)}
+${job.slice(0, 4000)}
 
 Return ONLY the JSON object, no markdown, no explanation.`
 
     const raw    = await store.callAi(prompt)
     const clean  = raw.replace(/```json\s*/gi, '').replace(/```/g, '').trim()
-    const parsed = JSON.parse(clean)
-    result.value = parsed
-  } catch (e) {
-    error.value = 'Analysis failed. Please try again — make sure your CV has some content filled in.'
-    console.error('ATS score error:', e)
-  }
-  scoring.value = false
+    const parsed = JSON.parse(clean.slice(clean.indexOf('{'), clean.lastIndexOf('}') + 1))
+    const list   = v => Array.isArray(v) ? v.filter(x => typeof x === 'string') : []
+    return {
+      score:       Math.max(0, Math.min(100, Math.round(Number(parsed.score) || 0))),
+      matched:     list(parsed.matched),
+      missing:     list(parsed.missing),
+      gaps:        list(parsed.gaps),
+      suggestions: list(parsed.suggestions),
+    }
 }
+
+// Arriving from the Tailor step with a job offer: score straight away
+onMounted(() => { if (jobDesc.value.trim().length >= 40) runScore() })
 </script>
 
 <style scoped>

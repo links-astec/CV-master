@@ -37,6 +37,8 @@
         </div>
       </div>
     </div>
+
+    <JobOfferModal ref="jobOfferRef" />
   </div>
 </template>
 
@@ -44,6 +46,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useCvStore } from '../stores/cv.js'
 import { useCvRenderer } from '../composables/cvRenderer.js'
+import JobOfferModal from '../components/JobOfferModal.vue'
 
 const store = useCvStore()
 const { render } = useCvRenderer()
@@ -242,8 +245,13 @@ function countFor(cat) {
     : TEMPLATES.filter(t => t.cat === cat).length
 }
 
-function pickTemplate(id) {
+// Picking a template asks for the job offer first, so the wizard can tailor the CV to it.
+const jobOfferRef = ref(null)
+async function pickTemplate(id) {
   store.template = id
+  const offer = await jobOfferRef.value?.ask(store.data.jobOffer)
+  if (offer === null || offer === undefined) return // dismissed — keep the template, stay here
+  store.data.jobOffer = offer
   nextTick(() => store.openWizard(true))
 }
 </script>
