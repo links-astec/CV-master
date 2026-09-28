@@ -320,6 +320,7 @@
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useAuthStore } from '../../stores/auth.js'
 
+const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
 const auth = useAuthStore()
 const emit = defineEmits(['done'])
 
@@ -448,7 +449,7 @@ onMounted(async () => {
     try { localStorage.setItem('cvmaster_ref', code) } catch {}
     // Fetch referrer name to show in banner
     try {
-      const r = await fetch(`/api/referral/lookup?code=${encodeURIComponent(code)}`)
+      const r = await fetch(apiUrl(`/api/referral/lookup?code=${encodeURIComponent(code)}`))
       if (r.ok) { const d = await r.json(); refName.value = d.name || '' }
     } catch {}
     // Switch to register since they came via referral link
@@ -460,7 +461,7 @@ onMounted(async () => {
   if (token) {
     resetToken.value = token
     view.value = 'reset'
-    fetch(`/api/auth/reset-password/${token}`)
+    fetch(apiUrl(`/api/auth/reset-password/${encodeURIComponent(token)}`))
       .then(r => r.json())
       .then(d => { if (!d.valid) resetTokenError.value = d.error || 'This reset link is invalid or has expired.' })
       .catch(() => { resetTokenError.value = 'Could not validate reset link.' })

@@ -88,6 +88,7 @@ import { useCvStore } from '../../stores/cv.js'
 import { useAuthStore } from '../../stores/auth.js'
 
 const store = useCvStore()
+const showToast = inject('showToast', null)
 const auth  = useAuthStore()
 const emit = defineEmits(['next', 'ai-thinking'])
 
@@ -132,7 +133,7 @@ async function suggestSkills() {
     const parsed = JSON.parse(result.replace(/```json|```/g, '').trim())
     suggested.value = Array.isArray(parsed) ? parsed : parsed.skills || []
   } catch {
-    suggested.value = ['Strategic Planning','Data Analysis','Stakeholder Management','Project Management','Team Leadership','Problem Solving','Communication','Microsoft Office','Budget Management','Process Improvement']
+    showToast?.('AI is unavailable right now — please try again in a moment.')
   }
   aiLoading.value = false
   emit('ai-thinking', false)

@@ -9,6 +9,7 @@ import multer from 'multer';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuid } from 'uuid';
+import { randomBytes } from 'crypto';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { OAuth2Client } from 'google-auth-library';
@@ -20,11 +21,19 @@ const __dirname    = dirname(fileURLToPath(import.meta.url));
 const app          = express();
 const upload       = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
-const JWT_SECRET       = process.env.JWT_SECRET || 'cvmaster-dev-secret-change-in-prod';
+const IS_PROD          = process.env.NODE_ENV === 'production';
+// Never fall back to a secret that's committed to the repo in production — anyone
+// could forge sessions with it. A random per-boot secret just logs everyone out on restart.
+function secretFromEnv(name, devFallback) {
+  if (process.env[name]) return process.env[name];
+  if (!IS_PROD) return devFallback;
+  console.error(`[config] ${name} is not set — using a random secret (sessions reset on every restart). Set it in the environment.`);
+  return randomBytes(48).toString('hex');
+}
+const JWT_SECRET       = secretFromEnv('JWT_SECRET', 'cvmaster-dev-secret-change-in-prod');
 const GROQ_KEY         = process.env.GROQ_API_KEY || '';
 const STRIPE_KEY       = process.env.STRIPE_SECRET_KEY || '';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
-const IS_PROD          = process.env.NODE_ENV === 'production';
 const FRONTEND_URL     = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 // ── Mailer ────────────────────────────────────────────────────────────────────
@@ -65,14 +74,16 @@ async function sendViaSmtp({ to, subject, html, attachments }) {
 }
 
 async function sendMail(opts) {
-  if (resend) {
-    try { return await sendViaResend(opts); }
+  // SMTP (Gmail) is the active path for now — Resend stays wired up below as a
+  // fallback if SMTP isn't configured, but isn't the primary sender currently.
+  if (smtpTransport) {
+    try { return await sendViaSmtp(opts); }
     catch (e) {
-      if (!smtpTransport) throw e;
-      console.warn('[mailer] Resend failed, falling back to SMTP:', e.message);
+      if (!resend) throw e;
+      console.warn('[mailer] SMTP failed, falling back to Resend:', e.message);
     }
   }
-  if (smtpTransport) return sendViaSmtp(opts);
+  if (resend) return sendViaResend(opts);
 
   console.log('[mailer] No mail provider configured — email skipped. To:', opts.to, '| Subject:', opts.subject);
   throw new Error('Email not configured. Set RESEND_API_KEY or SMTP_HOST/USER/PASS in environment.');
@@ -278,7 +289,7 @@ app.post('/api/auth/google', async (req, res) => {
     // Resolve referrer
     let googleReferrerId = null;
     if (referredBy) {
-      const ref = await query('SELECT id FROM users WHERE referral_code = $1', [referredBy.trim().toUpperCase()]);
+      const ref = await query('SELECT id FROM users WHERE UPPER(referral_code) = $1', [referredBy.trim().toUpperCase()]);
       if (ref.rows.length) googleReferrerId = ref.rows[0].id;
     }
 
@@ -499,7 +510,12 @@ app.post('/api/notifications/add', authMiddleware, async (req, res) => {
 });
 
 // ── AI PROXY ──────────────────────────────────────────────────────────────────
-async function callGroq(prompt, model = 'llama-3.3-70b-versatile', systemPrompt = null, maxTokens = 800) {
+// Groq retires models (llama-3.3-70b-versatile disappeared and broke every AI feature),
+// so the model is configurable. gpt-oss models reason before answering: keep that short,
+// and give it its own token budget so it can't eat the answer's.
+const AI_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
+
+async function callGroq(prompt, model = AI_MODEL, systemPrompt = null, maxTokens = 800, reasoningEffort = 'low') {
   if (!GROQ_KEY) throw new Error('AI is not configured. Add GROQ_API_KEY to your environment.');
   const messages = [];
   if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
@@ -507,18 +523,129 @@ async function callGroq(prompt, model = 'llama-3.3-70b-versatile', systemPrompt 
   const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_KEY}` },
-    body:    JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.1 }),
+    body:    JSON.stringify({
+      model, messages, temperature: 0.1,
+      ...(model.startsWith('openai/gpt-oss')
+        ? { reasoning_effort: reasoningEffort, max_tokens: maxTokens + (reasoningEffort === 'low' ? 1024 : 4096) }
+        : { max_tokens: maxTokens }),
+    }),
   });
   const j = await r.json();
   if (!r.ok) throw new Error(j.error?.message || 'AI request failed.');
   return j.choices?.[0]?.message?.content || '';
 }
 
+// The model is chosen server-side (clients can't pick a more expensive one) and
+// prompts are capped, so this isn't a free general-purpose proxy on our Groq key.
+const MAX_PROMPT_CHARS  = 12000;
+
 app.post('/api/ai/complete', authMiddleware, async (req, res) => {
-  const { prompt, model } = req.body;
-  if (!prompt) return res.status(400).json({ error: 'prompt required.' });
-  try { res.json({ result: await callGroq(prompt, model) }); }
+  const { prompt } = req.body;
+  if (!prompt || typeof prompt !== 'string') return res.status(400).json({ error: 'prompt required.' });
+  if (prompt.length > MAX_PROMPT_CHARS) return res.status(413).json({ error: 'Prompt too long.' });
+  try { res.json({ result: await callGroq(prompt, AI_MODEL, null, 1200) }); }
   catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Pull the first {...} object out of a model reply (tolerates ``` fences / chatter).
+function parseJsonObject(raw) {
+  const clean = String(raw || '').replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+  const start = clean.indexOf('{'), end = clean.lastIndexOf('}');
+  if (start === -1 || end === -1) throw new Error('No JSON object in AI reply.');
+  return JSON.parse(clean.slice(start, end + 1));
+}
+
+// ── TAILOR CV TO A JOB OFFER ──────────────────────────────────────────────────
+// Returns *proposals* only — the client shows a before/after and the user picks
+// what to apply. The model may rephrase and reorder, never invent facts.
+app.post('/api/ai/tailor', authMiddleware, async (req, res) => {
+  try {
+    const { cv = {}, jobOffer = '' } = req.body || {};
+    const job = String(jobOffer).trim().slice(0, 6000);
+    if (job.length < 40) return res.status(400).json({ error: 'Please paste the full job description (at least a few sentences).' });
+
+    const str  = v => (typeof v === 'string' ? v.trim() : '');
+    const exps = (Array.isArray(cv.experiences) ? cv.experiences : [])
+      .filter(e => e && (str(e.title) || str(e.company) || str(e.desc))).slice(0, 10);
+    const skills = (Array.isArray(cv.skills) ? cv.skills : []).map(str).filter(Boolean).slice(0, 30);
+    if (!str(cv.sum) && !exps.length && !skills.length) {
+      return res.status(400).json({ error: 'Add some CV content first (summary, experience or skills), then tailor it.' });
+    }
+    const isFrench = cv.lang === 'fr';
+
+    const cvText = [
+      `TITLE: ${str(cv.title)}`,
+      `SUMMARY: ${str(cv.sum)}`,
+      'EXPERIENCE:',
+      ...exps.map((e, i) => `[${i}] ${str(e.title)} at ${str(e.company)} (${str(e.period)}): ${str(e.desc).slice(0, 900)}`),
+      `SKILLS: ${skills.join(', ')}`,
+    ].join('\n').slice(0, 8000);
+
+    const systemPrompt = `You are an expert CV writer who tailors CVs to a specific job offer so they pass Applicant Tracking Systems (ATS).
+Strict honesty rules — breaking them is a failure:
+- NEVER invent employers, job titles, dates, degrees, certifications, tools, tasks, numbers, outcomes or achievements.
+- Every bullet you write for a role must restate something already written in THAT role's description. The skills list is NOT evidence that a tool or task was used in a particular role.
+- Do not add results or impact the CV does not state (e.g. "improving efficiency", "boosting loyalty").
+- Do not upgrade levels or seniority (e.g. "helped" must not become "led"). Never state a language level or proficiency unless the CV states it.
+- Keep any numbers exactly as written in the CV. Do not add new metrics.
+- You may: reword with stronger verbs, use the job offer's terminology for the SAME activity, split or merge sentences, and reorder.
+- DO improve every description: a bullet copied word-for-word is a wasted opportunity. Lead with a strong action verb and use the job offer's keywords for the same activity.
+- Fewer, accurate bullets are better than more, padded ones.
+- A skill or requirement from the job offer that the CV does not evidence goes ONLY in "suggestedSkills" (the user will confirm whether they have it).
+
+Example — original: "Served customers at the till and handled returns."
+  GOOD: "• Delivered front-line customer service at the till, processing returns and refunds"
+  BAD:  "• Served customers at the till and handled returns." (unchanged — no value added)
+  BAD:  "• Reconciled daily sales data and reduced discrepancies" (invented task and outcome)
+Example — original: "Resolved billing issues." for a job offer that says "resolve tickets":
+  GOOD: "• Resolved customer billing tickets"
+  BAD:  "• Resolved billing tickets in Zendesk, cutting resolution time" (tool and outcome not stated for this role)
+- Write in ${isFrench ? 'FRENCH' : 'the same language as the CV'}.
+- Return ONLY valid JSON, no markdown.`;
+
+    const userPrompt = `JOB OFFER:
+${job}
+
+CURRENT CV:
+${cvText}
+
+Return JSON with exactly this shape:
+{
+  "jobTitle": "the job title from the offer",
+  "title": "CV headline aligned to the offer (must be truthful for this candidate)",
+  "sum": "rewritten 2-4 sentence summary targeted at this offer, under 80 words, third person without pronouns, using only facts from the CV (name languages without describing a level unless the CV gives one)",
+  "experiences": [ { "index": 0, "desc": "rewritten description, one line per original point, each starting with '• '" } ],
+  "skillsOrder": ["existing CV skills, most relevant to the offer first — only skills already in the CV"],
+  "suggestedSkills": ["keywords from the offer NOT evidenced in the CV, max 8"],
+  "notes": ["max 3 short honest tips, e.g. which requirement the CV doesn't show"]
+}
+Only include experiences whose description you actually improved. Use the [index] numbers shown above.`;
+
+    const raw = await callGroq(userPrompt, AI_MODEL, systemPrompt, 3000, 'medium');
+    const p   = parseJsonObject(raw);
+
+    const lower = new Set(skills.map(s => s.toLowerCase()));
+    const out = {
+      jobTitle: str(p.jobTitle).slice(0, 120),
+      title:    str(p.title).slice(0, 120),
+      sum:      str(p.sum).slice(0, 900),
+      experiences: (Array.isArray(p.experiences) ? p.experiences : [])
+        .map(e => ({ index: Number(e?.index), desc: str(e?.desc).slice(0, 1500) }))
+        .filter(e => Number.isInteger(e.index) && e.index >= 0 && e.index < exps.length && e.desc),
+      // Re-ordering may only use skills the user already has
+      skillsOrder: (Array.isArray(p.skillsOrder) ? p.skillsOrder : [])
+        .map(str).filter(s => lower.has(s.toLowerCase())),
+      suggestedSkills: (Array.isArray(p.suggestedSkills) ? p.suggestedSkills : [])
+        .map(str).filter(s => s && s.length < 50 && !lower.has(s.toLowerCase())).slice(0, 8),
+      notes: (Array.isArray(p.notes) ? p.notes : []).map(str).filter(Boolean).slice(0, 3),
+    };
+    // Map proposal indices back to the client's experience ids
+    out.experiences = out.experiences.map(e => ({ ...e, id: exps[e.index].id ?? null }));
+    res.json(out);
+  } catch (e) {
+    console.error('[tailor]', e.message);
+    res.status(500).json({ error: 'Tailoring failed — please try again.' });
+  }
 });
 
 app.post('/api/ai/enhance', authMiddleware, async (req, res) => {
@@ -655,7 +782,7 @@ ${textFull}`;
     // First pass: full extraction with system prompt and high token limit
     let raw = '';
     try {
-      raw = await callGroq(userPrompt, 'llama-3.3-70b-versatile', systemPrompt, 4000);
+      raw = await callGroq(userPrompt, AI_MODEL, systemPrompt, 4000);
     } catch (aiErr) {
       console.warn('[upload] AI extraction failed, using fallback parser:', aiErr.message);
       const extracted = normalizeExtracted(parseFallback(cleaned));
@@ -678,7 +805,7 @@ ${textFull}`;
       // Second attempt: ask AI to fix malformed JSON
       try {
         const fixPrompt = "The following text is supposed to be a JSON object but has syntax errors. Fix it and return ONLY valid JSON:\n\n" + clean.slice(0, 4000);
-        const fixed = await callGroq(fixPrompt, 'llama-3.3-70b-versatile');
+        const fixed = await callGroq(fixPrompt, AI_MODEL);
         const fixedClean = fixed.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
         extracted = JSON.parse(fixedClean.slice(fixedClean.indexOf('{'), fixedClean.lastIndexOf('}') + 1));
       } catch {
@@ -848,7 +975,7 @@ async function getBrowser() {
       args: [
         '--no-sandbox', '--disable-setuid-sandbox',
         '--disable-dev-shm-usage', '--disable-gpu',
-        '--disable-web-security', '--font-render-hinting=none',
+        '--font-render-hinting=none',
       ],
     });
     _browser.on('disconnected', () => { _browser = null; _browserReady = null; });
@@ -904,11 +1031,15 @@ async function renderPdfFromHtml(html) {
   const browser = await getBrowser();
   const page    = await browser.newPage();
   try {
+    // The HTML comes from the client, so it must not be able to reach the network
+    // (e.g. <img src="http://169.254.169.254/..."> would render internal responses
+    // into the PDF). Fonts are inlined and photos are data: URLs, so nothing else is needed.
+    await page.setJavaScriptEnabled(false);
     await page.setRequestInterception(true);
     page.on('request', req => {
       const u = req.url();
-      if (u.includes('fonts.googleapis.com') || u.includes('fonts.gstatic.com')) req.abort();
-      else req.continue();
+      if (u.startsWith('data:') || u === 'about:blank') req.continue();
+      else req.abort();
     });
 
     const fontCss = await getLocalFontCss();
@@ -991,9 +1122,10 @@ async function generateCvPdf(htmlContent) {
         execFile('wkhtmltopdf', [
           '--page-width', '700px',
           '--margin-top', '0', '--margin-bottom', '0', '--margin-left', '0', '--margin-right', '0',
-          '--encoding', 'UTF-8', '--enable-local-file-access',
+          '--encoding', 'UTF-8', '--disable-local-file-access', '--disable-javascript',
+          '--proxy', 'http://127.0.0.1:9', // dead proxy: no network access from client-supplied HTML
           '--load-error-handling', 'ignore', '--load-media-error-handling', 'ignore',
-          '--no-stop-slow-scripts', '--javascript-delay', '100', '--quiet',
+          '--quiet',
           tmpH, tmpP,
         ], { timeout: 15000 }, res);
       });
@@ -1034,108 +1166,97 @@ async function generateCvPdf(htmlContent) {
 }
 
 
+// ── PAYMENT HELPERS ───────────────────────────────────────────────────────────
+// Products: 'email_export' (£1.99 — unlocks one draft; re-sends of that draft are free)
+//           'clean_download' (€0.50 — one watermark-free PDF, keyed by clean token)
+let _stripe = null;
+async function getStripe() {
+  if (!STRIPE_KEY) return null;
+  if (!_stripe) { const { default: Stripe } = await import('stripe'); _stripe = new Stripe(STRIPE_KEY); }
+  return _stripe;
+}
+
+async function recordPayment({ userId, draftId, sessionId, product, source }) {
+  await query(
+    `INSERT INTO payments (user_id, draft_id, session_id, paid, product, source)
+     VALUES ($1, $2, $3, TRUE, $4, $5)
+     ON CONFLICT (session_id) DO UPDATE SET paid = TRUE`,
+    [userId, draftId, sessionId, product, source]
+  );
+}
+
+// Payments made before per-draft tracking were stored with draft_id 'current' — honour them.
+async function hasEmailExport(userId, draftId) {
+  const { rows } = await query(
+    `SELECT 1 FROM payments
+     WHERE user_id = $1 AND paid = TRUE AND product = 'email_export' AND draft_id = ANY($2)
+     LIMIT 1`,
+    [userId, [String(draftId), 'current']]
+  );
+  return rows.length > 0;
+}
+
+// Returns { userId, draftId } for a paid £1.99 Checkout Session, else null.
+async function verifyEmailSession(sessionId) {
+  const stripe = await getStripe();
+  if (!stripe || !sessionId) return null;
+  const session = await stripe.checkout.sessions.retrieve(sessionId);
+  if (session.payment_status !== 'paid') return null;
+  if (session.metadata?.product && session.metadata.product !== 'email_export') return null;
+  const userId  = session.client_reference_id || session.metadata?.userId;
+  const draftId = session.metadata?.draftId;
+  return userId && draftId ? { userId, draftId } : null;
+}
+
+const escHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const isEmail = e => typeof e === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
+
 app.post('/api/cv/email', async (req, res) => {
   try {
-    const { htmlContent, fileName, overrideEmail, demoMode, sessionId, draftId = 'current' } = req.body;
+    const { htmlContent, fileName, overrideEmail, sessionId, draftId } = req.body;
     if (!htmlContent) return res.status(400).json({ error: 'CV content required.' });
 
-    // Auth via cookie, or fall back to Stripe session (handles cross-site cookie loss after redirect)
-    let userId;
+    // Auth via cookie, or via the paid Stripe session (cross-site cookie can be lost after the redirect)
+    let userId = null;
     try {
       const token = req.cookies?.token || req.headers.authorization?.replace('Bearer ', '');
       if (token) userId = jwt.verify(token, JWT_SECRET).sub;
     } catch {}
 
-    if (!userId && sessionId && !demoMode) {
-      try {
-        const { default: Stripe } = await import('stripe');
-        const stripe   = new Stripe(process.env.STRIPE_SECRET_KEY);
-        const session  = await stripe.checkout.sessions.retrieve(sessionId);
-        if (session.payment_status === 'paid') {
-          userId = session.client_reference_id || session.metadata?.userId;
+    let paidSession = null;
+    if (sessionId) {
+      try { paidSession = await verifyEmailSession(sessionId); }
+      catch (e) { console.warn('[email] Stripe session check failed:', e.message); }
+      if (paidSession) {
+        if (userId && userId !== paidSession.userId) {
+          return res.status(403).json({ error: 'This payment belongs to a different account.' });
         }
-      } catch (e) { console.warn('[email] Stripe session fallback failed:', e.message); }
+        userId = paidSession.userId;
+        await recordPayment({ userId, draftId: paidSession.draftId, sessionId, product: 'email_export', source: 'stripe' });
+      }
     }
-
-    if (!userId && !demoMode) return res.status(401).json({ error: 'Unauthorized' });
+    if (!userId) return res.status(401).json({ error: 'Please sign in again to send your CV.' });
 
     const { rows } = await query('SELECT * FROM users WHERE id = $1', [userId]);
     const user = rows[0];
-    if (!user && !demoMode) return res.status(404).json({ error: 'User not found.' });
+    if (!user) return res.status(404).json({ error: 'User not found.' });
 
-    // Attach to req so downstream code can use req.user.sub
-    req.user = { sub: userId };
-
-    const stripeConfigured = !!process.env.STRIPE_SECRET_KEY;
-
-    if (stripeConfigured && !demoMode) {
-      let hasPaid = false;
-
-      // Step 1: If we have a fresh Stripe session ID, verify with Stripe and record it
-      if (sessionId) {
-        try {
-          const { default: Stripe } = await import('stripe');
-          const stripe  = new Stripe(process.env.STRIPE_SECRET_KEY);
-          const session = await stripe.checkout.sessions.retrieve(sessionId);
-          console.log('[email] Stripe session status:', session.payment_status);
-          if (session.payment_status === 'paid') {
-            await query(
-              `INSERT INTO payments (user_id, draft_id, session_id, paid)
-               VALUES ($1, $2, $3, TRUE)
-               ON CONFLICT DO NOTHING`,
-              [req.user.sub, draftId, sessionId]
-            );
-            hasPaid = true;
-          }
-        } catch (e) {
-          console.warn('[email] Stripe verify error:', e.message);
-        }
-      }
-
-      // Step 2: Fallback — check payments table
-      if (!hasPaid) {
-        const { rows: payRows } = await query(
-          'SELECT paid FROM payments WHERE user_id = $1 AND paid = TRUE LIMIT 1',
-          [req.user.sub]
-        );
-        hasPaid = payRows.length > 0;
-      }
-
-      if (!hasPaid) {
-        console.warn('[email] 403 — no payment found for user:', req.user.sub);
-        return res.status(403).json({ error: 'Payment required to export CV.' });
-      }
+    const targetDraft = paidSession?.draftId || draftId;
+    if (!targetDraft) return res.status(400).json({ error: 'Save your CV before exporting.' });
+    if (!(await hasEmailExport(userId, targetDraft))) {
+      return res.status(403).json({ error: 'Payment required to export this CV.' });
     }
 
-    // Determine recipient
-    let toEmail;
-    if (demoMode) {
-      if (!overrideEmail || !overrideEmail.includes('@')) {
-        return res.status(400).json({ error: 'Please provide a valid email address.' });
-      }
-      toEmail = overrideEmail.trim().toLowerCase();
-    } else {
-      toEmail = (overrideEmail && overrideEmail.includes('@')) ? overrideEmail.trim() : user.email;
-    }
-    console.log('[email] Sending to:', toEmail, '| demo:', !!demoMode);
+    const toEmail = isEmail(overrideEmail) ? overrideEmail.trim() : user.email;
+    console.log('[email] Sending draft', targetDraft, 'to:', toEmail);
 
-
-    // Generate PDF using shared helper (Puppeteer → wkhtmltopdf → html-pdf-node)
     const pdfBuffer = await generateCvPdf(htmlContent);
+    if (!pdfBuffer) console.warn('[email] All PDF methods failed — sending HTML');
 
-    if (pdfBuffer) {
-      console.log('[email] PDF ready, sending as attachment');
-    } else {
-      console.warn('[email] All PDF methods failed — sending HTML');
-    }
-
-    const attachFileName = pdfBuffer
-      ? (fileName || 'my-cv').replace(/\.pdf$/i,'').replace(/\.html?$/i,'') + '.pdf'
-      : (fileName || 'my-cv').replace(/\.pdf$/i,'').replace(/\.html?$/i,'') + '.html';
-
+    const base = (fileName || 'my-cv').replace(/\.pdf$/i,'').replace(/\.html?$/i,'').replace(/[^a-zA-Z0-9-_.]/g, '-');
     const attachment = pdfBuffer
-      ? { filename: attachFileName, content: pdfBuffer,  contentType: 'application/pdf' }
-      : { filename: attachFileName, content: htmlContent, contentType: 'text/html' };
+      ? { filename: base + '.pdf',  content: pdfBuffer,  contentType: 'application/pdf' }
+      : { filename: base + '.html', content: htmlContent, contentType: 'text/html' };
 
     await sendMail({
       to: toEmail,
@@ -1147,19 +1268,19 @@ app.post('/api/cv/email', async (req, res) => {
           </div>
           <span style="font-size:18px;font-weight:700;color:#1a1916;">CVMaster</span>
         </div>
-        <h2 style="font-size:22px;color:#1a1916;margin:0 0 10px;">Your CV is attached, ${user.name || 'there'}!</h2>
+        <h2 style="font-size:22px;color:#1a1916;margin:0 0 10px;">Your CV is attached, ${escHtml(user.name || 'there')}!</h2>
         <p style="color:#6b6860;font-size:14px;line-height:1.7;margin:0 0 20px;">
           ${pdfBuffer
             ? 'Your CV is attached as a ready-to-send PDF.'
             : 'Your CV is attached as an HTML file. Open it in Chrome and press <strong>Ctrl+P → Save as PDF</strong> to get a PDF.'}
         </p>
-        <p style="color:#b0ada6;font-size:12px;margin:0;">CVMaster · <a href="https://cv-master-rose.vercel.app" style="color:#2a5bd7;">cv-master-rose.vercel.app</a></p>
+        <p style="color:#b0ada6;font-size:12px;margin:0;">CVMaster · <a href="https://cvmaster.live" style="color:#2a5bd7;">cvmaster.live</a></p>
       </div>`,
       attachments: [attachment],
     });
 
     console.log('[email] Sent successfully to:', toEmail);
-    res.json({ ok: true, sentTo: toEmail, format: pdfBuffer ? 'pdf' : 'html' });
+    res.json({ ok: true, sentTo: toEmail, draftId: targetDraft, format: pdfBuffer ? 'pdf' : 'html' });
   } catch (e) {
     console.error('[email] FAILED:', e.message, e.stack);
     res.status(500).json({ error: 'Failed to send email: ' + e.message });
@@ -1228,104 +1349,76 @@ app.delete('/api/drafts/:id', authMiddleware, async (req, res) => {
 });
 
 // ── PAYMENTS ──────────────────────────────────────────────────────────────────
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// The £1.99 export unlocks one saved draft, so a real draft id owned by the user is required.
+async function assertOwnDraft(userId, draftId) {
+  if (!UUID_RE.test(String(draftId || ''))) return false;
+  const { rows } = await query('SELECT 1 FROM drafts WHERE id = $1 AND user_id = $2', [draftId, userId]);
+  return rows.length > 0;
+}
+
 app.post('/api/payment/create-session', authMiddleware, async (req, res) => {
   try {
-    const { draftId = 'current' } = req.body;
-    if (!STRIPE_KEY) {
-      // Demo mode
-      const sessionId = `demo_${uuid()}`;
-      await query(
-        'INSERT INTO payments (user_id, draft_id, session_id, paid) VALUES ($1,$2,$3,TRUE) ON CONFLICT DO NOTHING',
-        [req.user.sub, draftId, sessionId]
-      );
-      await query(
-        `INSERT INTO notifications (user_id, type, title, body)
-         VALUES ($1, 'payment', 'Export Unlocked', 'Your CV is ready to download as a PDF.')`,
-        [req.user.sub]
-      );
-      return res.json({ url: null, sessionId, demo: true });
+    const { draftId } = req.body;
+    if (!(await assertOwnDraft(req.user.sub, draftId))) {
+      return res.status(400).json({ error: 'Your CV hasn\'t been saved yet — please try again in a moment.' });
     }
-    const { default: Stripe } = await import('stripe');
-    const stripe  = new Stripe(STRIPE_KEY);
+    if (await hasEmailExport(req.user.sub, draftId)) {
+      return res.json({ alreadyPaid: true });
+    }
+    const stripe = await getStripe();
+    if (!stripe) {
+      // Demo mode — no Stripe key configured on the server
+      await recordPayment({ userId: req.user.sub, draftId, sessionId: `demo_${uuid()}`, product: 'email_export', source: 'demo' });
+      return res.json({ url: null, demo: true });
+    }
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [{ price_data: { currency: 'gbp', product_data: { name: 'CVMaster Export', description: 'Professional PDF CV — emailed instantly' }, unit_amount: 199 }, quantity: 1 }],
       mode: 'payment',
       success_url: `${FRONTEND_URL}/export-success?session={CHECKOUT_SESSION_ID}&draft=${draftId}`,
-      cancel_url:  `${FRONTEND_URL}/builder`,
+      cancel_url:  `${FRONTEND_URL}/`,
       client_reference_id: req.user.sub,
-      metadata: { draftId, userId: req.user.sub },
+      metadata: { product: 'email_export', draftId, userId: req.user.sub },
     });
     res.json({ url: session.url, sessionId: session.id });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error('[create-session]', e.message); res.status(500).json({ error: 'Could not start payment. Please try again.' }); }
 });
 
 app.post('/api/payment/verify', authMiddleware, async (req, res) => {
   try {
-    const { sessionId, draftId = 'current' } = req.body;
-
-    // If we have a Stripe session ID, verify it with Stripe and record payment
-    if (sessionId && STRIPE_KEY) {
-      const { default: Stripe } = await import('stripe');
-      const stripe = new Stripe(STRIPE_KEY);
-      const session = await stripe.checkout.sessions.retrieve(sessionId);
-      if (session.payment_status === 'paid') {
-        await query(
-          `INSERT INTO payments (user_id, draft_id, session_id, paid)
-           VALUES ($1, $2, $3, TRUE)
-           ON CONFLICT (session_id) DO UPDATE SET paid = TRUE`,
-          [req.user.sub, draftId, sessionId]
-        ).catch(async () => {
-          // Fallback if no unique constraint yet on existing DB
-          const exists = await query('SELECT id FROM payments WHERE session_id = $1', [sessionId])
-          if (exists.rows.length === 0) {
-            await query(
-              'INSERT INTO payments (user_id, draft_id, session_id, paid) VALUES ($1, $2, $3, TRUE)',
-              [req.user.sub, draftId, sessionId]
-            )
-          }
-        });
-        await query(
-          `INSERT INTO notifications (user_id, type, title, body)
-           VALUES ($1, 'payment', 'Export Unlocked', 'Your CV is ready — check your email for the PDF.')
-           ON CONFLICT DO NOTHING`,
-          [req.user.sub]
-        );
-        return res.json({ paid: true, recorded: true });
+    const { sessionId, draftId } = req.body;
+    if (sessionId) {
+      const paid = await verifyEmailSession(sessionId);
+      if (paid && paid.userId === req.user.sub) {
+        await recordPayment({ userId: req.user.sub, draftId: paid.draftId, sessionId, product: 'email_export', source: 'stripe' });
+        return res.json({ paid: true, draftId: paid.draftId });
       }
       return res.json({ paid: false });
     }
-
-    // Fallback: just check the DB
-    const { rows } = await query(
-      'SELECT paid FROM payments WHERE (draft_id = $1 OR draft_id = $2) AND user_id = $3 AND paid = TRUE LIMIT 1',
-      [draftId, 'current', req.user.sub]
-    );
-    res.json({ paid: rows.length > 0 });
+    res.json({ paid: draftId ? await hasEmailExport(req.user.sub, draftId) : false });
   } catch (e) {
     console.error('[verify]', e.message);
     res.status(500).json({ error: 'Verification failed.' });
   }
 });
 
-// GET /api/payment/status/any — check if user has ANY paid export (for re-download)
-app.get('/api/payment/status/any', authMiddleware, async (req, res) => {
+// GET /api/payment/paid-drafts — draft ids this user can re-send for free
+app.get('/api/payment/paid-drafts', authMiddleware, async (req, res) => {
   try {
     const { rows } = await query(
-      'SELECT paid FROM payments WHERE user_id = $1 AND paid = TRUE LIMIT 1',
+      `SELECT DISTINCT draft_id FROM payments WHERE user_id = $1 AND paid = TRUE AND product = 'email_export'`,
       [req.user.sub]
     );
-    res.json({ paid: rows.length > 0 });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+    const ids = rows.map(r => r.draft_id);
+    res.json({ draftIds: ids.filter(id => id !== 'current'), legacyAll: ids.includes('current') });
+  } catch (e) { res.status(500).json({ error: 'Status check failed.' }); }
 });
 
 app.get('/api/payment/status/:draftId', authMiddleware, async (req, res) => {
   try {
-    const { rows } = await query(
-      'SELECT paid FROM payments WHERE draft_id = $1 AND user_id = $2 AND paid = TRUE LIMIT 1',
-      [req.params.draftId, req.user.sub]
-    );
-    res.json({ paid: rows.length > 0 });
+    res.json({ paid: await hasEmailExport(req.user.sub, req.params.draftId) });
   } catch (e) { res.status(500).json({ error: 'Status check failed.' }); }
 });
 
@@ -1346,7 +1439,7 @@ app.get('/api/payment/status/:draftId', authMiddleware, async (req, res) => {
 const cleanStore = new Map();
 
 function makeToken() {
-  return Array.from({length: 48}, () => Math.floor(Math.random() * 16).toString(16)).join('');
+  return randomBytes(24).toString('hex');
 }
 
 function addHtmlWatermark(html) {
@@ -1361,9 +1454,6 @@ function addHtmlWatermark(html) {
   return out.includes('</body>') ? out.replace('</body>', wm + '</body>') : out + wm;
 }
 
-// renderPdf alias for compatibility
-async function renderPdf(html) { return renderPdfFromHtml(html); }
-
 // POST /api/cv/store-for-unlock
 // Returns token immediately. Kicks off background rendering of BOTH PDFs.
 // By the time user reads modal + enters card details (~15-30s), PDFs are ready.
@@ -1373,8 +1463,8 @@ app.post('/api/cv/store-for-unlock', authMiddleware, async (req, res) => {
     const { htmlContent, fileName = 'cv.pdf' } = req.body;
     if (!htmlContent) return res.status(400).json({ error: 'htmlContent required.' });
     const token   = makeToken();
-    const safe    = fileName.replace(/\.pdf$/i, '') + '.pdf';
-    const entry   = { html: htmlContent, fileName: safe, cleanPdf: null, watermarkedPdf: null, ready: false, expiresAt: Date.now() + 2 * 60 * 60 * 1000 };
+    const safe    = String(fileName).replace(/\.pdf$/i, '').replace(/[^a-zA-Z0-9-_.]/g, '-') + '.pdf';
+    const entry   = { userId: req.user.sub, html: htmlContent, fileName: safe, cleanPdf: null, watermarkedPdf: null, ready: false, expiresAt: Date.now() + 2 * 60 * 60 * 1000 };
     cleanStore.set(token, entry);
     setTimeout(() => cleanStore.delete(token), 2 * 60 * 60 * 1000);
 
@@ -1387,66 +1477,67 @@ app.post('/api/cv/store-for-unlock', authMiddleware, async (req, res) => {
       generateCvPdf(htmlContent),
       generateCvPdf(addHtmlWatermark(htmlContent)),
     ]).then(([cleanPdf, watermarkedPdf]) => {
-      if (cleanStore.has(token)) {
-        entry.cleanPdf       = cleanPdf       ? Buffer.from(cleanPdf)       : null;
-        entry.watermarkedPdf = watermarkedPdf ? Buffer.from(watermarkedPdf) : null;
-        entry.ready          = true;
-        console.log('[pdf] Background render done, clean:', cleanPdf?.length, 'watermarked:', watermarkedPdf?.length);
-      }
+      entry.cleanPdf       = cleanPdf       ? Buffer.from(cleanPdf)       : null;
+      entry.watermarkedPdf = watermarkedPdf ? Buffer.from(watermarkedPdf) : null;
+      console.log('[pdf] Background render done, clean:', cleanPdf?.length, 'watermarked:', watermarkedPdf?.length);
     }).catch((e) => {
       console.error('[pdf] Background render FAILED:', e.message, e.stack?.split('\n')[1]);
-      entry.ready = false;
+    }).finally(() => {
+      entry.ready = true; // done either way — waiters fall back to rendering on demand
     });
   } catch (e) {
     res.status(500).json({ error: 'Could not prepare download: ' + e.message });
   }
 });
 
+// Token entries belong to the user who created them.
+function getOwnEntry(token, userId) {
+  const entry = cleanStore.get(token);
+  if (!entry || Date.now() > entry.expiresAt || entry.userId !== userId) return null;
+  return entry;
+}
+
+async function waitForRender(entry, ms = 30000) {
+  let waited = 0;
+  while (!entry.ready && waited < ms) { await new Promise(r => setTimeout(r, 300)); waited += 300; }
+}
+
+function sendPdf(res, pdf, fileName) {
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+  res.send(Buffer.from(pdf));
+}
+
 // POST /api/cv/download-watermarked — serves pre-rendered watermarked PDF instantly
 app.post('/api/cv/download-watermarked', authMiddleware, async (req, res) => {
   try {
     const { token } = req.body;
     if (!token) return res.status(400).json({ error: 'token required.' });
-    const entry = cleanStore.get(token);
-    if (!entry || Date.now() > entry.expiresAt) {
-      return res.status(404).json({ error: 'Session expired. Please click download again.' });
-    }
-    // Wait up to 30s if still rendering (user clicked very fast)
-    let waited = 0;
-    while (!entry.ready && waited < 30000) { await new Promise(r => setTimeout(r, 300)); waited += 300; }
-    if (!entry.watermarkedPdf) {
-      // Fallback: generate now if background render failed
-      const pdf = await generateCvPdf(addHtmlWatermark(entry.html));
-      if (!pdf) return res.status(500).json({ error: 'PDF generation failed. Please try again.' });
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${entry.fileName.replace('.pdf', '-preview.pdf')}"`);
-      return res.send(Buffer.from(pdf));
-    }
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${entry.fileName.replace('.pdf', '-preview.pdf')}"`);
-    res.send(entry.watermarkedPdf);
+    const entry = getOwnEntry(token, req.user.sub);
+    if (!entry) return res.status(404).json({ error: 'Session expired. Please click download again.' });
+    await waitForRender(entry);
+    const pdf = entry.watermarkedPdf || await generateCvPdf(addHtmlWatermark(entry.html));
+    if (!pdf) return res.status(500).json({ error: 'PDF generation failed. Please try again.' });
+    sendPdf(res, pdf, entry.fileName.replace(/\.pdf$/, '-preview.pdf'));
   } catch (e) {
     res.status(500).json({ error: 'Download failed: ' + e.message });
   }
 });
 
-// POST /api/cv/unlock — creates Stripe PaymentIntent for €0.50
+// POST /api/cv/unlock — Stripe Checkout for a €0.50 clean download
 app.post('/api/cv/unlock', authMiddleware, async (req, res) => {
   try {
     const { token } = req.body;
     if (!token) return res.status(400).json({ error: 'token required.' });
-    if (!cleanStore.has(token)) return res.status(404).json({ error: 'Session expired. Please click download again.' });
+    if (!getOwnEntry(token, req.user.sub)) return res.status(404).json({ error: 'Session expired. Please click download again.' });
 
-    if (!STRIPE_KEY) {
-      await query(
-        `INSERT INTO payments (user_id, draft_id, session_id, paid) VALUES ($1,$2,$3,TRUE) ON CONFLICT (session_id) DO UPDATE SET paid=TRUE`,
-        [req.user.sub, 'wm_' + token, token]
-      );
+    const stripe = await getStripe();
+    if (!stripe) {
+      await recordPayment({ userId: req.user.sub, draftId: 'wm_' + token, sessionId: token, product: 'clean_download', source: 'demo' });
       return res.json({ demo: true });
     }
 
-    const { default: Stripe } = await import('stripe');
-    const stripe  = new Stripe(STRIPE_KEY);
+    const metadata = { product: 'cvmaster_clean_download', clean_token: token, user_id: req.user.sub };
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [{
@@ -1460,7 +1551,9 @@ app.post('/api/cv/unlock', authMiddleware, async (req, res) => {
       mode: 'payment',
       success_url: `${FRONTEND_URL}/download-clean?token=${token}&session={CHECKOUT_SESSION_ID}`,
       cancel_url:  `${FRONTEND_URL}/`,
-      metadata: { product: 'cvmaster_clean_download', clean_token: token, user_id: req.user.sub },
+      client_reference_id: req.user.sub,
+      metadata,
+      payment_intent_data: { metadata }, // so the payment_intent.succeeded webhook sees it too
     });
     res.json({ url: session.url });
   } catch (e) {
@@ -1469,146 +1562,105 @@ app.post('/api/cv/unlock', authMiddleware, async (req, res) => {
 });
 
 // GET /api/cv/clean/:token
-// If X-Payment-Intent-Id header present: verify with Stripe directly (instant, no polling).
-// Otherwise: check payments DB (set by webhook or background poll).
+// X-Payment-Intent-Id header (actually the Checkout Session id) → verify with Stripe directly.
+// Otherwise: check payments DB (set by webhook, demo mode or a referral credit).
 app.get('/api/cv/clean/:token', authMiddleware, async (req, res) => {
   try {
-    const { token }       = req.params;
-    const paymentIntentId = req.headers['x-payment-intent-id'];
-
+    const { token }  = req.params;
+    const sessionId  = req.headers['x-payment-intent-id'];
     let paid = false;
 
-    // Fast path: frontend sends Checkout Session ID — verify with Stripe directly
-    if (paymentIntentId && STRIPE_KEY) {
+    const stripe = await getStripe();
+    if (sessionId && stripe) {
       try {
-        const { default: Stripe } = await import('stripe');
-        const stripe  = new Stripe(STRIPE_KEY);
-        const session = await stripe.checkout.sessions.retrieve(paymentIntentId);
-        if (session.payment_status === 'paid' && session.metadata?.clean_token === token) {
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        if (session.payment_status === 'paid' && session.metadata?.clean_token === token
+            && session.metadata?.user_id === req.user.sub) {
           paid = true;
-          await query(
-            `INSERT INTO payments (user_id, draft_id, session_id, paid)
-             VALUES ($1, $2, $3, TRUE) ON CONFLICT (session_id) DO UPDATE SET paid = TRUE`,
-            [req.user.sub, 'wm_' + token, token]
-          ).catch(() => {});
+          await recordPayment({ userId: req.user.sub, draftId: 'wm_' + token, sessionId: token, product: 'clean_download', source: 'stripe' });
         }
-      } catch {}
+      } catch (e) { console.warn('[clean] Stripe verify failed:', e.message); }
     }
 
-    // Fallback: check DB (set by webhook or background poll)
     if (!paid) {
       const { rows } = await query(
-        'SELECT paid FROM payments WHERE session_id=$1 AND paid=TRUE LIMIT 1', [token]
+        `SELECT 1 FROM payments WHERE session_id = $1 AND user_id = $2 AND paid = TRUE AND product = 'clean_download' LIMIT 1`,
+        [token, req.user.sub]
       );
       paid = rows.length > 0;
     }
-
     if (!paid) return res.status(402).json({ error: 'Payment not confirmed yet.' });
 
-    const entry = cleanStore.get(token);
-
-    // Entry missing (expired or server restarted) but payment IS confirmed
-    if (!entry || Date.now() > entry.expiresAt) {
+    const entry = getOwnEntry(token, req.user.sub);
+    if (!entry) {
       cleanStore.delete(token);
       return res.status(410).json({
-        error: 'Your download link has expired (2-hour limit). Please click Download again from the dashboard — your payment is saved and you will not be charged again.',
+        error: 'Your download link has expired (2-hour limit). Please contact support with your receipt and we will send your clean CV.',
         expired: true,
       });
     }
 
-    // If pre-rendered PDF is ready, serve instantly
-    if (entry.ready && entry.cleanPdf) {
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${entry.fileName}"`);
-      return res.send(entry.cleanPdf);
-    }
-
-    // Still rendering — wait up to 30s
-    let waited = 0;
-    while (!entry.ready && waited < 30000) { await new Promise(r => setTimeout(r, 300)); waited += 300; }
-    if (entry.ready && entry.cleanPdf) {
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${entry.fileName}"`);
-      return res.send(entry.cleanPdf);
-    }
-
-    // Last resort: generate now from stored HTML
-    const pdf = await generateCvPdf(entry.html);
+    await waitForRender(entry);
+    const pdf = entry.cleanPdf || await generateCvPdf(entry.html);
     if (!pdf) return res.status(500).json({ error: 'PDF generation failed. Please try again.' });
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${entry.fileName}"`);
-    res.send(Buffer.from(pdf));
+    sendPdf(res, pdf, entry.fileName);
   } catch (e) {
     res.status(500).json({ error: 'Could not generate clean PDF: ' + e.message });
   }
 });
 
-// Stripe webhook — marks token paid
+// Stripe webhook — records paid clean downloads and email exports
 async function handleWatermarkWebhook(req, res) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!webhookSecret) return res.json({ received: true });
+  const stripe        = await getStripe();
+  if (!webhookSecret || !stripe) return res.json({ received: true });
   let event;
   try {
-    const { default: Stripe } = await import('stripe');
-    event = new Stripe(STRIPE_KEY).webhooks.constructEvent(req.body, req.headers['stripe-signature'], webhookSecret);
+    event = stripe.webhooks.constructEvent(req.body, req.headers['stripe-signature'], webhookSecret);
   } catch (e) {
     return res.status(400).json({ error: 'Webhook signature invalid: ' + e.message });
   }
-  if (event.type === 'payment_intent.succeeded') {
-    const pi = event.data.object, token = pi.metadata?.clean_token;
-    if (pi.metadata?.product === 'cvmaster_clean_download' && token) {
-      await query(
-        `INSERT INTO payments (user_id,draft_id,session_id,paid) VALUES ($1,$2,$3,TRUE) ON CONFLICT (session_id) DO UPDATE SET paid=TRUE`,
-        [pi.metadata.user_id || '00000000-0000-0000-0000-000000000000', 'wm_' + token, token]
-      ).catch(() => {});
+  try {
+    const obj  = event.data.object;
+    const meta = obj.metadata || {};
+    const paid = event.type === 'payment_intent.succeeded'
+      || (event.type === 'checkout.session.completed' && obj.payment_status === 'paid');
+    if (paid && meta.product === 'cvmaster_clean_download' && meta.clean_token && meta.user_id) {
+      await recordPayment({ userId: meta.user_id, draftId: 'wm_' + meta.clean_token, sessionId: meta.clean_token, product: 'clean_download', source: 'stripe' });
     }
-  }
+    if (paid && event.type === 'checkout.session.completed' && meta.product === 'email_export' && meta.userId && meta.draftId) {
+      await recordPayment({ userId: meta.userId, draftId: meta.draftId, sessionId: obj.id, product: 'email_export', source: 'stripe' });
+    }
+  } catch (e) { console.error('[webhook]', e.message); }
   res.json({ received: true });
 }
 
-// ── CV RE-DOWNLOAD (paid users only) ─────────────────────────────────────────
-// If a user has already paid for a draft, allow them to re-export it for free.
-// They still go through the PaywallModal but we skip Stripe and send immediately.
+// ── CV RE-SEND (paid drafts) ─────────────────────────────────────────────────
+// £1.99 unlocks one draft — re-sending that same draft (even after edits) is free.
 app.post('/api/cv/redownload', authMiddleware, async (req, res) => {
   try {
     const { draftId, htmlContent, fileName, overrideEmail } = req.body;
     if (!htmlContent) return res.status(400).json({ error: 'htmlContent required.' });
-
-    // Verify this user has paid for this draft (or any draft — one-time unlocks all)
-    const { rows } = await query(
-      `SELECT paid FROM payments
-       WHERE user_id = $1 AND paid = TRUE LIMIT 1`,
-      [req.user.sub]
-    );
-    if (!rows.length) {
-      return res.status(402).json({ error: 'No paid export found for this account.' });
+    if (!draftId || !(await hasEmailExport(req.user.sub, draftId))) {
+      return res.status(402).json({ error: 'This CV has not been exported yet.' });
     }
 
-    // Send the PDF — reuse the same email logic
-    // JWT only carries sub (user ID) — fetch email from DB
     const { rows: userRows } = await query('SELECT email FROM users WHERE id = $1', [req.user.sub]);
-    const toEmail = overrideEmail || userRows[0]?.email;
+    const toEmail = isEmail(overrideEmail) ? overrideEmail.trim() : userRows[0]?.email;
     if (!toEmail) return res.status(400).json({ error: 'No email address found for this account.' });
 
-    // Generate PDF
-    let pdfBuffer = null;
-    try {
-      pdfBuffer = await renderPdfFromHtml(htmlContent);
-    } catch (e) {
-      console.warn('[redownload] Puppeteer failed:', e.message);
-    }
-
-    const safeName = (fileName || 'cv.pdf').replace(/[^a-zA-Z0-9-_.]/g, '-');
+    const pdfBuffer = await generateCvPdf(htmlContent);
+    const safeName  = (fileName || 'cv.pdf').replace(/[^a-zA-Z0-9-_.]/g, '-');
     const attachment = pdfBuffer
       ? { filename: safeName, content: Buffer.from(pdfBuffer), contentType: 'application/pdf' }
-      : { filename: safeName.replace('.pdf', '.html'), content: htmlContent, contentType: 'text/html' };
+      : { filename: safeName.replace(/\.pdf$/i, '.html'), content: htmlContent, contentType: 'text/html' };
 
     await sendMail({
       to: toEmail,
-      subject: `Your CVMaster — ${safeName.replace('-CV.pdf','').replace(/-/g,' ')}`,
+      subject: `Your CVMaster CV — ${safeName.replace('-CV.pdf','').replace(/-/g,' ')}`,
       html: `<p>Hi! Here's your CV re-sent as requested.</p>
              <p>Your CV is attached as a ${pdfBuffer ? 'PDF' : 'HTML'} file.</p>
-             <p style="color:#888;font-size:12px;">CVMaster — cvmaster.com</p>`,
+             <p style="color:#888;font-size:12px;">CVMaster — cvmaster.live</p>`,
       attachments: [attachment],
     });
 
@@ -1639,7 +1691,7 @@ app.get('/admin', (req, res) => {
 });
 
 // ── ADMIN AUTH ────────────────────────────────────────────────────────────────
-const ADMIN_JWT_SECRET    = process.env.ADMIN_JWT_SECRET || 'admin-change-this-secret';
+const ADMIN_JWT_SECRET    = secretFromEnv('ADMIN_JWT_SECRET', 'admin-change-this-secret');
 const adminLoginAttempts  = new Map(); // ip → { count, lockedUntil }
 
 function adminAuthMiddleware(req, res, next) {
@@ -1700,7 +1752,10 @@ app.get('/api/admin/stats', adminAuthMiddleware, async (req, res) => {
   try {
     const [users, payments, drafts, referrals, recentPayments] = await Promise.all([
       query(`SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') AS week FROM users`),
-      query(`SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') AS week FROM payments WHERE paid = TRUE`),
+      query(`SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') AS week,
+                    COUNT(*) FILTER (WHERE source = 'stripe' AND product = 'email_export')   AS email_paid,
+                    COUNT(*) FILTER (WHERE source = 'stripe' AND product = 'clean_download') AS clean_paid
+             FROM payments WHERE paid = TRUE`),
       query(`SELECT COUNT(*) AS total FROM drafts`),
       query(`SELECT COUNT(*) AS total FROM users WHERE referred_by IS NOT NULL`),
       query(`SELECT u.email, p.created_at FROM payments p JOIN users u ON u.id = p.user_id WHERE p.paid = TRUE ORDER BY p.created_at DESC LIMIT 10`),
@@ -1710,7 +1765,9 @@ app.get('/api/admin/stats', adminAuthMiddleware, async (req, res) => {
       payments:        { total: Number(payments.rows[0].total), week: Number(payments.rows[0].week) },
       drafts:          { total: Number(drafts.rows[0].total) },
       referrals:       { total: Number(referrals.rows[0].total) },
-      revenue_pence:   Number(payments.rows[0].total) * 199,
+      // Only real Stripe payments count as revenue (not demo or referral-credit rows)
+      revenue_pence:   Number(payments.rows[0].email_paid) * 199,
+      revenue_eur_cents: Number(payments.rows[0].clean_paid) * 50,
       recent_payments: recentPayments.rows,
       maintenance:     maintenanceMode,
     });
@@ -1776,11 +1833,11 @@ app.post('/api/admin/email/send', adminAuthMiddleware, async (req, res) => {
     const { rows } = await query(sql, p);
     let sent = 0;
     for (let i = 0; i < rows.length; i += 10) {
-      await Promise.allSettled(rows.slice(i, i + 10).map(r => sendMail({ to: r.email, subject, html: body })));
-      sent += Math.min(10, rows.length - i);
+      const results = await Promise.allSettled(rows.slice(i, i + 10).map(r => sendMail({ to: r.email, subject, html: body })));
+      sent += results.filter(r => r.status === 'fulfilled').length;
       if (i + 10 < rows.length) await new Promise(r => setTimeout(r, 300));
     }
-    res.json({ ok: true, sent });
+    res.json({ ok: true, sent, failed: rows.length - sent });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1834,8 +1891,24 @@ app.post('/api/referral/apply', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/referral/use-credit', authMiddleware, async (req, res) => {
+// POST /api/referral/redeem — spend 1 credit on a product, at checkout
+//   { product: 'email_export',   draftId } → unlocks that draft (same as paying £1.99)
+//   { product: 'clean_download', token }   → unlocks that clean download (same as paying €0.50)
+app.post('/api/referral/redeem', authMiddleware, async (req, res) => {
   try {
+    const { product, draftId, token } = req.body || {};
+    let payDraftId, sessionId;
+    if (product === 'email_export') {
+      if (!(await assertOwnDraft(req.user.sub, draftId))) return res.status(400).json({ error: 'Save your CV first.' });
+      if (await hasEmailExport(req.user.sub, draftId)) return res.json({ ok: true, alreadyPaid: true });
+      payDraftId = draftId; sessionId = `credit_${uuid()}`;
+    } else if (product === 'clean_download') {
+      if (!getOwnEntry(token, req.user.sub)) return res.status(404).json({ error: 'Session expired. Please click download again.' });
+      payDraftId = 'wm_' + token; sessionId = token;
+    } else {
+      return res.status(400).json({ error: 'Unknown product.' });
+    }
+
     const { rows } = await query(
       `UPDATE users SET referral_credits = referral_credits - 1
        WHERE id = $1 AND referral_credits > 0
@@ -1843,8 +1916,15 @@ app.post('/api/referral/use-credit', authMiddleware, async (req, res) => {
       [req.user.sub]
     );
     if (!rows.length) return res.status(400).json({ error: 'No credits available.' });
+    try {
+      await recordPayment({ userId: req.user.sub, draftId: payDraftId, sessionId, product, source: 'credit' });
+    } catch (e) {
+      // Give the credit back if the unlock couldn't be recorded
+      await query('UPDATE users SET referral_credits = referral_credits + 1 WHERE id = $1', [req.user.sub]).catch(() => {});
+      throw e;
+    }
     res.json({ ok: true, credits: Number(rows[0].referral_credits) });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error('[referral/redeem]', e.message); res.status(500).json({ error: 'Could not apply credit.' }); }
 });
 
 // ── ADMIN PANEL (serve HTML) ──────────────────────────────────────────────────
@@ -1875,9 +1955,10 @@ if (process.env.VERCEL !== '1') {
   app.listen(PORT, () => {
     console.log(`\nCVMaster API → http://localhost:${PORT}`);
     console.log(`  DB:     ${process.env.DATABASE_URL ? 'connected' : 'NOT SET — add DATABASE_URL'}`);
-    console.log(`  Groq:   ${GROQ_KEY   ? 'configured' : 'NOT SET'}`);
+    console.log(`  Groq:   ${GROQ_KEY   ? `configured (${AI_MODEL})` : 'NOT SET'}`);
     console.log(`  Stripe: ${STRIPE_KEY ? 'configured' : 'NOT SET (demo mode)'}`);
     console.log(`  Google: ${GOOGLE_CLIENT_ID ? 'configured' : 'NOT SET'}`);
-    console.log(`  Email:  ${process.env.RESEND_API_KEY ? 'Resend (configured)' : 'NOT SET — emails will fail'}\n`);
+    const mail = [smtpTransport && 'SMTP (primary)', resend && 'Resend (fallback)'].filter(Boolean).join(' + ');
+    console.log(`  Email:  ${mail || 'NOT SET — emails will fail'}\n`);
   });
 }

@@ -59,10 +59,11 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, inject } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
 
 const store = useCvStore()
+const showToast = inject('showToast', null)
 const emit = defineEmits(['next', 'ai-thinking'])
 const quantifyIdx = ref(null)
 const suggestions = reactive({})
@@ -71,7 +72,7 @@ async function quantifyExp(exp, idx) {
   quantifyIdx.value = idx
   emit('ai-thinking', true)
   try {
-    const prompt = `You are a professional CV writer. Rewrite the following work experience description as 3-4 concise bullet points using strong action verbs and specific metrics/numbers wherever possible.
+    const prompt = `You are a professional CV writer. Rewrite the following work experience description as 3-4 concise bullet points using strong action verbs and metrics wherever the description supports them.
 
 Job: ${exp.title} at ${exp.company}
 Current description: ${exp.desc || 'No description yet'}
@@ -79,21 +80,22 @@ Current description: ${exp.desc || 'No description yet'}
 Rules:
 - Return ONLY the bullet points, each starting with "• "
 - Each bullet on its own line
-- Use specific numbers (%, £/$, headcount, timeframes) — invent plausible ones if none given
+- Keep every number that is in the description exactly as written
+- NEVER invent numbers or achievements. Where a metric would strengthen a bullet but none is given, insert a placeholder in square brackets for the candidate to fill in, e.g. [X%], [N people], [£X]
 - Strong action verbs: Led, Built, Grew, Reduced, Launched, Managed, Delivered, Increased, Streamlined
 - No preamble, no explanation, just the bullet points
 
 Example output:
-• Led cross-functional team of 8 engineers to launch product used by 50,000+ users
-• Grew quarterly revenue by 34% through data-driven pricing optimisation
-• Reduced customer churn by 18% via proactive onboarding programme`
+• Led a cross-functional team of [N] engineers to launch the company's first mobile app
+• Grew quarterly revenue by [X%] through data-driven pricing changes
+• Reduced customer churn by [X%] with a proactive onboarding programme`
 
     const result = await store.callAi(prompt)
     // Ensure it starts cleanly with bullets
     const cleaned = result.trim().replace(/^[^•\n].*\n/m, '').trim()
     suggestions[idx] = cleaned || result.trim()
   } catch {
-    suggestions[idx] = `• Spearheaded ${exp.title?.toLowerCase() || 'product'} initiatives at ${exp.company || 'the company'}, delivering 25%+ improvement in key metrics\n• Managed cross-functional stakeholders and aligned teams around quarterly OKRs\n• Reduced operational inefficiencies by 20% through process redesign and automation`
+    showToast?.('AI is unavailable right now — please try again in a moment.')
   }
   quantifyIdx.value = null
   emit('ai-thinking', false)

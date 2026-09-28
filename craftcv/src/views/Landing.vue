@@ -55,20 +55,14 @@
             <a href="#how" class="lp-btn lp-btn--ghost" @click.prevent="scrollTo('#how')">See how it works</a>
           </div>
           <div class="lp-proof">
-            <div class="lp-proof__avs">
-              <img v-for="(s,i) in avatars" :key="i" :src="s" class="lp-proof__av" loading="lazy"/>
-            </div>
-            <div>
-              <div class="lp-proof__stars">★★★★★</div>
-              <span>Trusted by <strong>2,400+</strong> job seekers</span>
-            </div>
+            <span>Free to build · pay only when you export</span>
           </div>
         </div>
         <div class="lp-hero__visual">
           <div class="lp-browser">
             <div class="lp-browser__bar">
               <span class="lp-dot lp-dot--r"/><span class="lp-dot lp-dot--y"/><span class="lp-dot lp-dot--g"/>
-              <div class="lp-browser__url">cvmaster.com/builder</div>
+              <div class="lp-browser__url">cvmaster.live</div>
             </div>
             <div class="lp-browser__screen">
               <img src="https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=560&h=340&q=85&fit=crop" alt="CV Builder" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block"/>
@@ -76,7 +70,7 @@
           </div>
           <div class="lp-fbadge lp-fbadge--1">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="width:13px;height:13px;color:var(--c-green);flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>
-            ATS score <strong>98%</strong>
+            ATS job-match check
           </div>
           <div class="lp-fbadge lp-fbadge--2">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:13px;height:13px;color:var(--c-accent);flex-shrink:0"><path d="M12 2a3 3 0 00-3 3v8a3 3 0 006 0V5a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/></svg>
@@ -86,12 +80,6 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:13px;height:13px;color:var(--c-amber);flex-shrink:0"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8l10 7 10-7"/></svg>
             Instant PDF
           </div>
-        </div>
-      </div>
-      <div class="lp-logos">
-        <span class="lp-logos__lbl">Helping people land roles at</span>
-        <div class="lp-logos__track">
-          <span v-for="(c,i) in [...cos,...cos]" :key="i">{{ c }}</span>
         </div>
       </div>
     </section>
@@ -179,27 +167,6 @@
       </div>
     </section>
 
-    <!-- ═══ TESTIMONIALS ═══ -->
-    <section class="lp-sec lp-sec--alt">
-      <div class="lp-wrap">
-        <div class="lp-eyebrow">Success stories</div>
-        <h2 class="lp-h2">Real people. Real jobs.</h2>
-        <div class="lp-testis">
-          <div class="lp-testi" v-for="(t,i) in testis" :key="i">
-            <div class="lp-testi__q">"</div>
-            <p>{{ t.text }}</p>
-            <div class="lp-testi__foot">
-              <img :src="t.img" :alt="t.name" loading="lazy"/>
-              <div>
-                <div class="lp-testi__name">{{ t.name }}</div>
-                <div class="lp-testi__role">{{ t.role }}</div>
-              </div>
-              <div class="lp-testi__stars">★★★★★</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
 
     <!-- ═══ PRICING ═══ -->
     <section class="lp-sec" id="pricing">
@@ -303,14 +270,7 @@ onUnmounted(() => {
   menuOpen.value = false
 })
 
-const avatars = [
-  'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=56&h=56&q=80&fit=crop&crop=face',
-  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=56&h=56&q=80&fit=crop&crop=face',
-  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=56&h=56&q=80&fit=crop&crop=face',
-  'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=56&h=56&q=80&fit=crop&crop=face',
-]
 
-const cos = ['Google','Meta','Deloitte','NHS','Goldman Sachs','McKinsey','KPMG','Amazon','Accenture','PwC','Barclays','Microsoft']
 
 const steps = [
   { title:'Build or narrate', desc:'Fill in details step-by-step, speak your career story aloud, or upload an existing CV. AI extracts everything.', img:'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=400&h=220&q=80&fit=crop', icon:'<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>', bg:'var(--c-accent-lt)', color:'var(--c-accent)' },
@@ -331,26 +291,20 @@ const tpls = [
 
 const feats = [
   { title:'Upload & improve', desc:'Upload your existing CV — AI restructures and enhances every section in seconds.', bg:'var(--c-teal-lt)', color:'var(--c-teal)', icon:'<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>' },
-  { title:'ATS optimised', desc:'Every template passes ATS systems used by Google, Amazon, NHS and major employers.', bg:'var(--c-violet-lt)', color:'var(--c-violet)', icon:'<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>' },
+  { title:'ATS optimised', desc:'Clean, text-based layouts that applicant tracking systems can read — plus a job-match check against the offer you paste.', bg:'var(--c-violet-lt)', color:'var(--c-violet)', icon:'<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>' },
   { title:'Diaspora-first', desc:'Designed for African professionals in the UK and Europe. Full French language support.', bg:'var(--c-amber-lt)', color:'var(--c-amber)', icon:'<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/>' },
   { title:'Email delivery', desc:'Pay once and receive your polished PDF directly in your inbox. No subscriptions ever.', bg:'var(--c-rose-lt)', color:'var(--c-rose)', icon:'<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8l10 7 10-7"/>' },
   { title:'Referral credits', desc:'Refer a friend and earn a free export. Help others land jobs while saving.', bg:'var(--c-accent-lt)', color:'var(--c-accent)', icon:'<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>' },
 ]
 
-const testis = [
-  { text:'I got 3 interviews in one week after switching to CVMaster. The AI completely rewrote my experience section — 10x better than what I had.', name:'Kofi Asante', role:'Software Engineer, London', img:'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=56&h=56&q=80&fit=crop&crop=face' },
-  { text:'The AI narrate feature is unreal. I spoke for 5 minutes and it built my entire CV from scratch. Got the job offer within 2 weeks.', name:'Amara Diallo', role:'Product Manager, Manchester', img:'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=56&h=56&q=80&fit=crop&crop=face' },
-  { text:'As a French speaker applying in the UK, full French support was everything. My recruiter asked what tool I used — they were impressed.', name:'Fatou Sow', role:'Data Analyst, Birmingham', img:'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=56&h=56&q=80&fit=crop&crop=face' },
-  { text:"£1.99 for a PDF that lands interviews? I've paid £40 for CV writers that were half as good. CVMaster is genuinely exceptional.", name:'Emmanuel Kwame', role:'Marketing Manager, Leeds', img:'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=56&h=56&q=80&fit=crop&crop=face' },
-]
 
 const plans = [
   { plan:'Free', price:'£0', desc:'Forever free', cta:'Start building',
     items:['All 107 templates','AI writing assistance','CV upload & import','Live preview','Watermarked download'] },
-  { plan:'Export', price:'£1.99', desc:'One-time per export', cta:'Get my clean CV', f:true,
-    items:['Everything in Free','Clean PDF — no watermark','Emailed to your inbox','ATS-ready formatting','Re-download anytime'] },
+  { plan:'Export', price:'£1.99', desc:'One-time per CV', cta:'Get my clean CV', f:true,
+    items:['Everything in Free','Clean PDF — no watermark','Emailed to your inbox','ATS-ready formatting','Re-send this CV free, even after edits'] },
   { plan:'Watermark removal', price:'€0.50', desc:'One-time instant download', cta:'Download clean',
-    items:['Remove CVMaster stamp','Instant browser download','ATS-ready quality','No account required'] },
+    items:['Remove CVMaster stamp','Instant browser download','ATS-ready quality','One-time per download'] },
 ]
 </script>
 

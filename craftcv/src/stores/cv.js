@@ -19,6 +19,7 @@ const emptyData = () => ({
   certifications: [],
   languages: [],
   lang: 'en',
+  jobOffer: '',   // job description the CV is being tailored to (optional)
 })
 
 // Safe localStorage helpers
@@ -145,10 +146,11 @@ export const useCvStore = defineStore('cv', () => {
     wizardOpen.value = true
     if (!preserveStep) { wizardMode.value = null; wizardStep.value = 0 }
   }
+  // step is an index into the manual steps; narrate/upload have one extra step in front
   function openWizardAtStep(step) {
     wizardOpen.value = true
     if (!wizardMode.value) wizardMode.value = 'manual'
-    wizardStep.value = step
+    wizardStep.value = step + (wizardMode.value === 'manual' ? 0 : 1)
   }
   function closeWizard() { wizardOpen.value = false }
   function setMode(mode) { wizardMode.value = mode; wizardStep.value = 0 }
@@ -165,7 +167,20 @@ export const useCvStore = defineStore('cv', () => {
     if (s && !data.value.skills.includes(s)) data.value.skills.push(s)
   }
   function removeSkill(s) {
+    const i = data.value.skills.indexOf(s)
+    if (i === -1) return
     data.value.skills = data.value.skills.filter(x => x !== s)
+    // Levels are stored by index — shift later ones down so they stay with their skill
+    const lv = data.value.skillLevels
+    if (lv && typeof lv === 'object') {
+      const next = {}
+      Object.keys(lv).forEach(k => {
+        const n = Number(k)
+        if (n < i) next[n] = lv[k]
+        else if (n > i) next[n - 1] = lv[k]
+      })
+      data.value.skillLevels = next
+    }
   }
 
   function resetData() {
@@ -192,6 +207,7 @@ export const useCvStore = defineStore('cv', () => {
     if (ext.sum   && typeof ext.sum   === 'string') d.sum   = ext.sum
     if (Array.isArray(ext.skills) && ext.skills.length) {
       d.skills = ext.skills.filter(s => typeof s === 'string').slice(0, 20)
+      d.skillLevels = {} // levels are per index — stale once the list is replaced
     }
     if (Array.isArray(ext.experiences) && ext.experiences.length) {
       d.experiences = ext.experiences
@@ -262,7 +278,7 @@ export const useCvStore = defineStore('cv', () => {
       }
       const draftId = currentDraftId.value || wizardDraftId.value
       const method  = draftId ? 'PUT' : 'POST'
-      const url     = draftId ? `/api/drafts/${draftId}` : '/api/drafts'
+      const url     = apiUrl(draftId ? `/api/drafts/${draftId}` : '/api/drafts')
       const r = await fetch(url, {
         method, credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -270,14 +286,11 @@ export const useCvStore = defineStore('cv', () => {
       })
       if (!r.ok) return false
       const draft = await r.json()
-      // Use setTimeout to defer reactive mutations outside current render cycle
-      if (!wizardDraftId.value || !currentDraftId.value) {
-        setTimeout(() => {
-          if (!wizardDraftId.value)  wizardDraftId.value  = draft.id
-          if (!currentDraftId.value) currentDraftId.value = draft.id
-        }, 0)
-      }
-      return true
+      // Already outside any render cycle here (after an await), so set ids directly —
+      // callers such as checkout need the id as soon as this resolves.
+      if (!wizardDraftId.value)  wizardDraftId.value  = draft.id
+      if (!currentDraftId.value) currentDraftId.value = draft.id
+      return draft.id
     })().catch((e) => {
       console.warn('Draft save failed:', e.message)
       return false
@@ -287,11 +300,17 @@ export const useCvStore = defineStore('cv', () => {
     return savePromise
   }
 
-  async function callAi(prompt, model) {
+  // Saves now (if there is anything to save) and returns the draft id, or null.
+  async function ensureSavedDraftId() {
+    await saveDraft()
+    return currentDraftId.value || wizardDraftId.value || null
+  }
+
+  async function callAi(prompt) {
     const r = await fetch(apiUrl('/api/ai/complete'),  {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, model: model || 'llama-3.3-70b-versatile' }),
+      body: JSON.stringify({ prompt }), // model is chosen server-side
     })
     const json = await r.json()
     if (json.error) throw new Error(json.error)
@@ -331,6 +350,6 @@ export const useCvStore = defineStore('cv', () => {
     initDarkMode, openWizard, openWizardAtStep, closeWizard,
     setMode, nextStep, prevStep,
     addExperience, removeExperience, addSkill, removeSkill,
-    resetData, applyExtracted, saveDraft, callAi, setSkillLevel, cvScore,
+    resetData, applyExtracted, saveDraft, ensureSavedDraftId, callAi, setSkillLevel, cvScore,
   }
 })

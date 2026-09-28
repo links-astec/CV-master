@@ -115,11 +115,12 @@
 </template>
 
 <script setup>
-import { ref, onUnmounted } from 'vue'
+import { ref, onUnmounted, inject } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
 import { useAuthStore } from '../../stores/auth.js'
 
 const store = useCvStore()
+const showToast = inject('showToast', null)
 const auth  = useAuthStore()
 const emit  = defineEmits(['next', 'ai-thinking'])
 
@@ -187,7 +188,7 @@ async function startMic() {
   recognition.continuous      = true
   recognition.interimResults  = true
   recognition.maxAlternatives = 1
-  recognition.lang            = 'en-US'
+  recognition.lang            = store.data.lang === 'fr' ? 'fr-FR' : 'en-GB'
   console.log('[MIC] SpeechRecognition created, lang:', recognition.lang)
 
   recognition.onstart = () => {
@@ -293,22 +294,23 @@ async function startNarrate() {
       u?.experience ? `Experience level: ${u.experience}`        : '',
     ].filter(Boolean).join(' | ')
 
-    const prompt = `Extract structured CV info from this career story.${ctx ? ` User context: ${ctx}.` : ''} Return ONLY valid JSON, no markdown:
+    const prompt = `Extract structured CV info from this career story.${ctx ? ` User context: ${ctx}.` : ''} Use ONLY facts stated in the story — never invent employers, dates, numbers or skills; leave a field empty if the story does not say. Return ONLY valid JSON, no markdown:
 "${story.value.slice(0, 3000)}"
 
 JSON structure:
-{"fn":"","ln":"","title":"","sum":"2-3 sentence professional summary tailored to their industry and goal","skills":["","","","","",""],"experiences":[{"title":"","company":"","period":"","desc":"achievement with metric"}],"education":{"degree":"","school":"","year":""},"loc":"","email":"","phone":""}`
+{"fn":"","ln":"","title":"","sum":"2-3 sentence professional summary tailored to their industry and goal","skills":["","","","","",""],"experiences":[{"title":"","company":"","period":"","desc":"what they did and achieved, keeping any numbers they mentioned"}],"education":{"degree":"","school":"","year":""},"loc":"","email":"","phone":""}`
 
     const result = await store.callAi(prompt)
     const clean  = result.replace(/```json\s*/gi,'').replace(/```/g,'').trim()
-    const p = JSON.parse(clean)
+    const p = JSON.parse(clean.slice(clean.indexOf('{'), clean.lastIndexOf('}') + 1))
     store.applyExtracted(p)
+    started.value = true
   } catch {
-    store.data.sum = 'Experienced professional with a proven track record delivering measurable results across multiple organisations.'
+    // Keep the story so the user can retry — don't fill the CV with stock text
+    showToast?.("We couldn't turn your story into a CV just now — please try again.")
   }
   aiLoading.value = false
   emit('ai-thinking', false)
-  started.value = true
 }
 
 onUnmounted(() => stopMic())

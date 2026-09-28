@@ -263,7 +263,7 @@
 
                 <!-- SCORE tab -->
                 <div class="ptab-body" :class="{ active: panelTab==='review' }">
-                  <StepReview />
+                  <StepReview @pay="openPaywall" />
                 </div>
               </div>
 
@@ -502,7 +502,7 @@
                 </div>
               </div>
               <div v-if="panelTab==='review'">
-                <StepReview />
+                <StepReview @pay="openPaywall" />
               </div>
               <div style="margin-top:16px;display:flex;gap:8px;">
                 <button class="btn-secondary" style="flex:1;" @click="store.openWizard(); showMobileEdit=false">Full Wizard</button>
@@ -514,7 +514,7 @@
       </Transition>
     </Teleport>
 
-    <WizardModal @open-builder="goBuilder" />
+    <WizardModal @open-builder="goBuilder" @pay="openPaywall" />
     <ConfirmModal ref="confirmRef" />
     <PaywallModal ref="paywallRef" :show="showPaywall" @close="showPaywall=false" @paid="onPaid" />
 
@@ -548,6 +548,8 @@ import NotificationDropdown from './components/NotificationDropdown.vue'
 import ConfirmModal     from './components/ConfirmModal.vue'
 import TutorialOverlay  from './components/TutorialOverlay.vue'
 import StepReview       from './components/wizard/StepReview.vue'
+
+const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
 
 const auth       = useAuthStore()
 
@@ -709,6 +711,12 @@ provide('confirm', (...args) => confirmRef.value?.ask(...args))
 provide('fmt', computed(() => store.fmt))
 provide('builderFmt', computed(() => store.fmt))
 
+// From the wizard's final step or the Score tab: show the builder behind the paywall
+function openPaywall() {
+  currentView.value = 'builder'
+  showPaywall.value = true
+}
+
 function onPaid() {
   showPaywall.value = false
   showToast('CV sent to your email!')
@@ -780,8 +788,12 @@ function handleStripeReturn() {
     sessionStorage.removeItem('pcv_pending_download')
     window.history.replaceState({}, '', '/')
     currentView.value  = 'dashboard'
-    showPaywall.value  = true
-    nextTick(() => nextTick(() => paywallRef.value?.handleStripeReturn(sessionId, draftId)))
+    // Start the return handling before opening the modal, so the modal's own
+    // "check payment status" doesn't run over the top of it
+    nextTick(() => nextTick(() => {
+      paywallRef.value?.handleStripeReturn(sessionId, draftId)
+      showPaywall.value = true
+    }))
   }
 }
 
@@ -830,6 +842,9 @@ async function restoreLatestDraft() {
       store.currentDraftId = latest.id
       store.wizardDraftId  = latest.id
       Object.assign(store.data, latest.data)
+      // Per-CV fields: don't keep values from a different CV cached in this browser
+      store.data.jobOffer    = latest.data.jobOffer    || ''
+      store.data.skillLevels = latest.data.skillLevels || {}
       if (latest.template) store.template = latest.template
     }
   } catch {}
