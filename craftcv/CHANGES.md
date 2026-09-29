@@ -10,6 +10,7 @@
     - A warning appears if a `[X%]`/`[N]` placeholder is still in the text.
   - **after applying:** the checklist shows "Fixed: … Undo".
 - **Items only the user knows get "Add"**, which opens that section. These are contact details, dates, employers and education, which the AI can't honestly make up.
+- **Fixed: My CVs didn't show "Paid" straight after a Stripe payment.** Stripe returns to My CVs, which loaded its list before the payment was recorded, so the badge only appeared after a refresh. The payment pop-up now tells My CVs when a CV is paid, and the list updates at once.
 - **Honesty rules:**
   - The results rewrite may add at most 2 number placeholders per role.
   - It must not add new claims (frequency, team size, outcomes) that aren't on the CV.

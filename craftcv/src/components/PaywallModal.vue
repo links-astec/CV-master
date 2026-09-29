@@ -244,11 +244,17 @@ async function sendEmail(sessionId = null) {
     })
     sentTo.value = data.sentTo
     paidForDraft.value = true
+    // My CVs may already be on screen (Stripe returns to it) — tell it this CV is paid
+    window.dispatchEvent(new CustomEvent('cv-paid', { detail: { draftId: draftId.value || store.currentDraftId } }))
     state.value = 'sent'
     notifStore.fetch()
   } catch (e) {
     if (e.status === 403 || e.status === 401) { error.value = e.message; state.value = 'ready' }
-    else state.value = 'emailFailed'
+    else {
+      state.value = 'emailFailed'
+      // The payment may still have gone through — let My CVs re-check with the server
+      if (sessionId) window.dispatchEvent(new CustomEvent('cv-paid', { detail: {} }))
+    }
   }
 }
 

@@ -84,7 +84,7 @@
 </template>
 
 <script setup>
-import { ref, computed, inject, watch, onMounted } from 'vue'
+import { ref, computed, inject, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCvStore, hasDraftableContent } from '../stores/cv.js'
 import { useAuthStore } from '../stores/auth.js'
@@ -165,6 +165,14 @@ async function loadDrafts() {
   loading.value = false
 }
 onMounted(loadDrafts)
+// A payment finished while this page was open (e.g. straight after Stripe): mark it now, then refresh
+function onPaid(e) {
+  const id = e.detail?.draftId
+  if (id) paidIds.value = new Set([...paidIds.value, id])
+  loadDrafts()
+}
+onMounted(() => window.addEventListener('cv-paid', onPaid))
+onUnmounted(() => window.removeEventListener('cv-paid', onPaid))
 watch(() => auth.isLoggedIn, loadDrafts)
 watch(() => store.currentDraftId, (id) => { if (id && !drafts.value.some(d => d.id === id)) loadDrafts() })
 
