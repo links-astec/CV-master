@@ -1,4 +1,5 @@
-// CV template engine — 12 layouts (8 ATS-friendly, 4 creative) × 12 colour themes.
+// CV template engine — 50 layouts (26 ATS-friendly, 24 creative) × 12 colour themes.
+// The first 12 layouts live here; the other 38 are in cvLayoutsMore.js.
 //
 // Every layout is built from the same section blocks, so all of them share:
 //  • ATS-safe reading order (name → contact → profile → experience → … in the HTML,
@@ -10,25 +11,30 @@
 // Template ids are "layout:theme" (e.g. "modern:indigo"). Ids from the old 107-template
 // system are mapped onto the closest layout + colour, so existing CVs keep working.
 
+import { MORE_LAYOUTS, moreLayoutHtml, MORE_LAYOUT_CSS } from './cvLayoutsMore.js'
+
 export const PAGE_W = 700
 export const PAGE_H = 990
 
 // kind 'ats': plain structure for online applications (tracking systems read them well).
 // kind 'creative': more visual, for printing, handing over in person or emailing a person.
-export const LAYOUTS = [
-  { id: 'modern',    kind: 'ats',      name: 'Modern',    desc: 'Clean header, skills column on the right' },
-  { id: 'classic',   kind: 'ats',      name: 'Classic',   desc: 'Single column, centred serif name' },
-  { id: 'sidebar',   kind: 'ats',      name: 'Sidebar',   desc: 'Tinted column for contact, skills and education' },
-  { id: 'minimal',   kind: 'ats',      name: 'Minimal',   desc: 'Pure text with side labels — the most ATS-friendly' },
-  { id: 'executive', kind: 'ats',      name: 'Executive', desc: 'Strong colour header, two columns' },
-  { id: 'compact',   kind: 'ats',      name: 'Compact',   desc: 'Dense layout that fits long CVs on one page' },
-  { id: 'timeline',  kind: 'ats',      name: 'Timeline',  desc: 'Dates on the left, accent rule, confident name' },
-  { id: 'photo',     kind: 'ats',      name: 'Photo',     desc: 'Headshot header, two columns' },
-  { id: 'studio',    kind: 'creative', name: 'Studio',    desc: 'Dark full-height panel with photo and skill tags' },
-  { id: 'elegant',   kind: 'creative', name: 'Elegant',   desc: 'Framed page, serif name, ornamental rules' },
-  { id: 'bold',      kind: 'creative', name: 'Bold',      desc: 'Colour band, big name, numbered sections' },
-  { id: 'portrait',  kind: 'creative', name: 'Portrait',  desc: 'Large photo block beside your name' },
+// theme = the colour the gallery shows it in; hfont = its heading font; photo = shows a photo.
+const BASE_LAYOUTS = [
+  { id: 'modern',    kind: 'ats',      name: 'Modern',    theme: 'indigo',   desc: 'Clean header, skills column on the right' },
+  { id: 'classic',   kind: 'ats',      name: 'Classic',   theme: 'charcoal', hfont: 'DM Serif Display', desc: 'Single column, centred serif name' },
+  { id: 'sidebar',   kind: 'ats',      name: 'Sidebar',   theme: 'teal',     photo: true, desc: 'Tinted column for contact, skills and education' },
+  { id: 'minimal',   kind: 'ats',      name: 'Minimal',   theme: 'charcoal', desc: 'Pure text with side labels — the most ATS-friendly' },
+  { id: 'executive', kind: 'ats',      name: 'Executive', theme: 'slate',    hfont: 'DM Serif Display', desc: 'Strong colour header, two columns' },
+  { id: 'compact',   kind: 'ats',      name: 'Compact',   theme: 'blue',     desc: 'Dense layout that fits long CVs on one page' },
+  { id: 'timeline',  kind: 'ats',      name: 'Timeline',  theme: 'indigo',   desc: 'Dates on the left, accent rule, confident name' },
+  { id: 'photo',     kind: 'ats',      name: 'Photo',     theme: 'blue',     photo: true, desc: 'Headshot header, two columns' },
+  { id: 'studio',    kind: 'creative', name: 'Studio',    theme: 'slate',    photo: true, desc: 'Dark full-height panel with photo and skill tags' },
+  { id: 'elegant',   kind: 'creative', name: 'Elegant',   theme: 'burgundy', hfont: 'DM Serif Display', desc: 'Framed page, serif name, ornamental rules' },
+  { id: 'bold',      kind: 'creative', name: 'Bold',      theme: 'crimson',  desc: 'Colour band, big name, numbered sections' },
+  { id: 'portrait',  kind: 'creative', name: 'Portrait',  theme: 'amber',    photo: true, desc: 'Large photo block beside your name' },
 ]
+// ATS-friendly first, then creative
+export const LAYOUTS = [...BASE_LAYOUTS, ...MORE_LAYOUTS].sort((x, y) => (x.kind === 'ats' ? 0 : 1) - (y.kind === 'ats' ? 0 : 1))
 export const LAYOUT_KINDS = {
   ats:      { name: 'ATS-friendly', desc: 'For online applications — tracking systems read these cleanly' },
   creative: { name: 'Creative',     desc: 'For print, in person or sending to a person — design first' },
@@ -244,6 +250,8 @@ const B = {
     </article>`).join(''),
   // Short skills never break mid-word ("Scikit-|learn"); long phrases may still wrap
   skillsInline: (m) => m.skills.length ? `<p class="inline">${m.skills.map(s => s.length <= 24 ? `<span class="nw">${s}</span>` : s).join(sep)}</p>` : '',
+  // Skills as an even grid (Technical, Consultant)
+  skillsGrid: (m) => m.skills.length ? `<ul class="sgrid">${m.skills.map(s => `<li>${s}</li>`).join('')}</ul>` : '',
   skillsList: (m) => m.skills.length ? `<ul class="list">${m.skills.map(s => `<li>${s}</li>`).join('')}</ul>` : '',
   // Creative layouts: skills as tags (still plain text)
   skillsChips: (m) => m.skills.length ? `<ul class="chips">${m.skills.map(s => `<li>${s}</li>`).join('')}</ul>` : '',
@@ -275,6 +283,7 @@ function sections(m, keys, side = false) {
     // Tags look good for a handful of skills; a long list is kinder as one wrapped line
     chips:          () => sec('skills', L.skills, m.skills.length <= 16 ? B.skillsChips(m) : B.skillsInline(m)),
     langList:       () => sec('languages', L.languages, B.langList(m)),
+    skillsGrid:     () => sec('skills', L.skills, B.skillsGrid(m)),
   }
   return keys.map(k => html[k]()).join('')
 }
@@ -388,6 +397,8 @@ const LAYOUT_HTML = {
       ${B.contact(m)}
     </header>
     <main class="body">${sections(m, ['profile', 'timeline', 'projects', 'education', 'skills', 'languages', 'certifications'])}</main>`,
+
+  ...moreLayoutHtml({ sections, B, header, avatar, ALL, MAIN, SIDE }),
 }
 
 // ── styles ────────────────────────────────────────────────────────────────────
@@ -434,6 +445,8 @@ const BASE_CSS = `
 .cvr .grid{flex:1}
 .cvr .chips{list-style:none;display:flex;flex-wrap:wrap;gap:5px}
 .cvr .chips li{padding:3px 9px;border-radius:999px;background:var(--act);color:var(--acd);font-size:calc(9.6px*var(--s));font-weight:500;line-height:1.4}
+.cvr .sgrid{list-style:none;display:grid;grid-template-columns:repeat(3,1fr);gap:3px 18px;color:#374151}
+.cvr .sgrid li{overflow-wrap:anywhere}
 `
 
 const TWO_COL = (l) => `
@@ -572,7 +585,17 @@ const LAYOUT_CSS = {
 .l-portrait .split > div > .sec:first-child{margin-top:0}`,
 }
 
-const SERIF_HEADINGS = new Set(['classic', 'executive', 'elegant'])
+Object.assign(LAYOUT_CSS, MORE_LAYOUT_CSS)
+
+// Heading fonts a layout can ask for (all bundled in the app and embedded in PDFs)
+const HFONT_STACK = {
+  'DM Serif Display': "'DM Serif Display',Georgia,serif",
+  'Playfair Display': "'Playfair Display',Georgia,serif",
+  'EB Garamond':      "'EB Garamond',Georgia,serif",
+  'Space Grotesk':    "'Space Grotesk',Arial,sans-serif",
+  'Outfit':           "'Outfit',Arial,sans-serif",
+  'Manrope':          "'Manrope',Arial,sans-serif",
+}
 
 // ── render ────────────────────────────────────────────────────────────────────
 // render(templateId, data, fmt, { preview }) → HTML string whose root is the page.
@@ -586,7 +609,9 @@ export function render(tpl, rawData, fmt = {}, opts = {}) {
   const scale = fmt.fontSize === 'small' ? 0.93 : fmt.fontSize === 'large' ? 1.07 : 1
   const lh    = fmt.lineSpacing === 'compact' ? 1.42 : fmt.lineSpacing === 'relaxed' ? 1.68 : 1.55
   const sp    = fmt.sectionSpacing === 'compact' ? 0.78 : fmt.sectionSpacing === 'relaxed' ? 1.22 : 1
-  const hfont = SERIF_HEADINGS.has(layout) && font !== 'Lora' ? "'DM Serif Display',Georgia,serif" : `'${font}'`
+  // The layout's heading font; the old serif layouts keep Lora headings when Lora is chosen
+  const lf    = layoutById[layout].hfont
+  const hfont = lf && !(lf === 'DM Serif Display' && font === 'Lora') ? HFONT_STACK[lf] : `'${font}'`
 
   const vars = [
     `--ac:${t.accent}`, `--acd:${t.dark}`, `--act:${t.tint}`,

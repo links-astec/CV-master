@@ -12,6 +12,8 @@ export const SMALL_TEXT_ZOOM = 0.82
 const CV_FONTS = [
   '400 12px "DM Sans"', '600 12px "DM Sans"', '700 12px "DM Sans"', '400 12px "DM Serif Display"',
   '400 12px Inter', '600 12px Inter', '400 12px Lora', '600 12px Lora',
+  '700 12px "Playfair Display"', '700 12px "Space Grotesk"', '600 12px Outfit', '300 12px Outfit',
+  '600 12px "EB Garamond"', '800 12px Manrope', '400 12px "IBM Plex Mono"',
 ]
 let fontsReady = null
 function ensureCvFonts() {

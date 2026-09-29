@@ -1221,46 +1221,52 @@ async function getBrowser() {
   return b;
 }
 
-// Load local font files once at startup and cache as base64
-// Install with: npm install @fontsource/dm-sans @fontsource/dm-serif-display
-let _fontCss = null;
-async function getLocalFontCss() {
-  if (_fontCss !== null) return _fontCss;
+// CV fonts, read from node_modules once and kept as base64 @font-face rules per family.
+// Only the families a CV actually names are embedded in its PDF.
+let _fontFaces = null; // { family: '@font-face…' }
+async function loadFontFaces() {
+  if (_fontFaces) return _fontFaces;
+  _fontFaces = {};
   try {
     const { readFileSync, existsSync } = await import('fs');
     const { join: pjoin } = await import('path');
     const { fileURLToPath } = await import('url');
     const root = pjoin(fileURLToPath(import.meta.url), '..', '..');
-    const fonts = [
-      // DM Sans weights
-      { pkg: '@fontsource/dm-sans/files/dm-sans-latin-300-normal.woff2',   family: 'DM Sans', weight: 300, style: 'normal' },
-      { pkg: '@fontsource/dm-sans/files/dm-sans-latin-400-normal.woff2',   family: 'DM Sans', weight: 400, style: 'normal' },
-      { pkg: '@fontsource/dm-sans/files/dm-sans-latin-400-italic.woff2',   family: 'DM Sans', weight: 400, style: 'italic' },
-      { pkg: '@fontsource/dm-sans/files/dm-sans-latin-500-normal.woff2',   family: 'DM Sans', weight: 500, style: 'normal' },
-      { pkg: '@fontsource/dm-sans/files/dm-sans-latin-600-normal.woff2',   family: 'DM Sans', weight: 600, style: 'normal' },
-      { pkg: '@fontsource/dm-sans/files/dm-sans-latin-700-normal.woff2',   family: 'DM Sans', weight: 700, style: 'normal' },
-      // DM Serif Display
-      { pkg: '@fontsource/dm-serif-display/files/dm-serif-display-latin-400-normal.woff2', family: 'DM Serif Display', weight: 400, style: 'normal' },
-      { pkg: '@fontsource/dm-serif-display/files/dm-serif-display-latin-400-italic.woff2', family: 'DM Serif Display', weight: 400, style: 'italic' },
-      // Inter and Lora — the other CV font choices (see FONTS in src/composables/cvRenderer.js)
-      ...[400, 500, 600, 700].map(w => ({ pkg: `@fontsource/inter/files/inter-latin-${w}-normal.woff2`, family: 'Inter', weight: w, style: 'normal' })),
-      ...[400, 500, 600, 700].map(w => ({ pkg: `@fontsource/lora/files/lora-latin-${w}-normal.woff2`, family: 'Lora', weight: w, style: 'normal' })),
-      { pkg: '@fontsource/lora/files/lora-latin-400-italic.woff2', family: 'Lora', weight: 400, style: 'italic' },
+    // [package, family, weights, italic weights] — keep in step with src/main.js and HFONT_STACK
+    const FAMILIES = [
+      ['dm-sans', 'DM Sans', [300, 400, 500, 600, 700], [400]],
+      ['dm-serif-display', 'DM Serif Display', [400], [400]],
+      ['inter', 'Inter', [400, 500, 600, 700], []],
+      ['lora', 'Lora', [400, 500, 600, 700], [400]],
+      ['playfair-display', 'Playfair Display', [400, 600, 700, 900], []],
+      ['space-grotesk', 'Space Grotesk', [400, 500, 700], []],
+      ['outfit', 'Outfit', [200, 300, 400, 500, 600, 700], []],
+      ['eb-garamond', 'EB Garamond', [400, 500, 600], []],
+      ['manrope', 'Manrope', [400, 600, 700, 800], []],
+      ['ibm-plex-mono', 'IBM Plex Mono', [400, 500], []],
     ];
-    const faces = [];
-    for (const f of fonts) {
-      const fullPath = pjoin(root, 'node_modules', f.pkg);
-      if (!existsSync(fullPath)) continue;
-      const b64 = readFileSync(fullPath).toString('base64');
-      faces.push(`@font-face{font-family:'${f.family}';font-weight:${f.weight};font-style:${f.style};src:url(data:font/woff2;base64,${b64}) format('woff2');font-display:block;}`);
+    let n = 0;
+    for (const [pkg, family, weights, italics] of FAMILIES) {
+      const faces = [...weights.map(w => [w, 'normal']), ...italics.map(w => [w, 'italic'])].map(([w, style]) => {
+        const file = pjoin(root, 'node_modules', '@fontsource', pkg, 'files', `${pkg}-latin-${w}-${style}.woff2`);
+        if (!existsSync(file)) return '';
+        n++;
+        return `@font-face{font-family:'${family}';font-weight:${w};font-style:${style};src:url(data:font/woff2;base64,${readFileSync(file).toString('base64')}) format('woff2');font-display:block;}`;
+      }).join('');
+      if (faces) _fontFaces[family] = faces;
     }
-    _fontCss = faces.length > 0 ? `<style>${faces.join('')}</style>` : '';
-    if (faces.length > 0) console.log(`[pdf] Loaded ${faces.length} local fonts for PDF rendering`);
-    else console.warn('[pdf] Local fonts not found — run: npm install @fontsource/dm-sans @fontsource/dm-serif-display');
-  } catch {
-    _fontCss = '';
+    if (n) console.log(`[pdf] Loaded ${n} local font files for PDF rendering`);
+    else console.warn('[pdf] Local fonts not found — run npm install');
+  } catch (e) {
+    console.warn('[pdf] Could not load fonts:', e.message);
   }
-  return _fontCss;
+  return _fontFaces;
+}
+
+async function fontCssFor(html) {
+  const faces = await loadFontFaces();
+  const used = Object.keys(faces).filter(f => f === 'DM Sans' || html.includes(f));
+  return used.length ? `<style>${used.map(f => faces[f]).join('')}</style>` : '';
 }
 
 async function renderPdfFromHtml(html) {
@@ -1281,7 +1287,7 @@ async function renderPdfFromHtml(html) {
       else req.abort();
     });
 
-    const fontCss = await getLocalFontCss();
+    const fontCss = await fontCssFor(html);
     let prepared  = html.replace(/<link[^>]+fonts\.googleapis\.com[^>]*>/gi, '');
     if (fontCss) {
       prepared = prepared.includes('</head>')

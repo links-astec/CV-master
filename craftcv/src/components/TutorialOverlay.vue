@@ -113,7 +113,7 @@ const steps = [
   },
   {
     title: 'Templates',
-    desc:  '12 layouts in 12 colours: ATS-friendly ones for online applications, creative ones for print and in person. When you pick one you can paste the job offer you are applying for.',
+    desc:  '50 layouts in 12 colours: ATS-friendly ones for online applications, creative ones for print and in person. When you pick one you can paste the job offer you are applying for.',
     icon:  '<rect x="4" y="3" width="16" height="18" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/>',
     iconBg:'var(--c-teal-lt)',
     target: '[data-tour="nav-templates"]',

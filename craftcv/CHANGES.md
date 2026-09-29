@@ -1,5 +1,19 @@
 # Changes
 
+## 2026-09-30 (evening) — 50 templates
+
+- **38 new layouts, 50 in total (26 ATS-friendly, 24 creative), each in 12 colours.**
+  - **New ATS-friendly:** Standard, Harvard, Corporate, Swiss, Banner, Ledger, Developer, Clarity, Margin, Statement, Graduate (education first), Technical (skills grid first), Consultant, Scholar, Outline, Overview, Airy, Nordic.
+  - **New creative:** Aurora, Magazine, Neo, Pastel, Ribbon, Circle (photo), Duo, Diagonal, Zen, Journey, Blocks, Deco, Column (photo), Headline, Frame, Monogram, Bento (photo), Wave, Polaroid (photo), Mosaic.
+  - Same rules as before: real text, ATS-safe reading order, EN/FR headings, one-page fit.
+  - New layouts live in `src/composables/cvLayoutsMore.js`. Each has a suggested colour and, for most, its own heading font.
+- **New heading fonts:** Playfair Display, EB Garamond, Space Grotesk, Outfit, Manrope, IBM Plex Mono (self-hosted).
+  - PDFs now embed only the fonts a CV actually uses, not every font.
+- **Templates page:**
+  - The "Suggested" colour (the default) shows each layout in its own colour. Any of the 12 colours can still be applied to all.
+  - Filter buttons show counts, and layouts that show a photo are tagged "Photo".
+- The homepage showcase now includes Harvard, Magazine and Bento, and all copy says 50 layouts.
+
 ## 2026-09-30 (later) — "Fix with AI" in the checklist
 
 - **Checklist items the AI can fix now have "Fix with AI"** (new `POST /api/ai/fix`):
