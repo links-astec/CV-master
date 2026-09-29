@@ -77,17 +77,28 @@
         </div>
       </div>
 
+      <!-- Story couldn't be used -->
+      <div v-if="rejected" class="nr-reject">
+        <div class="nr-reject-ttl">We can't build a CV from that yet</div>
+        <p>{{ rejected }}</p>
+        <div class="nr-reject-actions">
+          <button class="btn-secondary btn-sm" @click="retry">Try again</button>
+          <button class="btn-ghost btn-sm" @click="$emit('next')">Fill it in step by step</button>
+          <button class="btn-ghost btn-sm" @click="store.setMode('upload')">Import my CV instead</button>
+        </div>
+      </div>
+
       <!-- AI loading -->
-      <div v-if="aiLoading" class="thinking" style="margin-top:14px;">
+      <div v-if="aiLoading && !showQs" class="thinking" style="margin-top:14px;">
         <div class="thinking-dots"><span></span><span></span><span></span></div>
-        <div class="thinking-txt">AI is reading your story and building your CV...</div>
+        <div class="thinking-txt">AI is reading your story…</div>
       </div>
 
       <div class="narrate-actions">
         <button class="btn-primary accent" @click="startNarrate"
           :disabled="!story.trim() || aiLoading" style="width:100%;justify-content:center;">
           <svg v-if="aiLoading" class="spin-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" opacity=".25"/><path d="M21 12a9 9 0 00-9-9"/></svg>
-          {{ aiLoading ? 'Building your CV...' : 'Build My CV from Story' }}
+          {{ aiLoading ? 'Reading your story…' : 'Build my CV from my story' }}
         </button>
         <button class="skip-link" @click="$emit('next')">Skip — fill in manually instead</button>
       </div>
@@ -111,11 +122,43 @@
         Review Each Section →
       </button>
     </div>
+
+    <!-- Follow-up questions -->
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="showQs" class="nq-backdrop" @click.self="closeQs">
+          <div class="nq" role="dialog" aria-labelledby="nq-title">
+            <button class="icon-btn nq-x" @click="closeQs" aria-label="Close" :disabled="aiLoading">
+              <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <div class="nq-step">Round {{ round }} of up to {{ maxRounds }}</div>
+            <h3 id="nq-title">A few details will make your CV much stronger</h3>
+            <p class="nq-sub">Answer what you can and skip anything you'd rather not. We only use what you tell us.</p>
+
+            <div class="nq-list">
+              <div v-for="(q, i) in questions" :key="round + '-' + i" class="nq-item">
+                <label class="nq-q" :for="'nq-' + i">{{ q.q }}</label>
+                <textarea :id="'nq-' + i" v-model="q.a" class="f-ta" rows="2" :placeholder="q.hint || 'Your answer'" :disabled="aiLoading"></textarea>
+              </div>
+            </div>
+
+            <div v-if="qError" class="nq-err">{{ qError }}</div>
+            <div class="nq-ft">
+              <button class="btn-ghost" :disabled="aiLoading" @click="submitAnswers(true)">Build my CV now</button>
+              <button class="btn-primary accent" :disabled="aiLoading || !anyAnswer" @click="submitAnswers(false)">
+                <svg v-if="aiLoading" class="spin-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" opacity=".25"/><path d="M21 12a9 9 0 00-9-9"/></svg>
+                {{ aiLoading ? 'Reading your answers…' : 'Continue' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
-import { ref, onUnmounted, inject } from 'vue'
+import { ref, computed, nextTick, onUnmounted, inject } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
 import { useAuthStore } from '../../stores/auth.js'
 
@@ -282,35 +325,89 @@ function clearTranscript() {
   finalBuffer = ''
 }
 
+// ── Story → CV ───────────────────────────────────────────────────────────────
+// The server either turns the story down (too thin / not a career story), asks
+// follow-up questions (shown in a pop-up, a few rounds at most) or builds the CV.
+const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
+const TOO_SHORT = 'That is too short for us to build a CV from. Tell us about your jobs, studies and what you did in them — a few sentences is enough to start.'
+const rejected  = ref('')
+const showQs    = ref(false)
+const questions = ref([])   // [{ q, hint, a }]
+const answers   = ref([])   // answered so far: [{ q, a }]
+const round     = ref(0)
+const maxRounds = ref(3)
+const qError    = ref('')
+const anyAnswer = computed(() => questions.value.some(q => q.a?.trim()))
+const wordCount = (t) => (t.match(/[\p{L}\p{N}]+/gu) || []).length
+
+async function askServer(force) {
+  const u = auth.user
+  const r = await fetch(apiUrl('/api/ai/story'), {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      story: story.value, answers: answers.value, round: round.value, force,
+      lang: store.data.lang,
+      context: { industry: u?.industry || '', goal: u?.goal || '', experience: u?.experience || '' },
+    }),
+  })
+  const j = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(j.error || "We couldn't read your story just now — please try again.")
+  return j
+}
+
+function handle(res) {
+  if (res.verdict === 'unusable') {
+    showQs.value   = false
+    rejected.value = res.reason || TOO_SHORT
+  } else if (res.verdict === 'needs_more') {
+    questions.value = res.questions.map(q => ({ ...q, a: '' }))
+    round.value     = res.round
+    maxRounds.value = res.maxRounds || 3
+    showQs.value    = true
+  } else {
+    store.applyExtracted(res.cv)
+    showQs.value  = false
+    started.value = true
+  }
+}
+
 async function startNarrate() {
-  if (!story.value.trim()) return
+  if (!story.value.trim() || aiLoading.value) return
+  if (isRecording.value) stopMic()
+  rejected.value = ''
+  // Obviously too short: say so straight away, no AI call
+  if (wordCount(story.value) < 12) { rejected.value = TOO_SHORT; return }
+  answers.value = []
+  round.value   = 0
+  await run(false)
+}
+
+// "Continue" sends this round's answers; "Build my CV now" builds with what we have
+async function submitAnswers(force) {
+  qError.value = ''
+  for (const q of questions.value) answers.value.push({ q: q.q, a: q.a?.trim() || '' }) // '' = skipped
+  questions.value.forEach(q => { q.a = '' })
+  await run(force)
+}
+
+async function run(force) {
   aiLoading.value = true
   emit('ai-thinking', true)
-  try {
-    const u = auth.user
-    const ctx = [
-      u?.industry   ? `Industry: ${u.industry}`                  : '',
-      u?.goal       ? `Career goal: ${u.goal}`                   : '',
-      u?.experience ? `Experience level: ${u.experience}`        : '',
-    ].filter(Boolean).join(' | ')
-
-    const prompt = `Extract structured CV info from this career story.${ctx ? ` User context: ${ctx}.` : ''} Use ONLY facts stated in the story — never invent employers, dates, numbers or skills; leave a field empty if the story does not say. Return ONLY valid JSON, no markdown:
-"${story.value.slice(0, 3000)}"
-
-JSON structure:
-{"fn":"","ln":"","title":"","sum":"2-3 sentence professional summary tailored to their industry and goal","skills":["","","","","",""],"experiences":[{"title":"","company":"","period":"","desc":"what they did and achieved, keeping any numbers they mentioned"}],"education":{"degree":"","school":"","year":""},"loc":"","email":"","phone":""}`
-
-    const result = await store.callAi(prompt)
-    const clean  = result.replace(/```json\s*/gi,'').replace(/```/g,'').trim()
-    const p = JSON.parse(clean.slice(clean.indexOf('{'), clean.lastIndexOf('}') + 1))
-    store.applyExtracted(p)
-    started.value = true
-  } catch {
-    // Keep the story so the user can retry — don't fill the CV with stock text
-    showToast?.("We couldn't turn your story into a CV just now — please try again.")
+  try { handle(await askServer(force)) }
+  catch (e) {
+    if (showQs.value) qError.value = e.message
+    else showToast?.(e.message)
   }
   aiLoading.value = false
   emit('ai-thinking', false)
+}
+
+function closeQs() { if (!aiLoading.value) showQs.value = false }
+function retry() {
+  rejected.value = ''
+  inputMode.value = 'type'
+  nextTick(() => document.querySelector('.step-wrap textarea.f-ta')?.focus())
 }
 
 onUnmounted(() => stopMic())
@@ -419,6 +516,29 @@ onUnmounted(() => stopMic())
 .sp-lbl { font-size:9.5px;font-weight:800;color:var(--c-text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px; }
 .sp-txt { font-size:12.5px;color:var(--c-text2);line-height:1.6;margin-bottom:8px; }
 .sp-edit { background:none;border:none;font-size:11.5px;color:var(--c-accent);font-weight:700;cursor:pointer;font-family:inherit;text-decoration:underline; }
-.spin-i { animation:spin .7s linear infinite; }
+.spin-i { animation:spin .7s linear infinite;width:14px;height:14px; }
+
+/* Story turned down */
+.nr-reject { margin-top:14px;padding:14px 16px;border-radius:12px;background:var(--c-amber-lt);border:1px solid var(--c-border); }
+.nr-reject-ttl { font-size:14px;font-weight:700;color:var(--c-text);margin-bottom:4px; }
+.nr-reject p { font-size:13px;color:var(--c-text2);line-height:1.55;margin-bottom:10px; }
+.nr-reject-actions { display:flex;flex-wrap:wrap;gap:6px; }
+
+/* Follow-up questions pop-up */
+.nq-backdrop { position:fixed;inset:0;z-index:9000;background:rgba(20,20,43,.5);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px; }
+.nq { position:relative;width:100%;max-width:560px;max-height:92dvh;overflow-y:auto;background:var(--c-surface);border-radius:18px;padding:26px 26px 20px;box-shadow:var(--shadow-xl);border:1px solid var(--c-border); }
+.nq-x { position:absolute;top:14px;right:14px; }
+.nq-step { font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--c-accent);margin-bottom:8px; }
+.nq h3 { font-size:19px;font-weight:700;letter-spacing:-.01em;color:var(--c-text);margin:0 28px 6px 0; }
+.nq-sub { font-size:13px;color:var(--c-text2);line-height:1.55;margin-bottom:18px; }
+.nq-list { display:flex;flex-direction:column;gap:14px; }
+.nq-q { display:block;font-size:13.5px;font-weight:600;color:var(--c-text);line-height:1.45;margin-bottom:6px; }
+.nq-item .f-ta { min-height:58px;resize:vertical; }
+.nq-err { margin-top:12px;font-size:12.5px;color:var(--c-rose); }
+.nq-ft { display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:20px;padding-top:14px;border-top:1px solid var(--c-border); }
+@media (max-width:600px) {
+  .nq-backdrop { padding:0;align-items:flex-end; }
+  .nq { border-radius:18px 18px 0 0;max-width:100%;padding:22px 18px calc(18px + env(safe-area-inset-bottom)); }
+}
 @keyframes spin { to { transform:rotate(360deg); } }
 </style>

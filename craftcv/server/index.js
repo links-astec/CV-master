@@ -532,8 +532,42 @@ app.post('/api/notifications/add', authMiddleware, async (req, res) => {
 // and give it its own token budget so it can't eat the answer's.
 const AI_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
 
+// Claude is the main AI when ANTHROPIC_API_KEY is set; Groq is the fallback.
+const ANTHROPIC_KEY   = process.env.ANTHROPIC_API_KEY || '';
+const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5';
+const AI_READY        = !!(ANTHROPIC_KEY || GROQ_KEY);
+const AI_PROVIDER     = ANTHROPIC_KEY ? `claude (${ANTHROPIC_MODEL})` : GROQ_KEY ? `groq (${AI_MODEL})` : null;
+
+async function callClaude(prompt, systemPrompt, maxTokens) {
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
+    body:    JSON.stringify({
+      model: ANTHROPIC_MODEL, max_tokens: maxTokens,
+      ...(systemPrompt ? { system: systemPrompt } : {}),
+      messages: [{ role: 'user', content: prompt }],
+    }),
+    signal: AbortSignal.timeout(90000),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error?.message || `AI request failed (${r.status}).`);
+  return (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+}
+
+// Every AI feature goes through here. `model` / `reasoningEffort` only apply to Groq.
+async function callAi(prompt, model = AI_MODEL, systemPrompt = null, maxTokens = 800, reasoningEffort = 'low') {
+  if (ANTHROPIC_KEY) {
+    try { return await callClaude(prompt, systemPrompt, maxTokens); }
+    catch (e) {
+      if (!GROQ_KEY) throw e;
+      console.warn('[ai] Claude failed, falling back to Groq:', e.message);
+    }
+  }
+  return callGroq(prompt, model, systemPrompt, maxTokens, reasoningEffort);
+}
+
 async function callGroq(prompt, model = AI_MODEL, systemPrompt = null, maxTokens = 800, reasoningEffort = 'low') {
-  if (!GROQ_KEY) throw new Error('AI is not configured. Add GROQ_API_KEY to your environment.');
+  if (!GROQ_KEY) throw new Error('AI is not configured. Add ANTHROPIC_API_KEY or GROQ_API_KEY to your environment.');
   const messages = [];
   if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
   messages.push({ role: 'user', content: prompt });
@@ -560,7 +594,7 @@ app.post('/api/ai/complete', aiAccess, async (req, res) => {
   const { prompt } = req.body;
   if (!prompt || typeof prompt !== 'string') return res.status(400).json({ error: 'prompt required.' });
   if (prompt.length > MAX_PROMPT_CHARS) return res.status(413).json({ error: 'Prompt too long.' });
-  try { res.json({ result: await callGroq(prompt, AI_MODEL, null, 1200) }); }
+  try { res.json({ result: await callAi(prompt, AI_MODEL, null, 1200) }); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -571,6 +605,77 @@ function parseJsonObject(raw) {
   if (start === -1 || end === -1) throw new Error('No JSON object in AI reply.');
   return JSON.parse(clean.slice(start, end + 1));
 }
+
+// ── BUILD A CV FROM A STORY ───────────────────────────────────────────────────
+// One call per round. The AI either rejects the story (too thin / not about a career),
+// asks follow-up questions about what's missing, or builds the CV. `force` builds with
+// whatever there is (the user clicked "Build now", or the question rounds ran out).
+const STORY_MAX_ROUNDS = 3;
+const words = s => (String(s || '').match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu) || []).length;
+
+app.post('/api/ai/story', aiAccess, async (req, res) => {
+  try {
+    const story = String(req.body?.story || '').trim().slice(0, 6000);
+    const answers = (Array.isArray(req.body?.answers) ? req.body.answers : []).slice(0, 12)
+      .map(a => ({ q: String(a?.q || '').slice(0, 300), a: String(a?.a || '').trim().slice(0, 1500) || '(skipped — do not ask again)' }))
+      .filter(a => a.q);
+    const round = Math.max(0, Math.min(STORY_MAX_ROUNDS, Number(req.body?.round) || 0));
+    const force = !!req.body?.force || round >= STORY_MAX_ROUNDS;
+    const lang  = req.body?.lang === 'fr' ? 'fr' : 'en';
+    const ctx   = req.body?.context && typeof req.body.context === 'object' ? req.body.context : {};
+
+    // Too short to be worth an AI call
+    if (words(story) < 12) {
+      return res.json({ verdict: 'unusable', reason: 'That is too short for us to build a CV from. Tell us about your jobs, studies and what you did in them — a few sentences is enough to start.' });
+    }
+
+    const language = lang === 'fr' ? 'French' : 'British English';
+    const systemPrompt = `You turn a person's career story into a CV. You are careful and honest.
+
+Decide ONE verdict:
+- "unusable": the text is not a real account of someone's work or studies (gibberish, off-topic, a question to you, test text, or so vague there is nothing to build on). Give a short, kind "reason" saying what is missing.
+- "needs_more": it is a genuine career story, but a recruiter-ready CV needs important details it does not have. Ask 2 to 4 follow-up questions.
+- "ready": there is enough to write a solid CV${force ? '. You MUST choose "ready" now (or "unusable" if truly nothing usable) — do not ask more questions' : ''}.
+
+Enough for "ready" means: at least one job, internship, volunteer role or course of study with what the person actually did in it; roughly when (years are fine); and a sense of the kind of role they want or have. Contact details are NOT needed (they fill those in separately) — never ask for name, email, phone or address.
+
+Good follow-up questions:
+- are specific to THIS story, and name the employer / role / project they refer to ("At Deliveroo, how many riders did your team support?"), never generic;
+- target what makes the biggest difference: missing dates, employer or school names, results and numbers, tools and skills used, the job they are aiming for;
+- are short, one thing each, and easy to answer in a sentence;
+- never repeat something already answered. If an answer was skipped, don't ask it again.
+Each question gets a short "hint" with an example answer.
+
+When building the CV ("ready"):
+- Use ONLY facts from the story and the answers. Never invent employers, dates, numbers, qualifications or skills. Leave a field "" if unknown.
+- Experience "desc": 2-4 bullet lines, each starting with "• " and a strong verb, keeping any numbers the person gave.
+- "sum": 2-3 sentences, first person implied (no "I"), specific to them.
+- "skills": 6-12 concrete skills they clearly have from the story.
+- Write every text field in ${language}.
+
+Reply with ONLY a JSON object, no markdown:
+{"verdict":"unusable|needs_more|ready","reason":"","questions":[{"q":"","hint":""}],"cv":{"title":"","sum":"","loc":"","skills":[],"experiences":[{"title":"","company":"","period":"","desc":""}],"education":[{"degree":"","school":"","year":""}],"projects":[{"name":"","desc":"","tech":""}],"languages":[{"name":"","level":""}],"certifications":[]}}
+Only include "questions" for needs_more and "cv" for ready. Questions and reason are in ${language}.`;
+
+    const context = [ctx.industry && `Industry: ${ctx.industry}`, ctx.goal && `Goal: ${ctx.goal}`, ctx.experience && `Level: ${ctx.experience}`]
+      .filter(Boolean).map(String).join(' | ').slice(0, 200);
+    const userPrompt = `${context ? `About the person (from sign-up): ${context}\n\n` : ''}THEIR STORY:\n${story}\n\n${
+      answers.length ? `THEIR ANSWERS TO FOLLOW-UP QUESTIONS:\n${answers.map(a => `Q: ${a.q}\nA: ${a.a}`).join('\n\n')}\n\n` : ''}Question rounds so far: ${round} of ${STORY_MAX_ROUNDS}.`;
+
+    const out = parseJsonObject(await callAi(userPrompt, AI_MODEL, systemPrompt, 4000, 'medium'));
+    const verdict = ['unusable', 'needs_more', 'ready'].includes(out.verdict) ? out.verdict : 'ready';
+    const questions = (Array.isArray(out.questions) ? out.questions : [])
+      .map(q => ({ q: String(q?.q || '').trim(), hint: String(q?.hint || '').trim() })).filter(q => q.q).slice(0, 4);
+
+    if (verdict === 'unusable') return res.json({ verdict, reason: String(out.reason || '').trim() || 'We could not find enough about your work or studies in that text.' });
+    if (verdict === 'needs_more' && !force && questions.length) return res.json({ verdict, questions, round: round + 1, maxRounds: STORY_MAX_ROUNDS });
+    if (!out.cv || typeof out.cv !== 'object') throw new Error('The AI did not return a CV.');
+    res.json({ verdict: 'ready', cv: out.cv });
+  } catch (e) {
+    console.error('[story]', e.message);
+    res.status(500).json({ error: "We couldn't read your story just now — please try again." });
+  }
+});
 
 // ── TRANSLATE A CV (EN ↔ FR) ──────────────────────────────────────────────────
 // Returns proposals only; the client shows before/after and the user applies them.
@@ -605,7 +710,7 @@ app.post('/api/ai/translate', aiAccess, async (req, res) => {
 - CVs often mix languages, even inside one entry. Check EVERY field and EVERY bullet line separately: anything not already in ${target} must be translated; only text already in ${target} is returned unchanged.
 - Return ONLY JSON with exactly the same structure and "i" values as the input.`;
 
-    const raw = await callGroq(`Translate this CV JSON:\n${payload}`, AI_MODEL, systemPrompt, 6000);
+    const raw = await callAi(`Translate this CV JSON:\n${payload}`, AI_MODEL, systemPrompt, 6000);
     const p = parseJsonObject(raw);
 
     const byI = (list) => new Map(arr(list).filter(x => Number.isInteger(x?.i)).map(x => [x.i, x]));
@@ -694,7 +799,7 @@ Return JSON with exactly this shape:
 }
 Only include experiences whose description you actually improved. Use the [index] numbers shown above.`;
 
-    const raw = await callGroq(userPrompt, AI_MODEL, systemPrompt, 3000, 'medium');
+    const raw = await callAi(userPrompt, AI_MODEL, systemPrompt, 3000, 'medium');
     const p   = parseJsonObject(raw);
 
     const lower = new Set(skills.map(s => s.toLowerCase()));
@@ -733,7 +838,7 @@ app.post('/api/ai/enhance', aiAccess, async (req, res) => {
     experience: `Improve this job description with strong action verbs and quantified metrics (1-2 sentences). Role: ${data.title} at ${data.company}. Current: "${data.desc}". Return only improved text.`,
     skills:     `List 10 in-demand skills for a ${data.title} role. Return a JSON array of strings only — no markdown, no explanation.`,
   };
-  try { res.json({ result: await callGroq(prompts[type] || prompts.summary) }); }
+  try { res.json({ result: await callAi(prompts[type] || prompts.summary) }); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -786,7 +891,7 @@ app.post('/api/cv/upload', aiAccess, upload.single('cv'), async (req, res) => {
       return res.status(400).json({ error: 'Could not read text from this file. Try a text-based PDF or a .txt file.' });
     }
 
-    if (!GROQ_KEY) {
+    if (!AI_READY) {
       const extracted = normalizeExtracted(parseFallback(cleaned));
       return res.json({ extracted, message: uploadMessage(req.file.originalname, extracted, 'Parsed') });
     }
@@ -855,7 +960,7 @@ ${textFull}`;
     // First pass: full extraction with system prompt and high token limit
     let raw = '';
     try {
-      raw = await callGroq(userPrompt, AI_MODEL, systemPrompt, 4000);
+      raw = await callAi(userPrompt, AI_MODEL, systemPrompt, 4000);
     } catch (aiErr) {
       console.warn('[upload] AI extraction failed, using fallback parser:', aiErr.message);
       const extracted = normalizeExtracted(parseFallback(cleaned));
@@ -878,7 +983,7 @@ ${textFull}`;
       // Second attempt: ask AI to fix malformed JSON
       try {
         const fixPrompt = "The following text is supposed to be a JSON object but has syntax errors. Fix it and return ONLY valid JSON:\n\n" + clean.slice(0, 4000);
-        const fixed = await callGroq(fixPrompt, AI_MODEL);
+        const fixed = await callAi(fixPrompt, AI_MODEL);
         const fixedClean = fixed.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
         extracted = JSON.parse(fixedClean.slice(fixedClean.indexOf('{'), fixedClean.lastIndexOf('}') + 1));
       } catch {
@@ -1999,7 +2104,7 @@ app.get('/api/health', async (req, res) => {
   if (maintenanceMode) {
     return res.status(503).json({ ok: false, maintenance: true, message: 'Under maintenance' });
   }
-  res.json({ ok: true, maintenance: false, db, groq: !!GROQ_KEY, stripe: !!STRIPE_KEY, freeExports: FREE_EXPORTS, pdf: pdfEngine.status, pdfError: pdfEngine.error, pdfMs: pdfEngine.lastMs, email: !!(resend || smtpTransport), google: !!GOOGLE_CLIENT_ID, time: new Date().toISOString() });
+  res.json({ ok: true, maintenance: false, db, groq: !!GROQ_KEY, ai: AI_PROVIDER, stripe: !!STRIPE_KEY, freeExports: FREE_EXPORTS, pdf: pdfEngine.status, pdfError: pdfEngine.error, pdfMs: pdfEngine.lastMs, email: !!(resend || smtpTransport), google: !!GOOGLE_CLIENT_ID, time: new Date().toISOString() });
 });
 
 // Frontend is served by Vercel — no static file serving needed here.
@@ -2020,7 +2125,7 @@ if (process.env.VERCEL !== '1') {
   app.listen(PORT, () => {
     console.log(`\nCVMaster API → http://localhost:${PORT}`);
     console.log(`  DB:     ${process.env.DATABASE_URL ? 'connected' : 'NOT SET — add DATABASE_URL'}`);
-    console.log(`  Groq:   ${GROQ_KEY   ? `configured (${AI_MODEL})` : 'NOT SET'}`);
+    console.log(`  AI:     ${AI_PROVIDER || "NOT SET"}`);
     console.log(`  Stripe: ${STRIPE_KEY ? 'configured' : 'NOT SET (demo mode)'}`);
     console.log(`  Google: ${GOOGLE_CLIENT_ID ? 'configured' : 'NOT SET'}`);
     const mail = [smtpTransport && 'SMTP (primary)', resend && 'Resend (fallback)'].filter(Boolean).join(' + ');
