@@ -2073,6 +2073,95 @@ app.post('/api/admin/email/send', adminAuthMiddleware, async (req, res) => {
 });
 
 // POST /api/admin/maintenance — toggle maintenance mode
+// ── FEEDBACK & COMPLAINTS ─────────────────────────────────────────────────────
+// Anyone (signed in or not) can send feedback. Each message is stored and, when
+// FEEDBACK_EMAIL (or ADMIN_EMAIL) is set, emailed to the owner. Admins read them in admin.html.
+const FEEDBACK_KINDS = { suggestion: 'Suggestion', problem: 'Problem', payment: 'Payment issue', complaint: 'Complaint' };
+const FEEDBACK_TO = process.env.FEEDBACK_EMAIL || process.env.ADMIN_EMAIL || '';
+let _feedbackTable = null;
+function ensureFeedbackTable() {
+  if (!_feedbackTable) {
+    _feedbackTable = query(`CREATE TABLE IF NOT EXISTS feedback (
+      id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id    UUID REFERENCES users(id) ON DELETE SET NULL,
+      email      TEXT,
+      kind       TEXT NOT NULL,
+      message    TEXT NOT NULL,
+      page       TEXT,
+      status     TEXT NOT NULL DEFAULT 'open',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`).catch(e => { _feedbackTable = null; throw e; });
+  }
+  return _feedbackTable;
+}
+const feedbackLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 8, message: { error: 'Too many messages — please try again a little later.' } });
+
+app.post('/api/feedback', feedbackLimiter, async (req, res) => {
+  try {
+    const kind    = FEEDBACK_KINDS[req.body?.kind] ? req.body.kind : null;
+    const message = String(req.body?.message || '').trim().slice(0, 4000);
+    let   email   = String(req.body?.email || '').trim().slice(0, 200);
+    const page    = String(req.body?.page || '').slice(0, 200);
+    if (!kind) return res.status(400).json({ error: 'Choose what your message is about.' });
+    if (message.length < 10) return res.status(400).json({ error: 'Please write a little more so we can help.' });
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'That email address doesn’t look right.' });
+
+    // Signed in? Link the message to the account (and use its email if none was given)
+    let userId = null;
+    const token = req.cookies?.token;
+    if (token) {
+      try {
+        userId = jwt.verify(token, JWT_SECRET).sub;
+        if (!email) email = (await query('SELECT email FROM users WHERE id = $1', [userId])).rows[0]?.email || '';
+      } catch {}
+    }
+
+    await ensureFeedbackTable();
+    const { rows } = await query(
+      'INSERT INTO feedback (user_id, email, kind, message, page) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+      [userId, email || null, kind, message, page || null]
+    );
+    const ref = rows[0].id.slice(0, 8).toUpperCase();
+
+    if (FEEDBACK_TO) {
+      sendMail({
+        to: FEEDBACK_TO,
+        subject: `[CVMaster ${FEEDBACK_KINDS[kind]}] ${message.slice(0, 60)}${message.length > 60 ? '…' : ''} (#${ref})`,
+        html: `<p><strong>${FEEDBACK_KINDS[kind]}</strong> · ref #${ref}</p>
+          <p>From: ${email ? escHtml(email) : 'no email given'}${userId ? ' (signed in)' : ' (guest)'}${page ? ` · page ${escHtml(page)}` : ''}</p>
+          <p style="white-space:pre-wrap;border-left:3px solid #4338CA;padding-left:12px">${escHtml(message)}</p>`,
+      }).catch(e => console.warn('[feedback] email failed:', e.message));
+    }
+    res.json({ ok: true, ref });
+  } catch (e) {
+    console.error('[feedback]', e.message);
+    res.status(500).json({ error: 'We couldn’t send your message just now — please try again.' });
+  }
+});
+
+app.get('/api/admin/feedback', adminAuthMiddleware, async (req, res) => {
+  try {
+    await ensureFeedbackTable();
+    const status = ['open', 'resolved'].includes(req.query.status) ? req.query.status : null;
+    const { rows } = await query(
+      `SELECT id, email, kind, message, page, status, created_at, user_id IS NOT NULL AS signed_in
+       FROM feedback ${status ? 'WHERE status = $1' : ''} ORDER BY created_at DESC LIMIT 200`,
+      status ? [status] : []
+    );
+    const open = (await query(`SELECT COUNT(*)::int AS n FROM feedback WHERE status = 'open'`)).rows[0].n;
+    res.json({ items: rows, open });
+  } catch (e) { res.status(500).json({ error: 'Failed to load feedback.' }); }
+});
+
+app.patch('/api/admin/feedback/:id', adminAuthMiddleware, async (req, res) => {
+  try {
+    const status = req.body?.status === 'resolved' ? 'resolved' : 'open';
+    await ensureFeedbackTable();
+    await query('UPDATE feedback SET status = $1 WHERE id = $2', [status, req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Update failed.' }); }
+});
+
 app.post('/api/admin/maintenance', adminAuthMiddleware, (req, res) => {
   const { enabled } = req.body;
   maintenanceMode = !!enabled;

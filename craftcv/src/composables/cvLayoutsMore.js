@@ -84,7 +84,7 @@ export function moreLayoutHtml({ sections, B, header, avatar, ALL, MAIN, SIDE })
     outline:   (m) => single(m),
     overview:  (m) => `
       <header class="hd">${nameTitle(m)}</header>
-      <div class="strip">${sections(m, ['contact', 'skills', 'languages'], true)}</div>
+      <div class="strip">${sections(m, ['contact'], true)}${sections(m, ['skills'])}${sections(m, ['languages'], true)}</div>
       <main class="body">${sections(m, ['profile', 'experience', 'projects', 'education', 'certifications'])}</main>`,
     airy:      (m) => single(m),
     nordic:    (m) => `${header(m)}${twoCol(m)}`,
@@ -224,7 +224,7 @@ export const MORE_LAYOUT_CSS = {
 .l-clarity{padding:46px 52px 40px}
 .l-clarity .hd{margin-bottom:24px}
 .l-clarity .name{font-weight:800;font-size:calc(34px*var(--s));letter-spacing:-.03em}
-.l-clarity .sec-h{display:inline-block;background:var(--act);color:var(--acd);padding:4px 12px;border-radius:99px;letter-spacing:.1em;margin-bottom:10px}`,
+.l-clarity .sec-h{display:inline-block;background:var(--act);color:var(--acd);padding:5px 14px;border-radius:99px;letter-spacing:.1em;font-size:calc(10px*var(--s));margin-bottom:11px}`,
 
   margin: `
 .l-margin{padding:46px 52px 40px}
@@ -232,14 +232,14 @@ export const MORE_LAYOUT_CSS = {
 .l-margin .name{font-weight:600;font-size:calc(32px*var(--s))}
 .l-margin .name::after{content:'';display:block;width:48px;height:3px;background:var(--ac);border-radius:2px;margin-top:12px}
 .l-margin .title{margin-top:12px}
-.l-margin .sec{border-left:2px solid var(--act);padding-left:18px}
+.l-margin .sec{border-left:2px solid color-mix(in srgb,var(--ac) 38%,transparent);padding-left:18px}
 .l-margin .sec-h{margin-left:-20px;padding-left:18px;border-left:2px solid var(--ac);font-family:var(--hfont);font-weight:600}`,
 
   statement: `
 .l-statement{padding:46px 50px 40px}
 .l-statement .name{font-weight:800;font-size:calc(48px*var(--s));letter-spacing:-.045em;line-height:.98}
 .l-statement .title{font-family:var(--hfont);font-size:calc(14px*var(--s));margin-top:10px}
-.l-statement .contact-list{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 18px;margin:18px 0 24px;padding:11px 0;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb}
+.l-statement .contact-list{display:flex;flex-wrap:wrap;gap:3px 26px;margin:18px 0 24px;padding:11px 0;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb}
 .l-statement .sec-h{color:#111827;letter-spacing:.1em}
 .l-statement .sec-h::after{content:'';display:block;width:26px;height:2px;background:var(--ac);margin-top:6px}`,
 
@@ -286,7 +286,7 @@ export const MORE_LAYOUT_CSS = {
 .l-overview{padding:42px 48px 38px}
 .l-overview .name{font-weight:800;font-size:calc(34px*var(--s));letter-spacing:-.03em}
 .l-overview .hd{margin-bottom:18px}
-.l-overview .strip{display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:22px;background:var(--act);border-radius:10px;padding:16px 20px;margin-bottom:24px}
+.l-overview .strip{display:grid;grid-template-columns:1.05fr 1.3fr .9fr;gap:22px;background:var(--act);border-radius:10px;padding:16px 20px;margin-bottom:24px}
 .l-overview .strip .sec{margin-top:0}
 .l-overview .strip .sec-h{color:var(--acd)}`,
 

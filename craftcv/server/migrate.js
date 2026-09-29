@@ -93,6 +93,18 @@ UPDATE payments SET source  = 'demo' WHERE session_id LIKE 'demo\\_%' AND source
 CREATE INDEX IF NOT EXISTS payments_user_product ON payments(user_id, product);
 
 -- ADMINS (separate table from users)
+-- FEEDBACK & COMPLAINTS (also created on demand by the server)
+CREATE TABLE IF NOT EXISTS feedback (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    UUID REFERENCES users(id) ON DELETE SET NULL,
+  email      TEXT,
+  kind       TEXT NOT NULL,
+  message    TEXT NOT NULL,
+  page       TEXT,
+  status     TEXT NOT NULL DEFAULT 'open',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS admins (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email         TEXT UNIQUE NOT NULL,

@@ -243,6 +243,16 @@ input[type=range]{flex:1;accent-color:var(--accent);}
   .preview-iframe { height:320px; }
 }
 
+.fb-row{padding:14px 18px;border-top:1px solid var(--b1)}
+.fb-row.fb-done{opacity:.55}
+.fb-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.fb-from{font-size:13px;color:var(--t1)}
+.fb-from a{color:var(--accent)}
+.fb-date{font-size:12px;color:var(--t3);margin-left:auto}
+.fb-msg{margin-top:8px;font-size:13.5px;line-height:1.6;color:var(--t1);white-space:pre-wrap;word-break:break-word}
+.fb-page{margin-top:6px;font-size:11.5px;color:var(--t3)}
+.badge-amber{background:rgba(217,119,6,.15);color:#d97706}
+.badge-red{background:rgba(220,38,38,.14);color:#dc2626}
 </style>
 </head>
 <body>
@@ -310,8 +320,21 @@ async function loadPage(p) {
   S.page=p;
   if(p==='dashboard') await loadStats();
   if(p==='users'&&!S.users.length) await loadUsers(1);
+  if(p==='feedback') await loadFeedback();
   render();
 }
+
+// ── Feedback ──────────────────────────────────────────────────────────────────
+async function loadFeedback() {
+  S.fbLoading=true; render();
+  try { const d=await api('GET','/feedback'+(S.fbFilter?'?status='+S.fbFilter:'')); S.fb=d.items; S.fbOpen=d.open; } catch(e){ alert(e.message); }
+  S.fbLoading=false; render();
+}
+async function setFeedback(id,status) {
+  try { await api('PATCH','/feedback/'+id,{status}); await loadFeedback(); } catch(e){ alert(e.message); }
+}
+window.setFeedback=setFeedback;
+window.fbFilter=(f)=>{ S.fbFilter=f; loadFeedback(); };
 
 // ── EMAIL BUILDER ─────────────────────────────────────────────────────────────
 const BLOCK_DEFS = {
@@ -662,9 +685,10 @@ function renderApp() {
   const nav=[
     {id:'dashboard',label:'Dashboard',icon:'<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>'},
     {id:'users',label:'Users',icon:'<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>'},
+    {id:'feedback',label:'Feedback'+(S.fbOpen?` (${S.fbOpen})`:''),icon:'<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>'},
     {id:'email',label:'Newsletter',icon:'<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8l10 7 10-7"/>'},
   ];
-  const titles={dashboard:['Dashboard','Platform overview'],users:['Users','Manage accounts'],email:['Newsletter','Email builder']};
+  const titles={dashboard:['Dashboard','Platform overview'],users:['Users','Manage accounts'],feedback:['Feedback','Suggestions, problems and complaints'],email:['Newsletter','Email builder']};
   const [title,sub]=titles[S.page]||['Admin',''];
   return `<div class="app">
   <div class="sidebar">
@@ -685,6 +709,7 @@ function renderApp() {
     <div class="content">
       ${S.page==='dashboard'?renderDashboard():''}
       ${S.page==='users'?renderUsers():''}
+      ${S.page==='feedback'?renderFeedback():''}
       ${S.page==='email'?renderEmail():''}
     </div>
   </div>
@@ -745,6 +770,26 @@ function renderUsers() {
       ${S.userPage<S.userPages?`<button class="pg-btn" onclick="loadUsers(${S.userPage+1})">›</button>`:''}
     </div>
   </div>`}
+</div>`;
+}
+
+function renderFeedback() {
+  const KIND={suggestion:['Suggestion','badge-gray'],problem:['Problem','badge-blue'],payment:['Payment','badge-amber'],complaint:['Complaint','badge-red']};
+  const f=S.fbFilter||'';
+  const tabs=[['','All'],['open','Open'],['resolved','Resolved']].map(([v,l])=>`<button class="btn btn-sm ${f===v?'btn-primary':'btn-default'}" onclick="fbFilter('${v}')">${l}</button>`).join('');
+  return `<div class="card">
+  <div class="card-head"><h3>Messages <span style="color:var(--t3);font-weight:400">(${S.fbOpen||0} open)</span></h3><div class="flex">${tabs}</div></div>
+  ${S.fbLoading?`<div class="loading"><div class="spinner"></div></div>`:!(S.fb||[]).length?`<div class="empty">No messages yet</div>`:
+  (S.fb||[]).map(m=>`<div class="fb-row${m.status==='resolved'?' fb-done':''}">
+    <div class="fb-top">
+      <span class="badge ${(KIND[m.kind]||KIND.suggestion)[1]}">${(KIND[m.kind]||KIND.suggestion)[0]}</span>
+      <span class="fb-from">${m.email?`<a href="mailto:${esc(m.email)}?subject=${encodeURIComponent('Re: your CVMaster message #'+m.id.slice(0,8).toUpperCase())}">${esc(m.email)}</a>`:'<i>no email</i>'}${m.signed_in?' · account':' · guest'}</span>
+      <span class="fb-date">#${m.id.slice(0,8).toUpperCase()} · ${fmtDate(m.created_at)}</span>
+      <button class="btn btn-sm btn-default" onclick="setFeedback('${m.id}','${m.status==='resolved'?'open':'resolved'}')">${m.status==='resolved'?'Reopen':'Mark resolved'}</button>
+    </div>
+    <div class="fb-msg">${esc(m.message)}</div>
+    ${m.page?`<div class="fb-page">Sent from ${esc(m.page)}</div>`:''}
+  </div>`).join('')}
 </div>`;
 }
 

@@ -69,7 +69,7 @@
 
             <label v-if="view === 'register'" class="terms">
               <input type="checkbox" v-model="agreed" />
-              <span>I agree to the <a href="/legal" target="_blank" rel="noopener">Terms</a> and <a href="/legal" target="_blank" rel="noopener">Privacy Policy</a>.</span>
+              <span>I agree to the <a href="/terms" target="_blank" rel="noopener">Terms</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</span>
             </label>
             <div v-if="errors.terms" class="field-err">{{ errors.terms }}</div>
 
