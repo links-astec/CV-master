@@ -1,5 +1,21 @@
 # Changes
 
+## 2026-09-29 (night) — One price (£0.99) and creative templates
+
+- **One simple price: £0.99 per CV** (was £1.99 to email and €0.50 per clean download).
+  - Paying once gets the clean, watermark-free PDF emailed and as a direct download.
+  - You can re-send or download it again for free, including after edits.
+  - The €0.50 product is gone. The free watermarked download stays.
+  - Changed in: the server (`CV_PRICE_PENCE = 99`), the payment pop-up, homepage pricing (now 2 cards), terms, tutorial, settings, admin.
+- **My CVs:** "Download" gives the clean PDF directly for CVs already paid for. Otherwise it offers the free watermarked copy, or "Clean PDF £0.99", which opens payment.
+- **4 creative templates for handing in or emailing to a person:**
+  - **Studio:** dark side panel with photo or initials.
+  - **Elegant:** serif, centred, framed page.
+  - **Bold:** big colour header band.
+  - **Portrait:** photo-led header.
+  - Skills show as tags when there are 16 or fewer.
+  - Templates has an All / ATS-friendly / Creative filter, and each card shows its type. There are now 12 layouts.
+
 ## 2026-09-29 (evening) — Brand identity, homepage and login, full-CV translation, ATS button
 
 - **Brand "Trusted Check":**

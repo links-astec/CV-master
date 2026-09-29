@@ -165,7 +165,7 @@
                 <div class="ob-sum-ic" style="background:var(--c-amber-lt);color:var(--c-amber)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:14px;height:14px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                 </div>
-                <span><strong>8 layouts, 12 colours</strong> — all ATS-friendly</span>
+                <span><strong>12 layouts, 12 colours</strong> — for online and in person</span>
               </div>
             </div>
           </div>
@@ -235,7 +235,7 @@ async function finish() {
 }
 
 const welcomeFeats = [
-  { label:'8 layouts, 12 colours', sub:'Clean, ATS-friendly and easy to switch', bg:'var(--c-accent-lt)', color:'var(--c-accent)', icon:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>' },
+  { label:'12 layouts, 12 colours', sub:'ATS-friendly and creative, easy to switch', bg:'var(--c-accent-lt)', color:'var(--c-accent)', icon:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>' },
   { label:'AI writing & narrate mode', sub:'Speak your story, AI builds your CV', bg:'var(--c-teal-lt)', color:'var(--c-teal)', icon:'<path d="M12 2a3 3 0 00-3 3v8a3 3 0 006 0V5a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/>' },
   { label:'ATS-friendly output', sub:'Clean text layouts that tracking systems can read', bg:'var(--c-green-lt)', color:'var(--c-green)', icon:'<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>' },
 ]

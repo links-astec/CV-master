@@ -1,14 +1,16 @@
 <template>
   <div class="dp">
     <section class="dp-sec">
-      <div class="dp-hd">Layout</div>
+      <template v-for="k in ['ats', 'creative']" :key="k">
+      <div class="dp-hd">{{ LAYOUT_KINDS[k].name }} <span class="dp-val">{{ k === 'ats' ? 'online applications' : 'print & in person' }}</span></div>
       <div class="dp-layouts">
-        <button v-for="l in LAYOUTS" :key="l.id" class="dp-layout" :class="{ active: current.layout === l.id }"
+        <button v-for="l in LAYOUTS.filter(x => x.kind === k)" :key="l.id" class="dp-layout" :class="{ active: current.layout === l.id }"
                 @click="setLayout(l.id)" :title="l.desc">
           <CvThumb :template="`${l.id}:${current.theme}`" :data="thumbData" :fmt="store.fmt" />
           <span>{{ l.name }}</span>
         </button>
       </div>
+      </template>
       <p class="dp-note">{{ layoutDesc }}</p>
     </section>
 
@@ -67,7 +69,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useCvStore, hasDraftableContent } from '../stores/cv.js'
-import { LAYOUTS, THEMES, FONTS, parseTemplate, templateId, getLayout, getTheme } from '../composables/cvRenderer.js'
+import { LAYOUTS, LAYOUT_KINDS, THEMES, FONTS, parseTemplate, templateId, getLayout, getTheme } from '../composables/cvRenderer.js'
 import { SAMPLE_CV } from '../composables/sampleCv.js'
 import CvThumb from './CvThumb.vue'
 import TranslateModal from './TranslateModal.vue'
@@ -103,7 +105,7 @@ function undoTranslate() {
 .dp-sec{margin-bottom:24px}
 .dp-hd{font-size:12.5px;font-weight:600;color:var(--c-text);margin-bottom:10px;display:flex;align-items:center;gap:8px}
 .dp-val{font-weight:500;color:var(--c-text3)}
-.dp-layouts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.dp-layouts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
 .dp-layout{display:flex;flex-direction:column;gap:6px;padding:0;background:none;border:none;text-align:center;font-size:12px;font-weight:500;color:var(--c-text2)}
 .dp-layout :deep(.cvt){border-radius:6px;border:1px solid var(--c-border);box-shadow:var(--shadow-xs);transition:box-shadow .15s,border-color .15s}
 .dp-layout:hover :deep(.cvt){border-color:var(--c-border2);box-shadow:var(--shadow-sm)}

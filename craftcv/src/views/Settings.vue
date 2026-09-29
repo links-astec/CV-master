@@ -99,7 +99,7 @@
               <div style="font-size:13.5px;font-weight:700;color:var(--c-text);margin-bottom:3px;">
                 🎉 You have {{ referralInfo.credits }} free export{{ referralInfo.credits > 1 ? 's' : '' }}!
               </div>
-              <div style="font-size:12.5px;color:var(--c-text2);">Each credit covers one emailed CV export or one watermark-free download. Choose "Use a referral credit" when you export or download.</div>
+              <div style="font-size:12.5px;color:var(--c-text2);">Each credit unlocks the clean PDF of one CV. Choose "Use a referral credit" when you export or download.</div>
             </div>
           </div>
 
@@ -249,7 +249,7 @@ const copied          = ref(false)
 const refSteps = [
   { title:'Share your link', sub:'Send it to friends looking for a job', bg:'var(--c-accent-lt)', color:'var(--c-accent)', icon:'<path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/>' },
   { title:'Friend signs up', sub:'They create their free CVMaster account', bg:'var(--c-teal-lt)', color:'var(--c-teal)', icon:'<path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>' },
-  { title:'You earn a credit', sub:'1 free export or clean download for you', bg:'var(--c-green-lt)', color:'var(--c-green)', icon:'<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>' },
+  { title:'You earn a credit', sub:'1 free clean PDF for you', bg:'var(--c-green-lt)', color:'var(--c-green)', icon:'<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>' },
 ]
 
 async function loadReferral() {

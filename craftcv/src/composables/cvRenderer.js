@@ -1,4 +1,4 @@
-// CV template engine — 8 layouts × 12 colour themes.
+// CV template engine — 12 layouts (8 ATS-friendly, 4 creative) × 12 colour themes.
 //
 // Every layout is built from the same section blocks, so all of them share:
 //  • ATS-safe reading order (name → contact → profile → experience → … in the HTML,
@@ -13,16 +13,26 @@
 export const PAGE_W = 700
 export const PAGE_H = 990
 
+// kind 'ats': plain structure for online applications (tracking systems read them well).
+// kind 'creative': more visual, for printing, handing over in person or emailing a person.
 export const LAYOUTS = [
-  { id: 'modern',    name: 'Modern',    desc: 'Clean header, skills column on the right' },
-  { id: 'classic',   name: 'Classic',   desc: 'Single column, centred serif name' },
-  { id: 'sidebar',   name: 'Sidebar',   desc: 'Tinted column for contact, skills and education' },
-  { id: 'minimal',   name: 'Minimal',   desc: 'Pure text with side labels — the most ATS-friendly' },
-  { id: 'executive', name: 'Executive', desc: 'Strong colour header, two columns' },
-  { id: 'compact',   name: 'Compact',   desc: 'Dense layout that fits long CVs on one page' },
-  { id: 'timeline',  name: 'Timeline',  desc: 'Dates on the left, accent rule, confident name' },
-  { id: 'photo',     name: 'Photo',     desc: 'Headshot header, two columns' },
+  { id: 'modern',    kind: 'ats',      name: 'Modern',    desc: 'Clean header, skills column on the right' },
+  { id: 'classic',   kind: 'ats',      name: 'Classic',   desc: 'Single column, centred serif name' },
+  { id: 'sidebar',   kind: 'ats',      name: 'Sidebar',   desc: 'Tinted column for contact, skills and education' },
+  { id: 'minimal',   kind: 'ats',      name: 'Minimal',   desc: 'Pure text with side labels — the most ATS-friendly' },
+  { id: 'executive', kind: 'ats',      name: 'Executive', desc: 'Strong colour header, two columns' },
+  { id: 'compact',   kind: 'ats',      name: 'Compact',   desc: 'Dense layout that fits long CVs on one page' },
+  { id: 'timeline',  kind: 'ats',      name: 'Timeline',  desc: 'Dates on the left, accent rule, confident name' },
+  { id: 'photo',     kind: 'ats',      name: 'Photo',     desc: 'Headshot header, two columns' },
+  { id: 'studio',    kind: 'creative', name: 'Studio',    desc: 'Dark full-height panel with photo and skill tags' },
+  { id: 'elegant',   kind: 'creative', name: 'Elegant',   desc: 'Framed page, serif name, ornamental rules' },
+  { id: 'bold',      kind: 'creative', name: 'Bold',      desc: 'Colour band, big name, numbered sections' },
+  { id: 'portrait',  kind: 'creative', name: 'Portrait',  desc: 'Large photo block beside your name' },
 ]
+export const LAYOUT_KINDS = {
+  ats:      { name: 'ATS-friendly', desc: 'For online applications — tracking systems read these cleanly' },
+  creative: { name: 'Creative',     desc: 'For print, in person or sending to a person — design first' },
+}
 
 export const THEMES = [
   { id: 'indigo',   name: 'Indigo',   accent: '#4338ca', dark: '#1e1b4b', tint: '#eef2ff' },
@@ -235,6 +245,8 @@ const B = {
   // Short skills never break mid-word ("Scikit-|learn"); long phrases may still wrap
   skillsInline: (m) => m.skills.length ? `<p class="inline">${m.skills.map(s => s.length <= 24 ? `<span class="nw">${s}</span>` : s).join(sep)}</p>` : '',
   skillsList: (m) => m.skills.length ? `<ul class="list">${m.skills.map(s => `<li>${s}</li>`).join('')}</ul>` : '',
+  // Creative layouts: skills as tags (still plain text)
+  skillsChips: (m) => m.skills.length ? `<ul class="chips">${m.skills.map(s => `<li>${s}</li>`).join('')}</ul>` : '',
   projects: (m) => m.projects.map(p => `
     <article class="item">
       <div class="item-hd"><h3 class="item-t">${p.name}</h3>${p.url ? `<span class="item-d">${p.url}</span>` : ''}</div>
@@ -260,6 +272,9 @@ function sections(m, keys, side = false) {
     languages:      () => sec('languages', L.languages, side ? B.langList(m) : B.langInline(m)),
     certifications: () => sec('certifications', L.certifications, B.certs(m)),
     contact:        () => sec('contact', L.contact, B.contactList(m)),
+    // Tags look good for a handful of skills; a long list is kinder as one wrapped line
+    chips:          () => sec('skills', L.skills, m.skills.length <= 16 ? B.skillsChips(m) : B.skillsInline(m)),
+    langList:       () => sec('languages', L.languages, B.langList(m)),
   }
   return keys.map(k => html[k]()).join('')
 }
@@ -288,6 +303,57 @@ const LAYOUT_HTML = {
   modern:    (m) => `${header(m)}<div class="grid"><main class="main">${sections(m, MAIN)}</main><aside class="aside">${sections(m, SIDE, true)}</aside></div>`,
   executive: (m) => `${header(m)}<div class="grid"><main class="main">${sections(m, MAIN)}</main><aside class="aside">${sections(m, SIDE, true)}</aside></div>`,
   photo:     (m) => `${header(m, avatar(m))}<div class="grid"><main class="main">${sections(m, MAIN)}</main><aside class="aside">${sections(m, SIDE, true)}</aside></div>`,
+
+  // ── creative ──
+  // Name first in the HTML; the dark panel is drawn on the left by CSS.
+  studio: (m) => `
+    <div class="grid">
+      <main class="main">
+        <header class="hd"><h1 class="name">${m.name}</h1><p class="title">${m.title}</p></header>
+        ${sections(m, ['profile', 'experience', 'projects', 'education'])}
+      </main>
+      <aside class="aside">
+        ${avatar(m)}
+        ${sections(m, ['contact', 'chips', 'langList', 'certifications'])}
+      </aside>
+    </div>`,
+
+  elegant: (m) => `
+    <header class="hd">
+      <h1 class="name">${m.name}</h1>
+      <p class="title">${m.title}</p>
+      ${B.contact(m)}
+      <div class="orn" aria-hidden="true"></div>
+    </header>
+    <main class="body">${sections(m, ALL)}</main>`,
+
+  bold: (m) => `
+    <header class="hd">
+      <h1 class="name">${m.name}</h1>
+      <p class="title">${m.title}</p>
+      ${B.contact(m)}
+    </header>
+    <div class="grid">
+      <main class="main">${sections(m, MAIN)}</main>
+      <aside class="aside">${sections(m, ['chips', 'education', 'langList', 'certifications'])}</aside>
+    </div>`,
+
+  portrait: (m) => `
+    <header class="hd">
+      <div class="pic">${m.photo ? `<img src="${m.photo}" alt="" />` : `<span aria-hidden="true">${m.initials || (m.preview ? '<span class="ph">AB</span>' : '')}</span>`}</div>
+      <div class="hd-t">
+        <h1 class="name">${m.name}</h1>
+        <p class="title">${m.title}</p>
+        ${B.contactList(m)}
+      </div>
+    </header>
+    <main class="body">
+      ${sections(m, ['profile', 'timeline', 'projects'])}
+      <div class="split">
+        <div>${sections(m, ['education', 'certifications'])}</div>
+        <div>${sections(m, ['chips', 'langList'])}</div>
+      </div>
+    </main>`,
 
   // Main column comes first in the HTML (what an ATS reads); CSS draws the sidebar on the left.
   sidebar: (m) => `
@@ -366,6 +432,8 @@ const BASE_CSS = `
 .cvr .avatar{width:84px;height:84px;border-radius:50%;object-fit:cover;flex-shrink:0;display:block}
 .cvr .avatar.initials{display:flex;align-items:center;justify-content:center;background:var(--ac);color:#fff;font-weight:600;font-size:28px;font-family:var(--hfont)}
 .cvr .grid{flex:1}
+.cvr .chips{list-style:none;display:flex;flex-wrap:wrap;gap:5px}
+.cvr .chips li{padding:3px 9px;border-radius:999px;background:var(--act);color:var(--acd);font-size:calc(9.6px*var(--s));font-weight:500;line-height:1.4}
 `
 
 const TWO_COL = (l) => `
@@ -441,9 +509,70 @@ const LAYOUT_CSS = {
 .l-photo .hd{display:flex;align-items:center;gap:24px;padding:34px 44px 24px;margin-bottom:26px;background:var(--act);border-bottom:3px solid var(--ac)}
 .l-photo .avatar{width:92px;height:92px;border:3px solid #fff}
 .l-photo .grid{padding:0 44px 36px}`,
+
+  // ── creative ──
+  studio: `
+.l-studio .grid{display:grid;grid-template-columns:236px 1fr;grid-template-areas:'aside main'}
+.l-studio .main{grid-area:main;padding:48px 42px 36px 36px}
+.l-studio .aside{grid-area:aside;background:var(--acd);color:rgba(255,255,255,.86);padding:44px 24px 36px 28px}
+.l-studio .hd{margin-bottom:26px;padding-bottom:20px;border-bottom:3px solid var(--ac)}
+.l-studio .name{font-size:calc(36px*var(--s));font-weight:800;letter-spacing:-.03em;line-height:1.02}
+.l-studio .title{text-transform:uppercase;letter-spacing:.16em;font-size:calc(10.4px*var(--s));margin-top:10px}
+.l-studio .avatar{width:124px;height:124px;margin:0 auto 26px;border:4px solid rgba(255,255,255,.14);font-size:40px;background:var(--ac)}
+.l-studio .aside .sec{margin-top:calc(var(--gap)*1.05)}
+.l-studio .aside .sec-h{color:#fff;letter-spacing:.18em;border-bottom:1px solid rgba(255,255,255,.18);padding-bottom:6px}
+.l-studio .aside .contact-list{color:rgba(255,255,255,.86)}
+.l-studio .aside .chips li{background:rgba(255,255,255,.12);color:#fff}
+.l-studio .aside .list,.l-studio .aside strong,.l-studio .aside .inline,.l-studio .aside .prose{color:rgba(255,255,255,.86)}
+.l-studio .aside .muted{color:rgba(255,255,255,.6)}`,
+
+  elegant: `
+.l-elegant{padding:58px 64px 50px;background:#fffdf9}
+.l-elegant::before{content:'';position:absolute;inset:16px;border:1px solid color-mix(in srgb,var(--ac) 40%,transparent);pointer-events:none}
+.l-elegant::after{content:'';position:absolute;inset:20px;border:1px solid color-mix(in srgb,var(--ac) 18%,transparent);pointer-events:none}
+.l-elegant .hd{text-align:center;margin-bottom:26px}
+.l-elegant .name{font-size:calc(38px*var(--s));font-weight:400;letter-spacing:.01em}
+.l-elegant .title{color:var(--ac);font-weight:500;text-transform:uppercase;letter-spacing:.28em;font-size:calc(9.8px*var(--s));margin-top:10px}
+.l-elegant .contact{margin-top:12px}
+.l-elegant .orn{margin:18px auto 0;width:180px;height:9px;position:relative}
+.l-elegant .orn::before{content:'';position:absolute;left:0;right:0;top:4px;height:1px;background:var(--ac);opacity:.6}
+.l-elegant .orn::after{content:'';position:absolute;left:50%;top:0;width:8px;height:8px;margin-left:-4px;background:#fffdf9;border:1px solid var(--ac);transform:rotate(45deg)}
+.l-elegant .sec-h{display:flex;align-items:center;gap:14px;justify-content:center;color:var(--acd);letter-spacing:.24em;font-weight:600;margin-bottom:12px}
+.l-elegant .sec-h::before,.l-elegant .sec-h::after{content:'';flex:1;height:1px;background:color-mix(in srgb,var(--ac) 30%,transparent)}
+.l-elegant .s-profile .prose,.l-elegant .s-skills .inline,.l-elegant .s-languages .inline{text-align:center}
+.l-elegant .item-t{font-family:var(--hfont);font-weight:400;font-size:calc(13px*var(--s))}`,
+
+  bold: `
+.l-bold{counter-reset:sec}
+.l-bold .hd{background:var(--ac);padding:46px 46px 34px;margin-bottom:30px}
+.l-bold .name{color:#fff;font-size:calc(46px*var(--s));font-weight:800;letter-spacing:-.04em;line-height:.98}
+.l-bold .title{color:rgba(255,255,255,.8);font-weight:600;font-size:calc(13px*var(--s));margin-top:12px}
+.l-bold .contact{color:rgba(255,255,255,.88);margin-top:14px}
+.l-bold .contact .sep{color:rgba(255,255,255,.5)}
+.l-bold .grid{display:grid;grid-template-columns:1fr 196px;gap:30px;padding:0 46px 36px}
+.l-bold .sec-h{display:flex;align-items:baseline;gap:10px;color:#111827;font-size:calc(11px*var(--s));letter-spacing:.1em;margin-bottom:11px}
+.l-bold .sec-h::before{counter-increment:sec;content:counter(sec,decimal-leading-zero);font-size:calc(20px*var(--s));font-weight:800;color:var(--ac);letter-spacing:-.02em}
+.l-bold .aside .sec{margin-top:calc(var(--gap)*.9)}
+.l-bold .aside .sec:first-child{margin-top:0}`,
+
+  portrait: `
+.l-portrait .hd{display:grid;grid-template-columns:230px 1fr;min-height:230px;background:var(--act)}
+.l-portrait .pic{background:var(--ac);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.l-portrait .pic img{width:100%;height:100%;object-fit:cover;display:block}
+.l-portrait .pic > span{color:#fff;font-family:var(--hfont);font-size:64px;font-weight:700;letter-spacing:-.02em}
+.l-portrait .hd-t{padding:34px 42px;display:flex;flex-direction:column;justify-content:center}
+.l-portrait .name{font-size:calc(36px*var(--s));font-weight:800;letter-spacing:-.03em;line-height:1.02}
+.l-portrait .title{margin-top:8px;margin-bottom:14px}
+.l-portrait .body{padding:30px 44px 36px}
+.l-portrait .item.tl{display:grid;grid-template-columns:86px 1fr;gap:16px}
+.l-portrait .tl-d{font-size:calc(9.4px*var(--s));color:#6b7280;padding-top:2px;line-height:1.35}
+.l-portrait .tl-c{border-left:2px solid var(--act);padding-left:14px;position:relative}
+.l-portrait .tl-c::before{content:'';position:absolute;left:-5px;top:5px;width:8px;height:8px;border-radius:50%;background:var(--ac)}
+.l-portrait .split{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:var(--gap)}
+.l-portrait .split > div > .sec:first-child{margin-top:0}`,
 }
 
-const SERIF_HEADINGS = new Set(['classic', 'executive'])
+const SERIF_HEADINGS = new Set(['classic', 'executive', 'elegant'])
 
 // ── render ────────────────────────────────────────────────────────────────────
 // render(templateId, data, fmt, { preview }) → HTML string whose root is the page.

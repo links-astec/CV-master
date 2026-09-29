@@ -60,7 +60,7 @@ development (demo mode); in production they are unavailable unless `ALLOW_FREE_E
 |---|---|
 | `server/index.js` | All API routes: auth, drafts, AI proxy + `/api/ai/tailor`, CV upload, PDF (Puppeteer), payments, admin |
 | `server/migrate.js` | Idempotent schema migrations (runs on every Render deploy) |
-| `src/composables/cvRenderer.js` | Template engine: 8 layouts × 12 colours (`"layout:colour"` ids, old ids mapped). ATS-safe reading order, EN/FR headings, user text escaped once |
+| `src/composables/cvRenderer.js` | Template engine: 12 layouts (8 ATS-friendly, 4 creative) × 12 colours (`"layout:colour"` ids, old ids mapped). ATS-safe reading order, EN/FR headings, user text escaped once |
 | `src/composables/pageFit.js` | One-page measurement and shrink-to-fit (mirrors the server) |
 | `src/views/Editor.vue` | Editor page: `CvEditor` (Content / Design / Job & ATS) + `CvPreview` |
 | `src/stores/cv.js` | CV data + formatting, autosave (browser for guests, account when signed in) |

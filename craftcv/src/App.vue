@@ -275,7 +275,7 @@ function handleStripeReturn() {
     return
   }
 
-  // Emailed export (£1.99)
+  // Clean PDF for a CV (£0.99)
   window.history.replaceState({}, '', '/')
   nextTick(() => nextTick(() => {
     paywallRef.value?.handleStripeReturn(sessionId, draftId)

@@ -58,7 +58,7 @@
             </div>
 
             <div v-if="!paidForDraft && !demoMode" class="pw-price">
-              <div class="pw-amt">£1.99 <span>one-time, for this CV</span></div>
+              <div class="pw-amt">£0.99 <span>one-time, for this CV</span></div>
               <ul>
                 <li v-for="f in FEATURES" :key="f"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ f }}</li>
               </ul>
@@ -73,7 +73,7 @@
             <div v-if="error" class="notice error pw-err">{{ error }}</div>
 
             <button class="btn-primary accent btn-lg btn-block" :disabled="loading || !deliveryOk" @click="primary">
-              {{ loading ? 'Please wait…' : paidForDraft || demoMode ? 'Email my CV' : 'Pay £1.99 and email my CV' }}
+              {{ loading ? 'Please wait…' : paidForDraft || demoMode ? 'Email my CV' : 'Pay £0.99 — get my CV' }}
             </button>
             <button v-if="!paidForDraft && !demoMode && credits > 0" class="btn-secondary btn-block pw-credit" :disabled="loading || !deliveryOk" @click="useCredit">
               Use a referral credit instead — free ({{ credits }} left)
@@ -115,7 +115,7 @@ const notifStore = useNotifStore()
 const showToast      = inject('showToast', null)
 const requireAccount = inject('requireAccount')
 
-const FEATURES = ['Watermark-free PDF, sent to your inbox', 'Re-send it free, even after edits', 'Direct download included']
+const FEATURES = ['Clean, watermark-free PDF — emailed to you', 'Download it straight away too', 'Re-send or download again free, even after edits']
 
 // checking | tooLong | ready | sending | sent | emailFailed | error
 const state         = ref('checking')

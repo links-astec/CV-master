@@ -113,7 +113,7 @@ const steps = [
   },
   {
     title: 'Templates',
-    desc:  '8 ATS-friendly layouts in 12 colours. When you pick one you can paste the job offer you are applying for.',
+    desc:  '12 layouts in 12 colours: ATS-friendly ones for online applications, creative ones for print and in person. When you pick one you can paste the job offer you are applying for.',
     icon:  '<rect x="4" y="3" width="16" height="18" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/>',
     iconBg:'var(--c-teal-lt)',
     target: '[data-tour="nav-templates"]',
@@ -129,14 +129,14 @@ const steps = [
   },
   {
     title: 'Export',
-    desc:  'Use “Export PDF” in the editor: £1.99 emails a clean PDF (re-sends of that CV are free), or download from My CVs — free with a watermark or €0.50 clean.',
+    desc:  'Use “Export PDF” in the editor: £0.99 per CV gets you the clean PDF by email and as a download, re-sendable free after edits. From My CVs you can also download a free copy with a watermark.',
     icon:  '<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
     iconBg:'var(--c-green-lt)',
     target: null,
   },
   {
     title: 'Referral credits',
-    desc:  'Share your link from Settings. Each friend who signs up earns you a credit for one emailed CV or one clean download.',
+    desc:  'Share your link from Settings. Each friend who signs up earns you a credit that unlocks the clean PDF of one CV.',
     icon:  '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/>',
     iconBg:'var(--c-rose-lt)',
     target: '[data-tour="nav-settings"]',
