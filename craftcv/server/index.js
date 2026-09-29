@@ -988,7 +988,7 @@ async function getBrowser() {
   _browserReady = (async () => {
     const puppeteer = await import('puppeteer');
     _browser = await puppeteer.default.launch({
-      headless: 'new',
+      headless: true,
       args: [
         '--no-sandbox', '--disable-setuid-sandbox',
         '--disable-dev-shm-usage', '--disable-gpu',
@@ -1111,87 +1111,36 @@ async function renderPdfFromHtml(html) {
   }
 }
 
-// ── SHARED PDF GENERATOR ──────────────────────────────────────────────────────
-// Used by both the email route and the watermark clean download route.
-// Tries Puppeteer → wkhtmltopdf → html-pdf-node in order.
-// Returns a Buffer or null if all methods fail.
-// PDF method cache — auto-detected on first call, reused forever
-let _pdfMethod = null;
+// ── PDF GENERATOR ─────────────────────────────────────────────────────────────
+// Puppeteer (Chrome) only. The old wkhtmltopdf / html-pdf-node fallbacks silently
+// produced broken CVs (no CSS grid, no embedded fonts, wrong page size), so a failure
+// now returns null and the caller asks the user to try again instead.
+const pdfEngine = { status: 'starting', error: null, lastMs: null };
+const PDF_TIMEOUT_MS = 45000; // Render's free CPU is slow, and the first PDF also launches Chrome
+
+async function resetBrowser() {
+  const b = _browser;
+  _browser = null; _browserReady = null;
+  try { await b?.close(); } catch {}
+}
 
 async function generateCvPdf(htmlContent) {
-  const t0 = Date.now();
-
-  // ── Method: Puppeteer (shared browser, fonts blocked, domcontentloaded) ──
-  if (_pdfMethod === null || _pdfMethod === 'puppeteer') {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const t0 = Date.now();
     try {
       const pdf = await Promise.race([
         renderPdfFromHtml(htmlContent),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('puppeteer_timeout')), 6000)),
+        new Promise((_, rej) => setTimeout(() => rej(new Error(`timed out after ${PDF_TIMEOUT_MS / 1000}s`)), PDF_TIMEOUT_MS)),
       ]);
-      if (pdf && pdf.length > 1000) {
-        if (!_pdfMethod) { _pdfMethod = 'puppeteer'; console.log(`[pdf] Method: Puppeteer (${Date.now()-t0}ms)`); }
-        return pdf;
-      }
+      if (!pdf || pdf.length < 1000) throw new Error('empty PDF');
+      Object.assign(pdfEngine, { status: 'ready', error: null, lastMs: Date.now() - t0 });
+      return pdf;
     } catch (e) {
-      console.warn(`[pdf] Puppeteer failed (${Date.now()-t0}ms):`, e.message);
-      _pdfMethod = null; // try next
+      Object.assign(pdfEngine, { status: 'error', error: e.message });
+      console.error(`[pdf] Puppeteer failed (attempt ${attempt}, ${Date.now() - t0}ms):`, e.message);
+      await resetBrowser(); // a crashed or hung browser is replaced on the next attempt
     }
   }
-
-  // ── Method: wkhtmltopdf ──
-  if (_pdfMethod === null || _pdfMethod === 'wkhtmltopdf') {
-    try {
-      const { execFile } = await import('child_process');
-      const { writeFileSync, readFileSync, unlinkSync, existsSync } = await import('fs');
-      const { tmpdir } = await import('os');
-      const { join: pj } = await import('path');
-      const tmpH = pj(tmpdir(), `cv_${Date.now()}.html`);
-      const tmpP = pj(tmpdir(), `cv_${Date.now()}.pdf`);
-      writeFileSync(tmpH, htmlContent, 'utf-8');
-      const err = await new Promise(res => {
-        execFile('wkhtmltopdf', [
-          '--page-width', '700px',
-          '--margin-top', '0', '--margin-bottom', '0', '--margin-left', '0', '--margin-right', '0',
-          '--encoding', 'UTF-8', '--disable-local-file-access', '--disable-javascript',
-          '--proxy', 'http://127.0.0.1:9', // dead proxy: no network access from client-supplied HTML
-          '--load-error-handling', 'ignore', '--load-media-error-handling', 'ignore',
-          '--quiet',
-          tmpH, tmpP,
-        ], { timeout: 15000 }, res);
-      });
-      if (!err && existsSync(tmpP)) {
-        const pdf = readFileSync(tmpP);
-        try { unlinkSync(tmpH); unlinkSync(tmpP); } catch {}
-        if (pdf.length > 1000) {
-          if (!_pdfMethod) { _pdfMethod = 'wkhtmltopdf'; console.log(`[pdf] Method: wkhtmltopdf (${Date.now()-t0}ms)`); }
-          return pdf;
-        }
-      }
-      try { unlinkSync(tmpH); unlinkSync(tmpP); } catch {}
-    } catch (e) {
-      console.warn('[pdf] wkhtmltopdf failed:', e.message);
-      _pdfMethod = null;
-    }
-  }
-
-  // ── Method: html-pdf-node ──
-  if (_pdfMethod === null || _pdfMethod === 'htmlpdf') {
-    try {
-      const htmlPdf = await import('html-pdf-node');
-      const pdf = await htmlPdf.default.generatePdf(
-        { content: htmlContent },
-        { width: '700px', margin: { top:'0', bottom:'0', left:'0', right:'0' }, printBackground: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] }
-      );
-      if (pdf && pdf.length > 1000) {
-        if (!_pdfMethod) { _pdfMethod = 'htmlpdf'; console.log(`[pdf] Method: html-pdf-node (${Date.now()-t0}ms)`); }
-        return pdf;
-      }
-    } catch (e) {
-      console.warn('[pdf] html-pdf-node failed:', e.message);
-    }
-  }
-
-  console.error(`[pdf] All methods failed after ${Date.now()-t0}ms`);
   return null;
 }
 
@@ -1993,7 +1942,7 @@ app.get('/api/health', async (req, res) => {
   if (maintenanceMode) {
     return res.status(503).json({ ok: false, maintenance: true, message: 'Under maintenance' });
   }
-  res.json({ ok: true, maintenance: false, db, groq: !!GROQ_KEY, stripe: !!STRIPE_KEY, freeExports: FREE_EXPORTS, email: !!(resend || smtpTransport), google: !!GOOGLE_CLIENT_ID, time: new Date().toISOString() });
+  res.json({ ok: true, maintenance: false, db, groq: !!GROQ_KEY, stripe: !!STRIPE_KEY, freeExports: FREE_EXPORTS, pdf: pdfEngine.status, pdfError: pdfEngine.error, pdfMs: pdfEngine.lastMs, email: !!(resend || smtpTransport), google: !!GOOGLE_CLIENT_ID, time: new Date().toISOString() });
 });
 
 // Frontend is served by Vercel — no static file serving needed here.
@@ -2004,9 +1953,11 @@ if (process.env.VERCEL !== '1') {
   const PORT = process.env.PORT || 3001;
   // Warm up Puppeteer on server start so first PDF is fast
   getBrowser().then(() => {
+    pdfEngine.status = 'ready';
     console.log('  PDF:    Puppeteer ready');
-  }).catch(() => {
-    console.warn('  PDF:    Puppeteer warmup failed — will retry on first request');
+  }).catch((e) => {
+    Object.assign(pdfEngine, { status: 'error', error: e.message });
+    console.error('  PDF:    Puppeteer could not start —', e.message);
   });
 
   app.listen(PORT, () => {

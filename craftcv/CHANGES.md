@@ -1,5 +1,14 @@
 # Changes
 
+## 2026-09-29 (later) — PDFs on the live server
+
+- **The live server wasn't using Chrome for PDFs, so downloaded CVs were broken.**
+  - Puppeteer downloads Chrome at build time into `~/.cache/puppeteer`, which Render doesn't keep for the running server.
+  - Every PDF therefore fell back to wkhtmltopdf. That old engine has no CSS grid (columns stacked), no embedded fonts, and an A4 page size (white space at the bottom).
+  - `.puppeteerrc.cjs` now keeps Chrome inside the project folder.
+- **Removed the wkhtmltopdf / html-pdf-node fallbacks.** If Chrome fails, the user sees "PDF generation failed — try again" instead of receiving a broken CV. One automatic retry with a fresh browser; timeout raised from 6 s to 45 s for Render's slow free CPU.
+- `/api/health` now reports `pdf` (`starting` / `ready` / `error`), `pdfError` and `pdfMs`.
+
 ## 2026-09-29 — Redesign, new template engine, one-page fit, guest mode, email fix
 
 ### Fixed: the CV export didn't arrive
