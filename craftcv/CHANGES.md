@@ -1,5 +1,20 @@
 # Changes
 
+## 2026-09-30 — Story mode asks follow-up questions; Claude as the AI
+
+- **"Tell your story" now checks the story before building** (new `POST /api/ai/story`):
+  - **Too short or not a career story:** under 12 words is caught instantly with no AI call. Nonsense or off-topic text is turned down by the AI with a reason. Either way the user sees "We can't build a CV from that yet" with three options: Try again, Fill it in step by step, or Import my CV instead.
+  - **A real story that's missing details:** a pop-up asks 2–4 short questions specific to that story, each with an example answer. There are up to 3 rounds.
+    - Users can skip any question; skipped questions are not asked again.
+    - "Build my CV now" builds with what there is at any point, and the build happens automatically after round 3.
+  - **Enough detail:** the CV is built directly.
+  - The CV only ever uses facts from the story and the answers, and it never asks for contact details.
+- **Claude is the AI when `ANTHROPIC_API_KEY` is set:**
+  - The model is `ANTHROPIC_MODEL`, default `claude-sonnet-5`.
+  - Every AI feature goes through one `callAi()`; if Claude fails, it falls back to Groq.
+  - `/api/health` shows `ai` (which provider and model is in use).
+- **Stripe checkout checked on the live site:** a test account's CV got a real Stripe test checkout link, and the payment pop-up goes to it.
+
 ## 2026-09-29 (late night) — Simpler job matching and onboarding
 
 - **"Job & ATS" is now "Job match": three numbered steps.**

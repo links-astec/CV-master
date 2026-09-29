@@ -12,7 +12,7 @@ job offer with AI, check it against applicant tracking systems (ATS), then expor
 ```bash
 cd craftcv
 npm install
-cp .env.example .env     # add DATABASE_URL, JWT_SECRET, GROQ_API_KEY at minimum
+cp .env.example .env     # add DATABASE_URL, JWT_SECRET, ANTHROPIC_API_KEY (or GROQ_API_KEY) at minimum
 npm run db:migrate
 npm run dev              # Vite on :5173 + API on :3001
 ```
