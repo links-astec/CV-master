@@ -8,6 +8,7 @@
   - `.puppeteerrc.cjs` now keeps Chrome inside the project folder.
 - **Removed the wkhtmltopdf / html-pdf-node fallbacks.** If Chrome fails, the user sees "PDF generation failed — try again" instead of receiving a broken CV. One automatic retry with a fresh browser; timeout raised from 6 s to 45 s for Render's slow free CPU.
 - `/api/health` now reports `pdf` (`starting` / `ready` / `error`), `pdfError` and `pdfMs`.
+- Review now flags unfilled AI placeholders such as `[X%]` or `[N]` (they would print on the CV as-is).
 
 ## 2026-09-29 — Redesign, new template engine, one-page fit, guest mode, email fix
 
