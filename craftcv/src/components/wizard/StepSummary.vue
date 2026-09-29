@@ -79,7 +79,7 @@ async function enhanceSummary() {
 Name: ${store.data.fn} ${store.data.ln}
 Title: ${store.data.title}
 Current summary: ${store.data.sum || 'none'}${ctx ? `\nUser profile: ${ctx}` : ''}
-Tailor the tone and focus to their industry and career goal. Focus on measurable impact and value. Return only the summary text, no quotes.`
+Tailor the tone and focus to their industry and career goal. Focus on measurable impact and value. Return only the summary text, no quotes.${store.data.lang === 'fr' ? ' Write it in French.' : ' Write it in English.'}`
     const text = await store.callAi(prompt)
     aiResult.value = text || ''
   } catch {

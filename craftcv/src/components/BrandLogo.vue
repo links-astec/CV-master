@@ -1,22 +1,33 @@
 <template>
-  <span class="brand" :class="{ 'brand-sm': small }">
-    <span class="brand-mark" aria-hidden="true">
-      <svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v11a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z" fill="#fff" opacity=".95"/><path d="M14 3v5h5" fill="none" stroke="#c7c4ff" stroke-width="1.4"/><path d="M8.5 12.5h7M8.5 15.5h5" stroke="#4f46e5" stroke-width="1.6" stroke-linecap="round"/></svg>
-    </span>
-    <span v-if="!markOnly" class="brand-name">CVMaster</span>
+  <span class="brand" :class="[{ 'brand-sm': small, 'brand-lg': large }, { 'brand-dark': dark }]" aria-label="CVMaster">
+    <!-- The mark: a CV page with a tick (same drawing as brand/cvmaster-mark.svg) -->
+    <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
+      <rect width="64" height="64" rx="15" fill="#4338CA"/>
+      <path d="M21 11h15l11 11v27a4 4 0 0 1-4 4H21a4 4 0 0 1-4-4V15a4 4 0 0 1 4-4z" fill="#FFFFFF"/>
+      <path d="M36 11v7.5a3.5 3.5 0 0 0 3.5 3.5H47z" fill="#A5B4FC"/>
+      <path d="M23 19.5h8" stroke="#C7D2FE" stroke-width="3" stroke-linecap="round"/>
+      <path d="M23.5 37.5l6.5 6.5 12-12.5" fill="none" stroke="#4338CA" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span v-if="!markOnly" class="brand-name" aria-hidden="true"><span class="brand-cv">CV</span>Master</span>
   </span>
 </template>
 
 <script setup>
-defineProps({ small: Boolean, markOnly: Boolean })
+defineProps({ small: Boolean, large: Boolean, markOnly: Boolean, dark: Boolean })
 </script>
 
 <style scoped>
-.brand{display:inline-flex;align-items:center;gap:10px;text-decoration:none}
-.brand-mark{width:32px;height:32px;border-radius:9px;background:linear-gradient(145deg,#6366f1,#4338ca);display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(67,56,202,.35),inset 0 1px 0 rgba(255,255,255,.18);flex-shrink:0}
-.brand-mark svg{width:20px;height:20px}
-.brand-name{font-size:16.5px;font-weight:700;letter-spacing:-.02em;color:var(--c-text)}
-.brand-sm .brand-mark{width:28px;height:28px;border-radius:8px}
-.brand-sm .brand-mark svg{width:17px;height:17px}
-.brand-sm .brand-name{font-size:15px}
+.brand{display:inline-flex;align-items:center;gap:10px;text-decoration:none;font-family:'Plus Jakarta Sans',system-ui,sans-serif}
+.brand-mark{width:32px;height:32px;flex-shrink:0;display:block}
+.brand-name{font-size:19px;font-weight:800;letter-spacing:-.035em;color:#14142B;line-height:1}
+.brand-cv{color:#4338CA}
+.brand-sm .brand-mark{width:28px;height:28px}
+.brand-sm .brand-name{font-size:17px}
+.brand-lg{gap:14px}
+.brand-lg .brand-mark{width:44px;height:44px}
+.brand-lg .brand-name{font-size:26px}
+.brand-dark .brand-name{color:#FFFFFF}
+.brand-dark .brand-cv{color:#A5B4FC}
+:global([data-theme="dark"]) .brand .brand-name{color:#F3F4F6}
+:global([data-theme="dark"]) .brand .brand-cv{color:#A5B4FC}
 </style>

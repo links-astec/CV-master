@@ -1,16 +1,16 @@
-/* CVMaster design system — "clean & calm".
-   Neutral surfaces, one indigo accent, Inter, hairline borders, soft shadows.
+/* CVMaster design system — brand "Trusted Check".
+   Cool neutral surfaces, one indigo accent (#4338CA), Plus Jakarta Sans, hairline borders, soft shadows.
    Components use the --c-* tokens, so dark mode is just a token swap. */
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
 :root{
   --sb:240px; --topbar:60px;
-  --c-bg:#f6f6f8; --c-surface:#ffffff; --c-surface2:#fafafb;
-  --c-border:#e6e6ea; --c-border2:#d4d4da;
-  --c-text:#111827; --c-text2:#4b5563; --c-text3:#8b919c;
-  --c-accent:#4f46e5; --c-accent-lt:#eef0ff; --c-accent-dk:#4338ca; --c-accent-ring:rgba(79,70,229,.18);
-  --c-green:#15803d; --c-green-lt:#ecfdf3;
+  --c-bg:#f5f5fa; --c-surface:#ffffff; --c-surface2:#fafafd;
+  --c-border:#e4e4ee; --c-border2:#d0d0de;
+  --c-text:#14142b; --c-text2:#4a4a63; --c-text3:#8a8aa0;
+  --c-accent:#4338ca; --c-accent-lt:#eef0ff; --c-accent-dk:#3730a3; --c-accent-ring:rgba(67,56,202,.18);
+  --c-green:#15803d; --c-green-lt:#ecfdf3; --c-pass:#16a34a;
   --c-amber:#b45309; --c-amber-lt:#fff8eb;
   --c-rose:#be123c;  --c-rose-lt:#fff1f3;
   --c-violet:#7c3aed; --c-violet-lt:#f5f3ff;
@@ -22,7 +22,7 @@
   --shadow:0 4px 16px rgba(17,24,39,.07),0 1px 3px rgba(17,24,39,.05);
   --shadow-lg:0 12px 32px rgba(17,24,39,.10),0 2px 6px rgba(17,24,39,.05);
   --shadow-xl:0 24px 64px rgba(17,24,39,.18),0 4px 12px rgba(17,24,39,.06);
-  --font:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
   font-family:var(--font); color:var(--c-text); color-scheme:light;
   -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
   text-rendering:optimizeLegibility;
@@ -60,7 +60,7 @@ a{color:var(--c-accent)}
   transition:background .15s,border-color .15s,color .15s,box-shadow .15s,opacity .15s}
 .btn-primary{background:var(--c-text);color:var(--c-surface);border:1px solid transparent}
 .btn-primary:hover{opacity:.88}
-.btn-primary.accent{background:var(--c-accent);color:#fff;box-shadow:0 1px 2px rgba(79,70,229,.3),inset 0 1px 0 rgba(255,255,255,.12)}
+.btn-primary.accent{background:var(--c-accent);color:#fff;box-shadow:0 1px 2px rgba(67,56,202,.3),inset 0 1px 0 rgba(255,255,255,.12)}
 .btn-primary.accent:hover{background:var(--c-accent-dk);opacity:1}
 [data-theme="dark"] .btn-primary.accent{background:#5b54e8}
 [data-theme="dark"] .btn-primary.accent:hover{background:#6a63f0}

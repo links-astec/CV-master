@@ -3,8 +3,13 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router.js'
 
-// Self-hosted fonts: Inter for the UI; DM Sans, DM Serif Display, Inter and Lora for CVs.
+// Self-hosted fonts: Plus Jakarta Sans (brand + UI); DM Sans, DM Serif Display, Inter and Lora for CVs.
 // The server embeds the same files in PDFs, so preview and export measure identically.
+import '@fontsource/plus-jakarta-sans/400.css'
+import '@fontsource/plus-jakarta-sans/500.css'
+import '@fontsource/plus-jakarta-sans/600.css'
+import '@fontsource/plus-jakarta-sans/700.css'
+import '@fontsource/plus-jakarta-sans/800.css'
 import '@fontsource/inter/400.css'
 import '@fontsource/inter/500.css'
 import '@fontsource/inter/600.css'

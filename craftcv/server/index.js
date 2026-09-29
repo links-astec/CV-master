@@ -372,7 +372,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#fff;">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:28px;">
-            <div style="width:36px;height:36px;background:#2a5bd7;border-radius:9px;display:flex;align-items:center;justify-content:center;">
+            <div style="width:36px;height:36px;background:#4338CA;border-radius:9px;display:flex;align-items:center;justify-content:center;">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             </div>
             <span style="font-size:18px;font-weight:700;color:#1a1916;">CVMaster</span>
@@ -382,7 +382,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
             Hi ${user.name},<br/><br/>
             We received a request to reset your password. Click the button below — this link expires in <strong>1 hour</strong>.
           </p>
-          <a href="${resetUrl}" style="display:inline-block;background:#2a5bd7;color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-weight:600;font-size:15px;margin-bottom:24px;">
+          <a href="${resetUrl}" style="display:inline-block;background:#4338CA;color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-weight:600;font-size:15px;margin-bottom:24px;">
             Reset Password
           </a>
           <p style="color:#b0ada6;font-size:12px;line-height:1.6;border-top:1px solid #f0ede8;padding-top:16px;">
@@ -571,6 +571,62 @@ function parseJsonObject(raw) {
   if (start === -1 || end === -1) throw new Error('No JSON object in AI reply.');
   return JSON.parse(clean.slice(start, end + 1));
 }
+
+// ── TRANSLATE A CV (EN ↔ FR) ──────────────────────────────────────────────────
+// Returns proposals only; the client shows before/after and the user applies them.
+app.post('/api/ai/translate', aiAccess, async (req, res) => {
+  try {
+    const { cv = {}, to } = req.body || {};
+    if (to !== 'fr' && to !== 'en') return res.status(400).json({ error: 'Unsupported language.' });
+    const str = v => (typeof v === 'string' ? v.trim() : '');
+    const arr = v => (Array.isArray(v) ? v : []);
+    // Only the text that should change language; ids are array positions
+    const src = {
+      title: str(cv.title),
+      sum: str(cv.sum),
+      experiences: arr(cv.experiences).slice(0, 10).map((e, i) => ({ i, title: str(e?.title), period: str(e?.period), desc: str(e?.desc) })),
+      education: arr(cv.education).slice(0, 6).map((e, i) => ({ i, degree: str(e?.degree), year: str(e?.year) })),
+      projects: arr(cv.projects).slice(0, 8).map((p, i) => ({ i, desc: str(p?.desc) })),
+      skills: arr(cv.skills).map(str).filter(Boolean).slice(0, 40),
+      languages: arr(cv.languages).slice(0, 8).map((l, i) => ({ i, name: str(l?.name), level: str(l?.level) })),
+      certifications: arr(cv.certifications).map(str).filter(Boolean).slice(0, 12),
+    };
+    const payload = JSON.stringify(src);
+    if (payload.length > 14000) return res.status(413).json({ error: 'This CV is too long to translate in one go.' });
+    const target = to === 'fr' ? 'French (as used in France)' : 'British English';
+
+    const systemPrompt = `You translate CVs into ${target}. Rules:
+- Translate faithfully and naturally, in the professional register used on CVs in that language. Do not add, remove or embellish anything.
+- Keep unchanged: company and school names, product and project names, technologies, programming languages, tools, certifications' official names, URLs, and all numbers.
+- Translate month names and words in date ranges (e.g. "Mai – Août 2026" ↔ "May – August 2026", "en cours" ↔ "ongoing").
+- Keep line breaks and bullet markers ("•") exactly where they are.
+- Language names and levels follow the target language. English ↔ French levels: Native ↔ Langue maternelle, Fluent ↔ Courant, Professional ↔ Professionnel, Intermediate ↔ Intermédiaire, Basic ↔ Notions, Bilingual ↔ Bilingue. CEFR codes like C2 stay as they are.
+- Skills: translate generic skills; keep technical terms that are normally left in English.
+- CVs often mix languages, even inside one entry. Check EVERY field and EVERY bullet line separately: anything not already in ${target} must be translated; only text already in ${target} is returned unchanged.
+- Return ONLY JSON with exactly the same structure and "i" values as the input.`;
+
+    const raw = await callGroq(`Translate this CV JSON:\n${payload}`, AI_MODEL, systemPrompt, 6000);
+    const p = parseJsonObject(raw);
+
+    const byI = (list) => new Map(arr(list).filter(x => Number.isInteger(x?.i)).map(x => [x.i, x]));
+    const exps = byI(p.experiences), edus = byI(p.education), projs = byI(p.projects), langs = byI(p.languages);
+    // Fall back to the original if a field comes back empty; tidy trailing spaces on each line
+    const keep = (a, b) => (str(b) || a).split('\n').map(l => l.trimEnd()).join('\n');
+    res.json({
+      title: keep(src.title, p.title),
+      sum: keep(src.sum, p.sum),
+      experiences: src.experiences.map(e => ({ i: e.i, title: keep(e.title, exps.get(e.i)?.title), period: keep(e.period, exps.get(e.i)?.period), desc: keep(e.desc, exps.get(e.i)?.desc) })),
+      education: src.education.map(e => ({ i: e.i, degree: keep(e.degree, edus.get(e.i)?.degree), year: keep(e.year, edus.get(e.i)?.year) })),
+      projects: src.projects.map(x => ({ i: x.i, desc: keep(x.desc, projs.get(x.i)?.desc) })),
+      skills: arr(p.skills).length === src.skills.length ? arr(p.skills).map((s, k) => keep(src.skills[k], s)) : src.skills,
+      languages: src.languages.map(l => ({ i: l.i, name: keep(l.name, langs.get(l.i)?.name), level: keep(l.level, langs.get(l.i)?.level) })),
+      certifications: arr(p.certifications).length === src.certifications.length ? arr(p.certifications).map((c, k) => keep(src.certifications[k], c)) : src.certifications,
+    });
+  } catch (e) {
+    console.error('[translate]', e.message);
+    res.status(500).json({ error: 'Translation failed — please try again.' });
+  }
+});
 
 // ── TAILOR CV TO A JOB OFFER ──────────────────────────────────────────────────
 // Returns *proposals* only — the client shows a before/after and the user picks
@@ -1247,7 +1303,7 @@ app.post('/api/cv/email', async (req, res) => {
       subject: 'Your CV from CVMaster',
       html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:36px 24px;">
         <div style="margin-bottom:24px;display:flex;align-items:center;gap:10px;">
-          <div style="width:36px;height:36px;background:#2a5bd7;border-radius:9px;display:flex;align-items:center;justify-content:center;">
+          <div style="width:36px;height:36px;background:#4338CA;border-radius:9px;display:flex;align-items:center;justify-content:center;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           </div>
           <span style="font-size:18px;font-weight:700;color:#1a1916;">CVMaster</span>
@@ -1258,7 +1314,7 @@ app.post('/api/cv/email', async (req, res) => {
             ? 'Your CV is attached as a ready-to-send PDF.'
             : 'Your CV is attached as an HTML file. Open it in Chrome and press <strong>Ctrl+P → Save as PDF</strong> to get a PDF.'}
         </p>
-        <p style="color:#b0ada6;font-size:12px;margin:0;">CVMaster · <a href="https://cvmaster.live" style="color:#2a5bd7;">cvmaster.live</a></p>
+        <p style="color:#b0ada6;font-size:12px;margin:0;">CVMaster · <a href="https://cvmaster.live" style="color:#4338CA;">cvmaster.live</a></p>
       </div>`,
       attachments: [attachment],
     });

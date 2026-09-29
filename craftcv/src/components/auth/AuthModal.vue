@@ -6,8 +6,23 @@
           <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
 
+        <!-- Brand panel (hidden on small screens) -->
+        <aside class="auth-side" aria-hidden="true">
+          <BrandLogo dark />
+          <div class="auth-side-copy">
+            <h3>Your CV, tailored to every job.</h3>
+            <ul>
+              <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Keep every CV safe in one place</li>
+              <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Tailor to job offers and check your ATS match</li>
+              <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Export clean one-page PDFs</li>
+            </ul>
+          </div>
+          <div class="auth-side-cv"><CvThumb template="modern:indigo" :data="SAMPLE_CV" /></div>
+        </aside>
+
+        <div class="auth-main">
         <div class="auth-hd">
-          <BrandLogo mark-only />
+          <BrandLogo mark-only class="auth-mobile-mark" />
           <h2>{{ TITLES[view] }}</h2>
           <p>{{ subtitle }}</p>
         </div>
@@ -103,6 +118,7 @@
           </form>
           <button class="link-btn auth-back" @click="switchView('forgot')">Request a new link</button>
         </template>
+        </div>
       </div>
     </div>
   </Teleport>
@@ -112,6 +128,8 @@
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useAuthStore } from '../../stores/auth.js'
 import BrandLogo from '../BrandLogo.vue'
+import CvThumb from '../CvThumb.vue'
+import { SAMPLE_CV } from '../../composables/sampleCv.js'
 
 const props = defineProps({
   initialView: { type: String, default: 'register' },   // signin | register | forgot | reset
@@ -264,10 +282,26 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.auth{max-width:420px;padding:32px 30px 28px}
-.auth-hd{display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:20px}
-.auth-hd h2{font-size:21px;font-weight:650;letter-spacing:-.015em;margin-top:14px}
-.auth-hd p{font-size:14px;color:var(--c-text2);margin-top:6px;max-width:320px}
+.auth{max-width:880px;padding:0;display:grid;grid-template-columns:360px 1fr;overflow:hidden}
+.auth-side{position:relative;background:#14142B;color:#fff;padding:32px 30px 0;display:flex;flex-direction:column;gap:26px;overflow:hidden}
+.auth-side::before{content:'';position:absolute;inset:0;background:radial-gradient(420px 260px at 20% 0%,rgba(99,102,241,.45),transparent 70%);pointer-events:none}
+.auth-side > *{position:relative}
+.auth-side-copy h3{font-size:24px;font-weight:800;letter-spacing:-.03em;line-height:1.15;margin-bottom:16px}
+.auth-side-copy ul{list-style:none;display:flex;flex-direction:column;gap:11px}
+.auth-side-copy li{display:flex;gap:9px;font-size:14px;color:rgba(255,255,255,.82);line-height:1.45}
+.auth-side-copy svg{width:17px;height:17px;flex-shrink:0;fill:none;stroke:#A5B4FC;stroke-width:2.6;margin-top:1px}
+.auth-side-cv{margin-top:auto;margin-bottom:-60px;height:250px;transform:rotate(-4deg) translateX(18px);border-radius:6px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.45)}
+.auth-main{padding:36px 36px 30px;min-width:0}
+.auth-mobile-mark{display:none}
+.auth-hd{display:flex;flex-direction:column;align-items:flex-start;text-align:left;margin-bottom:20px}
+.auth-hd h2{font-size:24px;font-weight:800;letter-spacing:-.03em;margin-top:0}
+.auth-hd p{font-size:14.5px;color:var(--c-text2);margin-top:6px;max-width:360px}
+@media (max-width:760px){
+  .auth{grid-template-columns:1fr;max-width:440px}
+  .auth-side{display:none}
+  .auth-main{padding:30px 24px 26px}
+  .auth-mobile-mark{display:inline-flex;margin-bottom:14px}
+}
 .auth-seg{display:flex;width:100%;margin-bottom:18px}
 .auth-seg button{flex:1}
 .auth-ref{margin-bottom:14px}

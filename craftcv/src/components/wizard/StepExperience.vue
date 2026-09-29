@@ -84,6 +84,7 @@ Rules:
 - NEVER invent numbers or achievements. Where a metric would strengthen a bullet but none is given, insert a placeholder in square brackets for the candidate to fill in, e.g. [X%], [N people], [£X]
 - Strong action verbs: Led, Built, Grew, Reduced, Launched, Managed, Delivered, Increased, Streamlined
 - No preamble, no explanation, just the bullet points
+- Language: ${store.data.lang === 'fr' ? 'French' : 'English'}
 
 Example output:
 • Led a cross-functional team of [N] engineers to launch the company's first mobile app
