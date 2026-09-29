@@ -223,6 +223,20 @@ const rules = computed(() => {
       stepIndex: 2,
     },
 
+    // AI "quantify" leaves [X%] / [N] placeholders instead of inventing numbers — they
+    // must be filled in (or removed) before the CV is sent anywhere
+    (() => {
+      const texts = [d.sum, ...exp.map(e => e.desc)].filter(Boolean).join(' ')
+      const found = [...new Set(texts.match(/\[[^\]\n]{0,12}\b[XN]\b[^\]\n]{0,12}\]/g) || [])]
+      return {
+        id: 'placeholders', cat: 'Experience', points: 10,
+        severity: found.length ? 'error' : 'pass',
+        title: found.length ? `Placeholders to fill in: ${found.slice(0, 4).join(' ')}` : 'No placeholders left',
+        text: found.length ? 'Replace these with your real numbers, or delete them — they will print on your CV as they are.' : 'Every figure on your CV is filled in.',
+        stepIndex: 2,
+      }
+    })(),
+
     // ── SKILLS ───────────────────────────────────────────────────────────────
     {
       id: 'skills-count', cat: 'Skills', points: 10,
