@@ -1,5 +1,20 @@
 # Changes
 
+## 2026-09-30 (later) — "Fix with AI" in the checklist
+
+- **Checklist items the AI can fix now have "Fix with AI"** (new `POST /api/ai/fix`):
+  - which items: missing headline, missing or wrong-length summary, roles with no description, no measurable results, leftover `[X%]`/`[N]` placeholders, too few skills
+  - **the review pop-up:** the AI's proposal shows as before/after, and the "after" text can be edited.
+    - Tick the changes you want, then apply.
+    - Suggested skills start unticked ("Tick the skills you really have").
+    - A warning appears if a `[X%]`/`[N]` placeholder is still in the text.
+  - **after applying:** the checklist shows "Fixed: … Undo".
+- **Items only the user knows get "Add"**, which opens that section. These are contact details, dates, employers and education, which the AI can't honestly make up.
+- **Honesty rules:**
+  - The results rewrite may add at most 2 number placeholders per role.
+  - It must not add new claims (frequency, team size, outcomes) that aren't on the CV.
+  - Each text stays in the language it's written in.
+
 ## 2026-09-30 — Story mode asks follow-up questions; Claude as the AI
 
 - **"Tell your story" now checks the story before building** (new `POST /api/ai/story`):

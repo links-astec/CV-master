@@ -6,6 +6,11 @@
     </div>
     <div class="ck-bar"><div :style="{ width: (passed.length / rules.length * 100) + '%' }"></div></div>
 
+    <div v-if="lastFix" class="ck-fixed">
+      <span>✓ Fixed: {{ lastFix.title }}</span>
+      <button class="btn-ghost btn-sm" @click="undoFix">Undo</button>
+    </div>
+
     <div v-if="!todo.length" class="ck-good">
       <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
       Every check passed — contact details, summary, experience, skills and education are all in place.
@@ -17,8 +22,14 @@
         <div class="ck-item-ttl">{{ r.title }}</div>
         <div class="ck-item-txt">{{ r.text }}</div>
       </div>
-      <button v-if="r.stepIndex !== undefined" class="btn-secondary btn-sm" @click="fixStep(r.stepIndex)">Fix</button>
+      <button v-if="aiFix(r)" class="btn-secondary btn-sm ck-ai" @click="fixRef.start(aiFix(r), r.title)">
+        <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+        Fix with AI
+      </button>
+      <button v-else-if="r.stepIndex !== undefined" class="btn-secondary btn-sm" @click="fixStep(r.stepIndex)">Add</button>
     </div>
+
+    <AiFixModal ref="fixRef" @applied="onFixed" />
 
     <button v-if="passed.length" class="ck-toggle" @click="showPassed = !showPassed">
       {{ showPassed ? 'Hide' : 'Show' }} the {{ passed.length }} passed check{{ passed.length === 1 ? '' : 's' }}
@@ -34,6 +45,7 @@
 <script setup>
 import { ref, computed, inject } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
+import AiFixModal from '../AiFixModal.vue'
 
 const store = useCvStore()
 defineEmits(['next'])
@@ -201,7 +213,31 @@ const todo   = computed(() => rules.value.filter(r => r.severity !== 'pass')
   .sort((a, b) => (a.severity === 'error' ? 0 : 1) - (b.severity === 'error' ? 0 : 1)))
 const passed = computed(() => rules.value.filter(r => r.severity === 'pass'))
 
-// In the editor, "Fix" opens the matching section; in the wizard it jumps to that step
+// ── AI FIXES ────────────────────────────────────────────────────────────────
+// Issues the AI can fix from what's already on the CV. Facts only the user knows
+// (contact details, dates, employers, education) get "Add", which opens the section.
+const fixRef  = ref(null)
+const lastFix = ref(null)   // { title, snapshot } for Undo
+const hasExp  = () => (store.data.experiences || []).some(e => e.title || e.company)
+const hasText = () => hasExp() || (store.data.sum || '').length > 20
+const AI_FIX = {
+  'title':            () => hasText() && 'title',
+  'summary-exists':   () => hasText() && 'summary',
+  'summary-length':   () => hasText() && 'summary',
+  'exp-descriptions': () => hasExp() && 'descriptions',
+  'exp-metrics':      () => (store.data.experiences || []).some(e => (e.desc || '').length > 20) && 'metrics',
+  'placeholders':     () => 'placeholders',
+  'skills-count':     () => hasText() && 'skills',
+}
+const aiFix = (r) => AI_FIX[r.id]?.() || null
+function onFixed({ title, snapshot }) { lastFix.value = { title, snapshot } }
+function undoFix() {
+  if (!lastFix.value) return
+  Object.assign(store.data, lastFix.value.snapshot)
+  lastFix.value = null
+}
+
+// In the editor, "Add" opens the matching section; in the wizard it jumps to that step
 const fixSection = inject('fixSection', null)
 function fixStep(stepIndex) {
   if (fixSection) fixSection(stepIndex)
@@ -224,6 +260,8 @@ function fixStep(stepIndex) {
 .ck-body{flex:1;min-width:0}
 .ck-item-ttl{font-size:13px;font-weight:600;color:var(--c-text)}
 .ck-item-txt{font-size:12px;color:var(--c-text2);line-height:1.5;margin-top:2px}
+.ck-ai svg{width:12px;height:12px;fill:var(--c-accent);stroke:none}
+.ck-fixed{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 8px 8px 12px;border-radius:10px;background:var(--c-green-lt);color:var(--c-green);font-size:12.5px;font-weight:600}
 .ck-toggle{align-self:flex-start;background:none;border:none;padding:4px 0;font-size:12.5px;font-weight:600;color:var(--c-accent)}
 .ck-passed{list-style:none;display:flex;flex-direction:column;gap:6px;padding:2px 0 0}
 .ck-passed li{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--c-text2)}
