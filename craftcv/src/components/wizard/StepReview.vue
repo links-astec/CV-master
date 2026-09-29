@@ -1,129 +1,43 @@
 <template>
-  <div class="step-wrap">
-    <h3 class="step-title">CV Quality Check</h3>
-    <p class="step-sub">ATS compliance, content standards and recruiter best practices.</p>
+  <div class="ck">
+    <div class="ck-hd">
+      <div class="ck-ttl">{{ todo.length ? `${todo.length} thing${todo.length === 1 ? '' : 's'} to fix` : 'Your CV is complete' }}</div>
+      <div class="ck-count">{{ passed.length }}/{{ rules.length }} checks passed</div>
+    </div>
+    <div class="ck-bar"><div :style="{ width: (passed.length / rules.length * 100) + '%' }"></div></div>
 
-    <!-- With a job offer, the job-specific ATS match is the headline check -->
-    <AtsScorer v-if="jobFirst" style="margin-bottom:20px" />
-
-    <!-- Score ring -->
-    <div class="score-hero">
-      <div class="score-ring">
-        <svg width="88" height="88" viewBox="0 0 88 88">
-          <circle cx="44" cy="44" r="36" fill="none" stroke="var(--c-border2)" stroke-width="6"/>
-          <circle cx="44" cy="44" r="36" fill="none"
-            :stroke="scoreColor" stroke-width="6"
-            :stroke-dasharray="circ"
-            :stroke-dashoffset="dashOff"
-            stroke-linecap="round" transform="rotate(-90 44 44)"
-            style="transition:stroke-dashoffset .6s ease"/>
-        </svg>
-        <div class="score-mid">
-          <div class="score-n" :style="{color:scoreColor}">{{ score }}</div>
-          <div class="score-m">/100</div>
-        </div>
-      </div>
-      <div class="score-info">
-        <div class="score-ttl">{{ scoreLabel }}</div>
-        <div class="score-desc">{{ scoreDesc }}</div>
-        <div class="score-chips">
-          <span v-for="c in statusChips" :key="c.label" class="sc" :class="c.cls">{{ c.label }}</span>
-        </div>
-      </div>
+    <div v-if="!todo.length" class="ck-good">
+      <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+      Every check passed — contact details, summary, experience, skills and education are all in place.
     </div>
 
-    <!-- Category bars -->
-    <div class="cat-bars">
-      <div class="cat-bar" v-for="c in categories" :key="c.label">
-        <div class="cat-bar-hd">
-          <span class="cat-label">{{ c.label }}</span>
-          <span class="cat-score" :style="{color:catColor(c.score)}">{{ c.score }}/{{ c.max }}</span>
-        </div>
-        <div class="cat-track">
-          <div class="cat-fill" :style="{width:(c.score/c.max*100)+'%', background:catColor(c.score/c.max*100)}"></div>
-        </div>
+    <div v-for="r in todo" :key="r.id" class="ck-item" :class="r.severity">
+      <span class="ck-dot"></span>
+      <div class="ck-body">
+        <div class="ck-item-ttl">{{ r.title }}</div>
+        <div class="ck-item-txt">{{ r.text }}</div>
       </div>
+      <button v-if="r.stepIndex !== undefined" class="btn-secondary btn-sm" @click="fixStep(r.stepIndex)">Fix</button>
     </div>
 
-    <!-- AI review button -->
-    <button class="btn-ai" @click="runAiReview" :disabled="reviewing" style="margin-bottom:16px">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2"/></svg>
-      {{ reviewing ? 'AI reviewing...' : 'Run deep AI review' }}
+    <button v-if="passed.length" class="ck-toggle" @click="showPassed = !showPassed">
+      {{ showPassed ? 'Hide' : 'Show' }} the {{ passed.length }} passed check{{ passed.length === 1 ? '' : 's' }}
     </button>
-
-    <!-- Issues list -->
-    <div class="issues-list">
-      <div v-for="issue in allIssues" :key="issue.id"
-        class="issue-card" :class="issue.severity">
-        <div class="issue-hd">
-          <div class="issue-icon">
-            <svg v-if="issue.severity==='pass'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="width:14px;height:14px"><polyline points="20 6 9 17 4 12"/></svg>
-            <svg v-else-if="issue.severity==='error'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:14px;height:14px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:14px;height:14px"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          </div>
-          <div class="issue-body">
-            <div class="issue-title">{{ issue.title }}</div>
-            <div class="issue-text">{{ issue.text }}</div>
-            <div v-if="issue.tip" class="issue-tip">💡 {{ issue.tip }}</div>
-          </div>
-          <button v-if="issue.stepIndex !== undefined && issue.severity !== 'pass'" class="fix-btn" @click="fixStep(issue.stepIndex)">Fix →</button>
-        </div>
-      </div>
-
-      <!-- AI suggestions -->
-      <div v-for="s in aiSuggestions" :key="s.id" class="issue-card warn">
-        <div class="issue-hd">
-          <div class="issue-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:14px;height:14px;color:var(--c-accent)"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2"/></svg>
-          </div>
-          <div class="issue-body">
-            <div class="issue-title">{{ s.title }}</div>
-            <div class="issue-text">{{ s.text }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Email note -->
-    <div class="email-note">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:15px;height:15px;flex-shrink:0"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8l10 7 10-7"/></svg>
-      After export, your CV is emailed to <strong>{{ userEmail }}</strong>
-    </div>
-
-    <template v-if="!jobFirst">
-      <div class="ats-divider">
-        <span>Job-specific ATS check</span>
-      </div>
-      <AtsScorer />
-    </template>
-
-    <div class="next-hint pay-cta">
-      <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-green)" stroke-width="2" style="width:18px;height:18px;flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>
-      <div style="flex:1;min-width:0">
-        <div class="next-hint-ttl">Happy with your CV?</div>
-        <div class="next-hint-sub">Get it as a polished PDF, emailed to you — or open the builder to fine-tune it first.</div>
-      </div>
-      <button class="btn-primary accent" @click="$emit('pay')">Get my CV →</button>
-    </div>
+    <ul v-if="showPassed" class="ck-passed">
+      <li v-for="r in passed" :key="r.id">
+        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ r.title }}
+      </li>
+    </ul>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, inject } from 'vue'
-import AtsScorer from '../AtsScorer.vue'
+import { ref, computed, inject } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
-import { useAuthStore } from '../../stores/auth.js'
 
 const store = useCvStore()
-const auth  = useAuthStore()
-defineEmits(['next', 'pay'])
-
-const reviewing    = ref(false)
-const aiSuggestions = ref([])
-const circ = 2 * Math.PI * 36
-// Decided once on mount so the ATS box doesn't jump position while the user types into it
-const jobFirst = !!store.data.jobOffer?.trim()
-const userEmail = computed(() => auth.user?.email || 'your email')
+defineEmits(['next'])
+const showPassed = ref(false)
 
 // ── RULES ENGINE ─────────────────────────────────────────────────────────────
 // Each rule: { id, category, severity('error'|'warn'|'pass'), title, text, tip?, points, stepIndex? }
@@ -282,72 +196,10 @@ const rules = computed(() => {
   ]
 })
 
-// ── SCORING ──────────────────────────────────────────────────────────────────
-const score = computed(() => {
-  const maxPoints = rules.value.reduce((s, r) => s + r.points, 0)
-  const earned    = rules.value.filter(r => r.severity === 'pass').reduce((s, r) => s + r.points, 0)
-  return Math.round((earned / maxPoints) * 100)
-})
 
-const scoreColor = computed(() => {
-  if (score.value >= 85) return 'var(--c-green)'
-  if (score.value >= 65) return 'var(--c-accent)'
-  if (score.value >= 45) return 'var(--c-amber)'
-  return 'var(--c-rose)'
-})
-
-const dashOff = computed(() => circ - (score.value / 100) * circ)
-
-const scoreLabel = computed(() => {
-  if (score.value >= 85) return 'Excellent CV'
-  if (score.value >= 70) return 'Strong CV'
-  if (score.value >= 50) return 'Good CV'
-  if (score.value >= 30) return 'Needs Work'
-  return 'Incomplete'
-})
-
-const scoreDesc = computed(() => {
-  if (score.value >= 85) return 'All the essentials are in place'
-  if (score.value >= 70) return 'A few tweaks could push you to 90+'
-  if (score.value >= 50) return 'Several improvements recommended'
-  return 'Complete the sections below to improve your score'
-})
-
-const statusChips = computed(() => {
-  const d = store.data
-  return [
-    { label: d.email ? 'ATS Ready' : 'Not ATS Ready', cls: d.email && d.fn ? 'sc sc-g' : 'sc sc-r' },
-    { label: (d.skills||[]).length >= 6 ? 'Keywords OK' : 'Add Keywords', cls: (d.skills||[]).length >= 6 ? 'sc sc-g' : 'sc sc-a' },
-    { label: (d.experiences||[]).some(e => /\d/.test(e.desc||'')) ? 'Metrics Present' : 'Add Metrics', cls: (d.experiences||[]).some(e => /\d/.test(e.desc||'')) ? 'sc sc-g' : 'sc sc-a' },
-  ]
-})
-
-// ── CATEGORY BREAKDOWN ───────────────────────────────────────────────────────
-const categories = computed(() => {
-  const cats = {}
-  rules.value.forEach(r => {
-    if (!cats[r.cat]) cats[r.cat] = { label: r.cat, score: 0, max: 0 }
-    cats[r.cat].max   += r.points
-    if (r.severity === 'pass') cats[r.cat].score += r.points
-  })
-  return Object.values(cats)
-})
-
-function catColor(pct) {
-  const v = typeof pct === 'number' ? (pct <= 1 ? pct * 100 : pct) : 0
-  if (v >= 80) return 'var(--c-green)'
-  if (v >= 50) return 'var(--c-accent)'
-  if (v >= 25) return 'var(--c-amber)'
-  return 'var(--c-rose)'
-}
-
-// ── ISSUES (sorted: errors first, then warnings, then passes) ────────────────
-const allIssues = computed(() => {
-  return [...rules.value].sort((a,b) => {
-    const order = { error: 0, warn: 1, pass: 2 }
-    return order[a.severity] - order[b.severity]
-  })
-})
+const todo   = computed(() => rules.value.filter(r => r.severity !== 'pass')
+  .sort((a, b) => (a.severity === 'error' ? 0 : 1) - (b.severity === 'error' ? 0 : 1)))
+const passed = computed(() => rules.value.filter(r => r.severity === 'pass'))
 
 // In the editor, "Fix" opens the matching section; in the wizard it jumps to that step
 const fixSection = inject('fixSection', null)
@@ -355,92 +207,25 @@ function fixStep(stepIndex) {
   if (fixSection) fixSection(stepIndex)
   else store.openWizardAtStep(stepIndex)
 }
-
-// ── AI DEEP REVIEW ───────────────────────────────────────────────────────────
-async function runAiReview() {
-  reviewing.value = true
-  aiSuggestions.value = []
-  try {
-    const d = store.data
-    const prompt = `You are a professional CV reviewer. Analyse this CV and return ONLY a JSON array of 3-5 specific improvement suggestions.
-Each suggestion: {"id":"s1","title":"Short title","text":"Specific actionable advice"}
-Focus on: content quality, word choice, industry standards, ATS optimisation, missing sections.
-Be specific and actionable, not generic.
-
-CV DATA:
-Name: ${d.fn} ${d.ln}
-Title: ${d.title}
-Summary: ${d.sum?.slice(0,300)}
-Experience: ${(d.experiences||[]).map(e => e.title+' at '+e.company+': '+e.desc?.slice(0,100)).join(' | ')}
-Skills: ${(d.skills||[]).join(', ')}
-Education: ${Array.isArray(d.education) ? d.education[0]?.degree+' - '+d.education[0]?.school : d.education?.degree}
-
-Return ONLY the JSON array, no markdown.`
-
-    const result  = await store.callAi(prompt)
-    const clean   = result.replace(/\`\`\`json\s*/gi,'').replace(/\`\`\`/g,'').trim()
-    const parsed  = JSON.parse(clean)
-    if (Array.isArray(parsed)) aiSuggestions.value = parsed
-  } catch (e) {
-    console.warn('AI review failed:', e)
-  }
-  reviewing.value = false
-}
-
-onMounted(runAiReview)
 </script>
 
 <style scoped>
-.step-title { font-family:inherit;letter-spacing:-.01em; font-size:20px; color:var(--c-text); margin-bottom:5px; }
-.step-sub   { font-size:13px; color:var(--c-text2); margin-bottom:20px; line-height:1.5; }
-
-/* Score hero */
-.score-hero { display:flex; align-items:center; gap:18px; margin-bottom:20px; padding:16px; background:var(--c-bg); border:1px solid var(--c-border); border-radius:var(--radius-lg); }
-.score-ring { position:relative; width:88px; height:88px; flex-shrink:0; }
-.score-mid  { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-.score-n    { font-family:inherit;letter-spacing:-.01em; font-size:26px; font-weight:700; line-height:1; }
-.score-m    { font-size:11px; color:var(--c-text3); }
-.score-ttl  { font-size:16px; font-weight:700; color:var(--c-text); margin-bottom:3px; }
-.score-desc { font-size:12px; color:var(--c-text2); margin-bottom:8px; line-height:1.4; }
-.score-chips { display:flex; gap:5px; flex-wrap:wrap; }
-.sc  { font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; }
-.sc-g { background:var(--c-green-lt); color:var(--c-green); }
-.sc-a { background:var(--c-amber-lt); color:var(--c-amber); }
-.sc-r { background:var(--c-rose-lt);  color:var(--c-rose);  }
-
-/* Category bars */
-.cat-bars { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
-.cat-bar  { background:var(--c-bg); border:1px solid var(--c-border); border-radius:var(--radius); padding:10px 12px; }
-.cat-bar-hd { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
-.cat-label  { font-size:12px; font-weight:600; color:var(--c-text2); }
-.cat-score  { font-size:11px; font-weight:700; }
-.cat-track  { height:5px; background:var(--c-border); border-radius:3px; overflow:hidden; }
-.cat-fill   { height:100%; border-radius:3px; transition:width .5s ease; }
-
-/* Issues */
-.issues-list { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
-.issue-card  { border-radius:var(--radius); padding:12px 14px; border:1px solid; }
-.issue-card.pass  { background:var(--c-green-lt); border-color:#a0d8b8; }
-.issue-card.warn  { background:var(--c-amber-lt); border-color:#e8c87a; }
-.issue-card.error { background:var(--c-rose-lt);  border-color:#f0a8b0; }
-.issue-hd    { display:flex; align-items:flex-start; gap:10px; }
-.issue-icon  { width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
-.issue-card.pass  .issue-icon { background:var(--c-green);  color:#fff; }
-.issue-card.warn  .issue-icon { background:var(--c-amber);  color:#fff; }
-.issue-card.error .issue-icon { background:var(--c-rose);   color:#fff; }
-.issue-body  { flex:1; min-width:0; }
-.issue-title { font-size:13px; font-weight:700; color:var(--c-text); margin-bottom:3px; }
-.issue-text  { font-size:12px; color:var(--c-text2); line-height:1.55; }
-.issue-tip   { font-size:11.5px; color:var(--c-text3); margin-top:5px; font-style:italic; }
-.fix-btn { background:var(--c-text); color:var(--c-surface); border:none; padding:5px 11px; border-radius:var(--radius-sm); font-size:11.5px; font-weight:700; cursor:pointer; font-family:inherit; flex-shrink:0; white-space:nowrap; transition:opacity .15s; }
-.fix-btn:hover { opacity:.8; }
-
-.email-note { display:flex; align-items:center; gap:8px; background:var(--c-bg); border:1px solid var(--c-border); border-radius:var(--radius); padding:10px 12px; font-size:12px; color:var(--c-text2); margin-bottom:12px; }
-.next-hint { display:flex; align-items:flex-start; gap:12px; background:var(--c-green-lt); border:1px solid #a0d8b8; border-radius:var(--radius); padding:14px; }
-.next-hint-ttl { font-size:13px; font-weight:700; color:var(--c-green); margin-bottom:2px; }
-.next-hint-sub { font-size:11.5px; color:var(--c-text2); }
-.pay-cta { align-items:center; margin-top:20px; flex-wrap:wrap; }
-.ats-divider { display:flex; align-items:center; gap:12px; margin:20px 0 4px; }
-.ats-divider span { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--c-text3); white-space:nowrap; }
-.ats-divider::before,.ats-divider::after { content:''; flex:1; height:1px; background:var(--c-border); }
+.ck{display:flex;flex-direction:column;gap:8px}
+.ck-hd{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.ck-ttl{font-size:14px;font-weight:700;color:var(--c-text)}
+.ck-count{font-size:12px;color:var(--c-text3);white-space:nowrap}
+.ck-bar{height:6px;border-radius:99px;background:var(--c-border);overflow:hidden;margin-bottom:6px}
+.ck-bar div{height:100%;border-radius:99px;background:var(--c-green);transition:width .4s ease}
+.ck-good{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:10px;background:var(--c-green-lt);color:var(--c-text);font-size:13px;line-height:1.5}
+.ck-good svg{width:16px;height:16px;flex-shrink:0;margin-top:2px;fill:none;stroke:var(--c-green);stroke-width:3}
+.ck-item{display:flex;align-items:center;gap:12px;padding:11px 12px;border:1px solid var(--c-border);border-radius:10px;background:var(--c-surface)}
+.ck-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--c-amber)}
+.ck-item.error .ck-dot{background:var(--c-rose)}
+.ck-body{flex:1;min-width:0}
+.ck-item-ttl{font-size:13px;font-weight:600;color:var(--c-text)}
+.ck-item-txt{font-size:12px;color:var(--c-text2);line-height:1.5;margin-top:2px}
+.ck-toggle{align-self:flex-start;background:none;border:none;padding:4px 0;font-size:12.5px;font-weight:600;color:var(--c-accent)}
+.ck-passed{list-style:none;display:flex;flex-direction:column;gap:6px;padding:2px 0 0}
+.ck-passed li{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--c-text2)}
+.ck-passed svg{width:13px;height:13px;flex-shrink:0;fill:none;stroke:var(--c-green);stroke-width:3}
 </style>

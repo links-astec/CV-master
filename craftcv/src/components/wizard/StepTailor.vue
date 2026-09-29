@@ -1,13 +1,13 @@
 <template>
   <div class="step-wrap">
-    <div class="step-intro">
+    <div v-if="!embedded" class="step-intro">
       <div class="step-icon">🎯</div>
       <h3>Tailor to the job</h3>
       <p>AI rewrites your CV in the language of the job offer so it ranks well in applicant tracking systems. It only rephrases what you've written — it never invents experience. You approve every change.</p>
     </div>
 
-    <!-- Job offer -->
-    <div class="f-grp">
+    <!-- Job offer (the Job match panel has its own box for it) -->
+    <div v-if="!embedded" class="f-grp">
       <div class="f-lbl">Job offer</div>
       <textarea class="f-ta" v-model="store.data.jobOffer" rows="6" :disabled="loading"
         placeholder="Paste the full job description here…"></textarea>
@@ -32,7 +32,7 @@
 
     <!-- Applied confirmation -->
     <div v-if="applied && !proposal" class="tl-applied">
-      <div>✓ Applied {{ applied }} change{{ applied === 1 ? '' : 's' }}{{ targetTitle ? ` for “${targetTitle}”` : '' }}. Next, the ATS check scores your CV against this job.</div>
+      <div>✓ Applied {{ applied }} change{{ applied === 1 ? '' : 's' }}{{ targetTitle ? ` for “${targetTitle}”` : '' }}.</div>
       <button class="btn-sug-dismiss" @click="undo">Undo</button>
     </div>
 
@@ -89,7 +89,8 @@ const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
 const MIN_CHARS = 40 // same minimum the /api/ai/tailor endpoint enforces
 
 const store = useCvStore()
-const emit  = defineEmits(['next', 'ai-thinking'])
+const props = defineProps({ embedded: Boolean })
+const emit  = defineEmits(['next', 'ai-thinking', 'applied'])
 
 const loading     = ref(false)
 const error       = ref('')
@@ -193,6 +194,7 @@ function apply() {
   suggested.value.filter(s => s.checked).forEach(s => { store.addSkill(s.name); n++ })
   applied.value  = n
   proposal.value = null
+  emit('applied', n)
 }
 
 function undo() {
@@ -200,6 +202,7 @@ function undo() {
   Object.assign(store.data, snapshot)
   snapshot      = null
   applied.value = 0
+  emit('applied', 0)
 }
 </script>
 

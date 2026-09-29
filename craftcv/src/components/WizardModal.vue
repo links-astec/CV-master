@@ -94,8 +94,7 @@ const StepSummary    = defineAsyncComponent(() => import('./wizard/StepSummary.v
 const StepExperience = defineAsyncComponent(() => import('./wizard/StepExperience.vue'))
 const StepSkills     = defineAsyncComponent(() => import('./wizard/StepSkills.vue'))
 const StepEducation  = defineAsyncComponent(() => import('./wizard/StepEducation.vue'))
-const StepTailor     = defineAsyncComponent(() => import('./wizard/StepTailor.vue'))
-const StepReview     = defineAsyncComponent(() => import('./wizard/StepReview.vue'))
+const JobMatch       = defineAsyncComponent(() => import('./JobMatch.vue'))
 const StepNarrate    = defineAsyncComponent(() => import('./wizard/StepNarrate.vue'))
 const StepUpload     = defineAsyncComponent(() => import('./wizard/StepUpload.vue'))
 
@@ -122,8 +121,7 @@ const manualSteps  = [
   { label: 'Experience', comp: StepExperience },
   { label: 'Skills',     comp: StepSkills },
   { label: 'Education',  comp: StepEducation },
-  { label: 'Tailor',     comp: StepTailor },
-  { label: 'Review',     comp: StepReview },
+  { label: 'Job match',  comp: JobMatch },
 ]
 const narrateSteps = [{ label: 'Your story', comp: StepNarrate }, ...manualSteps]
 const uploadSteps  = [{ label: 'Import',     comp: StepUpload },  ...manualSteps]
@@ -166,7 +164,7 @@ async function finish() {
   store.closeWizard()
   emit('open-builder')
 }
-// Review step's "Get my CV" button
+// Job match step's "Export PDF" button
 async function payFromWizard() {
   await store.saveDraft()
   store.closeWizard()
