@@ -45,9 +45,11 @@
           </span>
         </RouterLink>
         <div class="sb-legal">
-          <RouterLink to="/legal" @click="navOpen = false">Privacy</RouterLink>
+          <button type="button" @click="navOpen = false; openFeedback()">Feedback</button>
           <span>·</span>
-          <RouterLink to="/legal" @click="navOpen = false">Terms</RouterLink>
+          <RouterLink to="/privacy" @click="navOpen = false">Privacy</RouterLink>
+          <span>·</span>
+          <RouterLink to="/terms" @click="navOpen = false">Terms</RouterLink>
         </div>
       </div>
     </aside>
@@ -100,6 +102,7 @@
   <AuthModal v-if="authState.open" :initial-view="authState.view" :reason="authState.reason" @done="onAuthDone" @close="onAuthClose" />
   <OnboardingModal v-if="showOnboarding" @done="onboardingDismissed = true" />
   <ConfirmModal ref="confirmRef" />
+  <FeedbackModal ref="feedbackRef" />
   <TutorialOverlay :visible="showTutorial" @close="showTutorial = false" />
 
   <div class="toast-wrap">
@@ -122,6 +125,7 @@ import WizardModal from './components/WizardModal.vue'
 import PaywallModal from './components/PaywallModal.vue'
 import NotificationDropdown from './components/NotificationDropdown.vue'
 import ConfirmModal from './components/ConfirmModal.vue'
+import FeedbackModal from './components/FeedbackModal.vue'
 import TutorialOverlay from './components/TutorialOverlay.vue'
 import BrandLogo from './components/BrandLogo.vue'
 
@@ -163,6 +167,10 @@ provide('showToast', showToast)
 provide('openPaywall', openPaywall)
 provide('confirm', (...args) => confirmRef.value?.ask(...args))
 provide('startTutorial', () => { showTutorial.value = true })
+// Feedback & complaints pop-up — openFeedback('complaint') opens on that type
+const feedbackRef = ref(null)
+function openFeedback(kind) { feedbackRef.value?.show(kind) }
+provide('openFeedback', openFeedback)
 provide('fmt', computed(() => store.fmt))
 
 // ── Auth modal (sign in / create account) ─────────────────────────────────────
@@ -334,8 +342,8 @@ watch(() => route.path, () => { navOpen.value = false })
 .sb-user-name{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sb-user-mail{font-size:12px;color:var(--c-text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sb-legal{display:flex;gap:6px;justify-content:center;font-size:12px;color:var(--c-text3)}
-.sb-legal a{color:var(--c-text3);text-decoration:none}
-.sb-legal a:hover{color:var(--c-text)}
+.sb-legal a,.sb-legal button{color:var(--c-text3);text-decoration:none;background:none;border:none;padding:0;font:inherit;cursor:pointer}
+.sb-legal a:hover,.sb-legal button:hover{color:var(--c-text)}
 .sb-dim{display:none}
 
 /* Main */

@@ -202,17 +202,19 @@
       <div class="lp-wrap lp-foot-in">
         <BrandLogo small />
         <span>© {{ new Date().getFullYear() }} CVMaster · Made for job seekers in the UK and France</span>
-        <nav><a href="/legal">Privacy</a><a href="/legal">Terms</a><a href="mailto:gabbyquaye2021@gmail.com">Contact</a></nav>
+        <nav><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="#" @click.prevent="openFeedback?.()">Feedback</a><a href="mailto:gabbyquaye2021@gmail.com">Contact</a></nav>
       </div>
     </footer>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, inject, onMounted, onUnmounted } from 'vue'
 import BrandLogo from '../components/BrandLogo.vue'
 import CvThumb from '../components/CvThumb.vue'
 import { SAMPLE_CV } from '../composables/sampleCv.js'
+
+const openFeedback = inject('openFeedback', null)
 
 defineEmits(['start', 'sign-in'])
 

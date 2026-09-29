@@ -1,5 +1,34 @@
 # Changes
 
+## 2026-09-30 (night) — Feedback & complaints, new Privacy & Terms page, template polish
+
+- **Feedback & complaints.**
+  - **The pop-up:** choose Suggestion, Problem, Payment or Complaint, then write a message. The email is optional for guests and filled in for signed-in users.
+  - **Where to open it:**
+    - the sidebar footer
+    - Settings (Send feedback / Make a complaint)
+    - the Privacy & Terms page
+    - the homepage footer
+  - **Server:** `POST /api/feedback`, limited to 8 messages an hour per IP.
+    - Messages are stored in a new `feedback` table (in `migrate.js`, and also created on demand).
+    - Each one is emailed to `FEEDBACK_EMAIL` (or `ADMIN_EMAIL`).
+    - The sender gets a reference number.
+  - **Admin panel:** a new Feedback page with All / Open / Resolved, a reply-by-email link and Mark resolved.
+- **Privacy & Terms redesigned.**
+  - A header with tabs, and /privacy and /terms now open the right tab (both used to open Privacy).
+  - A sticky "On this page" list, a "Questions or a complaint?" box, an "In short" summary and numbered sections.
+  - **Content updates:**
+    - Anthropic (Claude) is listed as an AI provider.
+    - Feedback messages are covered.
+    - Your rights now mention a one-month response and the right to complain to the ICO.
+    - New Complaints section: how to complain, a reference number, and replies aimed at 5 working days with resolution within 14 days.
+    - The Terms now say they don't limit consumer-law rights.
+- **Template polish:**
+  - Statement: contacts in one wrapping row.
+  - Margin: the side line is visible.
+  - Clarity: larger pill headings.
+  - Overview: skills wrap in the top strip instead of a tall list.
+
 ## 2026-09-30 (evening) — 50 templates
 
 - **38 new layouts, 50 in total (26 ATS-friendly, 24 creative), each in 12 colours.**

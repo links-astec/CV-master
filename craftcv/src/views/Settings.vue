@@ -172,6 +172,19 @@
         </button>
       </div>
 
+      <!-- Feedback & complaints -->
+      <div class="settings-card">
+        <div class="settings-ttl">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          Feedback &amp; complaints
+        </div>
+        <p style="font-size:13.5px;color:var(--c-text2);line-height:1.6;margin-bottom:14px;">Ideas, problems, payment issues or a complaint — tell us and we’ll look into it.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-secondary" @click="openFeedback('suggestion')">Send feedback</button>
+          <button class="btn-ghost" @click="openFeedback('complaint')">Make a complaint</button>
+        </div>
+      </div>
+
       <!-- Account -->
       <div v-if="auth.isLoggedIn" class="settings-card">
         <div class="settings-ttl">
@@ -195,6 +208,7 @@ const auth      = useAuthStore()
 const store     = useCvStore()
 const showToast = inject('showToast')
 const openAuth  = inject('openAuth')
+const openFeedback = inject('openFeedback')
 
 const name        = ref(auth.user?.name || '')
 const newPassword = ref('')
