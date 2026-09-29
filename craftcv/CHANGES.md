@@ -1,5 +1,20 @@
 # Changes
 
+## 2026-09-29 (late night) — Simpler job matching and onboarding
+
+- **"Job & ATS" is now "Job match": three numbered steps.**
+  1. The job
+  2. Tailor with AI (you can skip it)
+  3. ATS score
+
+  The current step is highlighted, finished steps get a tick, and later steps stay greyed out until you reach them. Before, the panel had two separate job-offer boxes, two different scores, category bars, an AI review that ran by itself, and a long list of passed checks.
+  - The job offer is typed in one place only, and a saved job shows as a short preview with "Change".
+  - After you apply tailoring changes, the ATS score is re-checked automatically and shows before → after (e.g. 58% → 78%).
+  - Progress is saved on the CV (`jobTailored`) and starts over when the job offer changes.
+  - The wizard ends with the same Job match step instead of separate Tailor and Review steps.
+- **"Before you export" checklist:** lists only what needs fixing, each with a Fix button, plus "14/16 checks passed" and a bar. Passed checks are hidden behind a link. The automatic AI review is gone; it ran on every open and repeated the ATS tips.
+- **Onboarding is one screen:** a welcome with the user's first name and three optional questions as tap-to-pick chips (field, goal, experience), with Skip or Start building. It replaces a 5-slide carousel that still used the old logo. The answers still tune the AI writing.
+
 ## 2026-09-29 (night) — One price (£0.99) and creative templates
 
 - **One simple price: £0.99 per CV** (was £1.99 to email and €0.50 per clean download).

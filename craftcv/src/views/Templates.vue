@@ -67,6 +67,7 @@ async function pick(layout) {
   const offer = await jobOfferRef.value?.ask(store.data.jobOffer)
   if (offer === null || offer === undefined) return   // dismissed — nothing changes
   store.template = templateId(layout, theme.value)
+  if (offer !== store.data.jobOffer) store.data.jobTailored = ''
   store.data.jobOffer = offer
   if (store.hasContent) {
     // Existing CV: go to the editor; with a job offer, straight to tailoring

@@ -1,6 +1,6 @@
 <template>
   <div class="ats-wrap">
-    <div class="ats-header">
+    <div v-if="!embedded" class="ats-header">
       <div class="ats-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:20px;height:20px"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
       </div>
@@ -12,6 +12,7 @@
 
     <!-- Job description input -->
     <textarea
+      v-if="!embedded"
       v-model="store.data.jobOffer"
       class="ats-textarea"
       placeholder="Paste the full job description here..."
@@ -19,10 +20,10 @@
       :disabled="scoring"
     />
 
-    <button class="btn-primary accent ats-btn" @click="runScore()" :disabled="scoring || !jobDesc.trim()">
+    <button class="ats-btn" :class="embedded && result ? 'btn-secondary' : 'btn-primary accent'" @click="runScore()" :disabled="scoring || !jobDesc.trim()">
       <svg v-if="scoring" class="ats-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" opacity=".25"/><path d="M21 12a9 9 0 00-9-9"/></svg>
       <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:14px;height:14px"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2"/></svg>
-      {{ scoring ? 'Analysing your CV against the job…' : result ? 'Check again' : 'Check ATS match' }}
+      {{ scoring ? 'Analysing your CV against the job…' : result ? 'Check again' : embedded ? 'Check my ATS score' : 'Check ATS match' }}
     </button>
 
     <!-- Results -->
@@ -106,6 +107,8 @@ const atsCache = new Map()
 import { ref, computed, onMounted } from 'vue'
 import { useCvStore } from '../stores/cv.js'
 
+const props   = defineProps({ embedded: Boolean })
+const emit    = defineEmits(['scored'])
 const store   = useCvStore()
 // The job offer lives on the CV itself, so the Tailor step, this check and the saved draft share it
 const jobDesc = computed(() => store.data.jobOffer || '')
@@ -140,14 +143,9 @@ const verdictSub = computed(() => {
 
 // A click always runs a fresh check; the automatic run on open reuses a cached result
 // (the builder mounts this in several places, and that must not re-bill the AI).
-async function runScore({ fresh = true } = {}) {
-  if (!jobDesc.value.trim()) return
-  scoring.value = true
-  result.value  = null
-  error.value   = ''
-
+function cvText() {
   const d = store.data
-  const cvText = [
+  return [
     d.fn, d.ln, d.title, d.sum,
     ...(d.experiences || []).map(e => `${e.title} ${e.company} ${e.desc}`),
     ...(d.projects || []).map(p => `${p.name} ${p.tech} ${p.desc}`),
@@ -156,17 +154,26 @@ async function runScore({ fresh = true } = {}) {
     ...(Array.isArray(d.education) ? d.education : [d.education]).map(e => `${e?.degree} ${e?.school}`),
     ...(d.certifications || []),
   ].filter(Boolean).join(' ')
+}
+// Same CV + same job → same analysis. Shared across instances, so auto-runs
+// don't fire duplicate AI calls.
+const cacheKey = () => jobDesc.value.trim() + '\n--\n' + cvText()
 
-  // Same CV + same job → same analysis. Shared across instances (the builder keeps a
-  // hidden Score tab mounted), so auto-runs don't fire duplicate AI calls.
-  const key = jobDesc.value.trim() + '\n--\n' + cvText
+async function runScore({ fresh = true } = {}) {
+  if (!jobDesc.value.trim()) return
+  scoring.value = true
+  result.value  = null
+  error.value   = ''
+
+  const key = cacheKey()
   try {
     if (fresh || !atsCache.has(key)) {
-      atsCache.set(key, analyse(cvText, jobDesc.value))
+      atsCache.set(key, analyse(cvText(), jobDesc.value))
       atsCache.get(key).catch(() => atsCache.delete(key)) // don't cache failures
     }
     result.value = await atsCache.get(key)
     checkedAt.value = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    emit('scored', result.value.score)
   } catch (e) {
     error.value = 'Analysis failed. Please try again — make sure your CV has some content filled in.'
     console.error('ATS score error:', e)
@@ -214,8 +221,14 @@ Return ONLY the JSON object, no markdown, no explanation.`
     }
 }
 
-// Arriving from the Tailor step with a job offer: score straight away
-onMounted(() => { if (jobDesc.value.trim().length >= 40) runScore({ fresh: false }) })
+// Standalone: score straight away when there's a job offer. Embedded in the Job match
+// panel: only show a result already worked out for this exact CV — the user starts the check.
+onMounted(() => {
+  if (jobDesc.value.trim().length < 40) return
+  if (!props.embedded || atsCache.has(cacheKey())) runScore({ fresh: false })
+})
+
+defineExpose({ runScore })
 </script>
 
 <style scoped>

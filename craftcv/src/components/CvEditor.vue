@@ -26,11 +26,7 @@
 
       <div v-else-if="tab === 'design'"><DesignPanel /></div>
 
-      <div v-else class="ced-job">
-        <StepTailor />
-        <div class="ced-divider"></div>
-        <StepReview @pay="$emit('pay')" />
-      </div>
+      <JobMatch v-else @pay="$emit('pay')" />
     </div>
   </div>
 </template>
@@ -44,8 +40,7 @@ import StepSummary from './wizard/StepSummary.vue'
 import StepExperience from './wizard/StepExperience.vue'
 import StepSkills from './wizard/StepSkills.vue'
 import StepEducation from './wizard/StepEducation.vue'
-import StepTailor from './wizard/StepTailor.vue'
-import StepReview from './wizard/StepReview.vue'
+import JobMatch from './JobMatch.vue'
 
 defineEmits(['pay'])
 const store = useCvStore()
@@ -53,7 +48,7 @@ const store = useCvStore()
 const TABS = [
   { id: 'content', label: 'Content' },
   { id: 'design',  label: 'Design' },
-  { id: 'job',     label: 'Job & ATS' },
+  { id: 'job',     label: 'Job match' },
 ]
 const tab = ref('content')
 const open = ref('personal')
@@ -115,5 +110,4 @@ defineExpose({ show })
 .acc.open .acc-chev{transform:rotate(180deg)}
 .acc-body{padding:4px 16px 18px;border-top:1px solid var(--c-border);padding-top:16px}
 
-.ced-divider{height:1px;background:var(--c-border);margin:26px 0}
 </style>

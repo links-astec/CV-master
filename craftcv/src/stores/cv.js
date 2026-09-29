@@ -21,6 +21,7 @@ const emptyData = () => ({
   languages: [],
   lang: 'en',
   jobOffer: '',        // job description the CV is being tailored to (optional)
+  jobTailored: '',     // Job match step 2 for this offer: '' | 'applied' | 'skipped'
   shrinkToFit: false,  // user accepted shrinking an over-long CV onto one page
 })
 
@@ -79,6 +80,7 @@ function normaliseData(saved) {
   if (!merged.education.length) merged.education = emptyData().education
   merged.jobOffer    = typeof merged.jobOffer === 'string' ? merged.jobOffer : ''
   merged.shrinkToFit = !!merged.shrinkToFit
+  merged.jobTailored = ['applied', 'skipped'].includes(merged.jobTailored) ? merged.jobTailored : ''
   return merged
 }
 

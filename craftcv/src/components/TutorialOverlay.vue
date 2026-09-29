@@ -121,7 +121,7 @@ const steps = [
   },
   {
     title: 'The editor',
-    desc:  'Edit content on the left and watch the page update. The Job & ATS tab tailors your CV to the offer and scores your match.',
+    desc:  'Edit content on the left and watch the page update. The Job match tab tailors your CV to the job offer and gives you an ATS score.',
     icon:  '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/>',
     iconBg:'var(--c-amber-lt)',
     target: '[data-tour="nav-editor"]',
