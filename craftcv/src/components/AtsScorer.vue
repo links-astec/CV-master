@@ -19,13 +19,14 @@
       :disabled="scoring"
     />
 
-    <button class="btn-primary accent ats-btn" @click="runScore" :disabled="scoring || !jobDesc.trim()">
+    <button class="btn-primary accent ats-btn" @click="runScore()" :disabled="scoring || !jobDesc.trim()">
       <svg v-if="scoring" class="ats-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" opacity=".25"/><path d="M21 12a9 9 0 00-9-9"/></svg>
       <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:14px;height:14px"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2"/></svg>
-      {{ scoring ? 'Analysing...' : 'Check ATS match' }}
+      {{ scoring ? 'Analysing your CV against the job…' : result ? 'Check again' : 'Check ATS match' }}
     </button>
 
     <!-- Results -->
+    <div v-if="result && checkedAt && !scoring" class="ats-checked">Checked {{ checkedAt }}</div>
     <div v-if="result" class="ats-results">
 
       <!-- Score ring -->
@@ -111,6 +112,7 @@ const jobDesc = computed(() => store.data.jobOffer || '')
 const scoring = ref(false)
 const result  = ref(null)
 const error   = ref('')
+const checkedAt = ref('')
 
 const ringCirc = 2 * Math.PI * 42
 const ringDash = computed(() => ringCirc - (result.value?.score || 0) / 100 * ringCirc)
@@ -136,7 +138,9 @@ const verdictSub = computed(() => {
   return 'Your CV needs significant work to match this role.'
 })
 
-async function runScore() {
+// A click always runs a fresh check; the automatic run on open reuses a cached result
+// (the builder mounts this in several places, and that must not re-bill the AI).
+async function runScore({ fresh = true } = {}) {
   if (!jobDesc.value.trim()) return
   scoring.value = true
   result.value  = null
@@ -157,11 +161,12 @@ async function runScore() {
   // hidden Score tab mounted), so auto-runs don't fire duplicate AI calls.
   const key = jobDesc.value.trim() + '\n--\n' + cvText
   try {
-    if (!atsCache.has(key)) {
+    if (fresh || !atsCache.has(key)) {
       atsCache.set(key, analyse(cvText, jobDesc.value))
       atsCache.get(key).catch(() => atsCache.delete(key)) // don't cache failures
     }
     result.value = await atsCache.get(key)
+    checkedAt.value = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   } catch (e) {
     error.value = 'Analysis failed. Please try again — make sure your CV has some content filled in.'
     console.error('ATS score error:', e)
@@ -210,10 +215,11 @@ Return ONLY the JSON object, no markdown, no explanation.`
 }
 
 // Arriving from the Tailor step with a job offer: score straight away
-onMounted(() => { if (jobDesc.value.trim().length >= 40) runScore() })
+onMounted(() => { if (jobDesc.value.trim().length >= 40) runScore({ fresh: false }) })
 </script>
 
 <style scoped>
+.ats-checked { font-size:12.5px; color:var(--c-text3); margin-top:-6px; }
 .ats-wrap { display:flex; flex-direction:column; gap:14px; }
 .ats-header { display:flex; align-items:center; gap:12px; }
 .ats-icon { width:40px; height:40px; border-radius:10px; background:var(--c-accent-lt); color:var(--c-accent); display:flex; align-items:center; justify-content:center; flex-shrink:0; }

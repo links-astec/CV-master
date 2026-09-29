@@ -50,21 +50,27 @@
       <div>
         <div class="dp-hd">CV language</div>
         <div class="seg dp-seg">
-          <button :class="{ active: store.data.lang !== 'fr' }" @click="store.data.lang = 'en'">English</button>
-          <button :class="{ active: store.data.lang === 'fr' }" @click="store.data.lang = 'fr'">Français</button>
+          <button :class="{ active: store.data.lang !== 'fr' }" @click="switchLang('en')">English</button>
+          <button :class="{ active: store.data.lang === 'fr' }" @click="switchLang('fr')">Français</button>
+        </div>
+        <div v-if="undo" class="dp-undo">
+          <span>{{ undo.count ? `Translated ${undo.count} section${undo.count === 1 ? '' : 's'}.` : 'Headings switched.' }}</span>
+          <button class="link-btn" @click="undoTranslate">Undo</button>
         </div>
       </div>
     </section>
+    <TranslateModal :show="!!translateTo" :to="translateTo || 'fr'" @close="translateTo = null" @applied="onTranslated" />
     <p class="dp-note">Tip: “Compact” spacing and a smaller text size help a long CV fit on one page without shrinking it.</p>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useCvStore, hasDraftableContent } from '../stores/cv.js'
 import { LAYOUTS, THEMES, FONTS, parseTemplate, templateId, getLayout, getTheme } from '../composables/cvRenderer.js'
 import { SAMPLE_CV } from '../composables/sampleCv.js'
 import CvThumb from './CvThumb.vue'
+import TranslateModal from './TranslateModal.vue'
 
 const store = useCvStore()
 const SIZE    = [{ v: 'small', l: 'Small' }, { v: 'normal', l: 'Normal' }, { v: 'large', l: 'Large' }]
@@ -78,6 +84,19 @@ const thumbData  = computed(() => hasDraftableContent(store.data) ? store.data :
 
 function setLayout(id) { store.template = templateId(id, current.value.theme) }
 function setTheme(id)  { store.template = templateId(current.value.layout, id) }
+
+// Switching language translates the CV content too — reviewed in TranslateModal
+const translateTo = ref(null)
+const undo = ref(null)
+function switchLang(lang) {
+  const now = store.data.lang === 'fr' ? 'fr' : 'en'
+  if (lang !== now) translateTo.value = lang
+}
+function onTranslated(info) { undo.value = info }
+function undoTranslate() {
+  if (undo.value) store.data = undo.value.snapshot
+  undo.value = null
+}
 </script>
 
 <style scoped>
@@ -90,6 +109,7 @@ function setTheme(id)  { store.template = templateId(current.value.layout, id) }
 .dp-layout:hover :deep(.cvt){border-color:var(--c-border2);box-shadow:var(--shadow-sm)}
 .dp-layout.active{color:var(--c-accent);font-weight:600}
 .dp-layout.active :deep(.cvt){border-color:var(--c-accent);box-shadow:0 0 0 3px var(--c-accent-ring)}
+.dp-undo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;padding:8px 12px;border-radius:9px;background:var(--c-green-lt);color:var(--c-green);font-size:13px;font-weight:600}
 .dp-note{font-size:12.5px;color:var(--c-text3);margin-top:10px;line-height:1.5}
 .dp-swatches{display:grid;grid-template-columns:repeat(12,1fr);gap:7px}
 .dp-swatch{width:100%;aspect-ratio:1;border-radius:50%;background:var(--sw);border:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.1);transition:transform .12s}

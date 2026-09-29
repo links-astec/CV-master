@@ -92,7 +92,7 @@ async function suggestSkills() {
       u?.industry   ? `in the ${u.industry} industry` : '',
       u?.experience ? `at ${u.experience} level`      : '',
     ].filter(Boolean).join(' ')
-    const prompt = `List 10 highly relevant skills for a ${store.data.title || 'professional'} role${ctx ? ' ' + ctx : ''} at a modern company. Return ONLY a JSON array of strings, no markdown, no explanation.`
+    const prompt = `List 10 highly relevant skills for a ${store.data.title || 'professional'} role${ctx ? ' ' + ctx : ''} at a modern company. Return ONLY a JSON array of strings, no markdown, no explanation.${store.data.lang === 'fr' ? ' Skills in French (keep technical terms that are normally in English).' : ''}`
     const result = await store.callAi(prompt)
     const parsed = JSON.parse(result.replace(/```json|```/g, '').trim())
     suggested.value = Array.isArray(parsed) ? parsed : parsed.skills || []
