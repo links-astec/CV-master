@@ -119,7 +119,7 @@
       <div class="lp-wrap">
         <div class="lp-sec-hd">
           <span class="lp-eyebrow">Templates</span>
-          <h2>12 layouts · 12 colours</h2>
+          <h2>50 layouts · 12 colours</h2>
           <p>ATS-friendly layouts for online applications, creative ones for print and in person. All real, selectable text — switch any time and your content moves with you.</p>
         </div>
         <div class="lp-tpls">
@@ -235,11 +235,12 @@ const STEPS = [
   { t: 'Check and export', d: 'See your ATS match and missing keywords, fix what matters, then export a clean one-page PDF.' },
 ]
 
+// Two ATS-friendly, two creative
 const SHOWCASE = [
-  { id: 'modern:indigo',     name: 'Modern' },
-  { id: 'sidebar:teal',      name: 'Sidebar' },
-  { id: 'executive:slate',   name: 'Executive' },
-  { id: 'timeline:burgundy', name: 'Timeline' },
+  { id: 'modern:indigo',    name: 'Modern' },
+  { id: 'harvard:charcoal', name: 'Harvard' },
+  { id: 'magazine:crimson', name: 'Magazine' },
+  { id: 'bento:plum',       name: 'Bento' },
 ]
 
 const FEATURES = [
@@ -259,7 +260,7 @@ const FEATURES = [
 
 const PLANS = [
   { name: 'Free', price: '£0', per: '', cta: 'Start building',
-    items: ['All 12 layouts and 12 colours', 'AI writing and job tailoring', 'ATS job-match check', 'Watermarked PDF download'] },
+    items: ['All 50 layouts and 12 colours', 'AI writing and job tailoring', 'ATS job-match check', 'Watermarked PDF download'] },
   { name: 'Clean PDF', price: '£0.99', per: ' per CV', cta: 'Build my CV', featured: true,
     items: ['Watermark-free, one-page PDF', 'Emailed to you and downloadable', 'Re-send or download again free, even after edits', 'Pay once per CV — no subscription'] },
 ]
