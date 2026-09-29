@@ -677,6 +677,63 @@ Only include "questions" for needs_more and "cv" for ready. Questions and reason
   }
 });
 
+// ── FIX ONE CHECKLIST ISSUE ───────────────────────────────────────────────────
+// Returns proposals only; the client shows before/after, the user edits and applies.
+const FIX_TASKS = {
+  title:        'The CV has no headline. Propose one professional headline (the job title they are, or are aiming for), based on their experience and summary. Return it as change key "title".',
+  summary:      'Write a professional summary of 2-3 sentences (between 250 and 450 characters) based only on the facts in the CV. No "I", no clichés like "hard-working" or "passionate". Return it as change key "sum".',
+  descriptions: 'Some experience entries have no description or a very short one. For EACH such entry (desc under 30 characters), write 2-3 bullet lines of what someone in that exact role at that company typically does, using any clues elsewhere in the CV. No numbers or achievements that are not in the CV. Return one change per entry, key "exp:<i>". Leave entries that already have a real description alone.',
+  metrics:      'No experience shows measurable results. For the 1-3 most relevant experience entries, rewrite the bullets so each starts with a strong verb, and add a number placeholder where a figure would make the biggest difference: [X%], [N] or [£X]. The user replaces each placeholder with their real figure. STRICT: at most 2 placeholders per entry; keep every fact and number already there; do NOT add any new claim, outcome, frequency, team size, scope or benefit that the CV does not state (no "weekly", "leading to adoption", "boosting", "across the network" and so on) — only reword what is there and add placeholders. Return one change per entry, key "exp:<i>".',
+  placeholders: 'The CV contains unfilled placeholders such as [X%] or [N]. For EACH text that contains one, rewrite only the affected sentences so they read naturally WITHOUT the number (keep the meaning, do not invent a figure). Return one change per text: key "sum" for the summary, "exp:<i>" for an experience.',
+  skills:       'The CV lists too few skills. Suggest 6-10 concrete skills (tools, methods, domain knowledge, and at most 2 soft skills) that the CV clearly shows the person has or used. Do not repeat skills already listed. Return them in "skills".',
+};
+
+app.post('/api/ai/fix', aiAccess, async (req, res) => {
+  try {
+    const { issue, cv = {} } = req.body || {};
+    const task = FIX_TASKS[issue];
+    if (!task) return res.status(400).json({ error: 'This item can’t be fixed automatically.' });
+    const str = v => (typeof v === 'string' ? v.trim() : '');
+    const arr = v => (Array.isArray(v) ? v : []);
+    const src = {
+      title: str(cv.title), sum: str(cv.sum),
+      experiences: arr(cv.experiences).slice(0, 10).map((e, i) => ({ i, title: str(e?.title), company: str(e?.company), period: str(e?.period), desc: str(e?.desc) })),
+      education: arr(cv.education).slice(0, 5).map(e => ({ degree: str(e?.degree), school: str(e?.school), year: str(e?.year) })),
+      projects: arr(cv.projects).slice(0, 6).map(p => ({ name: str(p?.name), tech: str(p?.tech), desc: str(p?.desc) })),
+      skills: arr(cv.skills).map(str).filter(Boolean).slice(0, 40),
+    };
+    const payload = JSON.stringify(src);
+    if (payload.length > 14000) return res.status(413).json({ error: 'This CV is too long to fix in one go.' });
+    const language = cv.lang === 'fr' ? 'French' : 'British English';
+
+    const systemPrompt = `You improve one part of a CV. The user reviews every change before it is applied.
+Rules:
+- Never invent employers, job titles, dates, qualifications, numbers or achievements. Only use what is in the CV, or clearly typical duties when asked.
+- Experience descriptions are bullet lines, each starting with "• " and an action verb, separated by newlines.
+- Keep each text in the language it is already written in. New text (no existing text) is written in ${language}.
+Reply with ONLY a JSON object, no markdown:
+{"changes":[{"key":"title|sum|exp:<i>","after":"new text"}],"skills":["..."],"note":"one short sentence for the user, optional"}`;
+
+    const out = parseJsonObject(await callAi(`TASK: ${task}\n\nCV:\n${payload}`, AI_MODEL, systemPrompt, 3000, 'medium'));
+    const exps = src.experiences;
+    const changes = (Array.isArray(out.changes) ? out.changes : []).map(c => {
+      const key = String(c?.key || ''), after = str(c?.after);
+      if (!after) return null;
+      if (key === 'title') return after !== src.title ? { key, label: 'Headline', before: src.title, after } : null;
+      if (key === 'sum')   return after !== src.sum ? { key, label: 'Summary', before: src.sum, after } : null;
+      const m = key.match(/^exp:(\d+)$/), e = m && exps[Number(m[1])];
+      if (!e || after === e.desc) return null;
+      return { key, label: [e.title, e.company].filter(Boolean).join(' at ') || 'Experience', before: e.desc, after };
+    }).filter(Boolean);
+    const have = new Set(src.skills.map(s => s.toLowerCase()));
+    const skills = issue !== 'skills' ? [] : [...new Set(arr(out.skills).map(str).filter(s => s && s.length <= 40 && !have.has(s.toLowerCase())))].slice(0, 12);
+    res.json({ changes, skills, note: str(out.note).slice(0, 300) });
+  } catch (e) {
+    console.error('[fix]', e.message);
+    res.status(500).json({ error: 'The AI couldn’t fix this just now — please try again.' });
+  }
+});
+
 // ── TRANSLATE A CV (EN ↔ FR) ──────────────────────────────────────────────────
 // Returns proposals only; the client shows before/after and the user applies them.
 app.post('/api/ai/translate', aiAccess, async (req, res) => {
