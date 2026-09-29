@@ -8,3 +8,5 @@ dist/
 venv/
 patch_lang_cert.cjs
 patch_renderer.cjs
+# Puppeteer's Chrome download (see .puppeteerrc.cjs)
+.cache/
