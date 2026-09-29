@@ -128,7 +128,7 @@ async function processFile(file) {
 </script>
 
 <style scoped>
-.step-title { font-family:'DM Serif Display',serif;font-size:20px;color:var(--c-text);margin-bottom:5px; }
+.step-title { font-family:inherit;letter-spacing:-.01em;font-size:20px;color:var(--c-text);margin-bottom:5px; }
 .step-sub { font-size:13px;color:var(--c-text2);margin-bottom:20px;line-height:1.5; }
 .upload-zone { border:2px dashed var(--c-border2);border-radius:var(--radius-lg);padding:36px 20px;text-align:center;cursor:pointer;transition:all .18s;background:var(--c-bg); }
 .upload-zone:hover,.upload-zone.dragging { border-color:var(--c-accent);background:var(--c-accent-lt); }
@@ -151,10 +151,10 @@ async function processFile(file) {
 .ep-row { display:flex;align-items:center;gap:8px;font-size:12px; }
 .ep-lbl { font-weight:600;color:var(--c-text3);min-width:50px; }
 .ep-val { color:var(--c-text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-.re-upload-btn { display:flex;align-items:center;gap:6px;background:none;border:none;font-size:12px;font-weight:600;color:var(--c-text2);cursor:pointer;font-family:'DM Sans',sans-serif;text-decoration:underline; }
+.re-upload-btn { display:flex;align-items:center;gap:6px;background:none;border:none;font-size:12px;font-weight:600;color:var(--c-text2);cursor:pointer;font-family:inherit;text-decoration:underline; }
 .upload-error { display:flex;align-items:flex-start;gap:8px;background:var(--c-rose-lt);border:1px solid #f5c0c8;color:var(--c-rose);font-size:12.5px;padding:10px 12px;border-radius:var(--radius-sm);margin-top:12px; }
 .skip-section { margin-top:14px;text-align:center; }
-.skip-btn { background:none;border:none;font-size:12.5px;color:var(--c-text3);cursor:pointer;font-family:'DM Sans',sans-serif;text-decoration:underline; }
+.skip-btn { background:none;border:none;font-size:12.5px;color:var(--c-text3);cursor:pointer;font-family:inherit;text-decoration:underline; }
 .format-note { display:flex;align-items:flex-start;gap:8px;background:var(--c-bg);border:1px solid var(--c-border);border-radius:var(--radius-sm);padding:10px 12px;margin-top:14px; }
 .fn-txt { font-size:11.5px;color:var(--c-text2);line-height:1.5; }
 </style>

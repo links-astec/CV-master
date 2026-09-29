@@ -51,7 +51,7 @@
           <div class="ats-verdict-sub">{{ verdictSub }}</div>
           <div class="ats-chips">
             <span class="ats-chip" :class="result.score >= 70 ? 'green' : 'red'">
-              {{ result.score >= 70 ? 'Likely to pass ATS' : 'May be filtered out' }}
+              {{ result.score >= 70 ? 'Strong keyword match' : 'Keyword gaps to close' }}
             </span>
           </div>
         </div>
@@ -219,7 +219,7 @@ onMounted(() => { if (jobDesc.value.trim().length >= 40) runScore() })
 .ats-icon { width:40px; height:40px; border-radius:10px; background:var(--c-accent-lt); color:var(--c-accent); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .ats-title { font-size:15px; font-weight:700; color:var(--c-text); margin-bottom:2px; }
 .ats-sub   { font-size:12px; color:var(--c-text3); }
-.ats-textarea { width:100%; border:1.5px solid var(--c-border); border-radius:var(--radius); padding:10px 12px; font-size:13px; color:var(--c-text); background:var(--c-bg); font-family:'DM Sans',sans-serif; resize:vertical; transition:border-color .15s; box-sizing:border-box; }
+.ats-textarea { width:100%; border:1.5px solid var(--c-border); border-radius:var(--radius); padding:10px 12px; font-size:13px; color:var(--c-text); background:var(--c-bg); font-family:inherit; resize:vertical; transition:border-color .15s; box-sizing:border-box; }
 .ats-textarea:focus { outline:none; border-color:var(--c-accent); }
 .ats-textarea:disabled { opacity:.6; }
 .ats-btn { width:100%; justify-content:center; }
@@ -231,7 +231,7 @@ onMounted(() => { if (jobDesc.value.trim().length >= 40) runScore() })
 .ats-score-row { display:flex; align-items:center; gap:18px; }
 .ats-ring-wrap { position:relative; width:100px; height:100px; flex-shrink:0; }
 .ats-ring-inner { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-.ats-ring-score { font-family:'DM Serif Display',serif; font-size:22px; font-weight:700; line-height:1; }
+.ats-ring-score { font-family:inherit;letter-spacing:-.01em; font-size:22px; font-weight:700; line-height:1; }
 .ats-ring-lbl   { font-size:10px; color:var(--c-text3); margin-top:2px; }
 .ats-score-info { flex:1; }
 .ats-verdict    { font-size:18px; font-weight:700; margin-bottom:4px; }

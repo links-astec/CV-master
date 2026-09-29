@@ -317,7 +317,7 @@ onUnmounted(() => stopMic())
 </script>
 
 <style scoped>
-.step-title { font-family:'DM Serif Display',serif;font-size:20px;color:var(--c-text);margin-bottom:5px; }
+.step-title { font-family:inherit;letter-spacing:-.01em;font-size:20px;color:var(--c-text);margin-bottom:5px; }
 .step-sub   { font-size:13px;color:var(--c-text2);margin-bottom:18px;line-height:1.5; }
 
 .input-mode-toggle {
@@ -328,7 +328,7 @@ onUnmounted(() => stopMic())
   flex:1;display:flex;align-items:center;justify-content:center;gap:7px;
   padding:9px 12px;border-radius:var(--radius-sm);border:none;background:none;
   font-size:13px;font-weight:600;color:var(--c-text2);cursor:pointer;
-  font-family:'DM Sans',sans-serif;transition:all .18s;
+  font-family:inherit;transition:all .18s;
 }
 .mode-btn.active { background:var(--c-surface);color:var(--c-accent);box-shadow:var(--shadow-xs); }
 .mode-btn:hover:not(.active) { color:var(--c-text); }
@@ -399,14 +399,14 @@ onUnmounted(() => stopMic())
   display:flex;align-items:center;justify-content:space-between;
   font-size:10px;font-weight:800;color:var(--c-text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;
 }
-.transcript-clear { background:none;border:none;font-size:11.5px;color:var(--c-rose);font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif; }
+.transcript-clear { background:none;border:none;font-size:11.5px;color:var(--c-rose);font-weight:700;cursor:pointer;font-family:inherit; }
 .transcript-body { font-size:12.5px;color:var(--c-text2);line-height:1.7;max-height:100px;overflow-y:auto; }
 .transcript-final { color:var(--c-text); }
 .transcript-interim { color:var(--c-text3);font-style:italic; }
 
 /* Actions */
 .narrate-actions { display:flex;flex-direction:column;gap:8px;margin-top:16px; }
-.skip-link { background:none;border:none;font-size:12.5px;color:var(--c-text3);cursor:pointer;font-family:'DM Sans',sans-serif;text-align:center;text-decoration:underline; }
+.skip-link { background:none;border:none;font-size:12.5px;color:var(--c-text3);cursor:pointer;font-family:inherit;text-align:center;text-decoration:underline; }
 
 /* Done state */
 .done-box {
@@ -418,7 +418,7 @@ onUnmounted(() => stopMic())
 .story-preview { background:var(--c-surface2);border:1px solid var(--c-border);border-radius:var(--radius);padding:14px;margin-bottom:4px; }
 .sp-lbl { font-size:9.5px;font-weight:800;color:var(--c-text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px; }
 .sp-txt { font-size:12.5px;color:var(--c-text2);line-height:1.6;margin-bottom:8px; }
-.sp-edit { background:none;border:none;font-size:11.5px;color:var(--c-accent);font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;text-decoration:underline; }
+.sp-edit { background:none;border:none;font-size:11.5px;color:var(--c-accent);font-weight:700;cursor:pointer;font-family:inherit;text-decoration:underline; }
 .spin-i { animation:spin .7s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
 </style>

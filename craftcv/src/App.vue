@@ -1,564 +1,244 @@
 <template>
-  <!-- Maintenance mode page -->
-  <div v-if="maintenance" class="maint-page">
+  <!-- Maintenance -->
+  <div v-if="maintenance" class="maint">
     <div class="maint-box">
-      <div class="maint-logo">CV<b>Master</b></div>
-      <div class="maint-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
-      </div>
-      <h1>Under Maintenance</h1>
-      <p>We're making improvements to CVMaster. We'll be back shortly. Thank you for your patience.</p>
-      <button @click="checkMaintenance" class="maint-btn">Check again</button>
+      <BrandLogo />
+      <h1>We'll be right back</h1>
+      <p>CVMaster is being updated. Your CVs are safe — please check again in a few minutes.</p>
+      <button class="btn-secondary" @click="checkMaintenance">Check again</button>
     </div>
   </div>
 
-  <LandingPage v-else-if="!auth.loading && !auth.isLoggedIn && showLanding" @get-started="showLanding = false" />
-  <AuthModal v-else-if="!auth.loading && !auth.isLoggedIn" @done="onAuthDone" />
-  <OnboardingModal v-else-if="auth.isLoggedIn && !auth.isOnboarded" @done="onboardDone" />
+  <LandingPage v-else-if="showLanding" @start="startBuilding" @sign-in="openAuth('signin')" />
 
-  <template v-else>
-    <div class="app-shell" :class="{ 'dark': store.darkMode }">
+  <div v-else-if="ready" class="shell">
+    <!-- Sidebar -->
+    <div class="sb-dim" :class="{ on: navOpen }" @click="navOpen = false"></div>
+    <aside class="sb" :class="{ open: navOpen }">
+      <RouterLink to="/" class="sb-brand" @click="navOpen = false"><BrandLogo /></RouterLink>
 
-      <!-- Mobile sidebar dimmer -->
-      <div class="sidebar-dimmer" :class="{ active: mobileSidebarOpen }" @click="mobileSidebarOpen=false"></div>
+      <button class="btn-primary accent btn-block sb-new" data-tour="new-cv" @click="newCV">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        New CV
+      </button>
 
-      <!-- SIDEBAR (desktop) -->
-      <aside class="sidebar" :class="{ collapsed: !sidebarOpen, 'mobile-open': mobileSidebarOpen }">
-        <div class="sidebar-inner">
-          <div class="logo-area">
-            <div class="logo-mark">
-              <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
-                <rect x="5" y="2" width="16" height="22" rx="2" fill="white" opacity="0.95"/>
-                <path d="M21 2 L27 8 L21 8 Z" fill="#1d49b8"/>
-                <path d="M21 2 L21 8 L27 8" fill="none" stroke="white" stroke-width="1.2" opacity="0.4"/>
-                <line x1="8" y1="13" x2="18" y2="13" stroke="#2a5bd7" stroke-width="2" stroke-linecap="round"/>
-                <line x1="8" y1="17" x2="19" y2="17" stroke="#c0cef8" stroke-width="1.5" stroke-linecap="round"/>
-                <line x1="8" y1="21" x2="16" y2="21" stroke="#c0cef8" stroke-width="1.5" stroke-linecap="round"/>
-                <rect x="6" y="25" width="14" height="6" rx="2" fill="#1a1a2e"/>
-                <text x="13" y="30" font-family="system-ui,sans-serif" font-weight="800" font-size="4.5" fill="#7aa3f5" text-anchor="middle" letter-spacing="1">CV</text>
-              </svg>
-            </div>
-            <div>
-              <div class="logo-title">CVMaster</div>
-              <div class="logo-ver">AI CV Builder</div>
-            </div>
-          </div>
+      <nav class="sb-nav">
+        <RouterLink v-for="n in NAV" :key="n.to" :to="n.to" class="sb-link" :data-tour="`nav-${n.id}`"
+                    :class="{ active: route.path === n.to }" @click="navOpen = false">
+          <svg viewBox="0 0 24 24" v-html="n.icon"></svg>
+          {{ n.label }}
+        </RouterLink>
+      </nav>
 
-          <nav>
-            <div class="nav-section">Workspace</div>
-            <button class="nav-btn" :class="{ active: currentView==='dashboard' }" @click="go('dashboard','/')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-              Dashboard
-            </button>
-            <button class="nav-btn" :class="{ active: currentView==='templates' }" @click="go('templates','/templates')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
-              Templates
-              <span class="nav-chip">107</span>
-            </button>
-            <button class="nav-btn" :class="{ active: currentView==='builder' }" @click="goBuilderView">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              CV Builder
-            </button>
-            <div class="nav-section" style="margin-top:8px;">Account</div>
-            <button class="nav-btn" :class="{ active: currentView==='settings' }" @click="go('settings','/settings')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-              Settings
-            </button>
-          </nav>
-
-          <div class="sb-footer">
-            <div class="legal-links">
-              <a @click.prevent="go('legal','/legal')" href="/legal">Privacy</a>
-              <span>·</span>
-              <a @click.prevent="go('legal','/legal')" href="/legal">Terms</a>
-            </div>
-            <div class="user-row" @click="go('settings','/settings')">
-              <div class="user-ava">{{ auth.user?.avatar || 'U' }}</div>
-              <div style="flex:1;min-width:0;">
-                <div class="user-name">{{ auth.user?.name }}</div>
-                <div class="user-plan">{{ auth.user?.plan === 'free' ? 'Free Plan' : 'Pro' }}</div>
-              </div>
-              <svg style="width:13px;height:13px;color:var(--c-text3);flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-            </div>
-          </div>
+      <div class="sb-foot">
+        <div v-if="!auth.isLoggedIn" class="sb-guest">
+          <div class="sb-guest-ttl">You're using CVMaster as a guest</div>
+          <p>Your CV is saved in this browser. Create a free account to keep it safe and export it.</p>
+          <button class="btn-primary accent btn-block btn-sm" @click="openAuth('register')">Create free account</button>
+          <button class="btn-ghost btn-block btn-sm" @click="openAuth('signin')">Sign in</button>
         </div>
-      </aside>
-
-      <!-- MAIN AREA -->
-      <div class="main-area">
-
-        <!-- TOPBAR -->
-        <div class="topbar">
-          <button class="sb-toggle" @click="toggleSidebar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-          </button>
-          <div class="page-hd">
-            <div class="page-title">{{ pageMeta.title }}</div>
-            <div class="page-sub">{{ pageMeta.sub }}</div>
-          </div>
-          <div class="topbar-right">
-            <NotificationDropdown />
-            <button class="icon-btn" @click="store.darkMode = !store.darkMode" :title="store.darkMode ? 'Light mode' : 'Dark mode'">
-              <svg v-if="store.darkMode" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-              <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-            </button>
-            <button class="btn-primary accent" @click="newCV()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              <span class="topbar-btn-label">New CV</span>
-            </button>
-          </div>
+        <RouterLink v-else to="/settings" class="sb-user" @click="navOpen = false">
+          <span class="sb-ava">{{ auth.user?.avatar || auth.user?.name?.[0] || 'U' }}</span>
+          <span class="sb-user-txt">
+            <span class="sb-user-name">{{ auth.user?.name }}</span>
+            <span class="sb-user-mail">{{ auth.user?.email }}</span>
+          </span>
+        </RouterLink>
+        <div class="sb-legal">
+          <RouterLink to="/legal" @click="navOpen = false">Privacy</RouterLink>
+          <span>·</span>
+          <RouterLink to="/legal" @click="navOpen = false">Terms</RouterLink>
         </div>
-
-        <!-- CONTENT AREA -->
-        <div class="content-area" :class="{ 'hidden-view': currentView === 'builder' }">
-          <RouterView />
-        </div>
-
-        <!-- BUILDER VIEW (separate, not inside content-area) -->
-        <div v-if="currentView === 'builder'" class="content-area">
-          <div class="builder-wrap">
-            <div class="builder-panel" :class="{ 'panel-collapsed': !panelOpen }">
-              <div class="builder-panel-inner">
-                <div class="ptabs">
-                  <button v-for="t in pTabs" :key="t.id" class="ptab" :class="{ active: panelTab===t.id }" @click="panelTab=t.id">{{ t.label }}</button>
-                </div>
-
-                <!-- EDIT tab -->
-                <div class="ptab-body" :class="{ active: panelTab==='edit' }">
-                  <div class="f-sec">Personal</div>
-                  <div class="f-row">
-                    <div class="f-grp"><div class="f-lbl">First</div><input class="f-inp" v-model="store.data.fn" placeholder="First name"/></div>
-                    <div class="f-grp"><div class="f-lbl">Last</div><input class="f-inp" v-model="store.data.ln" placeholder="Last name"/></div>
-                  </div>
-                  <div class="f-grp"><div class="f-lbl">Title</div><input class="f-inp" v-model="store.data.title" placeholder="Job title"/></div>
-                  <div class="f-grp"><div class="f-lbl">Email</div><input class="f-inp" v-model="store.data.email" placeholder="your@email.com"/></div>
-                  <div class="f-grp"><div class="f-lbl">Phone</div><input class="f-inp" v-model="store.data.phone" placeholder="+44 7700 000000"/></div>
-                  <div class="f-grp"><div class="f-lbl">Location</div><input class="f-inp" v-model="store.data.loc" placeholder="London, UK"/></div>
-                  <div class="f-sec">Summary</div>
-                  <div class="f-grp"><textarea class="f-ta" v-model="store.data.sum" rows="4" placeholder="Professional summary..."></textarea></div>
-                  <button class="btn-ai" @click="store.openWizard()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2"/></svg>
-                    Open Full Wizard
-                  </button>
-                </div>
-
-                <!-- SKILLS tab -->
-                <div class="ptab-body" :class="{ active: panelTab==='skills' }">
-                  <div class="f-sec">Skills</div>
-                  <div style="display:flex;gap:7px;">
-                    <input class="f-inp" v-model="newSkill" placeholder="Add skill…" @keydown.enter="addSkill"/>
-                    <button style="background:var(--c-accent);color:#fff;border:none;padding:0 14px;border-radius:var(--radius-sm);font-weight:700;font-size:18px;cursor:pointer;flex-shrink:0;" @click="addSkill">+</button>
-                  </div>
-                  <template v-if="(store.fmt.skillStyle === 'bars' || store.fmt.skillStyle === 'dots') && store.fmt.showSkillPct && store.data.skills.length">
-                    <div class="f-sec" style="margin-top:12px;">Skill Levels</div>
-                    <div v-for="(s, i) in store.data.skills" :key="s" style="display:flex;align-items:center;gap:7px;margin-bottom:9px;">
-                      <span style="font-size:11px;color:var(--c-text2);min-width:80px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;" :title="s">{{ s }}</span>
-                      <input type="range" min="1" max="100" :value="store.data.skillLevels?.[i] ?? 80" @input="store.setSkillLevel(i, $event.target.value)" style="flex:1;min-width:0;accent-color:var(--c-accent);cursor:pointer;" />
-                      <input type="number" min="1" max="100" :value="store.data.skillLevels?.[i] ?? 80" @change="store.setSkillLevel(i, $event.target.value)" style="width:40px;border:1px solid var(--c-border);border-radius:4px;padding:2px 4px;font-size:11px;font-weight:700;color:var(--c-accent);text-align:center;background:var(--c-bg);flex-shrink:0;" />
-                      <button class="skill-rm" @click="store.removeSkill(s)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:11px;height:11px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-                    </div>
-                  </template>
-                  <template v-else>
-                    <div class="skill-wrap">
-                      <span v-for="s in store.data.skills" :key="s" class="skill-tag">
-                        {{ s }}
-                        <button class="skill-rm" @click="store.removeSkill(s)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:11px;height:11px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-                      </span>
-                    </div>
-                  </template>
-                </div>
-
-                <!-- MORE tab — projects, education, languages -->
-                <div class="ptab-body" :class="{ active: panelTab==='more' }">
-                  <div class="f-sec">Projects</div>
-                  <div v-for="(proj, i) in store.data.projects" :key="proj.id" style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:8px;padding:10px;margin-bottom:8px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                      <span style="font-size:10px;font-weight:700;color:var(--c-accent);text-transform:uppercase;letter-spacing:.05em;">Project {{ i+1 }}</span>
-                      <button @click="store.data.projects.splice(i,1)" style="background:none;border:none;color:var(--c-text3);cursor:pointer;font-size:16px;padding:0 2px;">×</button>
-                    </div>
-                    <div class="f-grp"><input class="f-inp" v-model="proj.name" placeholder="Project name" style="font-size:12px;" /></div>
-                    <div class="f-grp"><input class="f-inp" v-model="proj.tech" placeholder="Tech / stack" style="font-size:12px;" /></div>
-                    <div class="f-grp"><textarea class="f-ta" v-model="proj.desc" placeholder="Description" rows="2" style="font-size:12px;"></textarea></div>
-                    <div class="f-grp"><input class="f-inp" v-model="proj.url" placeholder="URL (optional)" style="font-size:12px;" /></div>
-                  </div>
-                  <button class="btn-ai" @click="store.data.projects.push({id:Date.now(),name:'',desc:'',url:'',tech:''})">+ Add Project</button>
-                  <div class="f-sec" style="margin-top:14px;">Education</div>
-                  <div v-for="(edu, i) in store.data.education" :key="i" style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:8px;padding:10px;margin-bottom:8px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                      <span style="font-size:10px;font-weight:700;color:var(--c-accent);text-transform:uppercase;letter-spacing:.05em;">{{ i===0 ? 'Primary' : 'Additional' }}</span>
-                      <button v-if="i>0" @click="store.data.education.splice(i,1)" style="background:none;border:none;color:var(--c-text3);cursor:pointer;font-size:16px;padding:0 2px;">×</button>
-                    </div>
-                    <div class="f-grp"><input class="f-inp" v-model="edu.degree" placeholder="Degree" style="font-size:12px;" /></div>
-                    <div class="f-grp"><input class="f-inp" v-model="edu.school" placeholder="School" style="font-size:12px;" /></div>
-                    <div class="f-grp"><input class="f-inp" v-model="edu.year" placeholder="Year" style="font-size:12px;" /></div>
-                  </div>
-                  <button class="btn-ai" @click="store.data.education.push({degree:'',school:'',year:''})">+ Add Education</button>
-                  <div class="f-sec" style="margin-top:14px;">Languages</div>
-                  <div v-for="(lang, i) in store.data.languages" :key="i" style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
-                    <input class="f-inp" v-model="lang.name" placeholder="Language" style="font-size:12px;flex:1;" />
-                    <input class="f-inp" v-model="lang.level" placeholder="Level" style="font-size:12px;flex:1;" />
-                    <button @click="store.data.languages.splice(i,1)" style="background:none;border:none;color:var(--c-text3);cursor:pointer;font-size:16px;flex-shrink:0;">×</button>
-                  </div>
-                  <button class="btn-ai" @click="store.data.languages.push({name:'',level:''})">+ Add Language</button>
-                </div>
-
-                <!-- FORMAT tab -->
-                <div class="ptab-body" :class="{ active: panelTab==='format' }">
-                  <div class="f-sec">Typography</div>
-                  <div class="f-grp">
-                    <div class="f-lbl">Font family</div>
-                    <select class="f-inp" v-model="store.fmt.fontFamily">
-                      <option value="DM Sans">DM Sans (default)</option>
-                      <option value="Georgia">Georgia (serif)</option>
-                      <option value="system-ui">System UI</option>
-                      <option value="Arial">Arial</option>
-                      <option value="Times New Roman">Times New Roman</option>
-                      <option value="Garamond">Garamond</option>
-                      <option value="Helvetica">Helvetica</option>
-                    </select>
-                  </div>
-                  <div class="f-grp">
-                    <div class="f-lbl">Text size</div>
-                    <div class="fmt-btn-group">
-                      <button v-for="s in [{v:'small',l:'Small'},{v:'normal',l:'Normal'},{v:'large',l:'Large'}]" :key="s.v"
-                        class="fmt-btn" :class="{active: store.fmt.fontSize===s.v}" @click="store.fmt.fontSize=s.v">{{ s.l }}</button>
-                    </div>
-                  </div>
-                  <div class="f-grp">
-                    <div class="f-lbl">Line spacing</div>
-                    <div class="fmt-btn-group">
-                      <button v-for="s in [{v:'compact',l:'Compact'},{v:'normal',l:'Normal'},{v:'relaxed',l:'Relaxed'}]" :key="s.v"
-                        class="fmt-btn" :class="{active: store.fmt.lineSpacing===s.v}" @click="store.fmt.lineSpacing=s.v">{{ s.l }}</button>
-                    </div>
-                  </div>
-                  <div class="f-sec">Skills section</div>
-                  <div class="f-grp">
-                    <div class="f-lbl">Display style</div>
-                    <select class="f-inp" v-model="store.fmt.skillStyle">
-                      <option value="bars">Progress bars</option>
-                      <option value="dots">Dots</option>
-                      <option value="chips">Chips / tags</option>
-                      <option value="list">Simple list</option>
-                      <option value="plain">Plain text (ATS safe)</option>
-                    </select>
-                  </div>
-                  <div class="f-grp" v-if="store.fmt.skillStyle === 'bars' || store.fmt.skillStyle === 'dots'">
-                    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
-                      <input type="checkbox" v-model="store.fmt.showSkillPct" />
-                      Show skill percentages
-                    </label>
-                  </div>
-                  <div class="f-sec">Spacing</div>
-                  <div class="f-grp">
-                    <div class="f-lbl">Section spacing</div>
-                    <div class="fmt-btn-group">
-                      <button v-for="s in [{v:'compact',l:'Compact'},{v:'normal',l:'Normal'},{v:'relaxed',l:'Relaxed'}]" :key="s.v"
-                        class="fmt-btn" :class="{active: store.fmt.sectionSpacing===s.v}" @click="store.fmt.sectionSpacing=s.v">{{ s.l }}</button>
-                    </div>
-                  </div>
-                  <div class="f-grp" style="margin-top:8px;">
-                    <button class="btn-secondary" style="font-size:12px;" @click="Object.assign(store.fmt,{fontFamily:'DM Sans',fontSize:'normal',skillStyle:'bars',showSkillPct:true,lineSpacing:'normal',sectionSpacing:'normal'})">Reset to defaults</button>
-                  </div>
-                </div>
-
-                <!-- SCORE tab -->
-                <div class="ptab-body" :class="{ active: panelTab==='review' }">
-                  <StepReview @pay="openPaywall" />
-                </div>
-              </div>
-
-              <div class="builder-panel-ft">
-                <button class="btn-secondary" @click="store.openWizard()">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2"/></svg>
-                  Wizard
-                </button>
-                <button class="btn-primary accent" @click="showPaywall=true">Export PDF</button>
-              </div>
-            </div>
-
-            <!-- PREVIEW AREA -->
-            <div class="builder-preview">
-              <div class="preview-topbar">
-                <div class="preview-topbar-left">
-                  <!-- Desktop: hide/show panel -->
-                  <button class="ctrl-pill hide-mobile" @click="panelOpen=!panelOpen">
-                    <svg style="width:12px;height:12px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
-                    {{ panelOpen ? 'Hide panel' : 'Show panel' }}
-                  </button>
-                  <!-- Mobile: edit button -->
-                  <button class="ctrl-pill show-mobile" @click="showMobileEdit=true">
-                    <svg style="width:12px;height:12px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                    Edit
-                  </button>
-                  <div class="live-pill">
-                    <div class="live-dot"></div>
-                    Live
-                  </div>
-                </div>
-                <div class="preview-topbar-right">
-                  <button class="ctrl-pill hide-mobile" @click="zoom=Math.max(35,zoom-10)">−</button>
-                  <span class="zoom-lbl hide-mobile">{{ zoom }}%</span>
-                  <button class="ctrl-pill hide-mobile" @click="zoom=Math.min(130,zoom+10)">+</button>
-                  <button class="ctrl-pill" @click="cycleTemplate">
-                    <svg style="width:11px;height:11px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
-                    <span class="hide-mobile">Template</span>
-                  </button>
-                  <button class="ctrl-pill export-pill" @click="showPaywall=true">
-                    <svg style="width:11px;height:11px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    Export PDF
-                  </button>
-                </div>
-              </div>
-
-              <!-- CV Preview canvas -->
-              <div class="builder-canvas" ref="canvasRef">
-                <div class="cv-outer" :style="cvOuterStyle">
-                  <div class="cv-scaler" :style="cvScalerStyle">
-                    <div class="cv-page-shadow">
-                      <div v-html="renderedCV"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Mobile bottom export bar -->
-              <div class="mobile-export-bar show-mobile">
-                <button class="mobile-export-btn" @click="showPaywall=true">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                  Export PDF — £1.99
-                </button>
-              </div>
-            </div>
-          </div><!-- end builder-wrap -->
-        </div><!-- end content-area for builder -->
-
-        <!-- BOTTOM NAV (mobile only) -->
-        <nav class="bottom-nav show-mobile">
-          <button class="bnav-btn" :class="{ active: currentView==='dashboard' }" @click="go('dashboard','/')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-            Home
-          </button>
-          <button class="bnav-btn" :class="{ active: currentView==='templates' }" @click="go('templates','/templates')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            Templates
-          </button>
-          <button class="bnav-fab" @click="newCV()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          </button>
-          <button class="bnav-btn" :class="{ active: currentView==='builder' }" @click="goBuilderView">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            Builder
-          </button>
-          <button class="bnav-btn" :class="{ active: currentView==='settings' }" @click="go('settings','/settings')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-            Settings
-          </button>
-        </nav>
       </div>
+    </aside>
+
+    <!-- Main -->
+    <div class="main">
+      <header class="top">
+        <button class="icon-btn show-mobile" @click="navOpen = true" aria-label="Menu">
+          <svg viewBox="0 0 24 24"><line x1="3" y1="7" x2="21" y2="7"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="17" x2="21" y2="17"/></svg>
+        </button>
+        <div class="top-title">{{ route.meta.title || 'CVMaster' }}</div>
+        <div class="top-actions">
+          <NotificationDropdown v-if="auth.isLoggedIn" />
+          <button class="icon-btn" @click="store.darkMode = !store.darkMode" :title="store.darkMode ? 'Light mode' : 'Dark mode'">
+            <svg v-if="store.darkMode" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+            <svg v-else viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+          </button>
+          <button v-if="!auth.isLoggedIn" class="btn-secondary btn-sm hide-mobile" @click="openAuth('signin')">Sign in</button>
+        </div>
+      </header>
+      <main class="content" :class="{ full: route.meta.full }">
+        <RouterView />
+      </main>
     </div>
 
-    <!-- MOBILE EDIT DRAWER -->
-    <Teleport to="body">
-      <Transition name="drawer-fade">
-        <div v-if="showMobileEdit" class="mobile-edit-backdrop" @click.self="showMobileEdit=false">
-          <div class="mobile-edit-drawer">
-            <div class="drawer-handle"></div>
-            <div class="drawer-hd">
-              <div class="drawer-title">Edit CV</div>
-              <button class="drawer-close" @click="showMobileEdit=false">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-            </div>
-            <div class="drawer-body">
-              <div class="ptabs">
-                <button v-for="t in pTabs" :key="t.id" class="ptab" :class="{ active: panelTab===t.id }" @click="panelTab=t.id">{{ t.label }}</button>
-              </div>
-              <div v-if="panelTab==='edit'">
-                <div class="f-sec">Personal</div>
-                <div class="f-row">
-                  <div class="f-grp"><div class="f-lbl">First</div><input class="f-inp" v-model="store.data.fn" placeholder="First name"/></div>
-                  <div class="f-grp"><div class="f-lbl">Last</div><input class="f-inp" v-model="store.data.ln" placeholder="Last name"/></div>
-                </div>
-                <div class="f-grp"><div class="f-lbl">Title</div><input class="f-inp" v-model="store.data.title" placeholder="Job title"/></div>
-                <div class="f-grp"><div class="f-lbl">Email</div><input class="f-inp" v-model="store.data.email" type="email"/></div>
-                <div class="f-grp"><div class="f-lbl">Phone</div><input class="f-inp" v-model="store.data.phone" type="tel"/></div>
-                <div class="f-grp"><div class="f-lbl">Location</div><input class="f-inp" v-model="store.data.loc"/></div>
-                <div class="f-sec">Summary</div>
-                <div class="f-grp"><textarea class="f-ta" v-model="store.data.sum" rows="4"></textarea></div>
-              </div>
-              <div v-if="panelTab==='skills'">
-                <div class="f-sec">Skills</div>
-                <div style="display:flex;gap:7px;">
-                  <input class="f-inp" v-model="newSkill" placeholder="Add skill…" @keydown.enter="addSkill"/>
-                  <button style="background:var(--c-accent);color:#fff;border:none;padding:0 14px;border-radius:var(--radius-sm);font-weight:700;font-size:18px;cursor:pointer;flex-shrink:0;" @click="addSkill">+</button>
-                </div>
-                <template v-if="(store.fmt.skillStyle === 'bars' || store.fmt.skillStyle === 'dots') && store.fmt.showSkillPct && store.data.skills.length">
-                  <div class="f-sec" style="margin-top:12px;">Skill Levels</div>
-                  <div v-for="(s, i) in store.data.skills" :key="s" style="display:flex;align-items:center;gap:7px;margin-bottom:9px;">
-                    <span style="font-size:11px;color:var(--c-text2);min-width:80px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;" :title="s">{{ s }}</span>
-                    <input type="range" min="1" max="100" :value="store.data.skillLevels?.[i] ?? 80" @input="store.setSkillLevel(i, $event.target.value)" style="flex:1;min-width:0;accent-color:var(--c-accent);" />
-                    <input type="number" min="1" max="100" :value="store.data.skillLevels?.[i] ?? 80" @change="store.setSkillLevel(i, $event.target.value)" style="width:40px;border:1px solid var(--c-border);border-radius:4px;padding:2px 4px;font-size:11px;font-weight:700;color:var(--c-accent);text-align:center;background:var(--c-bg);flex-shrink:0;" />
-                    <button class="skill-rm" @click="store.removeSkill(s)">×</button>
-                  </div>
-                </template>
-                <template v-else>
-                  <div class="skill-wrap">
-                    <span v-for="s in store.data.skills" :key="s" class="skill-tag">
-                      {{ s }}<button class="skill-rm" @click="store.removeSkill(s)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:11px;height:11px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-                    </span>
-                  </div>
-                </template>
-              </div>
-              <div v-if="panelTab==='more'">
-                <div class="f-sec">Projects</div>
-                <div v-for="(proj, i) in store.data.projects" :key="proj.id" style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:8px;padding:10px;margin-bottom:8px;">
-                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                    <span style="font-size:10px;font-weight:700;color:var(--c-accent);text-transform:uppercase;letter-spacing:.05em;">Project {{ i+1 }}</span>
-                    <button @click="store.data.projects.splice(i,1)" style="background:none;border:none;color:var(--c-text3);cursor:pointer;font-size:16px;padding:0 2px;">×</button>
-                  </div>
-                  <div class="f-grp"><input class="f-inp" v-model="proj.name" placeholder="Project name" style="font-size:12px;" /></div>
-                  <div class="f-grp"><input class="f-inp" v-model="proj.tech" placeholder="Tech / stack" style="font-size:12px;" /></div>
-                  <div class="f-grp"><textarea class="f-ta" v-model="proj.desc" placeholder="Description" rows="2" style="font-size:12px;"></textarea></div>
-                  <div class="f-grp"><input class="f-inp" v-model="proj.url" placeholder="URL (optional)" style="font-size:12px;" /></div>
-                </div>
-                <button class="btn-ai" @click="store.data.projects.push({id:Date.now(),name:'',desc:'',url:'',tech:''})">+ Add Project</button>
-                <div class="f-sec" style="margin-top:14px;">Education</div>
-                <div v-for="(edu, i) in store.data.education" :key="i" style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:8px;padding:10px;margin-bottom:8px;">
-                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                    <span style="font-size:10px;font-weight:700;color:var(--c-accent);text-transform:uppercase;letter-spacing:.05em;">{{ i===0 ? 'Primary' : 'Additional' }}</span>
-                    <button v-if="i>0" @click="store.data.education.splice(i,1)" style="background:none;border:none;color:var(--c-text3);cursor:pointer;font-size:16px;padding:0 2px;">×</button>
-                  </div>
-                  <div class="f-grp"><input class="f-inp" v-model="edu.degree" placeholder="Degree" style="font-size:12px;" /></div>
-                  <div class="f-grp"><input class="f-inp" v-model="edu.school" placeholder="School" style="font-size:12px;" /></div>
-                  <div class="f-grp"><input class="f-inp" v-model="edu.year" placeholder="Year" style="font-size:12px;" /></div>
-                </div>
-                <button class="btn-ai" @click="store.data.education.push({degree:'',school:'',year:''})">+ Add Education</button>
-                <div class="f-sec" style="margin-top:14px;">Languages</div>
-                <div v-for="(lang, i) in store.data.languages" :key="i" style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
-                  <input class="f-inp" v-model="lang.name" placeholder="Language" style="font-size:12px;flex:1;" />
-                  <input class="f-inp" v-model="lang.level" placeholder="Level" style="font-size:12px;flex:1;" />
-                  <button @click="store.data.languages.splice(i,1)" style="background:none;border:none;color:var(--c-text3);cursor:pointer;font-size:16px;flex-shrink:0;">×</button>
-                </div>
-                <button class="btn-ai" @click="store.data.languages.push({name:'',level:''})">+ Add Language</button>
-                <div class="f-sec" style="margin-top:14px;">Certifications</div>
-                <div v-for="(cert, i) in store.data.certifications" :key="i" style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
-                  <input class="f-inp" v-model="store.data.certifications[i]" placeholder="Certification" style="font-size:12px;flex:1;" />
-                  <button @click="store.data.certifications.splice(i,1)" style="background:none;border:none;color:var(--c-text3);cursor:pointer;font-size:16px;flex-shrink:0;">×</button>
-                </div>
-                <button class="btn-ai" @click="store.data.certifications.push('')">+ Add Certification</button>
-              </div>
-              <div v-if="panelTab==='format'">
-                <div class="f-sec">Typography</div>
-                <div class="f-grp">
-                  <div class="f-lbl">Font family</div>
-                  <select class="f-inp" v-model="store.fmt.fontFamily">
-                    <option value="DM Sans">DM Sans (default)</option>
-                    <option value="Georgia">Georgia (serif)</option>
-                    <option value="system-ui">System UI</option>
-                    <option value="Arial">Arial</option>
-                    <option value="Times New Roman">Times New Roman</option>
-                    <option value="Garamond">Garamond</option>
-                    <option value="Helvetica">Helvetica</option>
-                  </select>
-                </div>
-                <div class="f-grp">
-                  <div class="f-lbl">Text size</div>
-                  <div class="fmt-btn-group">
-                    <button v-for="s in [{v:'small',l:'Small'},{v:'normal',l:'Normal'},{v:'large',l:'Large'}]" :key="s.v"
-                      class="fmt-btn" :class="{active: store.fmt.fontSize===s.v}" @click="store.fmt.fontSize=s.v">{{ s.l }}</button>
-                  </div>
-                </div>
-                <div class="f-grp">
-                  <div class="f-lbl">Line spacing</div>
-                  <div class="fmt-btn-group">
-                    <button v-for="s in [{v:'compact',l:'Compact'},{v:'normal',l:'Normal'},{v:'relaxed',l:'Relaxed'}]" :key="s.v"
-                      class="fmt-btn" :class="{active: store.fmt.lineSpacing===s.v}" @click="store.fmt.lineSpacing=s.v">{{ s.l }}</button>
-                  </div>
-                </div>
-                <div class="f-sec">Skills section</div>
-                <div class="f-grp">
-                  <div class="f-lbl">Display style</div>
-                  <select class="f-inp" v-model="store.fmt.skillStyle">
-                    <option value="bars">Progress bars</option>
-                    <option value="dots">Dots</option>
-                    <option value="chips">Chips / tags</option>
-                    <option value="list">Simple list</option>
-                    <option value="plain">Plain text (ATS safe)</option>
-                  </select>
-                </div>
-                <div class="f-grp" v-if="store.fmt.skillStyle === 'bars' || store.fmt.skillStyle === 'dots'">
-                  <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
-                    <input type="checkbox" v-model="store.fmt.showSkillPct" />
-                    Show skill percentages
-                  </label>
-                </div>
-                <div class="f-sec">Spacing</div>
-                <div class="f-grp">
-                  <div class="f-lbl">Section spacing</div>
-                  <div class="fmt-btn-group">
-                    <button v-for="s in [{v:'compact',l:'Compact'},{v:'normal',l:'Normal'},{v:'relaxed',l:'Relaxed'}]" :key="s.v"
-                      class="fmt-btn" :class="{active: store.fmt.sectionSpacing===s.v}" @click="store.fmt.sectionSpacing=s.v">{{ s.l }}</button>
-                  </div>
-                </div>
-              </div>
-              <div v-if="panelTab==='review'">
-                <StepReview @pay="openPaywall" />
-              </div>
-              <div style="margin-top:16px;display:flex;gap:8px;">
-                <button class="btn-secondary" style="flex:1;" @click="store.openWizard(); showMobileEdit=false">Full Wizard</button>
-                <button class="btn-primary accent" style="flex:1;" @click="showMobileEdit=false">Done</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
+    <!-- Mobile bottom nav -->
+    <nav class="bnav show-mobile">
+      <RouterLink to="/" class="bnav-btn" :class="{ active: route.path === '/' }">
+        <svg viewBox="0 0 24 24" v-html="NAV[0].icon"></svg>My CVs
+      </RouterLink>
+      <RouterLink to="/templates" class="bnav-btn" :class="{ active: route.path === '/templates' }">
+        <svg viewBox="0 0 24 24" v-html="NAV[1].icon"></svg>Templates
+      </RouterLink>
+      <button class="bnav-fab" @click="newCV" aria-label="New CV">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <RouterLink to="/editor" class="bnav-btn" :class="{ active: route.path === '/editor' }">
+        <svg viewBox="0 0 24 24" v-html="NAV[2].icon"></svg>Editor
+      </RouterLink>
+      <RouterLink to="/settings" class="bnav-btn" :class="{ active: route.path === '/settings' }">
+        <svg viewBox="0 0 24 24" v-html="NAV[3].icon"></svg>Settings
+      </RouterLink>
+    </nav>
+  </div>
 
-    <WizardModal @open-builder="goBuilder" @pay="openPaywall" />
-    <ConfirmModal ref="confirmRef" />
-    <PaywallModal ref="paywallRef" :show="showPaywall" @close="showPaywall=false" @paid="onPaid" />
+  <div v-else class="boot"><span class="boot-spin"></span></div>
 
-    <div class="toast-wrap">
-      <TransitionGroup name="toast">
-        <div v-for="t in toasts" :key="t.id" class="toast">
-          <svg style="width:13px;height:13px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-          {{ t.msg }}
-        </div>
-      </TransitionGroup>
-    </div>
-  </template>
-
-  <!-- Tutorial overlay — lives outside app shell so it works right after onboarding -->
+  <WizardModal @open-builder="router.push('/editor')" @pay="openPaywall" />
+  <PaywallModal ref="paywallRef" :show="showPaywall" @close="showPaywall = false" />
+  <AuthModal v-if="authState.open" :initial-view="authState.view" :reason="authState.reason" @done="onAuthDone" @close="onAuthClose" />
+  <OnboardingModal v-if="showOnboarding" @done="onboardingDismissed = true" />
+  <ConfirmModal ref="confirmRef" />
   <TutorialOverlay :visible="showTutorial" @close="showTutorial = false" />
+
+  <div class="toast-wrap">
+    <TransitionGroup name="toast">
+      <div v-for="t in toasts" :key="t.id" class="toast">{{ t.msg }}</div>
+    </TransitionGroup>
+  </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, provide, onMounted, nextTick, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, provide, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth.js'
 import { useCvStore } from './stores/cv.js'
 import { useNotifStore } from './stores/notifications.js'
-import { useCvRenderer } from './composables/cvRenderer.js'
 import LandingPage from './views/Landing.vue'
 import AuthModal from './components/auth/AuthModal.vue'
 import OnboardingModal from './components/auth/OnboardingModal.vue'
 import WizardModal from './components/WizardModal.vue'
 import PaywallModal from './components/PaywallModal.vue'
 import NotificationDropdown from './components/NotificationDropdown.vue'
-import ConfirmModal     from './components/ConfirmModal.vue'
-import TutorialOverlay  from './components/TutorialOverlay.vue'
-import StepReview       from './components/wizard/StepReview.vue'
+import ConfirmModal from './components/ConfirmModal.vue'
+import TutorialOverlay from './components/TutorialOverlay.vue'
+import BrandLogo from './components/BrandLogo.vue'
 
 const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
+const lsGet = (k) => { try { return localStorage.getItem(k) } catch { return null } }
+const lsSet = (k, v) => { try { localStorage.setItem(k, v) } catch {} }
 
-const auth       = useAuthStore()
+const auth   = useAuthStore()
+const store  = useCvStore()
+const notif  = useNotifStore()
+const router = useRouter()
+const route  = useRoute()
 
-const showLanding = ref(true)
-const maintenance = ref(false)
-watch(() => auth.isLoggedIn, (loggedIn) => {
-  if (loggedIn) showLanding.value = false
-}, { immediate: true })
+const NAV = [
+  { id: 'home',      to: '/',          label: 'My CVs',    icon: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>' },
+  { id: 'templates', to: '/templates', label: 'Templates', icon: '<rect x="4" y="3" width="16" height="18" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/>' },
+  { id: 'editor',    to: '/editor',    label: 'Editor',    icon: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/>' },
+  { id: 'settings',  to: '/settings',  label: 'Settings',  icon: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>' },
+]
 
+const ready        = ref(false)
+const maintenance  = ref(false)
+const showLanding  = ref(false)
+const navOpen      = ref(false)
+const showPaywall  = ref(false)
+const showTutorial = ref(false)
+const paywallRef   = ref(null)
+const confirmRef   = ref(null)
+const toasts       = ref([])
+
+// ── Toasts & shared helpers ───────────────────────────────────────────────────
+function showToast(msg, ms = 3800) {
+  const id = Date.now() + Math.random()
+  toasts.value.push({ id, msg })
+  setTimeout(() => { toasts.value = toasts.value.filter(t => t.id !== id) }, ms)
+}
+function openPaywall() { showPaywall.value = true }
+provide('showToast', showToast)
+provide('openPaywall', openPaywall)
+provide('confirm', (...args) => confirmRef.value?.ask(...args))
+provide('startTutorial', () => { showTutorial.value = true })
+provide('fmt', computed(() => store.fmt))
+
+// ── Auth modal (sign in / create account) ─────────────────────────────────────
+// Guests can do everything except export; requireAccount() asks them to sign up
+// at that moment and resolves true once they're signed in.
+const authState = reactive({ open: false, view: 'register', reason: '' })
+let authResolve = null
+function openAuth(view = 'signin', reason = '') {
+  authState.view = view; authState.reason = reason; authState.open = true
+  return new Promise(r => { authResolve = r })
+}
+function onAuthClose() {
+  authState.open = false
+  authResolve?.(false); authResolve = null
+}
+async function onAuthDone() {
+  const hadReason = !!authState.reason
+  authState.open = false
+  showLanding.value = false
+  lsSet('pcv-started', '1')
+  if (hadReason) onboardingDismissed.value = true // don't interrupt an export with onboarding
+  await afterSignIn()
+  authResolve?.(true); authResolve = null
+}
+provide('openAuth', openAuth)
+provide('requireAccount', (reason) => auth.isLoggedIn ? Promise.resolve(true) : openAuth('register', reason))
+
+// Onboarding (industry / goal / experience) is optional context for the AI
+const onboardingDismissed = ref(false)
+const showOnboarding = computed(() => ready.value && auth.isLoggedIn && !auth.isOnboarded && !onboardingDismissed.value && !authState.open)
+
+// Guest → account: keep the CV they built as their first saved draft
+async function afterSignIn() {
+  notif.fetch()
+  if (store.hasContent && !store.currentDraftId) {
+    const id = await store.saveDraft()
+    if (id) showToast('Your CV is now saved to your account.')
+  } else if (!store.hasContent) {
+    await restoreLatestDraft()
+  }
+}
+
+async function restoreLatestDraft() {
+  try {
+    const r = await fetch(apiUrl('/api/drafts'), { credentials: 'include' })
+    if (!r.ok) return
+    const drafts = await r.json()
+    if (!drafts.length) return
+    const latest = [...drafts].sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))[0]
+    if (latest?.data) store.loadDraft(latest)
+  } catch {}
+}
+
+// ── New CV ────────────────────────────────────────────────────────────────────
+async function newCV() {
+  navOpen.value = false
+  if (!auth.isLoggedIn && store.hasContent) {
+    const ok = await confirmRef.value?.ask({
+      title: 'Start a new CV?',
+      message: "Your current CV is only saved in this browser, so it will be replaced. Create a free account first if you want to keep both.",
+      ok: 'Start new CV', cancel: 'Keep current', mode: 'warning',
+    })
+    if (!ok) return
+  }
+  store.resetData()
+  store.openWizard()
+}
+
+// Landing → app
+function startBuilding() {
+  lsSet('pcv-started', '1')
+  showLanding.value = false
+  router.push('/templates')
+}
+
+// ── Maintenance ───────────────────────────────────────────────────────────────
 async function checkMaintenance() {
   try {
     const r = await fetch(apiUrl('/api/health'), { credentials: 'include' })
@@ -567,423 +247,127 @@ async function checkMaintenance() {
   } catch { maintenance.value = false }
 }
 
-const store      = useCvStore()
-const notifStore = useNotifStore()
-const router     = useRouter()
-const route      = useRoute()
-const { render } = useCvRenderer()
-
-const sidebarOpen      = ref(true)
-const mobileSidebarOpen= ref(false)
-const currentView      = ref('dashboard')
-const panelOpen        = ref(true)
-const panelTab         = ref('edit')
-const zoom             = ref(75)
-const newSkill         = ref('')
-const showPaywall      = ref(false)
-const showTutorial     = ref(false)
-const paywallRef       = ref(null)
-const confirmRef       = ref(null)
-const toasts           = ref([])
-const canvasRef        = ref(null)
-const showMobileEdit   = ref(false)
-const canvasWidth      = ref(0)
-
-// Re-observe when builder mounts (canvasRef is inside v-if so it's null at onMounted)
-watch(canvasRef, (el) => {
-  if (el) {
-    ro?.observe(el)
-    measureCanvas()
-  }
-})
-
-// ── Formatting — stored in Pinia so builder + wizard share the same object ───
-const fmt = computed(() => store.fmt)
-
-const pTabs = [
-  { id: 'edit',   label: 'Edit'   },
-  { id: 'skills', label: 'Skills' },
-  { id: 'more',   label: 'More'   },
-  { id: 'format', label: 'Format' },
-  { id: 'review', label: 'Score'  },
-]
-
-const TEMPLATES = ['executive','modern','minimal','bold','creative','academic','elegant','tech','pastel','teal','newspaper','swiss','gradient','compact','photo','infographic','corporate','magazine','midnight','clean','slate','terra','prism','ivory','split','forest','ruby','ocean','purple','charcoal','sunrise','silver','mint','indigo','amber','diamond','bloom','nordic','sakura','emerald','cobalt','lemon','graphite','vega','rose','onyx','aurora','carbon','sky','obsidian','slate2','crimson','sage','dusk','slate3','copper2','neon','blush','sand','phantom','electric','luxe','mono','wave','tealwave','navy','violet2','midnight2','glacier','lava','verdant','parchment','matrix','retro','prism2','zinc','coral','tan','slate4','clay','frost','steel','mauve','brick','peach','plum','spruce','pine','ochre','ash','jade','wine','ultraviolet','blueprint','meadow','glacier2','garnet','topaz','walnut','ivory2','slate5','crimson2','sepia','lavender','ink','moss','futura']
-const TEMPLATE_NAMES = { executive:'Executive Slate', modern:'Modern Azure', minimal:'Minimal Editorial', bold:'Bold Noir', creative:'Creative Violet', academic:'Academic', elegant:'Elegant Gold', tech:'Tech Dark', pastel:'Pastel Rose', teal:'Teal Sidebar', newspaper:'Newspaper', swiss:'Swiss Design', gradient:'Gradient Flow', compact:'Compact Grid', photo:'Photo Professional', infographic:'Infographic', corporate:'Corporate Blue', magazine:'Magazine Editorial', midnight:'Midnight Executive', clean:'Clean Professional', slate:'Slate Impact', terra:'Terra', prism:'Prism', ivory:'Ivory Luxury', split:'Bold Split', forest:'Forest Green', ruby:'Ruby Red', ocean:'Ocean Blue', purple:'Purple Reign', charcoal:'Charcoal Grid', sunrise:'Sunrise Orange', silver:'Silver Lining', mint:'Mint Fresh', indigo:'Indigo Wave', amber:'Dark Amber', diamond:'Diamond', bloom:'Pink Bloom', nordic:'Nordic', sakura:'Sakura', emerald:'Emerald', cobalt:'Cobalt Night', lemon:'Lemon Fresh', graphite:'Graphite', vega:'Vega', rose:'Rose Gold', onyx:'Onyx', aurora:'Aurora', carbon:'Carbon', sky:'Sky Blue', obsidian:'Obsidian', slate2:'Slate Pro', crimson:'Crimson', sage:'Sage Green', dusk:'Dusk', slate3:'Slate III', copper2:'Copper II', neon:'Neon Green', blush:'Blush', sand:'Sand', phantom:'Phantom', electric:'Electric', luxe:'Luxe Gold', mono:'Monospace', wave:'Wave', tealwave:'Teal Wave', navy:'Navy Pro', violet2:'Violet', midnight2:'Midnight II', glacier:'Glacier', lava:'Lava', verdant:'Verdant', parchment:'Parchment', matrix:'Matrix', retro:'Retro Gold', prism2:'Prism II', zinc:'Zinc', coral:'Coral', tan:'Tan', slate4:'Slate IV', clay:'Clay Amber', frost:'Frost', steel:'Steel', mauve:'Mauve', brick:'Brick Red', peach:'Peach', plum:'Plum Dark', spruce:'Spruce', pine:'Pine', ochre:'Ochre', ash:'Ash', jade:'Jade', wine:'Wine', ultraviolet:'Ultraviolet', blueprint:'Blueprint', meadow:'Meadow', glacier2:'Glacier II', garnet:'Garnet', topaz:'Topaz', walnut:'Walnut', ivory2:'Ivory II', slate5:'Slate V', crimson2:'Crimson II', sepia:'Sepia', lavender:'Lavender', ink:'Ink', moss:'Moss', futura:'Futura' }
-
-const PAGE_META = {
-  dashboard: { title: 'Dashboard',     sub: 'Your CVs at a glance' },
-  templates:  { title: 'Templates',    sub: '107 professional designs' },
-  builder:    { title: 'CV Builder',   sub: 'Edit and preview live' },
-  settings:   { title: 'Settings',     sub: 'Account & preferences' },
-}
-const pageMeta   = computed(() => PAGE_META[currentView.value] || { title: 'CVMaster', sub: '' })
-// Deep-reactive CV render — JSON.stringify forces Vue to track ALL nested fields
-// so any change anywhere in store.data or template triggers a re-render
-const renderedCV = computed(() => {
-  // Read every field explicitly so Vue tracks mutations on the shared store.fmt ref
-  JSON.stringify(store.data)
-  const f = store.fmt
-  const _fmt = {
-    fontFamily:     f.fontFamily,
-    fontSize:       f.fontSize,
-    skillStyle:     f.skillStyle,
-    showSkillPct:   f.showSkillPct,
-    lineSpacing:    f.lineSpacing,
-    sectionSpacing: f.sectionSpacing,
-  }
-  return render(store.template, store.data, _fmt)
-})
-
-// Auto-scale CV to fit canvas — on mobile fill width, on desktop use zoom
-const isMobileView = computed(() => canvasWidth.value > 0 && canvasWidth.value < 780)
-
-const cvScale = computed(() => {
-  if (isMobileView.value && canvasWidth.value > 0) {
-    return (canvasWidth.value - 16) / 700
-  }
-  return zoom.value / 100
-})
-
-const cvOuterStyle = computed(() => {
-  // Both mobile and desktop: flex container that centres the zoom-scaled CV
-  return {
-    width: '100%',
-    display: 'flex',
-    justifyContent: isMobileView.value ? 'flex-start' : 'center',
-    padding: isMobileView.value ? '8px' : '24px',
-    boxSizing: 'border-box',
-  }
-})
-
-const cvScalerStyle = computed(() => {
-  const s = cvScale.value
-  // Use CSS zoom for both mobile and desktop — shrinks layout AND visual, no clipping
-  return {
-    width: '700px',
-    zoom: `${s}`,
-    flexShrink: '0',
-  }
-})
-
-let ro
-function measureCanvas() {
-  if (canvasRef.value) canvasWidth.value = canvasRef.value.clientWidth
-}
-
-function isMobile() { return window.innerWidth <= 768 }
-
-function toggleSidebar() {
-  if (isMobile()) mobileSidebarOpen.value = !mobileSidebarOpen.value
-  else sidebarOpen.value = !sidebarOpen.value
-}
-
-function go(view, path) {
-  currentView.value = view
-  if (route.path !== path) router.push(path)
-  if (isMobile()) mobileSidebarOpen.value = false
-}
-function goLegal() { go('legal', '/legal') }
-
-function goBuilderView() { currentView.value = 'builder' }
-function newCV()         { store.resetData(); store.openWizard() }
-function goBuilder()     { currentView.value = 'builder' }
-
-function cycleTemplate() {
-  const i = TEMPLATES.indexOf(store.template)
-  store.template = TEMPLATES[(i + 1) % TEMPLATES.length]
-  showToast(`Template: ${TEMPLATE_NAMES[store.template] || store.template}`)
-}
-
-function addSkill() {
-  const v = newSkill.value.trim()
-  if (v) { store.addSkill(v); newSkill.value = '' }
-}
-
-function showToast(msg, ms = 3500) {
-  const id = Date.now()
-  toasts.value.push({ id, msg })
-  setTimeout(() => { toasts.value = toasts.value.filter(t => t.id !== id) }, ms)
-}
-provide('showToast', showToast)
-provide('startTutorial', () => { showTutorial.value = true })
-provide('confirm', (...args) => confirmRef.value?.ask(...args))
-provide('fmt', computed(() => store.fmt))
-provide('builderFmt', computed(() => store.fmt))
-
-// From the wizard's final step or the Score tab: show the builder behind the paywall
-function openPaywall() {
-  currentView.value = 'builder'
-  showPaywall.value = true
-}
-
-function onPaid() {
-  showPaywall.value = false
-  showToast('CV sent to your email!')
-}
-
-async function onAuthDone() {
-  await notifStore.fetch()
-  handleStripeReturn()
-  // Show tutorial if user has never seen it
-  nextTick(() => {
-    setTimeout(() => {
-      try {
-        if (!localStorage.getItem('cvmaster-tour-done')) {
-          showTutorial.value = true
-        }
-      } catch {}
-    }, 1000)
-  })
-}
-function onboardDone() {
-  // Wait for app shell to fully mount, then show tutorial (first time only)
-  nextTick(() => {
-    setTimeout(() => {
-      try {
-        if (!localStorage.getItem('cvmaster-tour-done')) {
-          showTutorial.value = true
-        }
-      } catch {}
-    }, 800)
-  })
-}
-
+// ── Returning from Stripe ─────────────────────────────────────────────────────
 function handleStripeReturn() {
   const params    = new URLSearchParams(window.location.search)
   const sessionId = params.get('session') || params.get('session_id')
-  const draftId   = params.get('draft') || 'current'
+  if (!sessionId) return
+  const draftId   = params.get('draft')
 
-  // ── Watermark clean download return ──
-  // Detected by pcv_wm_token in sessionStorage (set before Stripe redirect).
-  // Router preserves query so sessionId is available even after /download-clean → / redirect.
+  // Clean (watermark-free) download: token saved in sessionStorage before the redirect
   const wmToken = sessionStorage.getItem('pcv_wm_token')
-  if (wmToken && sessionId) {
-    const wmFilename = sessionStorage.getItem('pcv_wm_filename') || 'cv-clean.pdf'
+  if (wmToken) {
+    const wmFilename = sessionStorage.getItem('pcv_wm_filename') || 'cv.pdf'
     sessionStorage.removeItem('pcv_wm_token')
     sessionStorage.removeItem('pcv_wm_filename')
     window.history.replaceState({}, '', '/')
-    currentView.value = 'dashboard'
-    const base = import.meta.env.VITE_API_URL || ''
-    fetch(`${base}/api/cv/clean/${wmToken}`, {
-      credentials: 'include',
-      headers: { 'x-payment-intent-id': sessionId },
-    }).then(r => r.ok ? r.blob() : Promise.reject(r.status))
+    fetch(apiUrl(`/api/cv/clean/${wmToken}`), { credentials: 'include', headers: { 'x-payment-intent-id': sessionId } })
+      .then(r => r.ok ? r.blob() : Promise.reject(r.status))
       .then(blob => {
         const url = URL.createObjectURL(blob)
-        const a   = document.createElement('a')
-        a.href    = url
-        a.download = wmFilename.replace(/\.pdf$/i, '') + '-clean.pdf'
-        document.body.appendChild(a); a.click(); document.body.removeChild(a)
+        const a = document.createElement('a')
+        a.href = url; a.download = wmFilename.replace(/\.pdf$/i, '') + '-clean.pdf'
+        document.body.appendChild(a); a.click(); a.remove()
         setTimeout(() => URL.revokeObjectURL(url), 1000)
-        showToast('Clean CV downloaded!')
-      }).catch(() => showToast('Download failed. Please try again from the dashboard.'))
+        showToast('Your clean CV has downloaded.')
+      })
+      .catch(() => showToast("Payment received, but the download didn't start. Try Download again from My CVs."))
     return
   }
 
-  // ── Email export (PaywallModal) return ──
-  // sessionId present = always a Stripe return for email export (watermark handled above).
-  // Don't gate on sessionStorage — it's lost when origin changes (cvmaster.live ↔ www.cvmaster.live).
-  if (sessionId) {
-    sessionStorage.removeItem('pcv_pending_download')
-    window.history.replaceState({}, '', '/')
-    currentView.value  = 'dashboard'
-    // Start the return handling before opening the modal, so the modal's own
-    // "check payment status" doesn't run over the top of it
-    nextTick(() => nextTick(() => {
-      paywallRef.value?.handleStripeReturn(sessionId, draftId)
-      showPaywall.value = true
-    }))
-  }
+  // Emailed export (£1.99)
+  window.history.replaceState({}, '', '/')
+  nextTick(() => nextTick(() => {
+    paywallRef.value?.handleStripeReturn(sessionId, draftId)
+    showPaywall.value = true
+  }))
 }
 
+// ── Boot ──────────────────────────────────────────────────────────────────────
 onMounted(async () => {
   store.initDarkMode()
-  // Check maintenance before anything else
-  try {
-    const r = await fetch(apiUrl('/api/health'), { credentials: 'include' })
-    if (r.status === 503) { maintenance.value = true; return }
-  } catch {}
+  await checkMaintenance()
+  if (maintenance.value) return
   await auth.fetchMe()
+
+  const params = new URLSearchParams(window.location.search)
   if (auth.isLoggedIn) {
-    await notifStore.fetch()
+    notif.fetch()
     await restoreLatestDraft()
-    // Show tutorial if user has never seen it (covers page-refresh-while-logged-in case)
-    try {
-      if (!localStorage.getItem('cvmaster-tour-done')) {
-        setTimeout(() => { showTutorial.value = true }, 1200)
-      }
-    } catch {}
+  } else {
+    // First visit: show the landing page (returning guests go straight to the app)
+    const deepLink = window.location.pathname !== '/'
+    showLanding.value = !deepLink && !lsGet('pcv-started') && !store.hasContent && !params.get('session')
   }
+  ready.value = true
+
+  if (params.get('token')) openAuth('reset')
+  else if (!auth.isLoggedIn && (params.get('ref') || params.get('referral'))) openAuth('register')
   handleStripeReturn()
-  // Set currentView from current URL path
-  const path = window.location.pathname
-  if (path === '/templates') currentView.value = 'templates'
-  else if (path === '/settings') currentView.value = 'settings'
-  else if (path === '/legal' || path === '/privacy' || path === '/terms') currentView.value = 'legal'
-  else currentView.value = 'dashboard'
-  nextTick(() => {
-    ro = new ResizeObserver(measureCanvas)
-    if (canvasRef.value) ro.observe(canvasRef.value)
-    measureCanvas()
-    window.addEventListener('resize', measureCanvas)
-  })
 })
 
-async function restoreLatestDraft() {
-  try {
-    const r = await fetch(apiUrl('/api/drafts'), { credentials: 'include' })
-    if (!r.ok) return
-    const drafts = await r.json()
-    if (!drafts.length) return
-    // Find the most recently updated draft
-    const latest = drafts.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))[0]
-    if (latest?.data) {
-      store.currentDraftId = latest.id
-      store.wizardDraftId  = latest.id
-      Object.assign(store.data, latest.data)
-      // Per-CV fields: don't keep values from a different CV cached in this browser
-      store.data.jobOffer    = latest.data.jobOffer    || ''
-      store.data.skillLevels = latest.data.skillLevels || {}
-      if (latest.template) store.template = latest.template
-    }
-  } catch {}
-}
-onUnmounted(() => {
-  ro?.disconnect()
-  window.removeEventListener('resize', measureCanvas)
-})
+// Signing out elsewhere (Settings) returns to the guest experience
+watch(() => auth.isLoggedIn, (v, was) => { if (was && !v) { store.resetData(); notif.items = [] } })
+watch(() => route.path, () => { navOpen.value = false })
 </script>
 
-<style>
-/* Utility: show/hide on mobile */
-.hide-mobile { display: flex; }
-.show-mobile { display: none; }
-@media (max-width: 768px) {
-  .hide-mobile { display: none !important; }
-  .show-mobile { display: flex !important; }
+<style scoped>
+.shell{display:flex;height:100vh;height:100dvh;overflow:hidden;background:var(--c-bg)}
+
+/* Sidebar */
+.sb{width:var(--sb);flex-shrink:0;display:flex;flex-direction:column;gap:18px;padding:18px 14px;background:var(--c-surface);border-right:1px solid var(--c-border);overflow-y:auto}
+.sb-brand{padding:2px 6px;text-decoration:none}
+.sb-new svg{width:16px;height:16px}
+.sb-nav{display:flex;flex-direction:column;gap:2px}
+.sb-link{display:flex;align-items:center;gap:11px;height:38px;padding:0 10px;border-radius:9px;font-size:14px;font-weight:500;color:var(--c-text2);text-decoration:none;transition:background .15s,color .15s}
+.sb-link svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.sb-link:hover{background:var(--c-surface2);color:var(--c-text)}
+.sb-link.active{background:var(--c-accent-lt);color:var(--c-accent);font-weight:600}
+.sb-foot{margin-top:auto;display:flex;flex-direction:column;gap:12px}
+.sb-guest{border:1px solid var(--c-border);border-radius:12px;padding:14px;background:var(--c-surface2);display:flex;flex-direction:column;gap:8px}
+.sb-guest-ttl{font-size:13px;font-weight:600}
+.sb-guest p{font-size:12.5px;color:var(--c-text2);line-height:1.5;margin-bottom:4px}
+.sb-user{display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px;text-decoration:none;color:inherit}
+.sb-user:hover{background:var(--c-surface2)}
+.sb-ava{width:34px;height:34px;border-radius:50%;background:var(--c-accent-lt);color:var(--c-accent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0}
+.sb-user-txt{display:flex;flex-direction:column;min-width:0}
+.sb-user-name{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-user-mail{font-size:12px;color:var(--c-text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-legal{display:flex;gap:6px;justify-content:center;font-size:12px;color:var(--c-text3)}
+.sb-legal a{color:var(--c-text3);text-decoration:none}
+.sb-legal a:hover{color:var(--c-text)}
+.sb-dim{display:none}
+
+/* Main */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.top{height:var(--topbar);flex-shrink:0;display:flex;align-items:center;gap:12px;padding:0 20px 0 28px;background:var(--c-surface);border-bottom:1px solid var(--c-border)}
+.top-title{font-size:15px;font-weight:600;flex:1;min-width:0}
+.top-actions{display:flex;align-items:center;gap:4px}
+.content{flex:1;min-height:0;overflow:hidden}
+.content > :deep(*){height:100%}
+
+/* Mobile */
+.bnav{position:fixed;left:0;right:0;bottom:0;z-index:300;background:var(--c-surface);border-top:1px solid var(--c-border);
+  align-items:center;justify-content:space-around;padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
+.bnav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;font-size:11px;font-weight:500;color:var(--c-text3);text-decoration:none}
+.bnav-btn svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.bnav-btn.active{color:var(--c-accent)}
+.bnav-fab{width:48px;height:48px;border-radius:14px;border:none;background:var(--c-accent);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(79,70,229,.35);flex-shrink:0}
+.bnav-fab svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round}
+@media (max-width:768px){
+  .sb{position:fixed;left:0;top:0;bottom:0;z-index:600;transform:translateX(-100%);transition:transform .22s ease;box-shadow:var(--shadow-xl)}
+  .sb.open{transform:none}
+  .sb-dim{display:block;position:fixed;inset:0;z-index:550;background:rgba(15,15,25,.4);opacity:0;pointer-events:none;transition:opacity .2s}
+  .sb-dim.on{opacity:1;pointer-events:auto}
+  .top{padding:0 12px}
+  .content{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
 }
 
-/* ── BOTTOM NAV ─────────────────────────────────────────────── */
-.bottom-nav {
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: 300;
-  background: var(--c-surface); border-top: 1px solid var(--c-border);
-  flex-direction: row; align-items: center; justify-content: space-around;
-  padding: 6px 8px; padding-bottom: calc(6px + env(safe-area-inset-bottom));
-  gap: 0;
-}
-.bnav-btn {
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
-  background: none; border: none; cursor: pointer; padding: 6px 12px;
-  color: var(--c-text3); font-size: 10px; font-weight: 500; font-family: 'DM Sans', sans-serif;
-  transition: color .14s; flex: 1;
-}
-.bnav-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; }
-.bnav-btn.active { color: var(--c-accent); }
-.bnav-fab {
-  width: 50px; height: 50px; border-radius: 50%; border: none;
-  background: var(--c-accent); color: #fff; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 4px 16px rgba(42,91,215,.4); flex-shrink: 0;
-  transition: transform .14s, background .14s;
-}
-.bnav-fab:active { transform: scale(.93); }
-.bnav-fab svg { width: 22px; height: 22px; stroke: currentColor; fill: none; }
-
-/* ── MOBILE EXPORT BAR ──────────────────────────────────────── */
-.mobile-export-bar {
-  position: sticky; bottom: 0; left: 0; right: 0;
-  background: var(--c-surface); border-top: 1px solid var(--c-border);
-  padding: 10px 16px; padding-bottom: calc(10px + env(safe-area-inset-bottom));
-  z-index: 50;
-}
-.mobile-export-btn {
-  width: 100%; background: var(--c-accent); color: #fff; border: none;
-  padding: 14px; border-radius: 12px; font-size: 15px; font-weight: 700;
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
-  gap: 8px; font-family: 'DM Sans', sans-serif;
-}
-
-/* ── MOBILE EDIT DRAWER ─────────────────────────────────────── */
-.mobile-edit-backdrop {
-  position: fixed; inset: 0; z-index: 800;
-  background: rgba(0,0,0,.55); backdrop-filter: blur(4px);
-  display: flex; align-items: flex-end;
-}
-.mobile-edit-drawer {
-  width: 100%; background: var(--c-surface);
-  border-radius: 20px 20px 0 0; max-height: 88dvh;
-  display: flex; flex-direction: column; overflow: hidden;
-}
-.drawer-handle { width: 36px; height: 4px; background: var(--c-border2); border-radius: 2px; margin: 10px auto 0; flex-shrink: 0; }
-.drawer-hd { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--c-border); flex-shrink: 0; }
-.drawer-title { font-size: 15px; font-weight: 700; color: var(--c-text); }
-.drawer-close { width: 28px; height: 28px; border-radius: 50%; background: var(--c-bg); border: 1px solid var(--c-border); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--c-text2); }
-.drawer-close svg { width: 13px; height: 13px; }
-.drawer-body { flex: 1; overflow-y: auto; padding: 16px; -webkit-overflow-scrolling: touch; }
-.drawer-fade-enter-active, .drawer-fade-leave-active { transition: opacity .25s; }
-.drawer-fade-enter-active .mobile-edit-drawer, .drawer-fade-leave-active .mobile-edit-drawer { transition: transform .3s cubic-bezier(.4,0,.2,1); }
-.drawer-fade-enter-from { opacity: 0; }
-.drawer-fade-enter-from .mobile-edit-drawer { transform: translateY(100%); }
-.drawer-fade-leave-to { opacity: 0; }
-.drawer-fade-leave-to .mobile-edit-drawer { transform: translateY(100%); }
-
-/* ── CV PAGE SHADOW ─────────────────────────────────────────── */
-.cv-page-shadow {
-  display: inline-block;
-  box-shadow: 0 8px 40px rgba(0,0,0,.18), 0 2px 8px rgba(0,0,0,.08);
-  border-radius: 2px;
-  overflow: hidden;
-  background: #fff;
-}
-
-/* ── PREVIEW TOPBAR ─────────────────────────────────────────── */
-.preview-topbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: var(--c-surface); border-bottom: 1px solid var(--c-border); flex-shrink: 0; gap: 8px; }
-.preview-topbar-left, .preview-topbar-right { display: flex; align-items: center; gap: 6px; }
-.zoom-lbl { font-size: 11px; font-weight: 700; color: var(--c-text3); min-width: 32px; text-align: center; }
-.export-pill { background: var(--c-accent) !important; color: #fff !important; border-color: var(--c-accent) !important; }
-.export-pill:hover { opacity: .88; }
-
-/* ── CV OUTER + SCALER ──────────────────────────────────────── */
-.cv-outer  { box-sizing: border-box; }
-.cv-scaler { display: block; }
-
-/* ── MOBILE BUILDER ─────────────────────────────────────────── */
-@media (max-width: 779px) {
-  .builder-wrap    { flex-direction: column !important; }
-  .builder-panel   { display: none !important; }
-  .builder-preview { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
-  .builder-canvas  { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
-}
-
-/* ── TOPBAR RIGHT ───────────────────────────────────────────── */
-.topbar-right { display: flex; align-items: center; gap: 6px; margin-left: auto; }
-
-/* Hide pages when builder is active — keep them mounted for KeepAlive */
-.hidden-view { display: none !important; }
-
-/* ── MISC ───────────────────────────────────────────────────── */
-.skill-rm svg { width: 11px; height: 11px; }
-
-/* ── FORMAT TAB ─────────────────────────────────────────────── */
-.fmt-btn-group { display:flex; gap:4px; }
-.fmt-btn {
-  flex:1; border:1.5px solid var(--c-border); background:var(--c-bg);
-  border-radius:var(--radius-sm); padding:7px 4px; font-size:11.5px;
-  font-weight:500; cursor:pointer; color:var(--c-text2);
-  font-family:'DM Sans',sans-serif; transition:all .15s;
-}
-.fmt-btn:hover { border-color:var(--c-border2); color:var(--c-text); }
-.fmt-btn.active { border-color:var(--c-accent); background:var(--c-accent-lt); color:var(--c-accent); font-weight:700; }
-
-.maint-page{position:fixed;inset:0;background:#0d1117;display:flex;align-items:center;justify-content:center;z-index:9999;padding:24px;}
-.maint-box{max-width:420px;width:100%;text-align:center;}
-.maint-logo{font-size:26px;font-weight:700;color:#fff;margin-bottom:28px;}
-.maint-logo b{color:#2f81f7;}
-.maint-icon{width:64px;height:64px;border-radius:16px;background:rgba(47,129,247,.12);border:1px solid rgba(47,129,247,.2);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;color:#2f81f7;}
-.maint-icon svg{width:28px;height:28px;}
-.maint-page h1{font-size:26px;font-weight:700;color:#e6edf3;margin-bottom:12px;}
-.maint-page p{font-size:15px;color:#8b949e;line-height:1.6;margin-bottom:24px;}
-.maint-btn{background:#2f81f7;color:#fff;border:none;padding:11px 24px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:opacity .15s;}
-.maint-btn:hover{opacity:.85;}
+/* Boot + maintenance */
+.boot{height:100vh;display:flex;align-items:center;justify-content:center}
+.boot-spin{width:26px;height:26px;border-radius:50%;border:3px solid var(--c-border);border-top-color:var(--c-accent);animation:spin .8s linear infinite}
+.maint{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--c-bg)}
+.maint-box{max-width:420px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px}
+.maint-box h1{font-size:24px;font-weight:650;margin-top:12px}
+.maint-box p{color:var(--c-text2)}
 </style>

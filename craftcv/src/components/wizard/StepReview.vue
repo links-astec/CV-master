@@ -66,7 +66,7 @@
             <div class="issue-text">{{ issue.text }}</div>
             <div v-if="issue.tip" class="issue-tip">💡 {{ issue.tip }}</div>
           </div>
-          <button v-if="issue.stepIndex !== undefined" class="fix-btn" @click="fixStep(issue.stepIndex)">Fix →</button>
+          <button v-if="issue.stepIndex !== undefined && issue.severity !== 'pass'" class="fix-btn" @click="fixStep(issue.stepIndex)">Fix →</button>
         </div>
       </div>
 
@@ -109,7 +109,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, inject } from 'vue'
 import AtsScorer from '../AtsScorer.vue'
 import { useCvStore } from '../../stores/cv.js'
 import { useAuthStore } from '../../stores/auth.js'
@@ -293,7 +293,7 @@ const scoreLabel = computed(() => {
 })
 
 const scoreDesc = computed(() => {
-  if (score.value >= 85) return 'Interview-ready — top 10% of applicants'
+  if (score.value >= 85) return 'All the essentials are in place'
   if (score.value >= 70) return 'A few tweaks could push you to 90+'
   if (score.value >= 50) return 'Several improvements recommended'
   return 'Complete the sections below to improve your score'
@@ -335,7 +335,12 @@ const allIssues = computed(() => {
   })
 })
 
-function fixStep(stepIndex) { store.openWizardAtStep(stepIndex) }
+// In the editor, "Fix" opens the matching section; in the wizard it jumps to that step
+const fixSection = inject('fixSection', null)
+function fixStep(stepIndex) {
+  if (fixSection) fixSection(stepIndex)
+  else store.openWizardAtStep(stepIndex)
+}
 
 // ── AI DEEP REVIEW ───────────────────────────────────────────────────────────
 async function runAiReview() {
@@ -372,14 +377,14 @@ onMounted(runAiReview)
 </script>
 
 <style scoped>
-.step-title { font-family:'DM Serif Display',serif; font-size:20px; color:var(--c-text); margin-bottom:5px; }
+.step-title { font-family:inherit;letter-spacing:-.01em; font-size:20px; color:var(--c-text); margin-bottom:5px; }
 .step-sub   { font-size:13px; color:var(--c-text2); margin-bottom:20px; line-height:1.5; }
 
 /* Score hero */
 .score-hero { display:flex; align-items:center; gap:18px; margin-bottom:20px; padding:16px; background:var(--c-bg); border:1px solid var(--c-border); border-radius:var(--radius-lg); }
 .score-ring { position:relative; width:88px; height:88px; flex-shrink:0; }
 .score-mid  { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-.score-n    { font-family:'DM Serif Display',serif; font-size:26px; font-weight:700; line-height:1; }
+.score-n    { font-family:inherit;letter-spacing:-.01em; font-size:26px; font-weight:700; line-height:1; }
 .score-m    { font-size:11px; color:var(--c-text3); }
 .score-ttl  { font-size:16px; font-weight:700; color:var(--c-text); margin-bottom:3px; }
 .score-desc { font-size:12px; color:var(--c-text2); margin-bottom:8px; line-height:1.4; }
@@ -413,7 +418,7 @@ onMounted(runAiReview)
 .issue-title { font-size:13px; font-weight:700; color:var(--c-text); margin-bottom:3px; }
 .issue-text  { font-size:12px; color:var(--c-text2); line-height:1.55; }
 .issue-tip   { font-size:11.5px; color:var(--c-text3); margin-top:5px; font-style:italic; }
-.fix-btn { background:var(--c-text); color:var(--c-surface); border:none; padding:5px 11px; border-radius:var(--radius-sm); font-size:11.5px; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; flex-shrink:0; white-space:nowrap; transition:opacity .15s; }
+.fix-btn { background:var(--c-text); color:var(--c-surface); border:none; padding:5px 11px; border-radius:var(--radius-sm); font-size:11.5px; font-weight:700; cursor:pointer; font-family:inherit; flex-shrink:0; white-space:nowrap; transition:opacity .15s; }
 .fix-btn:hover { opacity:.8; }
 
 .email-note { display:flex; align-items:center; gap:8px; background:var(--c-bg); border:1px solid var(--c-border); border-radius:var(--radius); padding:10px 12px; font-size:12px; color:var(--c-text2); margin-bottom:12px; }

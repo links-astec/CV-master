@@ -91,63 +91,59 @@ const cardPos       = ref({ top: 0, left: 0, placement: 'bottom' })
 
 const steps = [
   {
-    title: 'Welcome to CVMaster!',
-    desc:  'This quick tour will show you how to create your professional CV in under 3 minutes. You can restart this tour anytime from Settings.',
-    icon:  '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="12" x2="15" y2="12"/>',
+    title: 'Welcome to CVMaster',
+    desc:  'A one-minute tour of building, tailoring and exporting your CV. You can restart it any time from Settings.',
+    icon:  '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>',
     iconBg:'var(--c-accent-lt)',
     target: null,
   },
   {
-    title: 'Your Dashboard',
-    desc:  'This is your CV hub. All your saved CVs appear here. Click any CV to open it in the builder, or start fresh with "+ New CV".',
-    icon:  '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+    title: 'My CVs',
+    desc:  'All your CVs live here. Open one to edit it, download it, or email it again once it is paid for.',
+    icon:  '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
     iconBg:'var(--c-accent-lt)',
-    target: '.nav-btn:first-of-type',
-    tip:   'Your CVs auto-save every time you make a change.',
+    target: '[data-tour="nav-home"]',
   },
   {
-    title: 'Create with AI Wizard',
-    desc:  'Click "+ New CV" to open the AI Wizard. You can type your details, speak your career story aloud (AI narrate), or upload an existing CV to import automatically.',
-    icon:  '<path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2"/>',
+    title: 'Start a new CV',
+    desc:  'Fill it in step by step, tell your story and let AI structure it, or import an existing PDF or Word CV.',
+    icon:  '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
     iconBg:'var(--c-violet-lt)',
-    target: '.btn-primary.accent',
-    tip:   'AI Narrate: speak for 2–5 minutes and AI builds your entire CV.',
+    target: '[data-tour="new-cv"]',
   },
   {
-    title: '107 Professional Templates',
-    desc:  'Browse 107 stunning templates across every industry — Corporate, Tech, Creative, Finance, Healthcare and more. Switch templates instantly without losing your content.',
-    icon:  '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/>',
+    title: 'Templates',
+    desc:  '8 ATS-friendly layouts in 12 colours. When you pick one you can paste the job offer you are applying for.',
+    icon:  '<rect x="4" y="3" width="16" height="18" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/>',
     iconBg:'var(--c-teal-lt)',
-    target: '.nav-btn:nth-of-type(2)',
-    tip:   'Use the Template button in the builder to cycle through designs.',
+    target: '[data-tour="nav-templates"]',
+    tip:   'Switch layout or colour at any time — your content moves with you.',
   },
   {
-    title: 'Live CV Builder',
-    desc:  'The builder shows a live preview of your CV on the right. Edit your details on the left panel. Every change updates the preview instantly.',
-    icon:  '<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>',
+    title: 'The editor',
+    desc:  'Edit content on the left and watch the page update. The Job & ATS tab tailors your CV to the offer and scores your match.',
+    icon:  '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/>',
     iconBg:'var(--c-amber-lt)',
-    target: '.nav-btn:nth-of-type(3)',
-    tip:   'Use the zoom controls to see your CV at full size.',
+    target: '[data-tour="nav-editor"]',
+    tip:   'A red line shows where page one ends — you can trim, or shrink the CV to fit.',
   },
   {
-    title: 'Export Your CV',
-    desc:  'When you\'re happy with your CV, click "Export PDF". Choose to have it emailed to you (£1.99) or download directly (free with watermark, or €0.50 to remove it).',
+    title: 'Export',
+    desc:  'Use “Export PDF” in the editor: £1.99 emails a clean PDF (re-sends of that CV are free), or download from My CVs — free with a watermark or €0.50 clean.',
     icon:  '<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
     iconBg:'var(--c-green-lt)',
-    target: '.export-pill',
-    tip:   'Paid users get ATS-ready PDFs emailed directly to their inbox.',
+    target: null,
   },
   {
-    title: 'Referral Credits',
-    desc:  'Refer a friend using your unique referral link — you earn 1 free export credit per signup. Find your referral link under Settings.',
-    icon:  '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>',
+    title: 'Referral credits',
+    desc:  'Share your link from Settings. Each friend who signs up earns you a credit for one emailed CV or one clean download.',
+    icon:  '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/>',
     iconBg:'var(--c-rose-lt)',
-    target: '.nav-btn:nth-of-type(4)',
-    tip:   'Each credit covers one emailed CV or one watermark-free download.',
+    target: '[data-tour="nav-settings"]',
   },
   {
-    title: 'You\'re ready!',
-    desc:  'That\'s everything you need to know. Start by clicking "+ New CV" and let AI build your perfect CV. Good luck with your job search!',
+    title: "You're ready",
+    desc:  'Pick a layout to get started. Good luck with your applications!',
     icon:  '<polyline points="20 6 9 17 4 12"/>',
     iconBg:'var(--c-green-lt)',
     target: null,
@@ -296,7 +292,7 @@ onUnmounted(() => window.removeEventListener('resize', onResize))
 }
 .tut-skip {
   background: none; border: none; color: var(--c-text3);
-  font-size: 12.5px; cursor: pointer; font-family: 'DM Sans', sans-serif;
+  font-size: 12.5px; cursor: pointer; font-family:inherit;
   padding: 0; transition: color .15s;
 }
 .tut-skip:hover { color: var(--c-text); }
@@ -312,7 +308,7 @@ onUnmounted(() => window.removeEventListener('resize', onResize))
   display: flex; align-items: center; gap: 6px;
   background: var(--c-accent); color: #fff; border: none;
   padding: 9px 18px; border-radius: 8px; font-size: 13.5px;
-  font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif;
+  font-weight: 600; cursor: pointer; font-family:inherit;
   transition: opacity .15s;
 }
 .tut-next:hover { opacity: .88; }

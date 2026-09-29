@@ -98,16 +98,16 @@ function useSuggestion() {
 <style scoped>
 .step-intro{margin-bottom:20px;}
 .step-icon{font-size:28px;margin-bottom:8px;}
-h3{font-size:18px;font-weight:700;color:var(--c-text);margin-bottom:5px;font-family:'DM Serif Display',serif;}
+h3{font-size:18px;font-weight:700;color:var(--c-text);margin-bottom:5px;font-family:inherit;letter-spacing:-.01em;}
 p{font-size:13px;color:var(--c-text2);line-height:1.5;}
 .ai-suggestion{background:linear-gradient(135deg,#f0f8e8,#e8f4f0);border:1px solid #b8ddc8;border-radius:var(--radius);padding:14px;margin-bottom:10px;animation:fup .2s ease;}
 .ai-sug-lbl{font-size:10px;font-weight:800;color:var(--c-green);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;}
 .ai-sug-txt{font-size:12.5px;color:var(--c-text);line-height:1.65;margin-bottom:10px;}
 .ai-sug-actions{display:flex;gap:8px;}
-.btn-sug-use{background:var(--c-green);color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;}
-.btn-sug-dismiss{background:none;border:1px solid var(--c-border);padding:6px 12px;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;color:var(--c-text2);font-family:'DM Sans',sans-serif;}
+.btn-sug-use{background:var(--c-green);color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;}
+.btn-sug-dismiss{background:none;border:1px solid var(--c-border);padding:6px 12px;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;color:var(--c-text2);font-family:inherit;}
 .tone-row{margin-top:4px;}
 .tone-pills{display:flex;flex-wrap:wrap;gap:6px;}
-.tone-pill{background:var(--c-bg);border:1px solid var(--c-border);padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;color:var(--c-text2);transition:all .14s;font-family:'DM Sans',sans-serif;}
+.tone-pill{background:var(--c-bg);border:1px solid var(--c-border);padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;color:var(--c-text2);transition:all .14s;font-family:inherit;}
 .tone-pill:hover,.tone-pill.active{background:var(--c-accent-lt);border-color:var(--c-accent);color:var(--c-accent);font-weight:600;}
 </style>

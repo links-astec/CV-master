@@ -3,13 +3,12 @@
     <h3 class="step-title">Personal Information</h3>
     <p class="step-sub">Your contact details appear at the top of every CV.</p>
 
-    <!-- Photo Upload — only shown for photo-supporting templates -->
-    <div v-if="photoTemplates.includes(store.template)" class="photo-section" :class="{ 'photo-required': store.template === 'photo' }">
+    <!-- Photo — only the Photo and Sidebar layouts show one -->
+    <div v-if="showsPhoto" class="photo-section">
       <div class="photo-section-lbl">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
         Profile Photo
-        <span v-if="store.template === 'photo'" class="req-badge">Required for Photo Professional</span>
-        <span v-else class="opt-badge">Optional</span>
+        <span class="opt-badge">Optional</span>
       </div>
       <div class="photo-upload-row">
         <div class="photo-circle" @click="triggerPick" :class="{ 'has-photo': !!store.data.photo }">
@@ -71,15 +70,16 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
+import { parseTemplate } from '../../composables/cvRenderer.js'
 const store = useCvStore()
 const fileInput = ref(null)
 const dragging  = ref(false)
 const photoError = ref('')
 
-// Templates that support/require photos
-const photoTemplates = ['photo', 'modern', 'gradient', 'teal', 'creative', 'executive2', 'magazine', 'corporate', 'resume1', 'resume2']
+// UK/US recruiters usually prefer no photo, so only these layouts show one
+const showsPhoto = computed(() => ['photo', 'sidebar'].includes(parseTemplate(store.template).layout))
 
 function triggerPick() { fileInput.value?.click() }
 function handleFile(e) { processFile(e.target.files[0]) }
@@ -97,7 +97,7 @@ function processFile(file) {
 </script>
 
 <style scoped>
-.step-title { font-family:'DM Serif Display',serif;font-size:20px;color:var(--c-text);margin-bottom:5px; }
+.step-title { font-family:inherit;letter-spacing:-.01em;font-size:20px;color:var(--c-text);margin-bottom:5px; }
 .step-sub { font-size:13px;color:var(--c-text2);margin-bottom:20px; }
 .opt-lbl { font-size:10px;font-weight:500;color:var(--c-text3);margin-left:4px; }
 .photo-section { border:1.5px solid var(--c-border);border-radius:var(--radius-lg);padding:16px;margin-bottom:20px;transition:border-color .2s; }
@@ -123,6 +123,6 @@ function processFile(file) {
 .dz-link { color:var(--c-accent);font-weight:700; }
 .dz-hint { font-size:11px;color:var(--c-text3); }
 .photo-actions { margin-top:10px; }
-.photo-rm-btn { display:flex;align-items:center;gap:6px;background:none;border:none;font-size:12px;font-weight:600;color:var(--c-rose);cursor:pointer;font-family:'DM Sans',sans-serif;padding:0; }
+.photo-rm-btn { display:flex;align-items:center;gap:6px;background:none;border:none;font-size:12px;font-weight:600;color:var(--c-rose);cursor:pointer;font-family:inherit;padding:0; }
 .photo-err { font-size:11.5px;color:var(--c-rose);margin-top:8px;font-weight:500; }
 </style>
