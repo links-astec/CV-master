@@ -119,8 +119,8 @@
       <div class="lp-wrap">
         <div class="lp-sec-hd">
           <span class="lp-eyebrow">Templates</span>
-          <h2>8 layouts · 12 colours</h2>
-          <p>Every layout is real, selectable text in the order applicant tracking systems expect. Switch any time — your content moves with you.</p>
+          <h2>12 layouts · 12 colours</h2>
+          <p>ATS-friendly layouts for online applications, creative ones for print and in person. All real, selectable text — switch any time and your content moves with you.</p>
         </div>
         <div class="lp-tpls">
           <figure v-for="t in SHOWCASE" :key="t.id" class="lp-tpl">
@@ -259,15 +259,13 @@ const FEATURES = [
 
 const PLANS = [
   { name: 'Free', price: '£0', per: '', cta: 'Start building',
-    items: ['All 8 layouts and 12 colours', 'AI writing and job tailoring', 'ATS job-match check', 'Watermarked PDF download'] },
-  { name: 'Emailed CV', price: '£1.99', per: ' per CV', cta: 'Build my CV', featured: true,
-    items: ['Clean, watermark-free PDF', 'Sent straight to your inbox', 'Re-send it free, even after edits', 'Direct download included'] },
-  { name: 'Clean download', price: '€0.50', per: ' per download', cta: 'Build my CV',
-    items: ['One watermark-free PDF', 'Instant download in your browser', 'Same one-page quality'] },
+    items: ['All 12 layouts and 12 colours', 'AI writing and job tailoring', 'ATS job-match check', 'Watermarked PDF download'] },
+  { name: 'Clean PDF', price: '£0.99', per: ' per CV', cta: 'Build my CV', featured: true,
+    items: ['Watermark-free, one-page PDF', 'Emailed to you and downloadable', 'Re-send or download again free, even after edits', 'Pay once per CV — no subscription'] },
 ]
 
 const FAQ = [
-  { q: 'Is it really free to start?', a: 'Yes. You can build, edit, tailor and preview your CV without paying or creating an account. You only pay if you want a clean PDF: £1.99 to have it emailed (re-sends of that CV are free) or €0.50 for a single clean download.' },
+  { q: 'Is it really free to start?', a: 'Yes. You can build, edit, tailor and preview your CV without paying or creating an account. You only pay if you want the clean PDF: £0.99 once per CV, emailed and downloadable, and you can re-send or download it again for free after edits.' },
   { q: 'Will my CV pass applicant tracking systems (ATS)?', a: 'No one can honestly guarantee that, because every company configures its ATS differently. What we do: every layout is plain, selectable text in a logical reading order with standard headings, and the ATS check shows how well your CV matches the specific job offer so you can close the gaps.' },
   { q: 'Does the AI make things up?', a: 'It is instructed not to. It rewrites and reorders what you have written using the job offer’s language, and you approve every change. Keywords you do not show evidence of are listed separately so you only add the ones that are true.' },
   { q: 'Do I need an account?', a: 'Not to build. Your CV is saved in your browser as you go. When you want to export, you create a free account (email or Google) and your CV moves into it automatically.' },
@@ -383,7 +381,7 @@ const FAQ = [
 .lp-feat h3{font-size:17px;font-weight:700;margin-bottom:6px}
 .lp-feat p{color:var(--c-text2);line-height:1.6;font-size:15px}
 
-.lp-prices{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:stretch}
+.lp-prices{display:grid;grid-template-columns:repeat(2,minmax(0,380px));justify-content:center;gap:18px;align-items:stretch}
 .lp-price{padding:30px;display:flex;flex-direction:column;position:relative;border-radius:20px;border:1px solid var(--c-border);background:var(--c-surface)}
 .lp-price.featured{background:#14142B;border-color:#14142B;color:#fff;box-shadow:0 24px 60px rgba(20,20,43,.25)}
 .lp-price.featured h3,.lp-price.featured li{color:rgba(255,255,255,.78)}

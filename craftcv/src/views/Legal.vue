@@ -78,9 +78,9 @@
 
         <h2>4. Payments</h2>
         <ul>
-          <li>Emailed CV export (PDF delivery) is a one-time payment of £1.99 per CV. It covers unlimited re-sends of that same CV, including after edits.</li>
-          <li>A watermark-free direct download is a one-time payment of €0.50 per download.</li>
-          <li>Referral credits can be exchanged for one emailed CV export or one watermark-free download. Credits have no cash value.</li>
+          <li>A clean (watermark-free) PDF is a one-time payment of £0.99 per CV. It covers email delivery and direct download, and unlimited re-sends and downloads of that same CV, including after edits.</li>
+          <li>A preview PDF with a watermark is free.</li>
+          <li>A referral credit can be exchanged for the clean PDF of one CV. Credits have no cash value.</li>
           <li>Payments are processed by Stripe. All payments are final — no refunds once the PDF has been delivered to your email.</li>
           <li>If you did not receive your CV, contact us within 14 days for a resend or refund.</li>
         </ul>

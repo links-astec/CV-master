@@ -4,7 +4,7 @@
       <div class="page-intro">
         <div>
           <h1>Choose a layout</h1>
-          <p>Every layout is ATS-friendly text. You can switch layout and colour at any time without losing anything.</p>
+          <p>Switch layout and colour at any time — your content moves with you.</p>
         </div>
         <div class="tp-colors">
           <span class="tp-colors-lbl">Colour</span>
@@ -13,15 +13,22 @@
         </div>
       </div>
 
+      <div class="tp-filter">
+        <div class="seg">
+          <button v-for="f in FILTERS" :key="f.id" :class="{ active: filter === f.id }" @click="filter = f.id">{{ f.label }}</button>
+        </div>
+        <p class="tp-filter-note">{{ filterNote }}</p>
+      </div>
+
       <div class="tp-grid">
-        <button v-for="l in LAYOUTS" :key="l.id" class="tp-card" :class="{ current: isCurrent(l.id) }" @click="pick(l.id)">
+        <button v-for="l in shown" :key="l.id" class="tp-card" :class="{ current: isCurrent(l.id) }" @click="pick(l.id)">
           <div class="tp-thumb">
             <CvThumb :template="`${l.id}:${theme}`" :data="previewData" :fmt="store.fmt" />
             <span v-if="isCurrent(l.id)" class="badge accent tp-cur">Current</span>
             <span class="tp-hover"><span class="btn-primary accent">Use this layout</span></span>
           </div>
           <div class="tp-info">
-            <div class="tp-name">{{ l.name }}</div>
+            <div class="tp-name">{{ l.name }} <span class="badge" :class="l.kind === 'ats' ? 'green' : 'accent'">{{ LAYOUT_KINDS[l.kind].name }}</span></div>
             <div class="tp-desc">{{ l.desc }}</div>
           </div>
         </button>
@@ -37,7 +44,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCvStore } from '../stores/cv.js'
-import { LAYOUTS, THEMES, parseTemplate, templateId } from '../composables/cvRenderer.js'
+import { LAYOUTS, LAYOUT_KINDS, THEMES, parseTemplate, templateId } from '../composables/cvRenderer.js'
 import { SAMPLE_CV } from '../composables/sampleCv.js'
 import CvThumb from '../components/CvThumb.vue'
 import JobOfferModal from '../components/JobOfferModal.vue'
@@ -46,6 +53,12 @@ const store  = useCvStore()
 const router = useRouter()
 const theme  = ref(parseTemplate(store.template).theme)
 const previewData = computed(() => store.hasContent ? store.data : SAMPLE_CV)
+const FILTERS = [{ id: 'all', label: 'All' }, { id: 'ats', label: 'ATS-friendly' }, { id: 'creative', label: 'Creative' }]
+const filter = ref('all')
+const shown = computed(() => filter.value === 'all' ? LAYOUTS : LAYOUTS.filter(l => l.kind === filter.value))
+const filterNote = computed(() => filter.value === 'all'
+  ? 'ATS-friendly layouts are for online applications. Creative ones are for print, in person, or sending straight to a person.'
+  : LAYOUT_KINDS[filter.value].desc + '.')
 const isCurrent = (layout) => store.hasContent && store.template === templateId(layout, theme.value)
 
 // Picking a layout asks for the job offer first, so the CV can be tailored to it.
@@ -71,6 +84,9 @@ async function pick(layout) {
 .tp-sw:hover{transform:scale(1.12)}
 .tp-sw.active{box-shadow:0 0 0 2px var(--c-bg),0 0 0 4px var(--sw)}
 
+.tp-filter{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.tp-filter-note{font-size:13.5px;color:var(--c-text2)}
+.tp-name .badge{margin-left:6px;vertical-align:1px}
 .tp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:22px}
 .tp-card{display:flex;flex-direction:column;padding:0;background:var(--c-surface);border:1px solid var(--c-border);border-radius:14px;overflow:hidden;text-align:left;
   box-shadow:var(--shadow-xs);transition:box-shadow .18s,transform .18s,border-color .18s}

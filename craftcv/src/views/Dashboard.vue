@@ -76,6 +76,7 @@
       :clean-token="cleanToken"
       :cv-name="cleanFileName"
       @close="showUnlock = false"
+      @unlock="unlockPending"
       @free-download-done="showUnlock = false"
       @show-toast="showToast"
     />
@@ -102,6 +103,7 @@ const showToast      = inject('showToast')
 const openAuth       = inject('openAuth')
 const requireAccount = inject('requireAccount')
 const startTutorial  = inject('startTutorial', null)
+const openPaywall    = inject('openPaywall')
 
 const drafts   = ref([])
 const paidIds  = ref(new Set())
@@ -193,12 +195,29 @@ function fileName(c) {
   return name.replace(/[^a-zA-Z0-9\s-]/g, '').trim().replace(/\s+/g, '-') + '-CV.pdf'
 }
 
-// Free watermarked download, or €0.50 for a clean copy (WatermarkUnlock)
+// Paid CVs download clean straight away. Otherwise: free watermarked copy, or unlock
+// the clean PDF (£0.99 per CV) through the paywall.
+let pendingCard = null
 async function download(c) {
   if (!(await requireAccount('download'))) return
   busy.value = c.key
   try {
     const card = c.id ? c : { ...c, data: { ...store.data, fmt: store.fmt }, template: store.template }
+    if (c.paid && c.id) {
+      const r = await fetch(apiUrl('/api/cv/export-pdf'), {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draftId: c.id, htmlContent: exportHtml(card), fileName: fileName(card) }),
+      })
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `Server error ${r.status}`)
+      const url = URL.createObjectURL(await r.blob())
+      const a = document.createElement('a')
+      a.href = url; a.download = fileName(card)
+      document.body.appendChild(a); a.click(); a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+      return
+    }
+    pendingCard = c
     const res = await fetch(apiUrl('/api/cv/store-for-unlock'), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -214,6 +233,14 @@ async function download(c) {
   } finally {
     busy.value = null
   }
+}
+
+// "Clean PDF" in the download pop-up: open that CV in the editor and show the paywall
+function unlockPending() {
+  showUnlock.value = false
+  const c = pendingCard
+  if (c?.id && c.id !== store.currentDraftId) store.loadDraft(drafts.value.find(d => d.id === c.id))
+  openPaywall()
 }
 
 async function resend(c) {
