@@ -23,14 +23,22 @@ Deployment (Vercel + Render + Neon): see [DEPLOY.md](DEPLOY.md).
 
 ## The main flow
 
-1. **Pick a template** → asked for the **job offer** (optional, can be skipped).
+No account is needed to start: guests build a CV that is saved in their browser, and create an
+account (email or Google) only when they export — the CV moves into the account automatically.
+
+1. **Pick a layout and colour** → asked for the **job offer** (optional, can be skipped).
 2. **Build the CV** in the wizard: Manual, Narrate (story → AI extraction) or Upload (PDF/DOCX/TXT).
 3. **Tailor** step: AI proposes a before/after for the headline, summary, experience bullets and
    skill order, using the job offer's wording. The user ticks which changes to apply. The AI is
    told never to invent facts; job keywords the CV doesn't show are offered separately, unticked.
 4. **Review** step: the ATS job-match check runs automatically against the saved job offer
    (score, matched/missing keywords, gaps, suggestions) alongside the general quality check.
-5. **Get my CV** → paywall → the PDF is emailed.
+5. **Get my CV** → paywall → the PDF is emailed (and can be downloaded directly).
+
+**One page, always.** The preview marks where page one ends. When a CV runs long, the user is
+told and can trim it or choose *Shrink to fit*; exports are always fitted onto one A4 page
+(`src/composables/pageFit.js` in the browser and `renderPdfFromHtml` on the server use the
+same algorithm so the preview matches the PDF).
 
 The job offer is stored on the draft (`cv_data.jobOffer`), so it follows the CV everywhere.
 
@@ -43,8 +51,8 @@ The job offer is stored on the draft (`cv_data.jobOffer`), so it follows the CV 
 | Referral credit | free | One of the above, chosen at checkout. Earned when someone signs up with your link |
 
 Payments are rows in `payments` with a `product` (`email_export` / `clean_download`) and a
-`source` (`stripe` / `demo` / `credit`). Without `STRIPE_SECRET_KEY` the server runs in
-**demo mode** and exports are free.
+`source` (`stripe` / `demo` / `credit`). Without `STRIPE_SECRET_KEY`, exports are free in
+development (demo mode); in production they are unavailable unless `ALLOW_FREE_EXPORTS=true`.
 
 ## Structure
 
@@ -52,8 +60,10 @@ Payments are rows in `payments` with a `product` (`email_export` / `clean_downlo
 |---|---|
 | `server/index.js` | All API routes: auth, drafts, AI proxy + `/api/ai/tailor`, CV upload, PDF (Puppeteer), payments, admin |
 | `server/migrate.js` | Idempotent schema migrations (runs on every Render deploy) |
-| `src/composables/cvRenderer.js` | 107 templates → 700px HTML strings. All user text is escaped once at the entry point |
-| `src/stores/cv.js` | CV data, autosave (localStorage + debounced DB save) |
+| `src/composables/cvRenderer.js` | Template engine: 8 layouts × 12 colours (`"layout:colour"` ids, old ids mapped). ATS-safe reading order, EN/FR headings, user text escaped once |
+| `src/composables/pageFit.js` | One-page measurement and shrink-to-fit (mirrors the server) |
+| `src/views/Editor.vue` | Editor page: `CvEditor` (Content / Design / Job & ATS) + `CvPreview` |
+| `src/stores/cv.js` | CV data + formatting, autosave (browser for guests, account when signed in) |
 | `src/components/WizardModal.vue` | Wizard shell; steps live in `src/components/wizard/` |
 | `src/components/PaywallModal.vue` | £1.99 email export |
 | `src/components/WatermarkUnlock.vue` | Free watermarked / €0.50 clean download |

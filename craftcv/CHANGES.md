@@ -1,5 +1,58 @@
 # Changes
 
+## 2026-09-29 — Redesign, new template engine, one-page fit, guest mode, email fix
+
+### Fixed: the CV export didn't arrive
+- **Email could not be sent from production at all.** Render's free tier blocks outbound SMTP (Gmail timed out after 2 minutes), and the Resend fallback refused a `@gmail.com` sender. Resend is now the primary sender, from `RESEND_FROM` (default `CVMaster <noreply@cvmaster.live>`). SMTP is a fast-failing fallback (10 s timeouts). **Action needed:** verify `cvmaster.live` in Resend (DEPLOY.md, step 6).
+- **A paid CV can now always be downloaded directly** (`POST /api/cv/export-pdf`). If the email fails after payment, the paywall offers "Download PDF" instead of an error.
+- **Removed "Try demo".** It created throwaway accounts with a fake `@cvmaster.app` address (and a shared password), so the emailed CV could never arrive.
+
+### Fixed: white space in PDFs
+- Shrink-to-fit zoomed out the fixed 700px CV, which left white strips on the right and at the bottom. The CV is now widened before zooming, so it fills the page exactly. The best zoom is found by binary search.
+
+### New: one-page guide and shrink-to-fit
+- The preview marks where page one ends, and hatches anything past it.
+- When an edit pushes the CV past one A4 page, a toast says so. A notice gives the exact overflow ("13% longer than one page") with **Shrink to fit** and **Undo**.
+- The choice is saved per CV (`shrinkToFit`). The paywall asks before exporting a long CV: "Edit it first" or "Continue & shrink to fit" (with the resulting text size, and a warning below 82%).
+- The browser (`src/composables/pageFit.js`) and the server use the same fit algorithm, so the preview matches the PDF.
+
+### New: template engine — 8 layouts × 12 colours (replaces the 107 templates)
+- The old set was mostly colour copies of ~10 layouts. It included 12+ full-black pages, and the "infographic" template **printed fake stats ("8+ Yrs Exp. · 2M+ Users · £3.5M Rev.") on every CV**.
+- The new layouts are Modern, Classic, Sidebar, Minimal, Executive, Compact, Timeline and Photo, all built from shared blocks:
+  - **ATS-safe reading order.** The main column comes first in the PDF text, even when the sidebar is drawn on the left (verified by extracting text from the generated PDF).
+  - **Real headings** (h1/h2) in the CV's language. There's a new **English / Français** switch in Design. French CVs used to get English headings.
+  - **Contact line with separators.** Links are clickable, and URLs wrap only at "/" so an ATS never sees them split at a hyphen.
+  - **Light, printable pages.** No placeholder text in exports.
+- Template ids are now `layout:colour`. Every old id maps to the closest new layout, so existing CVs keep working.
+- Fonts are limited to ones embedded in the PDF (DM Sans, Inter, Lora), so preview and PDF match. They're self-hosted; there's no Google Fonts dependency.
+
+### Changed: skills are plain lists
+- Skill bars, percentage sliders and skill levels are removed, as agreed. Skills render as clean text lists. Long lists wrap into a single line in narrow columns.
+
+### New: guest mode (no account needed to start)
+- Anyone can build, tailor and preview a CV in their browser. Creating an account is asked for only when exporting or downloading. The CV built so far is saved into the new account automatically.
+- Signing out clears the CV from the browser (shared computers).
+
+### New: UI redesign ("clean & calm")
+- There's a new design system (`src/style.css`): neutral surfaces, one indigo accent, Inter, soft borders, and a working dark mode.
+- Rebuilt or restyled:
+  - landing page (honest copy, real rendered CVs instead of stock photos, FAQ);
+  - app shell and navigation;
+  - My CVs (live thumbnails, paid badge, Email again);
+  - Templates (layout cards and a colour picker);
+  - the Editor, now a page at `/editor`, with **Content / Design / Job & ATS** tabs;
+  - wizard, paywall, download, sign-in pop-up and settings.
+- The builder can now edit **work experience** (previously wizard-only). The duplicated mobile form is replaced by a shared editor drawer.
+- In Review, **"Fix →" only shows on checks that failed**. In the editor it opens the matching section.
+
+### Also fixed
+- **Password-reset links didn't work:** `/reset-password?token=…` was redirected to `/` and the token was dropped.
+- **Design settings** (font, sizes, spacing) weren't saved with the CV; they now are.
+- **In production without a Stripe key, exports were free.** They now report "Payments temporarily unavailable" (`ALLOW_FREE_EXPORTS=true` restores free exports deliberately).
+- **Guests can use the AI features,** with a separate hourly limit per IP.
+- **Settings:** removed three notification toggles that weren't connected to anything.
+- **Copy:** removed or softened unsupported claims ("top 10% of applicants", "Likely to pass ATS", "Pass every applicant tracking system", "Most popular").
+
 ## 2026-09-28 — Job-offer tailoring, payment fixes, AI model swap
 
 ### New: tailor the CV to a job offer

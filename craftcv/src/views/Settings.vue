@@ -1,9 +1,20 @@
 <template>
   <div class="view-page">
-    <div style="max-width:660px;">
+    <div class="view-inner settings-wrap">
+      <div class="page-intro"><div><h1>Settings</h1><p>Your account, appearance and referrals.</p></div></div>
+
+      <!-- Guest -->
+      <div v-if="!auth.isLoggedIn" class="settings-card">
+        <div class="settings-ttl">You're using CVMaster as a guest</div>
+        <p class="muted" style="margin-bottom:16px;line-height:1.6">Your CV is saved in this browser only. Create a free account to keep it safe, edit it on any device, export it and earn referral credits.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-primary accent" @click="openAuth('register', 'save')">Create free account</button>
+          <button class="btn-secondary" @click="openAuth('signin')">Sign in</button>
+        </div>
+      </div>
 
       <!-- Profile -->
-      <div class="settings-card">
+      <div v-if="auth.isLoggedIn" class="settings-card">
         <div class="settings-ttl">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
           Profile
@@ -53,28 +64,8 @@
         </div>
       </div>
 
-      <!-- Notifications -->
-      <div class="settings-card">
-        <div class="settings-ttl">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
-          Notifications
-        </div>
-        <div class="toggle-row">
-          <div><div class="toggle-label">CV tips and suggestions</div></div>
-          <label class="toggle-switch"><input type="checkbox" checked /><div class="toggle-track"><div class="toggle-thumb"></div></div></label>
-        </div>
-        <div class="toggle-row">
-          <div><div class="toggle-label">New template releases</div></div>
-          <label class="toggle-switch"><input type="checkbox" checked /><div class="toggle-track"><div class="toggle-thumb"></div></div></label>
-        </div>
-        <div class="toggle-row">
-          <div><div class="toggle-label">Payment receipts</div></div>
-          <label class="toggle-switch"><input type="checkbox" checked /><div class="toggle-track"><div class="toggle-thumb"></div></div></label>
-        </div>
-      </div>
-
       <!-- Referral -->
-      <div class="settings-card">
+      <div v-if="auth.isLoggedIn" class="settings-card">
         <div class="settings-ttl">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
           Referral Programme
@@ -108,7 +99,7 @@
               <div style="font-size:13.5px;font-weight:700;color:var(--c-text);margin-bottom:3px;">
                 🎉 You have {{ referralInfo.credits }} free export{{ referralInfo.credits > 1 ? 's' : '' }}!
               </div>
-              <div style="font-size:12.5px;color:var(--c-text2);">Each credit covers one emailed CV export or one watermark-free download. Choose "Use 1 referral credit" at checkout.</div>
+              <div style="font-size:12.5px;color:var(--c-text2);">Each credit covers one emailed CV export or one watermark-free download. Choose "Use a referral credit" when you export or download.</div>
             </div>
           </div>
 
@@ -172,31 +163,30 @@
       <div class="settings-card">
         <div class="settings-ttl">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          App Tutorial
+          Quick tour
         </div>
-        <p style="font-size:13.5px;color:var(--c-text2);line-height:1.6;margin-bottom:14px;">New to CVMaster? Take the interactive tour to learn how to create your CV, pick a template, and export a professional PDF.</p>
+        <p style="font-size:13.5px;color:var(--c-text2);line-height:1.6;margin-bottom:14px;">A one-minute walkthrough of creating, tailoring and exporting your CV.</p>
         <button class="btn-secondary" @click="restartTour" style="display:flex;align-items:center;gap:7px;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
-          Restart tutorial
+          Start the tour
         </button>
       </div>
 
       <!-- Account -->
-      <div class="settings-card" style="border-color:var(--c-rose-lt);">
-        <div class="settings-ttl" style="color:var(--c-rose);">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-          Account
+      <div v-if="auth.isLoggedIn" class="settings-card">
+        <div class="settings-ttl">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Sign out
         </div>
-        <button class="btn-secondary" style="color:var(--c-rose);border-color:var(--c-rose-lt);" @click="logout">
-          Sign out of CVMaster
-        </button>
+        <p class="muted" style="margin-bottom:14px;line-height:1.6">Your CVs stay saved in your account. Signing out also clears them from this browser.</p>
+        <button class="btn-secondary" @click="logout">Sign out</button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onActivated, inject } from 'vue'
+import { ref, computed, onMounted, inject, watch } from 'vue'
 import { useAuthStore } from '../stores/auth.js'
 import { useCvStore } from '../stores/cv.js'
 
@@ -204,6 +194,7 @@ const apiUrl    = (p) => (import.meta.env.VITE_API_URL || '') + p
 const auth      = useAuthStore()
 const store     = useCvStore()
 const showToast = inject('showToast')
+const openAuth  = inject('openAuth')
 
 const name        = ref(auth.user?.name || '')
 const newPassword = ref('')
@@ -237,9 +228,11 @@ async function saveProfile() {
   saving.value = false
 }
 
+// Clear the CV from this browser too, so the next person on a shared computer can't see it
 async function logout() {
   await auth.logout()
-  window.location.reload()
+  store.resetData()
+  window.location.href = '/'
 }
 
 const startTutorial = inject('startTutorial', null)
@@ -283,7 +276,7 @@ function shareWhatsApp() {
 }
 function shareTwitter() {
   const link = referralInfo.value?.link || ''
-  const msg  = encodeURIComponent(`Just built my CV in minutes with CVMaster 🚀 AI-powered, ATS-ready, 107 templates. Try it free: ${link}`)
+  const msg  = encodeURIComponent(`Just built my CV in minutes with CVMaster 🚀 AI-powered and ATS-ready. Try it free: ${link}`)
   window.open(`https://twitter.com/intent/tweet?text=${msg}`, '_blank')
 }
 function shareLinkedIn() {
@@ -292,10 +285,12 @@ function shareLinkedIn() {
 }
 
 onMounted(() => { if (auth.isLoggedIn) loadReferral() })
+watch(() => auth.isLoggedIn, (v) => { if (v) loadReferral() })
 
 </script>
 
 <style scoped>
+.settings-wrap{max-width:720px}
 .ai-status-row { display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;padding:8px 12px;border-radius:var(--radius-sm); }
 .ai-ok   { background:var(--c-green-lt);color:var(--c-green); }
 .ai-warn { background:var(--c-amber-lt);color:var(--c-amber); }
@@ -309,7 +304,7 @@ onMounted(() => { if (auth.isLoggedIn) loadReferral() })
 @keyframes ref-spin { to { transform:rotate(360deg); } }
 .ref-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px; }
 .ref-stat { background:var(--c-bg); border:1px solid var(--c-border); border-radius:var(--radius); padding:13px; text-align:center; }
-.ref-stat-val { font-size:26px; font-weight:700; color:var(--c-text); font-family:'DM Serif Display',serif; }
+.ref-stat-val { font-size:26px; font-weight:700; color:var(--c-text); font-family:inherit;letter-spacing:-.01em; }
 .ref-stat-lbl { font-size:11px; color:var(--c-text3); margin-top:3px; }
 .ref-credit-banner { display:flex; align-items:center; justify-content:space-between; gap:12px; background:linear-gradient(135deg,#f0faf5,#e8f5fe); border:1.5px solid var(--c-green); border-radius:var(--radius); padding:14px; margin-bottom:16px; flex-wrap:wrap; }
 .ref-how { display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:18px; padding:14px; background:var(--c-bg); border-radius:var(--radius); border:1px solid var(--c-border); }
@@ -322,7 +317,7 @@ onMounted(() => { if (auth.isLoggedIn) loadReferral() })
 .ref-link-box { flex:1; background:var(--c-bg); border:1px solid var(--c-border); border-radius:var(--radius-sm); padding:9px 12px; font-size:12.5px; color:var(--c-text2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
 .ref-copy-btn { white-space:nowrap; flex-shrink:0; }
 .ref-share-row { display:flex; gap:8px; flex-wrap:wrap; }
-.ref-share-btn { display:flex; align-items:center; gap:6px; background:var(--c-bg); border:1px solid var(--c-border); border-radius:var(--radius-sm); padding:7px 12px; font-size:12.5px; font-weight:600; color:var(--c-text2); cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .15s; white-space:nowrap; }
+.ref-share-btn { display:flex; align-items:center; gap:6px; background:var(--c-bg); border:1px solid var(--c-border); border-radius:var(--radius-sm); padding:7px 12px; font-size:12.5px; font-weight:600; color:var(--c-text2); cursor:pointer; font-family:inherit; transition:all .15s; white-space:nowrap; }
 .ref-share-btn:hover { border-color:var(--c-border2); color:var(--c-text); transform:translateY(-1px); }
 .ref-code-row { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; }
 .ref-code { display:inline-block; background:var(--c-accent-lt); color:var(--c-accent); border:1px solid rgba(42,91,215,.2); border-radius:var(--radius-sm); padding:7px 16px; font-size:16px; font-weight:700; letter-spacing:.08em; }

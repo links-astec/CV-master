@@ -153,7 +153,7 @@ function addProject() {
 <style scoped>
 .step-intro { margin-bottom: 20px; }
 .step-icon  { font-size: 28px; margin-bottom: 8px; }
-h3  { font-size: 18px; font-weight: 700; color: var(--c-text); margin-bottom: 5px; font-family: 'DM Serif Display', serif; }
+h3  { font-size: 18px; font-weight: 700; color: var(--c-text); margin-bottom: 5px; font-family:inherit;letter-spacing:-.01em; }
 p   { font-size: 13px; color: var(--c-text2); line-height: 1.5; }
 
 .f-sec-hd {
@@ -224,7 +224,7 @@ p   { font-size: 13px; color: var(--c-text2); line-height: 1.5; }
 .add-btn {
   display: flex; align-items: center; gap: 6px; background: none; border: none;
   font-size: 12.5px; font-weight: 700; color: var(--c-accent); cursor: pointer;
-  font-family: 'DM Sans', sans-serif; padding: 0; margin-bottom: 4px;
+  font-family:inherit; padding: 0; margin-bottom: 4px;
 }
 .add-btn:hover { text-decoration: underline; }
 

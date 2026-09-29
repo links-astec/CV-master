@@ -12,7 +12,7 @@
       <textarea class="f-ta" v-model="store.data.jobOffer" rows="6" :disabled="loading"
         placeholder="Paste the full job description here…"></textarea>
       <div class="f-hint" :class="{ warn: tooShort }">
-        {{ !hasOffer ? 'No job offer? Just click Continue to skip this step.'
+        {{ !hasOffer ? 'No job offer yet? You can skip this and come back any time.'
           : tooShort ? 'Paste the full description — a few sentences at least.'
           : 'Your job offer is saved with this CV.' }}
       </div>
@@ -179,22 +179,14 @@ function mergeOrder(skills, order) {
   return [...new Set(first), ...skills.filter(s => !seen.has(s))]
 }
 
-// Skill levels are stored by index, so move them along with their skills
 function reorderSkills(order) {
-  const d      = store.data
-  const levels = d.skillLevels || {}
-  const lvlOf  = new Map(d.skills.map((s, i) => [s, levels[i]]))
-  const next   = mergeOrder(d.skills, order)
-  const nextLv = {}
-  next.forEach((s, i) => { if (lvlOf.get(s) != null) nextLv[i] = lvlOf.get(s) })
-  d.skills      = next
-  d.skillLevels = nextLv
+  store.data.skills = mergeOrder(store.data.skills, order)
 }
 
 function apply() {
   const d = store.data
   snapshot = JSON.parse(JSON.stringify({
-    title: d.title, sum: d.sum, experiences: d.experiences, skills: d.skills, skillLevels: d.skillLevels || {},
+    title: d.title, sum: d.sum, experiences: d.experiences, skills: d.skills,
   }))
   let n = 0
   changes.value.filter(c => c.checked).forEach(c => { c.apply(); n++ })
@@ -214,14 +206,14 @@ function undo() {
 <style scoped>
 .step-intro{margin-bottom:20px;}
 .step-icon{font-size:28px;margin-bottom:8px;}
-h3{font-size:18px;font-weight:700;color:var(--c-text);margin-bottom:5px;font-family:'DM Serif Display',serif;}
+h3{font-size:18px;font-weight:700;color:var(--c-text);margin-bottom:5px;font-family:inherit;letter-spacing:-.01em;}
 p{font-size:13px;color:var(--c-text2);line-height:1.5;}
 .f-hint.warn{color:var(--c-amber);}
 .tl-error{background:var(--c-rose-lt);color:var(--c-rose);border-radius:var(--radius-sm);padding:10px 12px;font-size:12.5px;margin-bottom:10px;}
 .tl-applied{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--c-green-lt);color:var(--c-green);border-radius:var(--radius-sm);padding:10px 12px;font-size:12.5px;font-weight:600;line-height:1.5;}
 .tl-head{display:flex;align-items:center;justify-content:space-between;margin:6px 0 10px;}
 .tl-head-ttl{font-size:13px;font-weight:700;color:var(--c-text);}
-.tl-link{background:none;border:none;color:var(--c-accent);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.tl-link{background:none;border:none;color:var(--c-accent);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;}
 .tl-empty{font-size:12.5px;color:var(--c-text2);padding:10px 0;}
 .tl-change{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--c-border);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:8px;cursor:pointer;background:var(--c-surface);transition:opacity .15s;}
 .tl-change.off{opacity:.55;}
@@ -240,8 +232,8 @@ p{font-size:13px;color:var(--c-text2);line-height:1.5;}
 .tl-chip input{accent-color:var(--c-accent);margin:0;}
 .tl-note{font-size:12px;color:var(--c-text2);line-height:1.5;margin-top:4px;}
 .tl-actions{margin-top:6px;}
-.btn-sug-use{background:var(--c-green);color:#fff;border:none;padding:7px 14px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.btn-sug-use{background:var(--c-green);color:#fff;border:none;padding:7px 14px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;}
 .btn-sug-use:disabled{opacity:.5;cursor:not-allowed;}
-.btn-sug-dismiss{background:none;border:1px solid var(--c-border);padding:7px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;color:var(--c-text2);font-family:'DM Sans',sans-serif;flex-shrink:0;}
+.btn-sug-dismiss{background:none;border:1px solid var(--c-border);padding:7px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;color:var(--c-text2);font-family:inherit;flex-shrink:0;}
 .ai-sug-actions{display:flex;gap:8px;}
 </style>

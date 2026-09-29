@@ -1,60 +1,57 @@
 <template>
-  <div v-if="visible" class="wm-overlay" @click.self="$emit('close')">
-    <div class="wm-modal">
-      <button class="wm-close" @click="$emit('close')">×</button>
+  <Teleport to="body">
+    <Transition name="modal-fade">
+      <div v-if="visible" class="modal-backdrop" @click.self="$emit('close')">
+        <div class="modal wm" role="dialog" aria-modal="true">
+          <button class="icon-btn modal-close" @click="$emit('close')" aria-label="Close">
+            <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
 
-      <!-- TEASER: two clickable cards -->
-      <div v-if="phase === 'teaser'">
-        <div class="wm-hero">
-          <div class="wm-icon">📄</div>
-          <h2>Download your CV</h2>
-          <p>Choose free with watermark, or pay €0.50 for a clean copy.</p>
+          <template v-if="phase === 'teaser'">
+            <div class="wm-hd">
+              <h2>Download your CV</h2>
+              <p>Get a free copy with a watermark, or a clean copy for €0.50.</p>
+            </div>
+
+            <button class="wm-opt" :disabled="freeDownloading || loading" @click="downloadFree">
+              <div class="wm-opt-txt">
+                <div class="wm-opt-ttl">Free preview PDF</div>
+                <div class="wm-opt-sub">{{ freeDownloading ? 'Preparing…' : 'Includes a “CVMaster” watermark across the page' }}</div>
+              </div>
+              <span class="wm-price">Free</span>
+            </button>
+
+            <button class="wm-opt featured" :disabled="loading || freeDownloading" @click="initPayment">
+              <div class="wm-opt-txt">
+                <div class="wm-opt-ttl">Clean PDF</div>
+                <div class="wm-opt-sub">{{ loading ? 'Opening secure checkout…' : 'No watermark · ready to send to employers' }}</div>
+              </div>
+              <span class="wm-price">€0.50</span>
+            </button>
+
+            <button v-if="credits > 0" class="btn-secondary btn-block wm-credit" :disabled="loading || freeDownloading" @click="useCredit">
+              Use a referral credit for the clean PDF — free ({{ credits }} left)
+            </button>
+
+            <p class="wm-foot">One-time payment by Stripe · No subscription</p>
+          </template>
+
+          <div v-else class="wm-done">
+            <span class="wm-ok"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span>
+            <h2>Your clean CV has downloaded</h2>
+            <p>No watermark, one page, ready to send. Good luck!</p>
+            <div class="wm-row">
+              <button class="btn-secondary" :disabled="downloading" @click="redownload">{{ downloading ? 'Downloading…' : 'Download again' }}</button>
+              <button class="btn-primary accent" @click="$emit('close')">Done</button>
+            </div>
+            <p class="wm-foot">The download link stays valid for 2 hours.</p>
+          </div>
         </div>
-
-        <!-- FREE card: click to download watermarked PDF immediately -->
-        <button class="wm-card wm-card-free" :disabled="freeDownloading || loading" @click="downloadFree">
-          <div class="wm-card-inner">
-            <div class="wm-card-body">
-              <p class="wm-filename">{{ cvName }}</p>
-              <p class="wm-sublabel">{{ freeDownloading ? 'Preparing…' : 'Free version · watermarked' }}</p>
-              <p class="wm-stamp-text">CVMaster — upgrade at cvmaster.live</p>
-            </div>
-            <span class="wm-badge">Free</span>
-          </div>
-        </button>
-
-        <!-- PAID card: click to pay via Stripe Checkout redirect -->
-        <button class="wm-card wm-card-paid" :disabled="loading || freeDownloading" @click="initPayment">
-          <div class="wm-card-inner">
-            <span class="wm-check">✅</span>
-            <div class="wm-card-body">
-              <p class="wm-feature-title">Clean PDF</p>
-              <p class="wm-feature-sub">{{ loading ? 'Redirecting to payment…' : 'No watermark · ATS-ready' }}</p>
-            </div>
-            <span class="wm-price">€0.50</span>
-          </div>
-        </button>
-
-        <button v-if="credits > 0" class="wm-credit" :disabled="loading || freeDownloading" @click="useCredit">
-          🎁 Use 1 referral credit instead — free ({{ credits }} left)
-        </button>
-
-        <p class="wm-footer-note">One-time charge · No subscription · Powered by Stripe</p>
       </div>
-
-      <!-- DONE -->
-      <div v-else-if="phase === 'done'" class="wm-done">
-        <div class="wm-icon">🎉</div>
-        <h2>Clean CV downloaded!</h2>
-        <p>No watermark, ATS-optimised, ready to send. Good luck!</p>
-        <button class="wm-btn-outline" :disabled="downloading" @click="redownload">
-          {{ downloading ? 'Downloading…' : 'Download again' }}
-        </button>
-        <p class="wm-footer-note">Link valid for 2 hours</p>
-      </div>
-    </div>
-  </div>
+    </Transition>
+  </Teleport>
 </template>
+
 
 <script setup>
 import { ref, watch } from 'vue'
@@ -146,8 +143,8 @@ async function initPayment() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token: props.cleanToken }),
     })
-    if (!res.ok) throw new Error('Could not create payment session')
-    const data = await res.json()
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error || 'Could not start the payment. Please try again.')
 
     if (data.demo) {
       // No Stripe configured on server — the unlock is recorded, so download it now
@@ -177,7 +174,7 @@ async function downloadClean(token, sessionId) {
       headers: sessionId ? { 'x-payment-intent-id': sessionId } : {},
     })
     if (res.ok) {
-      const fname = (sessionStorage.getItem('pcv_wm_filename') || 'cv')
+      const fname = (sessionStorage.getItem('pcv_wm_filename') || props.cvName || 'cv')
         .replace(/\.pdf$/i, '') + '-clean.pdf'
       triggerDownload(await res.blob(), fname)
       sessionStorage.removeItem('pcv_wm_token')
@@ -218,68 +215,24 @@ watch(() => props.visible, (val) => {
 </script>
 
 <style scoped>
-.wm-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,.55);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 9999; padding: 16px;
-}
-.wm-modal {
-  background: #fff; border-radius: 16px; padding: 28px;
-  max-width: 420px; width: 100%;
-  box-shadow: 0 24px 80px rgba(0,0,0,.18); position: relative;
-}
-.wm-close {
-  position: absolute; top: 14px; right: 14px;
-  background: none; border: none; font-size: 22px;
-  cursor: pointer; color: #aaa; line-height: 1; padding: 0;
-}
-.wm-close:hover { color: #555; }
-
-.wm-hero { text-align: center; margin-bottom: 20px; }
-.wm-icon { font-size: 42px; margin-bottom: 10px; }
-.wm-hero h2 { margin: 0 0 8px; font-size: 20px; font-weight: 700; color: #1a1a1a; }
-.wm-hero p  { margin: 0; color: #555; font-size: 14px; line-height: 1.55; }
-
-/* ── Two clickable option cards ── */
-.wm-card {
-  display: block; width: 100%; text-align: left; padding: 0;
-  border-radius: 10px; cursor: pointer; margin-bottom: 10px;
-  transition: transform .12s, box-shadow .12s; background: none;
-}
-.wm-card:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,.1); }
-.wm-card:active:not(:disabled) { transform: translateY(0); }
-.wm-card:disabled { opacity: .55; cursor: not-allowed; }
-
-.wm-card-free { border: 1.5px dashed #ccc; background: #fafafa; }
-.wm-card-free:hover:not(:disabled) { border-color: #888; }
-
-.wm-card-paid { border: 1.5px solid #b8e8d0; background: #f0faf5; }
-.wm-card-paid:hover:not(:disabled) { border-color: #4caf88; }
-
-.wm-card-inner { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
-.wm-card-body  { flex: 1; min-width: 0; }
-
-.wm-filename      { margin: 0; font-size: 13px; font-weight: 600; color: #333; }
-.wm-sublabel      { margin: 3px 0 0; font-size: 12px; color: #888; }
-.wm-stamp-text    { margin: 3px 0 0; font-size: 10px; color: #bbb; font-weight: 600; }
-.wm-feature-title { margin: 0; font-weight: 700; font-size: 13px; color: #1a1a1a; }
-.wm-feature-sub   { margin: 3px 0 0; font-size: 11.5px; color: #555; }
-
-.wm-badge { flex-shrink: 0; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px; background: #eee; color: #666; }
-.wm-check { font-size: 20px; flex-shrink: 0; }
-.wm-price { flex-shrink: 0; font-weight: 800; font-size: 18px; color: #1a1a1a; white-space: nowrap; margin-left: auto; }
-
-/* ── Done phase ── */
-.wm-done { text-align: center; padding: 8px 0; }
-.wm-done h2 { margin: 0 0 8px; font-size: 20px; font-weight: 700; }
-.wm-done p  { color: #555; font-size: 14px; line-height: 1.5; margin: 0 0 20px; }
-.wm-btn-outline {
-  background: #f5f5f5; border: 1px solid #ddd; border-radius: 8px;
-  padding: 10px 24px; font-size: 13px; cursor: pointer; margin-bottom: 8px;
-}
-.wm-btn-outline:disabled { opacity: .5; cursor: not-allowed; }
-
-.wm-footer-note { text-align: center; font-size: 12px; color: #aaa; margin: 10px 0 0; }
-.wm-credit{width:100%;margin-top:10px;background:var(--c-green-lt,#e6f5ed);color:var(--c-green,#1a7a4a);border:1.5px solid var(--c-green,#1a7a4a);padding:11px 16px;border-radius:12px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;}
-.wm-credit:disabled{opacity:.45;cursor:not-allowed;}
+.wm{max-width:440px;padding:30px 26px 24px}
+.wm-hd{margin-bottom:18px;padding-right:24px}
+.wm-hd h2,.wm-done h2{font-size:20px;font-weight:650;letter-spacing:-.015em}
+.wm-hd p,.wm-done p{color:var(--c-text2);margin-top:6px;line-height:1.55}
+.wm-opt{width:100%;display:flex;align-items:center;gap:14px;padding:16px;margin-bottom:10px;border-radius:12px;border:1px solid var(--c-border);background:var(--c-surface);text-align:left;transition:border-color .15s,box-shadow .15s}
+.wm-opt:hover:not(:disabled){border-color:var(--c-border2);box-shadow:var(--shadow-sm)}
+.wm-opt.featured{border-color:var(--c-accent);box-shadow:0 0 0 1px var(--c-accent)}
+.wm-opt:disabled{opacity:.6;cursor:wait}
+.wm-opt-txt{flex:1;min-width:0}
+.wm-opt-ttl{font-weight:600;font-size:15px}
+.wm-opt-sub{font-size:13px;color:var(--c-text2);margin-top:3px}
+.wm-price{font-weight:700;font-size:16px;white-space:nowrap}
+.wm-opt.featured .wm-price{color:var(--c-accent)}
+.wm-credit{margin-top:2px}
+.wm-foot{text-align:center;font-size:12.5px;color:var(--c-text3);margin-top:14px}
+.wm-done{display:flex;flex-direction:column;align-items:center;text-align:center;padding:12px 4px 0}
+.wm-done h2{margin-top:16px}
+.wm-ok{width:52px;height:52px;border-radius:50%;background:var(--c-green-lt);display:flex;align-items:center;justify-content:center}
+.wm-ok svg{width:26px;height:26px;fill:none;stroke:var(--c-green);stroke-width:2.6}
+.wm-row{display:flex;gap:10px;margin-top:20px}
 </style>

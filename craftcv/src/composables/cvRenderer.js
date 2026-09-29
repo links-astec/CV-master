@@ -1,1052 +1,479 @@
-// @ts-nocheck
-// ── helpers ───────────────────────────────────────────────────────────────────
-const LVL = [88, 82, 76, 91, 85, 73, 94, 79, 87, 68, 92, 77]
-const pct = (i) => LVL[i % LVL.length]
+// CV template engine — 8 layouts × 12 colour themes.
+//
+// Every layout is built from the same section blocks, so all of them share:
+//  • ATS-safe reading order (name → contact → profile → experience → … in the HTML,
+//    even when a sidebar is drawn on the left),
+//  • real headings (h1 name, h2 sections) in the CV's language (EN/FR),
+//  • a contact line with separators, plain-text skills, light printable pages,
+//  • a 700 × 990 px page (A4 proportions) that the PDF step fits onto one page.
+//
+// Template ids are "layout:theme" (e.g. "modern:indigo"). Ids from the old 107-template
+// system are mapped onto the closest layout + colour, so existing CVs keep working.
 
-const bars = (sk, fg, bg = 'rgba(0,0,0,.08)', h = '3px', pctFn = pct) =>
-  sk.map((s,i) => `<div style="margin-bottom:8px;direction:ltr;">
-    <div style="display:flex;justify-content:space-between;gap:8px;font-size:10px;margin-bottom:3px;opacity:.75;line-height:1.25;direction:ltr;"><span style="min-width:0;overflow-wrap:anywhere;">${s}</span><span style="flex-shrink:0;">${pctFn(i)}%</span></div>
-    <div style="height:${h};background:${bg};border-radius:2px;direction:ltr;position:relative;overflow:hidden;"><div style="width:${pctFn(i)}%;height:100%;background:${fg};border-radius:2px;position:absolute;left:0;top:0;"></div></div>
-  </div>`).join('')
+export const PAGE_W = 700
+export const PAGE_H = 990
 
-const dots = (sk, col, pctFn = pct) => sk.map((s, i) => {
-  const dotsFilled = Math.round(pctFn(i) / 20)
-  const dotsHtml = [1,2,3,4,5].map(n => {
-    const bg = n <= dotsFilled ? col : 'rgba(255,255,255,.18)'
-    return '<div style="width:6px;height:6px;border-radius:50%;background:' + bg + ';"></div>'
-  }).join('')
-  return '<div style="display:flex;align-items:flex-start;gap:7px;margin-bottom:7px;"><div style="display:flex;gap:2px;flex-shrink:0;margin-top:4px;">' + dotsHtml + '</div><span style="font-size:10.5px;line-height:1.3;overflow-wrap:anywhere;">' + s + '</span></div>'
-}).join('')
+export const LAYOUTS = [
+  { id: 'modern',    name: 'Modern',    desc: 'Clean header, skills column on the right' },
+  { id: 'classic',   name: 'Classic',   desc: 'Single column, centred serif name' },
+  { id: 'sidebar',   name: 'Sidebar',   desc: 'Tinted column for contact, skills and education' },
+  { id: 'minimal',   name: 'Minimal',   desc: 'Pure text with side labels — the most ATS-friendly' },
+  { id: 'executive', name: 'Executive', desc: 'Strong colour header, two columns' },
+  { id: 'compact',   name: 'Compact',   desc: 'Dense layout that fits long CVs on one page' },
+  { id: 'timeline',  name: 'Timeline',  desc: 'Dates on the left, accent rule, confident name' },
+  { id: 'photo',     name: 'Photo',     desc: 'Headshot header, two columns' },
+]
 
-const chips = (sk, bg, fg, r='4px') =>
-  sk.map(s=>`<span style="display:inline-block;max-width:100%;background:${bg};color:${fg};font-size:9.5px;font-weight:600;line-height:1.25;padding:3px 8px;border-radius:${r};margin:2px 3px 2px 0;overflow-wrap:anywhere;vertical-align:top;">${s}</span>`).join('')
+export const THEMES = [
+  { id: 'indigo',   name: 'Indigo',   accent: '#4338ca', dark: '#1e1b4b', tint: '#eef2ff' },
+  { id: 'blue',     name: 'Blue',     accent: '#1d4ed8', dark: '#172554', tint: '#eff6ff' },
+  { id: 'sky',      name: 'Sky',      accent: '#0369a1', dark: '#082f49', tint: '#f0f9ff' },
+  { id: 'teal',     name: 'Teal',     accent: '#0f766e', dark: '#042f2e', tint: '#f0fdfa' },
+  { id: 'emerald',  name: 'Emerald',  accent: '#047857', dark: '#022c22', tint: '#ecfdf5' },
+  { id: 'slate',    name: 'Slate',    accent: '#475569', dark: '#0f172a', tint: '#f1f5f9' },
+  { id: 'charcoal', name: 'Charcoal', accent: '#27272a', dark: '#18181b', tint: '#f4f4f5' },
+  { id: 'burgundy', name: 'Burgundy', accent: '#9f1239', dark: '#4c0519', tint: '#fff1f2' },
+  { id: 'crimson',  name: 'Crimson',  accent: '#b91c1c', dark: '#450a0a', tint: '#fef2f2' },
+  { id: 'plum',     name: 'Plum',     accent: '#7e22ce', dark: '#3b0764', tint: '#faf5ff' },
+  { id: 'amber',    name: 'Amber',    accent: '#b45309', dark: '#431407', tint: '#fffbeb' },
+  { id: 'rose',     name: 'Rose',     accent: '#be185d', dark: '#500724', tint: '#fdf2f8' },
+]
 
-const list = (sk, col) =>
-  sk.map(s=>`<div style="font-size:11px;color:${col};padding:5px 0;border-bottom:1px solid rgba(0,0,0,.06);display:flex;align-items:flex-start;gap:6px;line-height:1.35;overflow-wrap:anywhere;"><div style="width:4px;height:4px;border-radius:50%;background:currentColor;flex-shrink:0;opacity:.4;margin-top:6px;"></div><span style="min-width:0;">${s}</span></div>`).join('')
+export const FONTS = [
+  { id: 'DM Sans', name: 'DM Sans', note: 'Modern sans (default)' },
+  { id: 'Inter',   name: 'Inter',   note: 'Neutral, very readable' },
+  { id: 'Lora',    name: 'Lora',    note: 'Classic serif' },
+]
 
-// xp and sh are recreated inside render() to access fmt-derived scale/lh/sm
-// These outer versions are kept for compatibility but not used when fmt is passed
-const xp = (e, tc, mc, dc, _scale=(x)=>x+'px', _lh=1.7, _sm='16px') => {
-  const rawDesc = e.desc || '<span style="color:#c8c4be;font-style:italic;">Describe your key responsibilities and achievements.</span>'
-  const lines = rawDesc.split(/\n|•|·/).map(l => l.trim()).filter(l => l.length > 2)
-  const descHtml = lines.length > 1
-    ? '<ul style="margin:0;padding-left:14px;">' + lines.map(l => `<li style="font-size:${_scale(11)};color:${dc};line-height:${_lh};margin-bottom:3px;">${l}</li>`).join('') + '</ul>'
-    : `<div style="font-size:${_scale(11)};color:${dc};line-height:${_lh};">${rawDesc}</div>`
-  return `<div style="margin-bottom:${_sm};padding-bottom:${_sm};border-bottom:1px solid rgba(0,0,0,.06);">
-    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:2px;">
-      <div style="font-size:${_scale(13)};font-weight:700;color:${tc};">${e.title || '<span style="color:#c8c4be;font-style:italic;">Job Title</span>'}</div>
-      ${e.period ? `<div style="font-size:${_scale(10)};color:${mc};white-space:nowrap;flex-shrink:0;">${e.period}</div>` : ''}
-    </div>
-    <div style="font-size:${_scale(11)};color:${mc};margin-bottom:6px;font-weight:600;">${e.company || '<span style="color:#c8c4be;font-style:italic;">Company</span>'}</div>
-    ${descHtml}
-  </div>`
+export const DEFAULT_TEMPLATE = 'modern:indigo'
+
+// Old template id → "layout:theme"
+const LEGACY = {
+  executive: 'executive:charcoal', modern: 'modern:blue', minimal: 'minimal:charcoal', bold: 'executive:charcoal',
+  creative: 'sidebar:plum', academic: 'classic:charcoal', elegant: 'executive:amber', tech: 'executive:slate',
+  teal: 'sidebar:teal', newspaper: 'classic:charcoal', swiss: 'minimal:crimson', gradient: 'modern:indigo',
+  compact: 'compact:blue', photo: 'photo:blue', infographic: 'timeline:teal', pastel: 'modern:rose',
+  corporate: 'executive:blue', magazine: 'timeline:charcoal', midnight: 'executive:indigo', clean: 'minimal:blue',
+  slate: 'executive:slate', terra: 'timeline:amber', prism: 'timeline:indigo', ivory: 'classic:amber',
+  split: 'sidebar:charcoal', forest: 'sidebar:emerald', ruby: 'modern:burgundy', ocean: 'modern:sky',
+  purple: 'timeline:plum', charcoal: 'executive:charcoal', sunrise: 'modern:amber', silver: 'minimal:slate',
+  mint: 'modern:emerald', indigo: 'timeline:indigo', amber: 'executive:amber', diamond: 'photo:indigo',
+  bloom: 'timeline:rose', nordic: 'minimal:sky', sakura: 'modern:rose', emerald: 'photo:emerald',
+  cobalt: 'executive:blue', lemon: 'modern:amber', graphite: 'sidebar:charcoal', vega: 'executive:indigo',
+  rose: 'minimal:rose', onyx: 'executive:charcoal', aurora: 'modern:indigo', carbon: 'executive:charcoal',
+  sky: 'classic:sky', obsidian: 'executive:charcoal', slate2: 'sidebar:slate', crimson: 'modern:crimson',
+  sage: 'minimal:emerald', dusk: 'modern:plum', slate3: 'sidebar:slate', copper2: 'minimal:amber',
+  neon: 'executive:emerald', blush: 'photo:rose', sand: 'classic:amber', phantom: 'executive:charcoal',
+  electric: 'modern:sky', luxe: 'executive:amber', mono: 'minimal:charcoal', wave: 'modern:teal',
+  navy: 'sidebar:blue', violet2: 'timeline:plum', midnight2: 'executive:indigo', glacier: 'modern:sky',
+  lava: 'executive:crimson', verdant: 'timeline:emerald', parchment: 'classic:amber', matrix: 'executive:emerald',
+  retro: 'timeline:amber', prism2: 'timeline:indigo', zinc: 'executive:charcoal', coral: 'modern:crimson',
+  tan: 'minimal:amber', slate4: 'modern:slate', clay: 'sidebar:amber', frost: 'classic:sky',
+  steel: 'minimal:slate', mauve: 'modern:plum', brick: 'minimal:crimson', peach: 'modern:amber',
+  plum: 'executive:plum', spruce: 'sidebar:emerald', pine: 'compact:emerald', ochre: 'executive:amber',
+  ash: 'compact:charcoal', jade: 'sidebar:teal', wine: 'modern:burgundy', ultraviolet: 'executive:plum',
+  blueprint: 'executive:blue', meadow: 'classic:emerald', glacier2: 'sidebar:sky', garnet: 'executive:burgundy',
+  topaz: 'compact:teal', walnut: 'sidebar:amber', ivory2: 'classic:charcoal', slate5: 'executive:slate',
+  crimson2: 'compact:crimson', sepia: 'classic:amber', lavender: 'photo:plum', ink: 'minimal:charcoal',
+  moss: 'sidebar:emerald', futura: 'compact:indigo', tealwave: 'modern:teal', stone: 'minimal:slate',
 }
 
-const sh = (lbl, col, bc, _scale=(x)=>x+'px', _sm='20px') =>
-  `<div style="font-size:${_scale(9)};font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:${col};margin:${_sm} 0 10px;padding-bottom:6px;border-bottom:2px solid ${bc};">${lbl}</div>`
+const layoutById = Object.fromEntries(LAYOUTS.map(l => [l.id, l]))
+const themeById  = Object.fromEntries(THEMES.map(t => [t.id, t]))
 
-const photoOrInit = (d, sz, bg, fg, fs) => d.photo
-  ? `<img src="${d.photo}" style="width:${sz};height:${sz};border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,.25);display:block;" />`
-  : `<div style="width:${sz};height:${sz};border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;font-size:${fs};font-weight:700;color:${fg};font-family:'DM Serif Display',serif;flex-shrink:0;">${(d.fn?.[0]||'Y')+(d.ln?.[0]||'N')}</div>`
+// Any id (new or legacy) → { layout, theme, id }
+export function parseTemplate(id) {
+  let [layout, theme] = String(id || '').split(':')
+  if (!theme) [layout, theme] = (LEGACY[layout] || DEFAULT_TEMPLATE).split(':')
+  if (!layoutById[layout]) layout = 'modern'
+  if (!themeById[theme])   theme  = 'indigo'
+  return { layout, theme, id: `${layout}:${theme}` }
+}
+export const normalizeTemplate = (id) => parseTemplate(id).id
+export const templateId = (layout, theme) => parseTemplate(`${layout}:${theme}`).id
+export const getLayout = (id) => layoutById[id]
+export const getTheme  = (id) => themeById[id]
+export function templateLabel(id) {
+  const { layout, theme } = parseTemplate(id)
+  return `${layoutById[layout].name} · ${themeById[theme].name}`
+}
+
+// ── i18n ──────────────────────────────────────────────────────────────────────
+const LABELS = {
+  en: { profile: 'Profile', experience: 'Experience', education: 'Education', skills: 'Skills',
+        projects: 'Projects', languages: 'Languages', certifications: 'Certifications', contact: 'Contact' },
+  fr: { profile: 'Profil', experience: 'Expérience professionnelle', education: 'Formation', skills: 'Compétences',
+        projects: 'Projets', languages: 'Langues', certifications: 'Certifications', contact: 'Contact' },
+}
+const PLACEHOLDERS = {
+  en: { name: 'Your Name', title: 'Job title', email: 'you@email.com', phone: '+44 7700 900000', loc: 'City, Country',
+        sum: 'A short professional summary: who you are, what you do best and what you are looking for.',
+        expTitle: 'Job title', expCompany: 'Company', expPeriod: '2021 – Present',
+        expDesc: 'What you did and achieved in this role.', degree: 'Degree', school: 'University', skills: ['Skill one', 'Skill two', 'Skill three'] },
+  fr: { name: 'Votre nom', title: 'Intitulé du poste', email: 'vous@email.com', phone: '+33 6 00 00 00 00', loc: 'Ville, Pays',
+        sum: 'Un court résumé professionnel : qui vous êtes, vos points forts et ce que vous recherchez.',
+        expTitle: 'Intitulé du poste', expCompany: 'Entreprise', expPeriod: '2021 – Présent',
+        expDesc: 'Vos missions et réalisations dans ce poste.', degree: 'Diplôme', school: 'Établissement', skills: ['Compétence', 'Compétence', 'Compétence'] },
+}
 
 // ── escaping ──────────────────────────────────────────────────────────────────
-// Templates interpolate CV fields straight into HTML, so every user string is
-// escaped once here before any template sees it. The same HTML is rendered in the
-// preview (v-html) and by Puppeteer on the server.
-const escText = (s) => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]))
+// User text is escaped once here, before any layout sees it. The same HTML is shown
+// in the preview (v-html) and rendered by Puppeteer on the server.
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+const str = (v) => (typeof v === 'string' ? v.trim() : '')
 const SAFE_PHOTO = /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/
-// Only http(s) or scheme-less links — never javascript:, data: etc.
-const safeUrl = (u) => (/^\s*[a-z][a-z0-9+.-]*:/i.test(u) && !/^\s*https?:/i.test(u)) ? '' : u
 
-function escapeDeep(v) {
-  if (typeof v === 'string') return escText(v)
-  if (Array.isArray(v)) return v.map(escapeDeep)
-  if (v && typeof v === 'object') {
-    const out = {}
-    for (const k of Object.keys(v)) out[k] = escapeDeep(v[k])
-    return out
+// Link target for a user-typed URL: only http(s), never javascript:/data: etc.
+function hrefFor(raw) {
+  const u = str(raw)
+  if (!u) return ''
+  if (/^[a-z][a-z0-9+.-]*:/i.test(u)) return /^https?:/i.test(u) ? u : ''
+  return 'https://' + u.replace(/^\/+/, '')
+}
+const displayUrl = (u) => str(u).replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/$/, '')
+// URL text that may wrap after "/" but never inside a segment — a URL split at a hyphen
+// reads as two broken pieces to an ATS.
+const urlHtml = (u) => displayUrl(u).split('/').map(part => `<span class="nw">${esc(part)}</span>`).join('/<wbr>')
+
+// Description text → bullet lines (new lines, "•", or "-"/"*" at line start)
+const toBullets = (desc) =>
+  str(desc).split(/\n|•/).map(l => l.replace(/^\s*[-*–]\s+/, '').trim()).filter(l => l.length > 1)
+
+// Raw CV data → escaped view model. `preview` fills empty fields with muted placeholders;
+// exports never contain placeholders.
+function buildModel(raw, preview) {
+  const d    = raw || {}
+  const lang = d.lang === 'fr' ? 'fr' : 'en'
+  const P    = PLACEHOLDERS[lang]
+  const ph   = (t) => (preview ? `<span class="ph">${esc(t)}</span>` : '')
+
+  const name  = [str(d.fn), str(d.ln)].filter(Boolean).join(' ')
+  const title = str(d.title)
+
+  const contacts = []
+  const email = str(d.email), phone = str(d.phone), loc = str(d.loc)
+  if (email) contacts.push(`<a href="mailto:${esc(email)}">${esc(email)}</a>`)
+  if (phone) contacts.push(`<span>${esc(phone)}</span>`)
+  if (loc)   contacts.push(`<span>${esc(loc)}</span>`)
+  for (const u of [str(d.li), str(d.website)]) {
+    if (!u) continue
+    const h = hrefFor(u)
+    contacts.push(h ? `<a href="${esc(h)}">${urlHtml(u)}</a>` : `<span>${esc(u)}</span>`)
   }
-  return v
+  if (!contacts.length && preview) contacts.push(ph(P.email), ph(P.phone), ph(P.loc))
+
+  const exps = (Array.isArray(d.experiences) ? d.experiences : [])
+    .filter(e => e && (str(e.title) || str(e.company) || str(e.desc)))
+    .map(e => ({ title: esc(str(e.title)), company: esc(str(e.company)), period: esc(str(e.period)), bullets: toBullets(e.desc).map(esc) }))
+  const eduRaw = Array.isArray(d.education) ? d.education : (d.education ? [d.education] : [])
+  const edu = eduRaw.filter(e => e && (str(e.degree) || str(e.school) || str(e.year)))
+    .map(e => ({ degree: esc(str(e.degree)), school: esc(str(e.school)), year: esc(str(e.year)) }))
+  const skills = (Array.isArray(d.skills) ? d.skills : []).map(str).filter(Boolean).map(esc)
+  const projects = (Array.isArray(d.projects) ? d.projects : [])
+    .filter(p => p && (str(p.name) || str(p.desc)))
+    .map(p => {
+      const h = hrefFor(p.url)
+      return { name: esc(str(p.name)), tech: esc(str(p.tech)), desc: esc(str(p.desc)),
+               url: h ? `<a href="${esc(h)}">${urlHtml(p.url)}</a>` : '' }
+    })
+  const languages = (Array.isArray(d.languages) ? d.languages : [])
+    .filter(l => l && str(l.name)).map(l => ({ name: esc(str(l.name)), level: esc(str(l.level)) }))
+  const certs = (Array.isArray(d.certifications) ? d.certifications : []).map(str).filter(Boolean).map(esc)
+
+  return {
+    lang, L: LABELS[lang], preview,
+    name: name ? esc(name) : ph(P.name),
+    first: esc(str(d.fn)), last: esc(str(d.ln)),
+    initials: esc(((str(d.fn)[0] || '') + (str(d.ln)[0] || '')).toUpperCase()),
+    title: title ? esc(title) : ph(P.title),
+    contacts,
+    photo: typeof d.photo === 'string' && SAFE_PHOTO.test(d.photo) ? d.photo : null,
+    sum: str(d.sum) ? esc(str(d.sum)) : ph(P.sum),
+    exps: exps.length ? exps : (preview ? [{ title: ph(P.expTitle), company: ph(P.expCompany), period: ph(P.expPeriod), bullets: [ph(P.expDesc)] }] : []),
+    edu: edu.length ? edu : (preview ? [{ degree: ph(P.degree), school: ph(P.school), year: '' }] : []),
+    skills: skills.length ? skills : (preview ? P.skills.map(ph) : []),
+    projects, languages, certs,
+  }
 }
 
-function sanitizeCvData(d) {
-  const out = escapeDeep(d || {})
-  out.photo = typeof d?.photo === 'string' && SAFE_PHOTO.test(d.photo) ? d.photo : null
-  if (Array.isArray(out.projects)) out.projects = out.projects.map(p => (p && typeof p === 'object') ? { ...p, url: safeUrl(p.url || '') } : p)
-  return out
+// ── section blocks ────────────────────────────────────────────────────────────
+const sep = '<span class="sep"> · </span>'
+
+function sec(key, label, body) {
+  if (!body) return ''
+  return `<section class="sec s-${key}"><h2 class="sec-h">${label}</h2><div class="sec-b">${body}</div></section>`
 }
 
+const bulletsHtml = (bullets) =>
+  bullets.length > 1 ? `<ul class="bl">${bullets.map(b => `<li>${b}</li>`).join('')}</ul>`
+  : bullets.length ? `<p class="prose">${bullets[0]}</p>` : ''
+
+const B = {
+  contact: (m) => m.contacts.length ? `<p class="contact">${m.contacts.join(sep)}</p>` : '',
+  contactList: (m) => m.contacts.length ? `<ul class="contact-list">${m.contacts.map(c => `<li>${c}</li>`).join('')}</ul>` : '',
+  profile: (m) => m.sum ? `<p class="prose">${m.sum}</p>` : '',
+  experience: (m) => m.exps.map(e => `
+    <article class="item">
+      <div class="item-hd"><h3 class="item-t">${e.title}</h3>${e.period ? `<span class="item-d">${e.period}</span>` : ''}</div>
+      ${e.company ? `<p class="item-s">${e.company}</p>` : ''}
+      ${bulletsHtml(e.bullets)}
+    </article>`).join(''),
+  timeline: (m) => m.exps.map(e => `
+    <article class="item tl">
+      <div class="tl-d">${e.period || ''}</div>
+      <div class="tl-c">
+        <h3 class="item-t">${e.title}</h3>
+        ${e.company ? `<p class="item-s">${e.company}</p>` : ''}
+        ${bulletsHtml(e.bullets)}
+      </div>
+    </article>`).join(''),
+  education: (m) => m.edu.map(e => `
+    <article class="item item-sm">
+      <h3 class="item-t">${e.degree}</h3>
+      ${e.school || e.year ? `<p class="item-m">${[e.school, e.year].filter(Boolean).join(sep)}</p>` : ''}
+    </article>`).join(''),
+  // Short skills never break mid-word ("Scikit-|learn"); long phrases may still wrap
+  skillsInline: (m) => m.skills.length ? `<p class="inline">${m.skills.map(s => s.length <= 24 ? `<span class="nw">${s}</span>` : s).join(sep)}</p>` : '',
+  skillsList: (m) => m.skills.length ? `<ul class="list">${m.skills.map(s => `<li>${s}</li>`).join('')}</ul>` : '',
+  projects: (m) => m.projects.map(p => `
+    <article class="item">
+      <div class="item-hd"><h3 class="item-t">${p.name}</h3>${p.url ? `<span class="item-d">${p.url}</span>` : ''}</div>
+      ${p.tech ? `<p class="item-m">${p.tech}</p>` : ''}
+      ${p.desc ? `<p class="prose">${p.desc}</p>` : ''}
+    </article>`).join(''),
+  langInline: (m) => m.languages.length ? `<p class="inline">${m.languages.map(l => !l.level ? l.name : l.level.includes('(') ? `${l.name} — ${l.level}` : `${l.name} (${l.level})`).join(sep)}</p>` : '',
+  langList: (m) => m.languages.length ? `<ul class="list">${m.languages.map(l => `<li><strong>${l.name}</strong>${l.level ? ` <span class="muted">— ${l.level}</span>` : ''}</li>`).join('')}</ul>` : '',
+  certs: (m) => m.certs.length ? `<ul class="list">${m.certs.map(c => `<li>${c}</li>`).join('')}</ul>` : '',
+}
+
+// Sections in the given reading order. `side` = rendered in a narrow column (lists, not inline)
+function sections(m, keys, side = false) {
+  const L = m.L
+  const html = {
+    profile:        () => sec('profile', L.profile, B.profile(m)),
+    experience:     () => sec('experience', L.experience, B.experience(m)),
+    timeline:       () => sec('experience', L.experience, B.timeline(m)),
+    projects:       () => sec('projects', L.projects, B.projects(m)),
+    education:      () => sec('education', L.education, B.education(m)),
+    // In a narrow column a long skill list reads better (and fits) as one wrapped line
+    skills:         () => sec('skills', L.skills, side && m.skills.length <= 12 ? B.skillsList(m) : B.skillsInline(m)),
+    languages:      () => sec('languages', L.languages, side ? B.langList(m) : B.langInline(m)),
+    certifications: () => sec('certifications', L.certifications, B.certs(m)),
+    contact:        () => sec('contact', L.contact, B.contactList(m)),
+  }
+  return keys.map(k => html[k]()).join('')
+}
+
+const MAIN  = ['profile', 'experience', 'projects']
+const SIDE  = ['skills', 'education', 'languages', 'certifications']
+const ALL   = ['profile', 'experience', 'projects', 'education', 'skills', 'languages', 'certifications']
+
+// ── layouts ───────────────────────────────────────────────────────────────────
+const avatar = (m) => m.photo
+  ? `<img class="avatar" src="${m.photo}" alt="" />`
+  : `<div class="avatar initials" aria-hidden="true">${m.initials || (m.preview ? '<span class="ph">AB</span>' : '')}</div>`
+
+const header = (m, extra = '') => `
+  <header class="hd">${extra}
+    <div class="hd-t">
+      <h1 class="name">${m.name}</h1>
+      <p class="title">${m.title}</p>
+      ${B.contact(m)}
+    </div>
+  </header>`
+
+const LAYOUT_HTML = {
+  classic:   (m) => `${header(m)}<main class="body">${sections(m, ALL)}</main>`,
+  minimal:   (m) => `${header(m)}<main class="body">${sections(m, ALL)}</main>`,
+  modern:    (m) => `${header(m)}<div class="grid"><main class="main">${sections(m, MAIN)}</main><aside class="aside">${sections(m, SIDE, true)}</aside></div>`,
+  executive: (m) => `${header(m)}<div class="grid"><main class="main">${sections(m, MAIN)}</main><aside class="aside">${sections(m, SIDE, true)}</aside></div>`,
+  photo:     (m) => `${header(m, avatar(m))}<div class="grid"><main class="main">${sections(m, MAIN)}</main><aside class="aside">${sections(m, SIDE, true)}</aside></div>`,
+
+  // Main column comes first in the HTML (what an ATS reads); CSS draws the sidebar on the left.
+  sidebar: (m) => `
+    <div class="grid">
+      <main class="main">
+        <header class="hd"><h1 class="name">${m.name}</h1><p class="title">${m.title}</p></header>
+        ${sections(m, MAIN)}
+      </main>
+      <aside class="aside">
+        ${m.photo ? avatar(m) : ''}
+        ${sections(m, ['contact', ...SIDE], true)}
+      </aside>
+    </div>`,
+
+  compact: (m) => `
+    <header class="hd">
+      <div class="hd-t"><h1 class="name">${m.name}</h1><p class="title">${m.title}</p></div>
+      ${B.contactList(m)}
+    </header>
+    <main class="body">
+      ${sections(m, MAIN)}
+      <div class="split">
+        <div>${sections(m, ['education', 'certifications'])}</div>
+        <div>${sections(m, ['skills', 'languages'])}</div>
+      </div>
+    </main>`,
+
+  timeline: (m) => `
+    <header class="hd">
+      <h1 class="name">${m.first || m.last ? `${m.first} <span class="accent">${m.last}</span>` : m.name}</h1>
+      <p class="title">${m.title}</p>
+      ${B.contact(m)}
+    </header>
+    <main class="body">${sections(m, ['profile', 'timeline', 'projects', 'education', 'skills', 'languages', 'certifications'])}</main>`,
+}
+
+// ── styles ────────────────────────────────────────────────────────────────────
+// Scoped under .cvr so the preview (injected into the app) and the PDF share one stylesheet.
+const BASE_CSS = `
+.cvr{box-sizing:border-box;width:700px;min-height:990px;background:#fff;color:#1f2937;font-family:var(--font),'DM Sans',Arial,sans-serif;
+  font-size:calc(10.5px*var(--s));line-height:var(--lh);-webkit-font-smoothing:antialiased;position:relative;
+  display:flex;flex-direction:column;text-align:left;overflow-wrap:break-word;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact}
+.cvr *{box-sizing:border-box;margin:0;padding:0}
+.cvr a{color:inherit;text-decoration:none}
+.cvr strong{font-weight:600;color:#111827}
+.cvr .ph{color:#9ca3af;font-style:italic;font-weight:400}
+.cvr .muted{color:#6b7280}
+.cvr .nw{white-space:nowrap}
+.cvr .accent{color:var(--ac)}
+.cvr .name{font-family:var(--hfont);font-weight:700;color:#111827;font-size:calc(30px*var(--s));line-height:1.12;letter-spacing:-.015em}
+.cvr .title{color:var(--ac);font-weight:600;font-size:calc(12.4px*var(--s));margin-top:5px;letter-spacing:.01em}
+.cvr .contact{color:#4b5563;font-size:calc(9.8px*var(--s));margin-top:9px;line-height:1.65}
+.cvr .sep{color:#9ca3af}
+.cvr .contact-list{list-style:none;font-size:calc(9.6px*var(--s));color:#4b5563;line-height:1.6}
+.cvr .contact-list li{overflow-wrap:anywhere}
+.cvr .sec{margin-top:var(--gap)}
+.cvr .body > .sec:first-child,.cvr .main > .sec:first-child,.cvr .aside > .sec:first-child{margin-top:0}
+.cvr .sec-h{font-family:var(--font);font-size:calc(9.4px*var(--s));font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--ac);margin-bottom:9px;line-height:1.3}
+.cvr .prose,.cvr .inline,.cvr .bl{color:#374151}
+.cvr .item{margin-bottom:calc(var(--gap)*.62)}
+.cvr .item:last-child{margin-bottom:0}
+.cvr .item-hd{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.cvr .item-t{font-family:var(--font);font-size:calc(11.3px*var(--s));font-weight:600;color:#111827;line-height:1.35}
+.cvr .item-d{flex-shrink:0;white-space:nowrap;font-size:calc(9.6px*var(--s));color:#6b7280}
+.cvr .item-s{font-weight:600;color:var(--acd);font-size:calc(10.3px*var(--s));margin-top:1px}
+.cvr .item-m{color:#6b7280;font-size:calc(9.8px*var(--s));margin-top:1px}
+.cvr .item-sm{margin-bottom:9px}
+.cvr .item-sm .item-t{font-size:calc(10.6px*var(--s))}
+.cvr .item > .prose,.cvr .item .bl,.cvr .tl-c > .prose{margin-top:4px}
+.cvr .bl{padding-left:14px}
+.cvr .bl li{margin-bottom:2px;padding-left:2px}
+.cvr .bl li::marker{color:var(--ac)}
+.cvr .list{list-style:none}
+.cvr .list li{padding:2px 0;overflow-wrap:anywhere}
+.cvr .avatar{width:84px;height:84px;border-radius:50%;object-fit:cover;flex-shrink:0;display:block}
+.cvr .avatar.initials{display:flex;align-items:center;justify-content:center;background:var(--ac);color:#fff;font-weight:600;font-size:28px;font-family:var(--hfont)}
+.cvr .grid{flex:1}
+`
+
+const TWO_COL = (l) => `
+.l-${l} .grid{display:grid;grid-template-columns:1fr 192px;gap:28px}
+.l-${l} .aside{padding-left:22px;border-left:1px solid #e5e7eb}
+.l-${l} .aside .sec{margin-top:calc(var(--gap)*.9)}
+.l-${l} .aside .sec:first-child{margin-top:0}`
+
+const LAYOUT_CSS = {
+  classic: `
+.l-classic{padding:46px 56px 40px}
+.l-classic .hd{text-align:center;padding-bottom:18px;border-bottom:1.5px solid var(--ac);margin-bottom:22px}
+.l-classic .name{font-size:calc(32px*var(--s));font-weight:400}
+.l-classic .title{color:#4b5563;font-weight:500;text-transform:uppercase;letter-spacing:.14em;font-size:calc(10.2px*var(--s));margin-top:8px}
+.l-classic .sec-h{color:#111827;border-bottom:1px solid #e5e7eb;padding-bottom:5px}`,
+
+  modern: TWO_COL('modern') + `
+.l-modern{border-top:6px solid var(--ac)}
+.l-modern .hd{padding:32px 44px 22px}
+.l-modern .grid{padding:4px 44px 36px}`,
+
+  sidebar: `
+.l-sidebar .grid{display:grid;grid-template-columns:208px 1fr;grid-template-areas:'aside main'}
+.l-sidebar .main{grid-area:main;padding:40px 40px 36px 32px}
+.l-sidebar .aside{grid-area:aside;background:var(--act);padding:40px 20px 36px 26px}
+.l-sidebar .hd{margin-bottom:24px}
+.l-sidebar .avatar{margin-bottom:22px}
+.l-sidebar .aside .sec{margin-top:calc(var(--gap)*.95)}
+.l-sidebar .aside > .sec:first-child,.l-sidebar .aside > .avatar + .sec{margin-top:0}
+.l-sidebar .aside .sec-h{color:var(--acd)}`,
+
+  minimal: `
+.l-minimal{padding:48px 54px 40px}
+.l-minimal .hd{padding-bottom:20px;margin-bottom:22px;border-bottom:1px solid #e5e7eb}
+.l-minimal .name{font-weight:600;font-size:calc(28px*var(--s))}
+.l-minimal .title{color:#4b5563;font-weight:500}
+.l-minimal .sec{display:grid;grid-template-columns:112px 1fr;gap:18px}
+.l-minimal .sec-h{margin:2px 0 0;font-size:calc(9px*var(--s))}`,
+
+  executive: TWO_COL('executive') + `
+.l-executive .hd{background:var(--acd);padding:36px 44px 28px;margin-bottom:28px}
+.l-executive .name{color:#fff;font-weight:400;font-size:calc(32px*var(--s))}
+.l-executive .title{color:var(--act);opacity:.9;font-weight:500;text-transform:uppercase;letter-spacing:.14em;font-size:calc(10.2px*var(--s));margin-top:8px}
+.l-executive .contact{color:rgba(255,255,255,.85)}
+.l-executive .contact .sep{color:rgba(255,255,255,.45)}
+.l-executive .grid{padding:0 44px 36px}`,
+
+  compact: `
+.l-compact{padding:32px 40px 30px;--gap:calc(15px*var(--sp))}
+.l-compact .hd{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;padding-bottom:14px;margin-bottom:16px;border-bottom:2px solid var(--ac)}
+.l-compact .name{font-size:calc(26px*var(--s))}
+.l-compact .title{margin-top:3px}
+.l-compact .contact-list{text-align:right;flex-shrink:0;max-width:260px}
+.l-compact .sec-h{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.l-compact .sec-h::after{content:'';flex:1;height:1px;background:#e5e7eb}
+.l-compact .item{margin-bottom:9px}
+.l-compact .split{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:var(--gap)}
+.l-compact .split > div > .sec:first-child{margin-top:0}`,
+
+  timeline: `
+.l-timeline{padding:44px 50px 38px 56px;border-left:8px solid var(--ac)}
+.l-timeline .hd{margin-bottom:26px}
+.l-timeline .name{font-size:calc(34px*var(--s));font-weight:700;letter-spacing:-.025em}
+.l-timeline .title{color:#4b5563;text-transform:uppercase;letter-spacing:.14em;font-size:calc(10.2px*var(--s));font-weight:600;margin-top:7px}
+.l-timeline .sec-h{display:flex;align-items:center;gap:8px}
+.l-timeline .sec-h::before{content:'';width:14px;height:3px;background:var(--ac);border-radius:2px}
+.l-timeline .item.tl{display:grid;grid-template-columns:88px 1fr;gap:16px}
+.l-timeline .tl-d{font-size:calc(9.4px*var(--s));color:#6b7280;padding-top:2px;line-height:1.35}
+.l-timeline .tl-c{border-left:2px solid var(--act);padding-left:14px;position:relative}
+.l-timeline .tl-c::before{content:'';position:absolute;left:-5px;top:5px;width:8px;height:8px;border-radius:50%;background:var(--ac)}`,
+
+  photo: TWO_COL('photo') + `
+.l-photo .hd{display:flex;align-items:center;gap:24px;padding:34px 44px 24px;margin-bottom:26px;background:var(--act);border-bottom:3px solid var(--ac)}
+.l-photo .avatar{width:92px;height:92px;border:3px solid #fff}
+.l-photo .grid{padding:0 44px 36px}`,
+}
+
+const SERIF_HEADINGS = new Set(['classic', 'executive'])
+
+// ── render ────────────────────────────────────────────────────────────────────
+// render(templateId, data, fmt, { preview }) → HTML string whose root is the page.
+// `preview: true` shows muted placeholders for empty fields (editor only, never exported).
+export function render(tpl, rawData, fmt = {}, opts = {}) {
+  const { layout, theme } = parseTemplate(tpl)
+  const t = themeById[theme]
+  const m = buildModel(rawData, !!opts.preview)
+
+  const font  = FONTS.some(f => f.id === fmt.fontFamily) ? fmt.fontFamily : 'DM Sans'
+  const scale = fmt.fontSize === 'small' ? 0.93 : fmt.fontSize === 'large' ? 1.07 : 1
+  const lh    = fmt.lineSpacing === 'compact' ? 1.42 : fmt.lineSpacing === 'relaxed' ? 1.68 : 1.55
+  const sp    = fmt.sectionSpacing === 'compact' ? 0.78 : fmt.sectionSpacing === 'relaxed' ? 1.22 : 1
+  const hfont = SERIF_HEADINGS.has(layout) && font !== 'Lora' ? "'DM Serif Display',Georgia,serif" : `'${font}'`
+
+  const vars = [
+    `--ac:${t.accent}`, `--acd:${t.dark}`, `--act:${t.tint}`,
+    `--font:'${font}'`, `--hfont:${hfont}`,
+    `--s:${scale}`, `--lh:${lh}`, `--sp:${sp}`, `--gap:calc(20px*${sp})`,
+  ].join(';')
+
+  return `<div class="cvr l-${layout}" data-cv-root data-template="${layout}:${theme}" lang="${m.lang}" style="${vars}">`
+    // Layout rules get .cvr.l-x so they always beat the base rules, even when several
+    // CVs (e.g. thumbnails) put their stylesheets on the same page
+    + `<style>${BASE_CSS}${LAYOUT_CSS[layout].replace(/\.l-/g, '.cvr.l-')}</style>`
+    + LAYOUT_HTML[layout](m)
+    + `</div>`
+}
+
+// Kept for existing callers: `const { render } = useCvRenderer()`
 export function useCvRenderer() {
-  // Helper: render placeholder text in muted italic style
-  const ph = (text, col = '#c8c4be') =>
-    `<span style="color:${col};font-style:italic;opacity:.7;">${text}</span>`
-
-  function render(tpl, rawData, fmt = {}) {
-    const d = sanitizeCvData(rawData)
-    // Apply formatting options
-    const fontFamily    = fmt.fontFamily    || 'DM Sans'
-    const fontSize      = fmt.fontSize      || 'normal'
-    const skillStyle    = fmt.skillStyle    || 'bars'
-    const showSkillPct  = fmt.showSkillPct  !== false
-    const lineSpacing   = fmt.lineSpacing   || 'normal'
-    const sectionSpacing = fmt.sectionSpacing || 'normal'
-
-    // Font size scale
-    const fsScale = fontSize === 'small' ? 0.9 : fontSize === 'large' ? 1.1 : 1.0
-    const scale = (px) => Math.round(px * fsScale) + 'px'
-
-    // Line height
-    const lh = lineSpacing === 'compact' ? 1.5 : lineSpacing === 'relaxed' ? 1.85 : 1.7
-
-    // Section margin
-    const sm = sectionSpacing === 'compact' ? '12px' : sectionSpacing === 'relaxed' ? '28px' : '20px'
-
-    const hasName = d.fn || d.ln
-    const nm   = hasName ? `${d.fn||''} ${d.ln||''}`.trim() : ph('Your Full Name')
-    const init = hasName ? ((d.fn?.[0]||'Y')+(d.ln?.[0]||'N')) : 'YN'
-
-    const sourceSkills = d.skills?.length ? d.skills : ['Your Skill','Communication','Leadership','Analysis']
-    const sk = sourceSkills
-      .map(s => String(s).trim())
-      .filter(Boolean)
-      .slice(0, 10)
-
-    // Local xp_ and sh_ bind fmt-derived scale/lh/sm so ALL templates respect formatting
-    const xp_ = (e, tc, mc, dc) => xp(e, tc, mc, dc, scale, lh, sm)
-    const sh_ = (lbl, col, bc)  => sh(lbl, col, bc, scale, sm)
-
-    // Build skill section based on fmt.skillStyle
-    const skillSection = (accentCol, bgCol, textCol = '#333') => {
-      if (skillStyle === 'plain') {
-        return `<div style="font-size:${scale(11)};color:${textCol};line-height:${lh};">${sk.join(' · ')}</div>`
-      }
-      if (skillStyle === 'chips') {
-        return chips(sk, bgCol, accentCol, '20px')
-      }
-      if (skillStyle === 'list') {
-        return list(sk, textCol)
-      }
-      if (skillStyle === 'dots') {
-        return dots(sk, accentCol, pct_)
-      }
-      // Default: bars — respect showSkillPct
-      if (!showSkillPct) {
-        return sk.map(s => `<div style="font-size:${scale(10.5)};color:${textCol};padding:4px 0;border-bottom:1px solid rgba(0,0,0,.06);">${s}</div>`).join('')
-      }
-      return bars(sk, accentCol, bgCol, '3px', pct_)
-    }
-
-    // pct_: reads user-set skill level from store.data.skillLevels, falls back to LVL[]
-    const pct_ = (i) => {
-      // Stored as { index: level } by store.setSkillLevel (older data may be an array)
-      const lvl = d.skillLevels
-      if (lvl && typeof lvl === 'object' && lvl[i] != null) {
-        return Math.min(100, Math.max(1, parseInt(lvl[i]) || LVL[i % LVL.length]))
-      }
-      return LVL[i % LVL.length]
-    }
-    const exp  = d.experiences?.filter(e => e.title || e.company || e.desc).length
-      ? d.experiences
-      : [{ title: 'Job Title', company: 'Company Name', period: '2020–Present', desc: 'Describe your key responsibilities and achievements here.' }]
-    // Support both old single-object and new array format
-    const eduArr = Array.isArray(d.education)
-      ? d.education
-      : (d.education?.degree ? [d.education] : [])
-    const edu  = (eduArr[0]?.degree || eduArr[0]?.school)
-      ? eduArr[0]
-      : { degree: 'Your Degree', school: 'University Name', year: '2020' }
-    const eduExtra = eduArr.slice(1)
-
-    const eduExtraHtml = eduExtra.length ? eduExtra.map(e =>
-      '<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(0,0,0,.08);">' +
-      '<div style="font-size:11px;font-weight:600;">' + (e.degree||'') + '</div>' +
-      '<div style="font-size:10px;opacity:.65;">' + (e.school||'') + (e.year?' · '+e.year:'') + '</div>' +
-      '</div>'
-    ).join('') : ''
-
-    const proj = Array.isArray(d.projects) ? d.projects : []
-    const projSection = (accentColor, bgColor) => proj.length ? (
-      '<div style="font-size:8.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:' + accentColor + ';margin:18px 0 9px;padding-bottom:5px;border-bottom:1.5px solid ' + bgColor + ';">Projects</div>' +
-      proj.slice(0,4).map(p =>
-        '<div style="margin-bottom:10px;">' +
-        '<div style="font-size:11.5px;font-weight:700;">' + (p.name||'') + (p.url ? ' <a href="'+p.url+'" style="font-size:10px;font-weight:400;opacity:.5;text-decoration:none;">↗</a>' : '') + '</div>' +
-        (p.tech ? '<div style="font-size:10px;opacity:.6;margin-bottom:2px;">' + p.tech + '</div>' : '') +
-        '<div style="font-size:11px;opacity:.8;line-height:1.55;">' + (p.desc||'') + '</div>' +
-        '</div>'
-      ).join('')
-    ) : ''
-
-    // Ready-to-embed project block for light and dark themes
-    const projLight = proj.length ? (
-      '<div style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#374151;border-bottom:1.5px solid #e5e7eb;padding-bottom:4px;margin:18px 0 10px;">Projects</div>' +
-      proj.slice(0,4).map(p =>
-        '<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #f3f4f6;">' +
-        '<div style="display:flex;align-items:baseline;gap:8px;">' +
-        '<div style="font-size:12px;font-weight:700;color:#111827;">' + (p.name||'') + '</div>' +
-        (p.url ? '<a href="'+p.url+'" style="font-size:10px;color:#6b7280;text-decoration:none;">↗</a>' : '') +
-        '</div>' +
-        (p.tech ? '<div style="font-size:10px;color:#9ca3af;margin-bottom:3px;">' + p.tech + '</div>' : '') +
-        '<div style="font-size:11px;color:#4b5563;line-height:1.6;">' + (p.desc||'') + '</div>' +
-        '</div>'
-      ).join('')
-    ) : ''
-
-    const projDark = proj.length ? (
-      '<div style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.4);border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:4px;margin:18px 0 10px;">Projects</div>' +
-      proj.slice(0,4).map(p =>
-        '<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.06);">' +
-        '<div style="display:flex;align-items:baseline;gap:8px;">' +
-        '<div style="font-size:12px;font-weight:700;color:rgba(255,255,255,.85);">' + (p.name||'') + '</div>' +
-        (p.url ? '<a href="'+p.url+'" style="font-size:10px;color:rgba(255,255,255,.3);text-decoration:none;">↗</a>' : '') +
-        '</div>' +
-        (p.tech ? '<div style="font-size:10px;color:rgba(255,255,255,.3);margin-bottom:3px;">' + p.tech + '</div>' : '') +
-        '<div style="font-size:11px;color:rgba(255,255,255,.55);line-height:1.6;">' + (p.desc||'') + '</div>' +
-        '</div>'
-      ).join('')
-    ) : ''
-    const cert = d.certifications || []
-    const lang = d.languages || []
-    const langFallbackHtml = lang.length ? '<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(0,0,0,.08);"><div style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.5;margin-bottom:6px;">Languages</div>' + lang.map(l => '<div style="font-size:11px;margin-bottom:3px;opacity:.85;">' + l.name + ' — ' + l.level + '</div>').join('') + '</div>' : ''
-    const certFallbackHtml = cert.length ? '<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(0,0,0,.08);"><div style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.5;margin-bottom:6px;">Certifications</div>' + cert.map(c => '<div style="font-size:11px;margin-bottom:3px;opacity:.85;">' + c + '</div>').join('') + '</div>' : ''
-    const web  = d.website || ''
-    const ctc  = [
-      d.email || 'your@email.com',
-      d.phone || '+44 7700 000000',
-      d.loc   || 'City, Country',
-      d.li, web
-    ].filter(Boolean)
-    const titleStr = d.title || 'Job Title / Desired Role'
-    const sumStr   = d.sum   || 'Write a compelling 2–3 sentence professional summary highlighting your key skills, experience level, and what makes you stand out to employers.'
-
-    const T = {
-
-      // ── 1. EXECUTIVE SLATE ──────────────────────────────────────────────────
-      executive: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;">
-        <div style="background:#1a1916;padding:36px 40px 28px;">
-          <div style="font-family:'DM Serif Display',serif;font-size:34px;color:#fff;letter-spacing:-.01em;margin-bottom:4px;">${nm}</div>
-          <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#5a5855;margin-bottom:16px;">${titleStr}</div>
-          <div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>`<span style="font-size:10.5px;color:#8a8680;">${x}</span>`).join('')}</div>
-        </div>
-        <div style="display:grid;grid-template-columns:200px 1fr;">
-          <div style="background:#f9f8f4;padding:24px 18px;border-right:1px solid #ece9e2;">
-            ${sh_('Skills','#2a5bd7','#dce6f7')}${skillSection('#2a5bd7','#dce6f7')}
-            ${sh_('Education','#2a5bd7','#dce6f7')}
-            <div style="font-size:11.5px;color:#1a1916;font-weight:600;margin-bottom:2px;">${edu.degree}</div>
-            <div style="font-size:10.5px;color:#9a9790;">${edu.school}</div>
-            <div style="font-size:10px;color:#b0ada6;margin-top:2px;">${edu.year}</div>${eduExtraHtml}
-            ${eduExtraHtml}${lang.length?`${sh_('Languages','#2a5bd7','#dce6f7')}${lang.map(l=>`<div style="font-size:11px;color:#6b6860;margin-bottom:4px;"><span style="font-weight:600;color:#1a1916;">${l.name}</span> — ${l.level}</div>`).join('')}`:''}
-          </div>
-          <div style="padding:24px 28px;">
-            ${sh_('Profile','#2a5bd7','#dce6f7')}<p style="font-size:${scale(11)};color:#3a3630;line-height:${lh};margin-bottom:4px;">${sumStr}</p>
-            ${sh_('Experience','#2a5bd7','#dce6f7')}${exp.map(e=>xp_(e,'#1a1916','#5a5753','#3a3630')).join('')}${projLight}
-            ${cert.length?`${sh_('Certifications','#2a5bd7','#dce6f7')}<div style="font-size:11px;color:#6b6860;line-height:2;">${cert.map(c=>`<div style="display:flex;align-items:center;gap:6px;"><div style="width:4px;height:4px;border-radius:50%;background:#2a5bd7;flex-shrink:0;"></div>${c}</div>`).join('')}</div>`:''}</div>
-        </div></div>`,
-
-      // ── 2. MODERN AZURE ─────────────────────────────────────────────────────
-      modern: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;">
-        <div style="background:linear-gradient(135deg,#1a3fa0,#2a5bd7 60%,#3d6ee0);padding:32px 36px;display:flex;align-items:center;gap:20px;">
-          ${photoOrInit(d,'72px','rgba(255,255,255,.15)','#fff','26px')}
-          <div>
-            <div style="font-size:26px;font-weight:700;color:#fff;margin-bottom:3px;">${nm}</div>
-            <div style="font-size:12px;color:rgba(255,255,255,.65);margin-bottom:10px;">${titleStr}</div>
-            <div style="display:flex;flex-wrap:wrap;gap:14px;">${ctc.map(x=>`<span style="font-size:10.5px;color:rgba(255,255,255,.5);">${x}</span>`).join('')}</div>
-          </div>
-        </div>
-        <div style="padding:24px 32px;">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-bottom:18px;">
-            <div>${sh_('About','#1a3fa0','#e8eefb')}<p style="font-size:11.5px;color:#2a2826;line-height:1.75;">${sumStr}</p></div>
-            <div>${sh_('Skills','#1a3fa0','#e8eefb')}<div>${skillSection('#1a3fa0','#e8eefb')}</div></div>
-          </div>
-          ${sh_('Experience','#1a3fa0','#e8eefb')}${exp.map(e=>xp_(e,'#1a1916','#4a4845','#2a2826')).join('')}${projLight}
-          ${sh_('Education','#1a3fa0','#e8eefb')}<div style="font-size:11.5px;color:#1a1916;font-weight:600;">${edu.degree}</div><div style="font-size:10.5px;color:#9a9790;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}
-        </div></div>`,
-
-      // ── 3. MINIMAL EDITORIAL ────────────────────────────────────────────────
-      minimal: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;padding:52px 58px;">
-        <div style="font-family:'DM Serif Display',serif;font-size:44px;color:#1a1916;letter-spacing:-.03em;line-height:1;">${nm}</div>
-        <div style="font-size:13px;color:#9a9790;margin:6px 0 16px;">${titleStr}</div>
-        <div style="height:.5px;background:#1a1916;margin-bottom:14px;"></div>
-        <div style="display:flex;gap:22px;font-size:10.5px;color:#b0ada6;margin-bottom:28px;flex-wrap:wrap;">${ctc.map(x=>`<span>${x}</span>`).join('')}</div>
-        <div style="display:grid;grid-template-columns:1fr 210px;gap:40px;">
-          <div>
-            <div style="font-size:9px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#1a1916;margin-bottom:8px;">Profile</div>
-            <p style="font-size:${scale(12)};color:#2a2826;line-height:${lh};margin-bottom:22px;">${sumStr}</p>
-            <div style="font-size:9px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#1a1916;margin-bottom:10px;">Experience</div>
-            ${exp.map(e=>`<div style="margin-bottom:16px;padding-bottom:16px;border-bottom:.5px solid #f0ede8;">
-              <div style="font-size:13px;font-weight:700;color:#1a1916;margin-bottom:2px;">${e.title}</div>
-              <div style="font-family:'DM Serif Display',serif;font-style:italic;font-size:11px;color:#b0ada6;margin-bottom:5px;">${e.company}${e.period?' · '+e.period:''}</div>
-              <div style="font-size:11px;color:#6b6860;line-height:1.65;">${e.desc}</div>
-            </div>`).join('')}${projLight}
-          </div>
-          <div>
-            <div style="font-size:9px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#1a1916;margin-bottom:8px;">Skills</div>
-            ${skillSection('#1a1916','#f0ede8','#6b6860')}
-            <div style="font-size:9px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#1a1916;margin:18px 0 8px;">Education</div>
-            <div style="font-size:11.5px;color:#1a1916;font-weight:600;margin-bottom:2px;">${edu.degree}</div>
-            <div style="font-size:10.5px;color:#9a9790;">${edu.school}</div>
-            <div style="font-size:10px;color:#b0ada6;margin-top:2px;">${edu.year}</div>${eduExtraHtml}${certFallbackHtml}
-            ${lang.length?`<div style="font-size:9px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#1a1916;margin:18px 0 8px;">Languages</div>${lang.map(l=>`<div style="font-size:11px;color:#6b6860;margin-bottom:4px;">${l.name} — ${l.level}</div>`).join('')}`:''}
-          </div>
-        </div></div>`,
-
-      // ── 4. BOLD NOIR ────────────────────────────────────────────────────────
-      bold: () => `<div style="width:700px;background:#0f0e0c;font-family:'${fontFamily}',sans-serif;min-height:990px;">
-        <div style="padding:36px 36px 0;position:relative;">
-          <div style="position:absolute;left:0;top:0;width:4px;height:100%;background:linear-gradient(180deg,#2a5bd7,#6236b0);"></div>
-          <div style="padding-left:24px;padding-bottom:28px;border-bottom:1px solid #1e1d1a;">
-            <div style="font-size:30px;font-weight:800;color:#fff;letter-spacing:-.01em;margin-bottom:4px;">${nm}</div>
-            <div style="font-size:11px;color:#2a5bd7;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:12px;">${titleStr}</div>
-            <div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>`<span style="font-size:10.5px;color:#4a4845;">${x}</span>`).join('')}</div>
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 205px;padding:0 36px;">
-          <div style="padding:24px 24px 24px 0;border-right:1px solid #1e1d1a;">
-            ${sh_('Profile','#2a5bd7','#1e2d4a')}<p style="font-size:11px;color:#6b6860;line-height:1.7;margin-bottom:4px;">${sumStr}</p>
-            ${sh_('Experience','#2a5bd7','#1e2d4a')}
-            ${exp.map(e=>`<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #1a1916;">
-              <div style="font-size:13px;font-weight:700;color:#d0e4ff;margin-bottom:1px;">${e.title}</div>
-              <div style="font-size:10.5px;color:#2d3d55;margin-bottom:4px;">${e.company}${e.period?' · '+e.period:''}</div>
-              <div style="font-size:11px;color:#8a9ab5;line-height:1.7;">${e.desc}</div>
-            </div>`).join('')}${projDark}
-          </div>
-          <div style="padding:24px 0 24px 20px;">
-            ${sh_('Skills','#2a5bd7','#1e2d4a')}${sk.map(s=>`<div style="font-size:11px;color:#4a5568;padding:5px 0;border-bottom:1px solid #1a1916;">${s}</div>`).join('')}
-            ${sh_('Education','#2a5bd7','#1e2d4a')}<div style="font-size:11.5px;font-weight:600;color:#d0e4ff;">${edu.degree}</div><div style="font-size:10.5px;color:#2d3d55;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}
-            ${cert.length?`${sh_('Certifications','#2a5bd7','#1e2d4a')}${cert.map(c=>`<div style="font-size:10.5px;color:#4a5568;margin-bottom:4px;">${c}</div>`).join('')}`:''}
-          </div>
-        </div></div>`,
-
-      // ── 5. CREATIVE VIOLET ──────────────────────────────────────────────────
-      creative: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;display:grid;grid-template-columns:205px 1fr;min-height:990px;">
-        <div style="background:linear-gradient(160deg,#3b1d8a,#6236b0);padding:30px 18px;">
-          <div style="width:64px;height:64px;border-radius:16px;background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;font-family:'DM Serif Display',serif;margin-bottom:12px;">${init}</div>
-          <div style="font-size:17px;font-weight:700;color:#fff;margin-bottom:2px;">${nm}</div>
-          <div style="font-size:10.5px;color:rgba(255,255,255,.45);margin-bottom:20px;">${titleStr}</div>
-          <div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:8px;">Contact</div>
-          ${ctc.map(x=>`<div style="font-size:10.5px;color:rgba(255,255,255,.85);margin-bottom:5px;word-break:break-all;">${x}</div>`).join('')}
-          <div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.3);margin:16px 0 8px;">Skills</div>
-          ${skillSection('rgba(255,255,255,.9)','rgba(255,255,255,.1)','rgba(255,255,255,.85)')}
-          <div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.3);margin:16px 0 8px;">Education</div>
-          <div style="font-size:11px;color:rgba(255,255,255,.75);font-weight:600;margin-bottom:2px;">${edu.degree}</div>
-          <div style="font-size:10.5px;color:rgba(255,255,255,.45);">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}
-        </div>
-        <div style="padding:28px 26px;">
-          ${sh_('Profile','#6236b0','#f0ebfa')}<p style="font-size:11.5px;color:#6b6860;line-height:1.7;margin-bottom:4px;">${sumStr}</p>
-          ${sh_('Experience','#6236b0','#f0ebfa')}${exp.map(e=>xp_(e,'#1a1916','#9a9790','#6b6860')).join('')}${projLight}
-          ${sh_('Key Skills','#6236b0','#f0ebfa')}<div>${skillSection('#f0ebfa','#6236b0')}</div>
-        </div></div>`,
-
-      // ── 6. ACADEMIC ─────────────────────────────────────────────────────────
-      academic: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;padding:44px 52px;">
-        <div style="text-align:center;margin-bottom:20px;">
-          <div style="font-family:'DM Serif Display',serif;font-size:32px;color:#1a1916;">${nm}</div>
-          <div style="font-size:13px;color:#6b6860;margin:5px 0 12px;">${titleStr}</div>
-          <div style="display:flex;justify-content:center;gap:18px;font-size:10.5px;color:#b0ada6;flex-wrap:wrap;">${ctc.map(x=>`<span>${x}</span>`).join('')}</div>
-        </div>
-        <div style="border-top:2.5px solid #1a1916;border-bottom:1px solid #1a1916;margin-bottom:20px;padding:4px 0;"></div>
-        <p style="font-size:11.5px;color:#6b6860;line-height:1.75;margin-bottom:18px;">${sumStr}</p>
-        <div style="font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#1a1916;border-bottom:1px solid #e8e6e0;padding-bottom:5px;margin-bottom:10px;">Work Experience</div>
-        ${exp.map(e=>`<div style="margin-bottom:14px;display:grid;grid-template-columns:110px 1fr;gap:16px;">
-          <div style="font-size:10px;color:#b0ada6;font-style:italic;padding-top:2px;text-align:right;">${e.period||''}</div>
-          <div><div style="font-size:12.5px;font-weight:700;color:#1a1916;">${e.title}</div><div style="font-size:10.5px;color:#9a9790;margin-bottom:4px;">${e.company}</div><div style="font-size:11px;color:#2a2826;line-height:1.7;">${e.desc}</div></div>
-        </div>`).join('')}${projLight}
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:8px;">
-          <div>
-            <div style="font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#1a1916;border-bottom:1px solid #e8e6e0;padding-bottom:5px;margin-bottom:10px;">Education</div>
-            <div style="font-size:12.5px;font-weight:700;color:#1a1916;">${edu.degree}</div>
-            <div style="font-size:10.5px;color:#9a9790;margin-top:2px;">${edu.school}, ${edu.year}</div>${eduExtraHtml}
-            ${cert.length?`<div style="font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#1a1916;border-bottom:1px solid #e8e6e0;padding-bottom:5px;margin:14px 0 8px;">Certifications</div>${cert.map(c=>`<div style="font-size:11px;color:#6b6860;margin-bottom:4px;">${c}</div>`).join('')}`:''}
-          </div>
-          <div>
-            <div style="font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#1a1916;border-bottom:1px solid #e8e6e0;padding-bottom:5px;margin-bottom:10px;">Core Skills</div>
-            <div style="display:flex;flex-wrap:wrap;gap:4px;">${sk.map((s,i,a)=>`<span style="font-size:10.5px;color:#6b6860;">${s}${i<a.length-1?'<span style="color:#c8c4be;"> ·</span>':''}</span>`).join('')}</div>
-            ${lang.length?`<div style="font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#1a1916;border-bottom:1px solid #e8e6e0;padding-bottom:5px;margin:14px 0 8px;">Languages</div>${lang.map(l=>`<div style="font-size:11px;color:#6b6860;margin-bottom:4px;">${l.name} — ${l.level}</div>`).join('')}`:''}
-          </div>
-        </div></div>`,
-
-      // ── 7. ELEGANT GOLD ─────────────────────────────────────────────────────
-      elegant: () => `<div style="width:700px;background:#fdf9f0;font-family:'${fontFamily}',sans-serif;">
-        <div style="background:#1a1208;padding:32px 40px;">
-          <div style="font-family:'DM Serif Display',serif;font-size:30px;color:#f0e0b0;margin-bottom:4px;">${nm}</div>
-          <div style="font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#7a6840;margin-bottom:14px;">${titleStr}</div>
-          <div style="height:1px;background:linear-gradient(90deg,#c9a84c,transparent);margin-bottom:14px;"></div>
-          <div style="display:flex;flex-wrap:wrap;gap:18px;">${ctc.map(x=>`<span style="font-size:10.5px;color:#5a4c2a;">${x}</span>`).join('')}</div>
-        </div>
-        <div style="display:grid;grid-template-columns:1.6fr 1fr;">
-          <div style="padding:24px 26px;border-right:1px solid #e8dcc0;">
-            ${sh_('Profile','#c9a84c','#ede2c0')}<p style="font-size:11.5px;color:#5a4f3a;line-height:1.7;margin-bottom:4px;">${sumStr}</p>
-            ${sh_('Experience','#c9a84c','#ede2c0')}${exp.map(e=>`<div style="margin-bottom:14px;"><div style="font-size:12.5px;font-weight:700;color:#1a1208;">${e.title}</div><div style="font-size:10.5px;color:#8a7a5a;margin-bottom:4px;">${e.company}${e.period?' · '+e.period:''}</div><div style="font-size:11px;color:#5a4f3a;line-height:1.65;">${e.desc}</div></div>`).join('')}${projLight}
-          </div>
-          <div style="padding:24px 20px;background:#f5f0e0;">
-            ${sh_('Skills','#c9a84c','#ede2c0')}${sk.map(s=>`<div style="font-size:11px;color:#6b5f3a;padding:5px 0;border-bottom:1px solid #ede2c0;">${s}</div>`).join('')}
-            ${sh_('Education','#c9a84c','#ede2c0')}<div style="font-size:11.5px;font-weight:600;color:#1a1208;">${edu.degree}</div><div style="font-size:10.5px;color:#8a7a5a;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}
-            ${cert.length?`${sh_('Certifications','#c9a84c','#ede2c0')}${cert.map(c=>`<div style="font-size:10.5px;color:#6b5f3a;margin-bottom:4px;">${c}</div>`).join('')}`:''}
-            ${lang.length?`${sh_('Languages','#c9a84c','#ede2c0')}${lang.map(l=>`<div style="font-size:11px;color:#6b5f3a;margin-bottom:4px;">${l.name} — ${l.level}</div>`).join('')}`:''}
-          </div>
-        </div></div>`,
-
-      // ── 8. TECH DARK ────────────────────────────────────────────────────────
-      tech: () => `<div style="width:700px;background:#0c1018;font-family:'JetBrains Mono',monospace;min-height:990px;">
-        <div style="padding:28px 32px;border-bottom:1px solid #1e2d4a;">
-          <div style="display:inline-flex;align-items:center;gap:6px;background:#0d1e38;border:1px solid #1a3a6a;padding:3px 10px;border-radius:4px;margin-bottom:12px;">
-            <div style="width:6px;height:6px;border-radius:50%;background:#22c55e;"></div>
-            <span style="font-size:9px;color:#60a5fa;letter-spacing:.06em;">RESUME.json</span>
-          </div>
-          <div style="font-size:26px;font-weight:700;color:#e8f0ff;margin-bottom:4px;font-family:'${fontFamily}',sans-serif;">${nm}</div>
-          <div style="font-size:11px;color:#60a5fa;margin-bottom:12px;">${titleStr}</div>
-          <div style="display:flex;flex-wrap:wrap;gap:14px;">${ctc.map(x=>`<span style="font-size:9.5px;color:#2d3d55;">${x}</span>`).join('')}</div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 195px;">
-          <div style="padding:22px 26px;border-right:1px solid #1e2d4a;">
-            <div style="font-size:8px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#60a5fa;margin-bottom:10px;">// about</div>
-            <p style="font-size:11px;color:#8a9ab5;line-height:1.75;margin-bottom:18px;">${sumStr}</p>
-            <div style="font-size:8px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#60a5fa;margin-bottom:10px;">// experience</div>
-            ${exp.map(e=>`<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #1e2d4a;"><div style="font-size:12.5px;font-weight:700;color:#d0e4ff;">${e.title}</div><div style="font-size:9.5px;color:#2d3d55;margin-bottom:4px;">${e.company}${e.period?' · '+e.period:''}</div><div style="font-size:11px;color:#4a5568;line-height:1.65;">${e.desc}</div></div>`).join('')}${projDark}
-            <div style="font-size:8px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#60a5fa;margin-bottom:10px;">// stack</div>
-            <div>${sk.map(s=>`<span style="display:inline-block;background:#0d1e38;border:1px solid #1a3a6a;color:#60a5fa;font-size:9.5px;padding:2px 8px;border-radius:3px;margin:2px 3px 2px 0;">${s}</span>`).join('')}</div>
-          </div>
-          <div style="padding:22px 18px;background:#080c14;">
-            <div style="font-size:8px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#60a5fa;margin-bottom:10px;">skills</div>
-            ${sk.map(s=>`<div style="font-size:10.5px;color:#4a5568;padding:4px 0;border-bottom:1px solid #1e2d4a;">${s}</div>`).join('')}
-            <div style="font-size:8px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#60a5fa;margin:18px 0 9px;">education</div>
-            <div style="font-size:11px;font-weight:600;color:#d0e4ff;">${edu.degree}</div>
-            <div style="font-size:10px;color:#2d3d55;margin-top:3px;">${edu.school}</div>
-            <div style="font-size:9.5px;color:#1a3a6a;margin-top:2px;">${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}
-          </div>
-        </div></div>`,
-
-      // ── 9. TEAL SIDEBAR ─────────────────────────────────────────────────────
-      teal: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;display:grid;grid-template-columns:200px 1fr;min-height:990px;">
-        <div style="background:#0d7a72;padding:30px 18px;">
-          ${d.photo?`<img src="${d.photo}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,.25);margin-bottom:14px;display:block;" />`:`<div style="width:70px;height:70px;border-radius:50%;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:#fff;font-family:'DM Serif Display',serif;margin-bottom:14px;">${init}</div>`}
-          <div style="font-size:17px;font-weight:700;color:#fff;margin-bottom:2px;">${nm}</div>
-          <div style="font-size:10.5px;color:rgba(255,255,255,.5);margin-bottom:20px;">${titleStr}</div>
-          <div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:8px;">Contact</div>
-          ${ctc.map(x=>`<div style="font-size:10px;color:rgba(255,255,255,.85);margin-bottom:5px;word-break:break-all;">${x}</div>`).join('')}
-          <div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.35);margin:16px 0 8px;">Skills</div>
-          ${skillSection('rgba(255,255,255,.85)','rgba(255,255,255,.15)')}
-          <div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.35);margin:16px 0 8px;">Education</div>
-          <div style="font-size:11px;color:rgba(255,255,255,.8);font-weight:600;margin-bottom:2px;">${edu.degree}</div>
-          <div style="font-size:10px;color:rgba(255,255,255,.45);">${edu.school} · ${edu.year}</div>${eduExtraHtml}
-          ${lang.length?`<div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.35);margin:16px 0 8px;">Languages</div>${lang.map(l=>`<div style="font-size:10.5px;color:rgba(255,255,255,.65);margin-bottom:4px;">${l.name} — ${l.level}</div>`).join('')}`:''}
-        </div>
-        <div style="padding:28px 26px;">
-          ${sh_('Summary','#0d7a72','#e6f5f4')}<p style="font-size:11.5px;color:#6b6860;line-height:1.7;margin-bottom:4px;">${sumStr}</p>
-          ${sh_('Experience','#0d7a72','#e6f5f4')}${exp.map(e=>xp_(e,'#1a1916','#9a9790','#6b6860')).join('')}${projLight}
-          ${cert.length?`${sh_('Certifications','#0d7a72','#e6f5f4')}${cert.map(c=>`<div style="font-size:11px;color:#6b6860;margin-bottom:4px;">${c}</div>`).join('')}`:''}
-        </div></div>`,
-
-      // ── 10. NEWSPAPER ───────────────────────────────────────────────────────
-      newspaper: () => `<div style="width:700px;background:#fdfcf8;font-family:'DM Serif Display',serif;padding:36px 44px;">
-        <div style="text-align:center;margin-bottom:10px;">
-          <div style="font-size:42px;color:#1a1916;letter-spacing:-.02em;line-height:1;">${nm}</div>
-        </div>
-        <div style="border-top:3px double #1a1916;border-bottom:1px solid #1a1916;padding:5px 0;margin:10px 0;"></div>
-        <div style="text-align:center;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;font-family:'${fontFamily}',sans-serif;color:#1a1916;margin-bottom:4px;">${titleStr}</div>
-        <div style="border-bottom:1px solid #1a1916;margin-bottom:10px;"></div>
-        <div style="display:flex;justify-content:center;gap:20px;font-size:10px;color:#9a9790;font-family:'${fontFamily}',sans-serif;margin-bottom:16px;flex-wrap:wrap;">${ctc.map(x=>`<span>${x}</span>`).join('')}</div>
-        <div style="display:grid;grid-template-columns:1fr 1px 1fr;gap:20px;">
-          <div>
-            <div style="font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;font-family:'${fontFamily}',sans-serif;border-bottom:1.5px solid #1a1916;padding-bottom:4px;margin-bottom:10px;">Profile</div>
-            <p style="font-size:11px;color:#6b6860;line-height:1.75;margin-bottom:14px;font-family:'${fontFamily}',sans-serif;">${sumStr}</p>
-            <div style="font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;font-family:'${fontFamily}',sans-serif;border-bottom:1.5px solid #1a1916;padding-bottom:4px;margin-bottom:10px;">Experience</div>
-            ${exp.map(e=>`<div style="margin-bottom:12px;"><div style="font-size:12.5px;color:#1a1916;">${e.title}</div><div style="font-size:10px;color:#9a9790;font-style:italic;font-family:'${fontFamily}',sans-serif;margin-bottom:3px;">${e.company}${e.period?' · '+e.period:''}</div><div style="font-size:10.5px;color:#6b6860;line-height:1.65;font-family:'${fontFamily}',sans-serif;">${e.desc}</div></div>`).join('')}${projLight}
-          </div>
-          <div style="background:#1a1916;"></div>
-          <div>
-            <div style="font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;font-family:'${fontFamily}',sans-serif;border-bottom:1.5px solid #1a1916;padding-bottom:4px;margin-bottom:10px;">Skills</div>
-            ${sk.map(s=>`<div style="font-size:10.5px;color:#6b6860;padding:4px 0;border-bottom:.5px solid #e8e6e0;font-family:'${fontFamily}',sans-serif;">${s}</div>`).join('')}
-            <div style="font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;font-family:'${fontFamily}',sans-serif;border-bottom:1.5px solid #1a1916;padding-bottom:4px;margin:14px 0 8px;">Education</div>
-            <div style="font-size:12px;color:#1a1916;">${edu.degree}</div>
-            <div style="font-size:10.5px;color:#9a9790;font-style:italic;font-family:'${fontFamily}',sans-serif;margin-top:2px;">${edu.school}, ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}
-            ${lang.length?`<div style="font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;font-family:'${fontFamily}',sans-serif;border-bottom:1.5px solid #1a1916;padding-bottom:4px;margin:14px 0 8px;">Languages</div>${lang.map(l=>`<div style="font-size:10.5px;color:#6b6860;font-family:'${fontFamily}',sans-serif;margin-bottom:4px;">${l.name} — ${l.level}</div>`).join('')}`:''}
-          </div>
-        </div></div>`,
-
-      // ── 11. SWISS DESIGN ────────────────────────────────────────────────────
-      swiss: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;">
-        <div style="background:#f0ede8;padding:30px 38px;display:flex;align-items:flex-end;justify-content:space-between;border-bottom:3px solid #1a1916;">
-          <div><div style="font-size:32px;font-weight:800;color:#1a1916;letter-spacing:-.02em;">${nm}</div></div>
-          <div style="text-align:right;"><div style="font-size:10px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#6b6860;">${titleStr}</div><div style="font-size:10px;color:#b0ada6;margin-top:4px;">${ctc.slice(0,3).join(' · ')}</div></div>
-        </div>
-        <div style="display:grid;grid-template-columns:200px 1fr;min-height:780px;">
-          <div style="padding:22px 20px;background:#f8f7f3;border-right:3px solid #1a1916;">
-            <div style="font-size:9px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;background:#1a1916;color:#fff;padding:4px 8px;display:inline-block;margin-bottom:10px;">Profile</div>
-            <p style="font-size:11px;color:#6b6860;line-height:1.7;margin-bottom:4px;">${sumStr}</p>
-            <div style="font-size:9px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;background:#1a1916;color:#fff;padding:4px 8px;display:inline-block;margin:16px 0 10px;">Skills</div>
-            ${sk.map(s=>`<div style="font-size:11px;color:#6b6860;padding:4px 0;border-bottom:1px solid #e8e6e0;">${s}</div>`).join('')}
-            <div style="font-size:9px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;background:#1a1916;color:#fff;padding:4px 8px;display:inline-block;margin:16px 0 10px;">Education</div>
-            <div style="font-size:11.5px;font-weight:700;color:#1a1916;">${edu.degree}</div>
-            <div style="font-size:10.5px;color:#9a9790;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}
-            ${web?`<div style="font-size:9px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;background:#1a1916;color:#fff;padding:4px 8px;display:inline-block;margin:16px 0 8px;">Web</div><div style="font-size:10.5px;color:#6b6860;word-break:break-all;">${web}</div>`:''}
-          </div>
-          <div style="padding:22px 28px;"><div style="font-size:9px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;background:#1a1916;color:#fff;padding:4px 8px;display:inline-block;margin-bottom:12px;">Experience</div>${exp.map(e=>xp_(e,'#1a1916','#9a9790','#6b6860')).join('')}${projLight}</div>
-        </div></div>`,
-
-      // ── 12. GRADIENT FLOW ───────────────────────────────────────────────────
-      gradient: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;">
-        <div style="background:#1a1916;padding:34px 36px;display:flex;align-items:center;gap:20px;position:relative;overflow:hidden;">
-          <div style="position:absolute;inset:0;background:linear-gradient(135deg,rgba(42,91,215,.6),rgba(98,54,176,.4),transparent);"></div>
-          <div style="position:relative;z-index:1;">${photoOrInit(d,'78px','rgba(255,255,255,.15)','#fff','28px')}</div>
-          <div style="position:relative;z-index:1;">
-            <div style="font-size:28px;font-weight:700;color:#fff;margin-bottom:4px;">${nm}</div>
-            <div style="font-size:12px;color:rgba(255,255,255,.6);margin-bottom:10px;">${titleStr}</div>
-            <div style="display:flex;flex-wrap:wrap;gap:12px;">${ctc.map(x=>`<span style="font-size:10px;color:rgba(255,255,255,.45);">${x}</span>`).join('')}</div>
-          </div>
-        </div>
-        <div style="padding:24px 32px;">
-          <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:24px;margin-bottom:20px;">
-            <div>${sh_('About','#4338ca','#eef2ff')}<p style="font-size:11px;color:#6b6860;line-height:1.7;">${sumStr}</p></div>
-            <div>${sh_('Skills','#4338ca','#eef2ff')}<div>${skillSection('#eef2ff','#4338ca')}</div></div>
-          </div>
-          ${sh_('Experience','#4338ca','#eef2ff')}${exp.map(e=>xp_(e,'#1a1916','#9a9790','#6b6860')).join('')}${projLight}
-          ${sh_('Education','#4338ca','#eef2ff')}<div style="font-size:11.5px;font-weight:600;color:#1a1916;">${edu.degree}</div><div style="font-size:10.5px;color:#9a9790;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}
-        </div></div>`,
-
-      // ── 13. COMPACT GRID ────────────────────────────────────────────────────
-      compact: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;padding:26px 32px;">
-        <div style="border-left:5px solid #2a5bd7;padding-left:16px;margin-bottom:14px;">
-          <div style="font-size:24px;font-weight:800;color:#1a1916;margin-bottom:3px;">${nm}</div>
-          <div style="font-size:12.5px;color:#2a5bd7;font-weight:700;">${titleStr}</div>
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:10.5px;color:#b0ada6;margin-bottom:14px;">${ctc.map(x=>`<span>${x}</span>`).join('')}</div>
-        <div style="font-size:11.5px;color:#6b6860;line-height:1.7;border-left:3px solid #e8eefb;padding-left:12px;margin-bottom:18px;">${sumStr}</div>
-        <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:24px;">
-          <div>
-            <div style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#fff;background:#2a5bd7;padding:4px 8px;border-radius:3px;display:inline-block;margin-bottom:10px;">Experience</div>
-            ${exp.map(e=>xp_(e,'#1a1916','#9a9790','#6b6860')).join('')}${projLight}
-          </div>
-          <div>
-            <div style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#fff;background:#2a5bd7;padding:4px 8px;border-radius:3px;display:inline-block;margin-bottom:10px;">Skills</div>
-            ${sk.map(s=>`<div style="font-size:11px;color:#6b6860;padding:4px 0;border-bottom:.5px solid #f0ede8;">${s}</div>`).join('')}
-            <div style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#fff;background:#2a5bd7;padding:4px 8px;border-radius:3px;display:inline-block;margin:14px 0 10px;">Education</div>
-            <div style="font-size:12px;font-weight:700;color:#1a1916;">${edu.degree}</div>
-            <div style="font-size:10.5px;color:#9a9790;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}
-            ${web?`<div style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#fff;background:#2a5bd7;padding:4px 8px;border-radius:3px;display:inline-block;margin:14px 0 10px;">Portfolio</div><div style="font-size:10.5px;color:#6b6860;word-break:break-all;">${web}</div>`:''}
-          </div>
-        </div></div>`,
-
-      // ── 14. PHOTO PROFESSIONAL (fixed — no empty space) ──────────────────────
-      photo: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;">
-        <div style="background:linear-gradient(135deg,#1a3fa0,#2a5bd7);padding:0;display:grid;grid-template-columns:175px 1fr;">
-          <div style="background:#1a1916;padding:28px 18px;display:flex;flex-direction:column;align-items:center;text-align:center;">
-            ${d.photo
-              ? `<img src="${d.photo}" style="width:100px;height:100px;border-radius:50%;object-fit:cover;border:4px solid rgba(255,255,255,.2);margin-bottom:14px;display:block;" />`
-              : `<div style="width:100px;height:100px;border-radius:50%;background:linear-gradient(135deg,rgba(42,91,215,.5),rgba(98,54,176,.5));border:4px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:700;color:#fff;font-family:'DM Serif Display',serif;margin-bottom:14px;">${init}</div>`}
-            <div style="font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:8px;width:100%;text-align:left;">Contact</div>
-            ${ctc.map(x=>`<div style="font-size:9.5px;color:rgba(255,255,255,.6);margin-bottom:5px;word-break:break-all;text-align:left;width:100%;">${x}</div>`).join('')}
-            <div style="font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.35);margin:14px 0 8px;width:100%;text-align:left;">Skills</div>
-            ${skillSection('#2a5bd7','rgba(255,255,255,.12)')}
-            ${lang.length?`<div style="font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.35);margin:14px 0 8px;width:100%;text-align:left;">Languages</div>${lang.map(l=>`<div style="display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,.65);margin-bottom:4px;"><span>${l.name}</span><span style="color:rgba(255,255,255,.35);">${l.level}</span></div>`).join('')}`:''}</div>
-          <div style="background:#2a5bd7;padding:28px 24px;display:flex;flex-direction:column;justify-content:center;">
-            <div style="font-family:'DM Serif Display',serif;font-size:30px;color:#fff;margin-bottom:6px;line-height:1.1;">${nm}</div>
-            <div style="font-size:12px;color:rgba(255,255,255,.65);margin-bottom:14px;font-weight:500;">${titleStr}</div>
-            <div style="height:1px;background:rgba(255,255,255,.2);margin-bottom:14px;"></div>
-            <div style="font-size:11px;color:rgba(255,255,255,.8);line-height:1.65;">${sumStr.split(' ').slice(0,40).join(' ')}${sumStr.split(' ').length > 40 ? '...' : ''}</div>
-          </div>
-        </div>
-        <div style="padding:24px 26px;">
-          <div style="display:grid;grid-template-columns:175px 1fr;gap:24px;">
-            <div>
-              ${sh_('Education','#2a5bd7','#e8eefb')}<div style="font-size:11.5px;font-weight:700;color:#1a1916;">${edu.degree}</div><div style="font-size:10.5px;color:#9a9790;">${edu.school} · ${edu.year}</div>${eduExtraHtml}
-              ${cert.length?`${sh_('Certifications','#2a5bd7','#e8eefb')}${cert.map(c=>`<div style="font-size:10.5px;color:#6b6860;margin-bottom:4px;">${c}</div>`).join('')}`:''}
-            </div>
-            <div>
-              ${sh_('Experience','#2a5bd7','#e8eefb')}
-              ${exp.map(e=>`<div style="margin-bottom:12px;display:grid;grid-template-columns:120px 1fr;gap:12px;">
-                <div><div style="font-size:9.5px;font-weight:700;color:#2a5bd7;">${e.period||''}</div><div style="font-size:9.5px;color:#9a9790;">${e.company}</div></div>
-                <div><div style="font-size:12px;font-weight:700;color:#1a1916;margin-bottom:3px;">${e.title}</div><div style="font-size:11px;color:#6b6860;line-height:1.6;">${e.desc}</div></div>
-              </div>`).join('')}${projLight}
-            </div>
-          </div>
-        </div></div>`,
-
-      // ── 15. INFOGRAPHIC ─────────────────────────────────────────────────────
-      infographic: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;padding:28px 32px;">
-        <div style="display:flex;align-items:center;gap:20px;margin-bottom:20px;">
-          <div style="width:80px;height:80px;border-radius:20px;background:linear-gradient(135deg,#0d7a72,#1a7a4a);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#fff;font-family:'DM Serif Display',serif;flex-shrink:0;">${init}</div>
-          <div>
-            <div style="font-size:26px;font-weight:700;color:#1a1916;margin-bottom:3px;">${nm}</div>
-            <div style="font-size:12.5px;color:#0d7a72;font-weight:600;margin-bottom:8px;">${titleStr}</div>
-            <div style="display:flex;flex-wrap:wrap;gap:12px;">${ctc.map(x=>`<span style="font-size:10px;color:#b0ada6;">${x}</span>`).join('')}</div>
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px;">
-          ${['8+ Yrs Exp.','2M+ Users','£3.5M Rev.'].map((v,i)=>`<div style="background:linear-gradient(135deg,#e6f5f4,#f0fdf4);border:1px solid #a0e0d8;border-radius:12px;padding:14px;"><div style="font-size:20px;font-weight:800;color:#0d7a72;">${v.split(' ')[0]}</div><div style="font-size:10.5px;color:#6b6860;margin-top:2px;">${v.split(' ').slice(1).join(' ')}</div></div>`).join('')}
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;">
-          <div>
-            ${sh_('Profile','#0d7a72','#e6f5f4')}<p style="font-size:11px;color:#6b6860;line-height:1.7;margin-bottom:14px;">${sumStr}</p>
-            ${sh_('Core Skills','#0d7a72','#e6f5f4')}<div>${skillSection('#e6f5f4','#0d7a72')}</div>
-            ${sh_('Education','#0d7a72','#e6f5f4')}<div style="font-size:11.5px;font-weight:600;color:#1a1916;">${edu.degree}</div><div style="font-size:10.5px;color:#9a9790;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}
-          </div>
-          <div>${sh_('Experience','#0d7a72','#e6f5f4')}${exp.map(e=>xp_(e,'#1a1916','#9a9790','#6b6860')).join('')}${projLight}</div>
-        </div></div>`,
-
-      // ── 16. PASTEL ROSE ─────────────────────────────────────────────────────
-      pastel: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;">
-        <div style="background:linear-gradient(135deg,#fdf2f8,#fef3f2 50%,#f0f9f4);padding:30px 36px;border-bottom:1.5px solid #fde8f5;">
-          <div style="font-family:'DM Serif Display',serif;font-size:30px;color:#1a1916;margin-bottom:4px;">${nm}</div>
-          <div style="font-size:12px;color:#be185d;font-weight:600;margin-bottom:12px;">${titleStr}</div>
-          <div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>`<span style="font-size:10.5px;color:#b0ada6;">${x}</span>`).join('')}</div>
-        </div>
-        <div style="display:grid;grid-template-columns:195px 1fr;">
-          <div style="background:#fdf8ff;padding:20px 16px;border-right:1.5px solid #fde8f5;">
-            ${sh_('Skills','#be185d','#fde8f5')}<div>${skillSection('#fce7f3','#be185d')}</div>
-            ${sh_('Education','#be185d','#fde8f5')}<div style="font-size:11.5px;font-weight:600;color:#1a1916;">${edu.degree}</div><div style="font-size:10.5px;color:#b0ada6;">${edu.school} · ${edu.year}</div>${eduExtraHtml}
-            ${lang.length?`${sh_('Languages','#be185d','#fde8f5')}${lang.map(l=>`<div style="font-size:11px;color:#6b6860;margin-bottom:4px;">${l.name} — ${l.level}</div>`).join('')}`:''}
-            ${web?`${sh_('Portfolio','#be185d','#fde8f5')}<div style="font-size:10.5px;color:#6b6860;word-break:break-all;">${web}</div>`:''}
-          </div>
-          <div style="padding:22px 26px;">
-            ${sh_('About Me','#be185d','#fde8f5')}<p style="font-size:11.5px;color:#6b6860;line-height:1.7;margin-bottom:4px;">${sumStr}</p>
-            ${sh_('Experience','#be185d','#fde8f5')}${exp.map(e=>xp_(e,'#1a1916','#b0ada6','#6b6860')).join('')}${projLight}
-            ${cert.length?`${sh_('Certifications','#be185d','#fde8f5')}${cert.map(c=>`<div style="font-size:11px;color:#6b6860;margin-bottom:4px;">${c}</div>`).join('')}`:''}
-          </div>
-        </div></div>`,
-
-      // ── 17. CORPORATE BLUE (NEW) ────────────────────────────────────────────
-      corporate: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;">
-        <div style="background:#003366;padding:0;">
-          <div style="padding:28px 36px 20px;border-bottom:3px solid #0066cc;">
-            <div style="font-size:10px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:8px;">Curriculum Vitae</div>
-            <div style="font-family:'DM Serif Display',serif;font-size:36px;color:#fff;letter-spacing:-.01em;margin-bottom:4px;">${nm}</div>
-            <div style="font-size:12px;color:#80b3ff;margin-bottom:0;">${titleStr}</div>
-          </div>
-          <div style="padding:10px 36px;display:flex;flex-wrap:wrap;gap:20px;">${ctc.map(x=>`<span style="font-size:10.5px;color:rgba(255,255,255,.4);">${x}</span>`).join('')}</div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 220px;">
-          <div style="padding:24px 26px;border-right:1px solid #e8e6e0;">
-            ${sh_('Executive Summary','#003366','#d6e4ff')}<p style="font-size:11.5px;color:#444;line-height:1.7;margin-bottom:4px;">${sumStr}</p>
-            ${sh_('Professional Experience','#003366','#d6e4ff')}
-            ${exp.map(e=>`<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #f0ede8;">
-              <div style="font-size:12.5px;font-weight:700;color:#003366;">${e.title}</div>
-              <div style="font-size:10.5px;color:#0066cc;font-weight:600;margin-bottom:4px;">${e.company}${e.period?' · <span style="color:#999;">'+e.period+'</span>':''}</div>
-              <div style="font-size:11px;color:#555;line-height:1.65;">${e.desc}</div>
-            </div>`).join('')}${projLight}
-          </div>
-          <div style="padding:24px 20px;background:#f7f9ff;">
-            ${sh_('Core Competencies','#003366','#d6e4ff')}${skillSection('#003366','#d6e4ff')}
-            ${sh_('Education','#003366','#d6e4ff')}<div style="font-size:11.5px;font-weight:600;color:#003366;">${edu.degree}</div><div style="font-size:10.5px;color:#888;">${edu.school}</div><div style="font-size:10px;color:#aaa;margin-top:2px;">${edu.year}</div>${eduExtraHtml}
-            ${cert.length?`${sh_('Certifications','#003366','#d6e4ff')}${cert.map(c=>`<div style="font-size:10.5px;color:#555;margin-bottom:4px;">• ${c}</div>`).join('')}`:''}
-            ${lang.length?`${sh_('Languages','#003366','#d6e4ff')}${lang.map(l=>`<div style="font-size:11px;color:#555;margin-bottom:4px;">${l.name} — ${l.level}</div>`).join('')}`:''}
-          </div>
-        </div></div>`,
-
-      // ── 18. MAGAZINE EDITORIAL (NEW) ────────────────────────────────────────
-      magazine: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;min-height:200px;">
-          <div style="background:#f5f4f0;padding:36px 28px;display:flex;flex-direction:column;justify-content:flex-end;">
-            <div style="font-size:10px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#b0ada6;margin-bottom:12px;">Professional Profile</div>
-            <div style="font-family:'DM Serif Display',serif;font-size:38px;line-height:1;color:#1a1916;margin-bottom:8px;">${nm}</div>
-            <div style="font-size:13px;color:#6b6860;">${titleStr}</div>
-          </div>
-          <div style="background:#1a1916;padding:36px 28px;display:flex;flex-direction:column;justify-content:space-between;">
-            <div style="font-size:11.5px;color:rgba(255,255,255,.65);line-height:1.7;font-style:italic;font-family:'DM Serif Display',serif;">"${sumStr.split(' ').slice(0,20).join(' ')}..."</div>
-            <div>${ctc.slice(0,3).map(x=>`<div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:5px;">${x}</div>`).join('')}</div>
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-top:3px solid #1a1916;">
-          <div style="padding:20px;border-right:1px solid #e8e6e0;">
-            <div style="font-size:8.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;margin-bottom:10px;color:#1a1916;">Experience</div>
-            ${exp.map(e=>`<div style="margin-bottom:12px;"><div style="font-size:12px;font-weight:700;color:#1a1916;">${e.title}</div><div style="font-size:10px;color:#9a9790;margin-bottom:3px;">${e.company}${e.period?' · '+e.period:''}</div><div style="font-size:10.5px;color:#6b6860;line-height:1.6;">${e.desc}</div></div>`).join('')}${projLight}
-          </div>
-          <div style="padding:20px;border-right:1px solid #e8e6e0;">
-            <div style="font-size:8.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;margin-bottom:10px;color:#1a1916;">About</div>
-            <p style="font-size:11px;color:#6b6860;line-height:1.7;margin-bottom:14px;">${sumStr}</p>
-            <div style="font-size:8.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;margin-bottom:8px;color:#1a1916;">Education</div>
-            <div style="font-size:11.5px;font-weight:600;color:#1a1916;">${edu.degree}</div>
-            <div style="font-size:10.5px;color:#9a9790;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}
-          </div>
-          <div style="padding:20px;background:#fafaf8;">
-            <div style="font-size:8.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;margin-bottom:10px;color:#1a1916;">Skills</div>
-            ${sk.map(s=>`<div style="font-size:10.5px;color:#6b6860;padding:4px 0;border-bottom:.5px solid #e8e6e0;">${s}</div>`).join('')}
-            ${lang.length?`<div style="font-size:8.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;margin:14px 0 8px;color:#1a1916;">Languages</div>${lang.map(l=>`<div style="font-size:11px;color:#6b6860;margin-bottom:4px;">${l.name} — ${l.level}</div>`).join('')}`:''}
-          </div>
-        </div></div>`,
-
-      // ── 19. MIDNIGHT EXECUTIVE (NEW) ────────────────────────────────────────
-      midnight: () => `<div style="width:700px;background:#0a0f1e;font-family:'${fontFamily}',sans-serif;min-height:990px;">
-        <div style="padding:40px 40px 24px;position:relative;">
-          <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#00d4ff,#7b2ff7,#ff6b6b);"></div>
-          <div style="font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#00d4ff;margin-bottom:10px;">${titleStr}</div>
-          <div style="font-family:'DM Serif Display',serif;font-size:38px;color:#fff;margin-bottom:14px;">${nm}</div>
-          <div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>`<span style="font-size:10px;color:rgba(255,255,255,.3);">${x}</span>`).join('')}</div>
-        </div>
-        <div style="margin:0 40px;height:1px;background:rgba(255,255,255,.06);"></div>
-        <div style="display:grid;grid-template-columns:1fr 210px;padding:24px 40px;gap:32px;">
-          <div>
-            <div style="font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#00d4ff;margin-bottom:10px;">Profile</div>
-            <p style="font-size:11px;color:rgba(255,255,255,.5);line-height:1.75;margin-bottom:24px;">${sumStr}</p>
-            <div style="font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#00d4ff;margin-bottom:12px;">Experience</div>
-            ${exp.map(e=>`<div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.05);">
-              <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px;">
-                <div style="font-size:13px;font-weight:700;color:#fff;">${e.title}</div>
-                <div style="font-size:9.5px;color:#00d4ff;font-weight:600;white-space:nowrap;margin-left:8px;">${e.period||''}</div>
-              </div>
-              <div style="font-size:10.5px;color:rgba(255,255,255,.3);margin-bottom:5px;">${e.company}</div>
-              <div style="font-size:11px;color:rgba(255,255,255,.45);line-height:1.6;">${e.desc}</div>
-            </div>`).join('')}${projDark}
-          </div>
-          <div>
-            <div style="font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#7b2ff7;margin-bottom:12px;">Skills</div>
-            ${sk.map((s,i)=>`<div style="margin-bottom:8px;"><div style="font-size:10.5px;color:rgba(255,255,255,.55);margin-bottom:3px;">${s}</div><div style="height:2px;background:rgba(255,255,255,.07);border-radius:1px;direction:ltr;position:relative;overflow:hidden;"><div style="width:${pct_(i)}%;height:100%;background:linear-gradient(90deg,#00d4ff,#7b2ff7);border-radius:1px;position:absolute;left:0;top:0;"></div></div></div>`).join('')}
-            <div style="font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#7b2ff7;margin:20px 0 10px;">Education</div>
-            <div style="font-size:11px;font-weight:600;color:rgba(255,255,255,.7);">${edu.degree}</div>
-            <div style="font-size:10px;color:rgba(255,255,255,.3);margin-top:3px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}
-            ${lang.length?`<div style="font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#7b2ff7;margin:16px 0 8px;">Languages</div>${lang.map(l=>`<div style="font-size:10.5px;color:rgba(255,255,255,.45);margin-bottom:4px;">${l.name} — ${l.level}</div>`).join('')}`:''}
-          </div>
-        </div></div>`,
-
-      // ── 20. CLEAN PROFESSIONAL (NEW) ────────────────────────────────────────
-      clean: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;padding:40px 44px;">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;padding-bottom:16px;border-bottom:2px solid #1a1916;">
-          <div>
-            <div style="font-family:'DM Serif Display',serif;font-size:36px;color:#1a1916;letter-spacing:-.01em;margin-bottom:4px;">${nm}</div>
-            <div style="font-size:14px;color:#555;font-weight:500;">${titleStr}</div>
-          </div>
-          <div style="text-align:right;padding-top:6px;">${ctc.map(x=>`<div style="font-size:10.5px;color:#888;margin-bottom:2px;">${x}</div>`).join('')}</div>
-        </div>
-        <div style="font-size:11.5px;color:#555;line-height:1.75;margin-bottom:20px;">${sumStr}</div>
-        <div style="display:grid;grid-template-columns:1fr 190px;gap:28px;">
-          <div>
-            <div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#1a1916;border-bottom:2px solid #1a1916;padding-bottom:4px;margin-bottom:12px;">Experience</div>
-            ${exp.map(e=>`<div style="margin-bottom:14px;">
-              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px;">
-                <div style="font-size:12.5px;font-weight:700;color:#1a1916;">${e.title}</div>
-                <div style="font-size:10px;color:#888;">${e.period||''}</div>
-              </div>
-              <div style="font-size:10.5px;color:#888;margin-bottom:5px;font-style:italic;">${e.company}</div>
-              <div style="font-size:11px;color:#555;line-height:1.65;">${e.desc}</div>
-            </div>`).join('')}${projLight}
-          </div>
-          <div>
-            <div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#1a1916;border-bottom:2px solid #1a1916;padding-bottom:4px;margin-bottom:12px;">Skills</div>
-            ${sk.map(s=>`<div style="font-size:11px;color:#555;padding:4px 0;border-bottom:1px solid #f0ede8;">${s}</div>`).join('')}
-            <div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#1a1916;border-bottom:2px solid #1a1916;padding-bottom:4px;margin:16px 0 10px;">Education</div>
-            <div style="font-size:12px;font-weight:700;color:#1a1916;">${edu.degree}</div>
-            <div style="font-size:10.5px;color:#888;margin-top:2px;">${edu.school}</div>
-            <div style="font-size:10px;color:#aaa;margin-top:2px;">${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}
-            ${cert.length?`<div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#1a1916;border-bottom:2px solid #1a1916;padding-bottom:4px;margin:16px 0 10px;">Certifications</div>${cert.map(c=>`<div style="font-size:10.5px;color:#555;margin-bottom:4px;">${c}</div>`).join('')}`:''}
-            ${web?`<div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#1a1916;border-bottom:2px solid #1a1916;padding-bottom:4px;margin:16px 0 8px;">Portfolio</div><div style="font-size:10.5px;color:#2a5bd7;word-break:break-all;">${web}</div>`:''}
-          </div>
-        </div></div>`,
-
-      // ── 21. SLATE IMPACT (NEW) ──────────────────────────────────────────────
-      slate: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;">
-        <div style="background:#1e293b;padding:36px 40px 24px;position:relative;overflow:hidden;">
-          <div style="position:absolute;top:0;right:0;width:180px;height:100%;background:linear-gradient(135deg,#3b82f6,#1d4ed8);opacity:.15;"></div>
-          <div style="position:relative;">
-            <div style="font-size:10px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#64748b;margin-bottom:10px;">${titleStr}</div>
-            <div style="font-family:'DM Serif Display',serif;font-size:36px;color:#fff;letter-spacing:-.01em;margin-bottom:14px;">${nm}</div>
-            <div style="display:flex;flex-wrap:wrap;gap:18px;">${ctc.map(x => '<span style="font-size:10.5px;color:#475569;">'+x+'</span>').join('')}</div>
-          </div>
-        </div>
-        <div style="height:4px;background:linear-gradient(90deg,#3b82f6,#8b5cf6,#ec4899);"></div>
-        <div style="display:grid;grid-template-columns:1fr 205px;">
-          <div style="padding:24px 26px;border-right:1px solid #f1f5f9;">
-            <div style="font-size:8.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#3b82f6;margin-bottom:9px;padding-bottom:5px;border-bottom:2px solid #eff6ff;">Profile</div>
-            <p style="font-size:11.5px;color:#475569;line-height:1.7;margin-bottom:4px;">${sumStr}</p>
-            <div style="font-size:8.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#3b82f6;margin:18px 0 9px;padding-bottom:5px;border-bottom:2px solid #eff6ff;">Experience</div>
-            ${exp.map(e => '<div style="margin-bottom:14px;"><div style="font-size:12.5px;font-weight:700;color:#1e293b;">'+e.title+'</div><div style="font-size:10.5px;color:#94a3b8;margin-bottom:4px;font-weight:500;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#64748b;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projLight}
-          </div>
-          <div style="padding:24px 20px;background:#f8fafc;">
-            <div style="font-size:8.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#3b82f6;margin-bottom:9px;padding-bottom:5px;border-bottom:2px solid #eff6ff;">Skills</div>
-            ${skillSection('#3b82f6','#dbeafe')}
-            <div style="font-size:8.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#3b82f6;margin:18px 0 9px;padding-bottom:5px;border-bottom:2px solid #eff6ff;">Education</div>
-            <div style="font-size:11.5px;font-weight:600;color:#1e293b;">${edu.degree}</div>
-            <div style="font-size:10.5px;color:#94a3b8;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}
-            ${lang.length ? '<div style="font-size:8.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#3b82f6;margin:16px 0 8px;padding-bottom:5px;border-bottom:2px solid #eff6ff;">Languages</div>'+lang.map(l=>'<div style="font-size:11px;color:#64748b;margin-bottom:4px;">'+l.name+' — '+l.level+'</div>').join('') : ''}
-          </div>
-        </div></div>`,
-
-      // ── 22. TERRA (NEW) — warm earthy tones ─────────────────────────────────
-      terra: () => `<div style="width:700px;background:#faf8f5;font-family:'${fontFamily}',sans-serif;">
-        <div style="padding:36px 40px 0;">
-          <div style="display:flex;align-items:flex-end;justify-content:space-between;padding-bottom:20px;border-bottom:2px solid #d6a97a;">
-            <div>
-              <div style="font-family:'DM Serif Display',serif;font-size:38px;color:#3d2b1a;letter-spacing:-.02em;line-height:1.05;margin-bottom:6px;">${nm}</div>
-              <div style="font-size:12px;color:#a0714f;font-weight:600;letter-spacing:.04em;">${titleStr}</div>
-            </div>
-            <div style="text-align:right;">${ctc.map(x=>'<div style="font-size:10px;color:#a0714f;margin-bottom:3px;">'+x+'</div>').join('')}</div>
-          </div>
-        </div>
-        <div style="padding:0 40px 32px;">
-          <div style="display:grid;grid-template-columns:1fr 195px;gap:28px;padding-top:20px;">
-            <div>
-              <div style="font-size:8.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#a0714f;margin-bottom:9px;">Profile</div>
-              <p style="font-size:11.5px;color:#5c3d2e;line-height:1.75;margin-bottom:18px;">${sumStr}</p>
-              <div style="font-size:8.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#a0714f;margin-bottom:10px;">Experience</div>
-              ${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #e8d5c4;"><div style="font-size:12.5px;font-weight:700;color:#3d2b1a;">'+(e.title||'')+'</div><div style="font-size:10.5px;color:#a0714f;margin-bottom:4px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#6b5040;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projLight}
-            </div>
-            <div>
-              <div style="font-size:8.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#a0714f;margin-bottom:9px;">Skills</div>
-              ${sk.map(s=>'<div style="font-size:11px;color:#6b5040;padding:5px 0;border-bottom:1px solid #e8d5c4;">'+s+'</div>').join('')}
-              <div style="font-size:8.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#a0714f;margin:16px 0 9px;">Education</div>
-              <div style="font-size:11.5px;font-weight:600;color:#3d2b1a;">${edu.degree}</div>
-              <div style="font-size:10.5px;color:#a0714f;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}
-              ${cert.length?'<div style="font-size:8.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#a0714f;margin:16px 0 9px;">Certifications</div>'+cert.map(c=>'<div style="font-size:10.5px;color:#6b5040;margin-bottom:4px;">'+c+'</div>').join(''):''}
-              ${lang.length?'<div style="font-size:8.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#a0714f;margin:16px 0 9px;">Languages</div>'+lang.map(l=>'<div style="font-size:11px;color:#6b5040;margin-bottom:4px;">'+l.name+' — '+l.level+'</div>').join(''):''}
-            </div>
-          </div>
-        </div></div>`,
-
-      // ── 23. PRISM (NEW) — colourful accent strip ─────────────────────────────
-      prism: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;min-height:990px;">
-        <div style="display:grid;grid-template-columns:8px 1fr;">
-          <div style="background:linear-gradient(180deg,#6366f1,#8b5cf6,#ec4899,#f59e0b,#10b981);"></div>
-          <div>
-            <div style="padding:32px 32px 20px;border-bottom:1px solid #f1f5f9;">
-              <div style="font-family:'DM Serif Display',serif;font-size:34px;color:#111827;margin-bottom:4px;letter-spacing:-.01em;">${nm}</div>
-              <div style="font-size:12px;color:#6366f1;font-weight:700;margin-bottom:12px;">${titleStr}</div>
-              <div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:#9ca3af;">'+x+'</span>').join('')}</div>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 195px;">
-              <div style="padding:22px 26px 22px 32px;border-right:1px solid #f1f5f9;">
-                <div style="font-size:8.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#6366f1;margin-bottom:9px;padding-bottom:5px;border-bottom:2px solid #eef2ff;">About</div>
-                <p style="font-size:11.5px;color:#4b5563;line-height:1.7;margin-bottom:4px;">${sumStr}</p>
-                <div style="font-size:8.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#6366f1;margin:18px 0 9px;padding-bottom:5px;border-bottom:2px solid #eef2ff;">Experience</div>
-                ${exp.map(e=>'<div style="margin-bottom:14px;"><div style="font-size:12.5px;font-weight:700;color:#111827;">'+(e.title||'')+'</div><div style="font-size:10.5px;color:#9ca3af;margin-bottom:4px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#6b7280;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projLight}
-              </div>
-              <div style="padding:22px 22px 22px 20px;background:#fafafa;">
-                <div style="font-size:8.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#8b5cf6;margin-bottom:9px;padding-bottom:5px;border-bottom:2px solid #f5f3ff;">Skills</div>
-                <div style="margin-bottom:4px;">${skillSection('#eef2ff','#6366f1')}</div>
-                <div style="font-size:8.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#8b5cf6;margin:16px 0 9px;padding-bottom:5px;border-bottom:2px solid #f5f3ff;">Education</div>
-                <div style="font-size:11.5px;font-weight:600;color:#111827;">${edu.degree}</div>
-                <div style="font-size:10.5px;color:#9ca3af;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}
-                ${lang.length?'<div style="font-size:8.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#8b5cf6;margin:16px 0 9px;padding-bottom:5px;border-bottom:2px solid #f5f3ff;">Languages</div>'+lang.map(l=>'<div style="font-size:11px;color:#6b7280;margin-bottom:4px;">'+l.name+' — '+l.level+'</div>').join(''):''}
-              </div>
-            </div>
-          </div>
-        </div></div>`,
-
-      // ── 24. IVORY (NEW) — soft luxury off-white ──────────────────────────────
-      ivory: () => `<div style="width:700px;background:#fffef9;font-family:'${fontFamily}',sans-serif;padding:44px 50px;">
-        <div style="text-align:center;margin-bottom:22px;">
-          <div style="font-family:'DM Serif Display',serif;font-size:40px;color:#2c2c2c;letter-spacing:-.02em;margin-bottom:6px;">${nm}</div>
-          <div style="font-size:12px;color:#9a8c7e;letter-spacing:.12em;text-transform:uppercase;margin-bottom:12px;">${titleStr}</div>
-          <div style="display:flex;justify-content:center;gap:18px;flex-wrap:wrap;">${ctc.map(x=>'<span style="font-size:10.5px;color:#b0a898;">'+x+'</span>').join('')}</div>
-        </div>
-        <div style="height:1px;background:linear-gradient(90deg,transparent,#c8b89a,transparent);margin-bottom:22px;"></div>
-        <div style="font-size:11.5px;color:#6b6057;line-height:1.8;text-align:center;max-width:500px;margin:0 auto 22px;font-style:italic;">${sumStr}</div>
-        <div style="height:1px;background:linear-gradient(90deg,transparent,#c8b89a,transparent);margin-bottom:22px;"></div>
-        <div style="display:grid;grid-template-columns:1fr 180px;gap:28px;">
-          <div>
-            <div style="font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#9a8c7e;margin-bottom:10px;">Experience</div>
-            ${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #ede8e0;"><div style="font-size:12.5px;font-weight:700;color:#2c2c2c;">'+(e.title||'')+'</div><div style="font-size:10.5px;color:#b0a898;font-style:italic;margin-bottom:4px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#6b6057;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projLight}
-          </div>
-          <div>
-            <div style="font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#9a8c7e;margin-bottom:10px;">Skills</div>
-            ${sk.map(s=>'<div style="font-size:11px;color:#6b6057;padding:4px 0;border-bottom:1px solid #ede8e0;">'+s+'</div>').join('')}
-            <div style="font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#9a8c7e;margin:16px 0 10px;">Education</div>
-            <div style="font-size:11.5px;font-weight:600;color:#2c2c2c;">${edu.degree}</div>
-            <div style="font-size:10.5px;color:#b0a898;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}
-            ${lang.length?'<div style="font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#9a8c7e;margin:16px 0 9px;">Languages</div>'+lang.map(l=>'<div style="font-size:11px;color:#6b6057;margin-bottom:4px;">'+l.name+' — '+l.level+'</div>').join(''):''}
-          </div>
-        </div></div>`,
-
-      // ── 25. BOLD SPLIT (NEW) — dramatic half-half layout ─────────────────────
-      split: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;display:grid;grid-template-columns:280px 1fr;min-height:990px;">
-        <div style="background:#111827;padding:32px 22px;display:flex;flex-direction:column;">
-          ${photoOrInit(d,'80px','rgba(255,255,255,.1)','#fff','28px')}
-          <div style="font-family:'DM Serif Display',serif;font-size:22px;color:#fff;margin:14px 0 2px;line-height:1.15;">${nm}</div>
-          <div style="font-size:10px;color:#4b5563;letter-spacing:.12em;text-transform:uppercase;margin-bottom:20px;">${titleStr}</div>
-          <div style="height:1px;background:rgba(255,255,255,.08);margin-bottom:18px;"></div>
-          <div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#374151;margin-bottom:8px;">Contact</div>
-          ${ctc.map(x=>'<div style="font-size:10px;color:#6b7280;margin-bottom:5px;word-break:break-all;">'+x+'</div>').join('')}
-          <div style="height:1px;background:rgba(255,255,255,.08);margin:16px 0;"></div>
-          <div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#374151;margin-bottom:10px;">Skills</div>
-          ${skillSection('#f59e0b','rgba(255,255,255,.1)')}
-          <div style="flex:1;"></div>
-          <div style="height:1px;background:rgba(255,255,255,.08);margin:16px 0;"></div>
-          <div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#374151;margin-bottom:8px;">Education</div>
-          <div style="font-size:11px;color:#9ca3af;font-weight:600;margin-bottom:2px;">${edu.degree}</div>
-          <div style="font-size:10px;color:#4b5563;">${edu.school} · ${edu.year}</div>${eduExtraHtml}
-          ${lang.length?'<div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#374151;margin:14px 0 8px;">Languages</div>'+lang.map(l=>'<div style="font-size:10.5px;color:#6b7280;margin-bottom:4px;">'+l.name+' — '+l.level+'</div>').join(''):''}
-        </div>
-        <div style="padding:32px 26px;">
-          <div style="font-size:8.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#f59e0b;margin-bottom:9px;padding-bottom:5px;border-bottom:2px solid #fef3c7;">About</div>
-          <p style="font-size:11.5px;color:#374151;line-height:1.7;margin-bottom:4px;">${sumStr}</p>
-          <div style="font-size:8.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#f59e0b;margin:18px 0 9px;padding-bottom:5px;border-bottom:2px solid #fef3c7;">Experience</div>
-          ${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #f9fafb;"><div style="font-size:12.5px;font-weight:700;color:#111827;">'+(e.title||'')+'</div><div style="font-size:10.5px;color:#9ca3af;margin-bottom:4px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#6b7280;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projLight}
-          ${cert.length?'<div style="font-size:8.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#f59e0b;margin:18px 0 9px;padding-bottom:5px;border-bottom:2px solid #fef3c7;">Certifications</div>'+cert.map(c=>'<div style="font-size:11px;color:#374151;margin-bottom:4px;">'+c+'</div>').join(''):''}
-        </div></div>`,
-
-      forest: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;display:grid;grid-template-columns:210px 1fr;min-height:990px;"><div style="background:#1a3a2a;padding:28px 18px;"><div style="width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;font-family:'DM Serif Display',serif;margin-bottom:14px;">${init}</div><div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:3px;">${nm}</div><div style="font-size:10px;color:rgba(255,255,255,.45);margin-bottom:20px;">${titleStr}</div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:8px;">Contact</div>${ctc.map(x=>'<div style="font-size:10px;color:rgba(255,255,255,.85);margin-bottom:5px;word-break:break-all;">'+x+'</div>').join('')}<div style="height:1px;background:rgba(255,255,255,.1);margin:14px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:8px;">Skills</div>${sk.map((s,i)=>'<div style="margin-bottom:7px;"><div style="font-size:10px;color:rgba(255,255,255,.75);margin-bottom:3px;">'+s+'</div><div style="height:3px;background:rgba(255,255,255,.1);border-radius:2px;"><div style="width:'+pct_(i)+'%;height:100%;background:#4ade80;border-radius:2px;"></div></div></div>').join('')}<div style="height:1px;background:rgba(255,255,255,.1);margin:14px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:8px;">Education</div><div style="font-size:11px;color:rgba(255,255,255,.8);font-weight:600;">${edu.degree}</div><div style="font-size:10px;color:rgba(255,255,255,.45);margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}</div><div style="padding:28px 26px;">${sh_('Profile','#1a3a2a','#d1fae5')}<p style="font-size:11.5px;color:#374151;line-height:1.7;margin-bottom:4px;">${sumStr}</p>${sh_('Experience','#1a3a2a','#d1fae5')}${exp.map(e=>xp_(e,'#1a1916','#6b7280','#4b5563')).join('')}${projLight}${cert.length?sh('Certifications','#1a3a2a','#d1fae5')+cert.map(c=>'<div style="font-size:11px;color:#4b5563;margin-bottom:4px;">• '+c+'</div>').join(''):''}</div></div>`,
-
-      ruby: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;"><div style="background:#7f1d1d;padding:34px 38px 22px;position:relative;overflow:hidden;"><div style="position:absolute;right:-30px;top:-30px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.04);"></div><div style="font-family:'DM Serif Display',serif;font-size:34px;color:#fff;margin-bottom:5px;">${nm}</div><div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:rgba(255,255,255,.45);">'+x+'</span>').join('')}</div></div><div style="height:4px;background:linear-gradient(90deg,#dc2626,#f87171,#fca5a5);"></div><div style="display:grid;grid-template-columns:1fr 195px;"><div style="padding:24px 26px;border-right:1px solid #fee2e2;">${sh_('Summary','#991b1b','#fee2e2')}<p style="font-size:11.5px;color:#4b5563;line-height:1.7;">${sumStr}</p>${sh_('Experience','#991b1b','#fee2e2')}${exp.map(e=>xp_(e,'#1f2937','#9ca3af','#6b7280')).join('')}${projLight}</div><div style="padding:24px 18px;background:#fff7f7;">${sh_('Skills','#991b1b','#fee2e2')}${skillSection('#dc2626','#fee2e2')}${sh_('Education','#991b1b','#fee2e2')}<div style="font-size:11.5px;font-weight:600;color:#1f2937;">${edu.degree}</div><div style="font-size:10.5px;color:#9ca3af;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${lang.length?sh('Languages','#991b1b','#fee2e2')+lang.map(l=>'<div style="font-size:11px;color:#6b7280;margin-bottom:4px;">'+l.name+' — '+l.level+'</div>').join(''):''}</div></div></div>`,
-
-      ocean: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;"><div style="background:linear-gradient(135deg,#0c4a6e,#0369a1,#0284c7);padding:36px 40px 28px;"><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#fff;margin-bottom:6px;">${nm}</div><div style="font-size:12px;color:rgba(255,255,255,.65);margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:18px;">${ctc.map(x=>'<span style="font-size:10.5px;color:rgba(255,255,255,.4);">'+x+'</span>').join('')}</div></div><div style="display:grid;grid-template-columns:1fr 200px;"><div style="padding:24px 28px;border-right:1px solid #e0f2fe;">${sh_('Summary','#0369a1','#e0f2fe')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#0369a1','#e0f2fe')}${exp.map(e=>xp_(e,'#1e3a5f','#7ea8c4','#4b5563')).join('')}${projLight}</div><div style="padding:24px 18px;background:#f0f9ff;">${sh_('Skills','#0369a1','#bae6fd')}${skillSection('#0369a1','#bae6fd')}${sh_('Education','#0369a1','#bae6fd')}<div style="font-size:11.5px;font-weight:600;color:#0c4a6e;">${edu.degree}</div><div style="font-size:10.5px;color:#9ca3af;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${lang.length?sh('Languages','#0369a1','#bae6fd')+lang.map(l=>'<div style="font-size:11px;color:#374151;margin-bottom:4px;">'+l.name+' — '+l.level+'</div>').join(''):''}</div></div></div>`,
-
-      purple: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;min-height:990px;"><div style="background:#2e1065;padding:32px 38px 24px;position:relative;overflow:hidden;"><div style="font-family:'DM Serif Display',serif;font-size:34px;color:#fff;margin-bottom:5px;">${nm}</div><div style="font-size:12px;color:#a78bfa;font-weight:600;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:rgba(255,255,255,.35);">'+x+'</span>').join('')}</div></div><div style="display:grid;grid-template-columns:1fr 200px;"><div style="padding:24px 26px;border-right:1px solid #ede9fe;">${sh_('About','#6d28d9','#ede9fe')}<p style="font-size:11.5px;color:#4b5563;line-height:1.7;">${sumStr}</p>${sh_('Experience','#6d28d9','#ede9fe')}${exp.map(e=>xp_(e,'#1f2937','#a78bfa','#6b7280')).join('')}${projLight}</div><div style="padding:24px 18px;background:#faf5ff;">${sh_('Skills','#6d28d9','#ddd6fe')}${skillSection('#7c3aed','#ddd6fe')}${sh_('Education','#6d28d9','#ddd6fe')}<div style="font-size:11.5px;font-weight:600;color:#1f2937;">${edu.degree}</div><div style="font-size:10.5px;color:#a78bfa;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      charcoal: () => `<div style="width:700px;background:#1c1c1e;font-family:'${fontFamily}',sans-serif;min-height:990px;"><div style="padding:36px 38px 24px;border-bottom:1px solid #2c2c2e;"><div style="font-size:36px;font-weight:800;color:#fff;letter-spacing:-.02em;margin-bottom:5px;">${nm}</div><div style="font-size:12px;color:#636366;letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:#48484a;">'+x+'</span>').join('')}</div></div><div style="display:grid;grid-template-columns:1fr 195px;"><div style="padding:24px 28px;border-right:1px solid #2c2c2e;"><div style="font-size:8.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#636366;margin-bottom:10px;padding-bottom:5px;border-bottom:1px solid #2c2c2e;">About</div><p style="font-size:11.5px;color:#8e8e93;line-height:1.7;margin-bottom:18px;">${sumStr}</p><div style="font-size:8.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#636366;margin-bottom:10px;padding-bottom:5px;border-bottom:1px solid #2c2c2e;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;"><div style="font-size:12.5px;font-weight:700;color:#fff;">'+(e.title||'')+'</div><div style="font-size:10.5px;color:#48484a;margin-bottom:4px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#aeaeb2;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projDark}</div><div style="padding:24px 18px;"><div style="font-size:8.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#636366;margin-bottom:10px;padding-bottom:5px;border-bottom:1px solid #2c2c2e;">Skills</div>${sk.map((s,i)=>'<div style="margin-bottom:8px;"><div style="font-size:10.5px;color:#8e8e93;margin-bottom:3px;">'+s+'</div><div style="height:2px;background:#2c2c2e;border-radius:1px;"><div style="width:'+pct_(i)+'%;height:100%;background:#fff;border-radius:1px;"></div></div></div>').join('')}<div style="font-size:8.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#636366;margin:18px 0 10px;padding-bottom:5px;border-bottom:1px solid #2c2c2e;">Education</div><div style="font-size:11px;font-weight:600;color:#fff;">${edu.degree}</div><div style="font-size:10px;color:#48484a;margin-top:3px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      sunrise: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;"><div style="background:linear-gradient(135deg,#c2410c,#ea580c,#f97316);padding:34px 40px 22px;"><div style="font-family:'DM Serif Display',serif;font-size:34px;color:#fff;margin-bottom:5px;">${nm}</div><div style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:rgba(255,255,255,.4);">'+x+'</span>').join('')}</div></div><div style="display:grid;grid-template-columns:1fr 200px;min-height:750px;"><div style="padding:24px 28px;border-right:1px solid #ffedd5;">${sh_('Summary','#c2410c','#ffedd5')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#c2410c','#ffedd5')}${exp.map(e=>xp_(e,'#1f2937','#9ca3af','#4b5563')).join('')}${projLight}</div><div style="padding:24px 18px;background:#fff7ed;">${sh_('Skills','#c2410c','#fed7aa')}${skillSection('#ea580c','#fed7aa')}${sh_('Education','#c2410c','#fed7aa')}<div style="font-size:11.5px;font-weight:600;color:#1f2937;">${edu.degree}</div><div style="font-size:10.5px;color:#9ca3af;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      silver: () => `<div style="width:700px;background:#f8fafc;font-family:'${fontFamily}',sans-serif;padding:40px 48px;"><div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;padding-bottom:20px;border-bottom:2px solid #94a3b8;"><div><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#0f172a;letter-spacing:-.01em;margin-bottom:4px;">${nm}</div><div style="font-size:13px;color:#64748b;font-weight:500;">${titleStr}</div></div><div style="text-align:right;padding-top:6px;">${ctc.map(x=>'<div style="font-size:10.5px;color:#94a3b8;margin-bottom:3px;">'+x+'</div>').join('')}</div></div><p style="font-size:11.5px;color:#475569;line-height:1.75;margin-bottom:22px;">${sumStr}</p><div style="display:grid;grid-template-columns:1fr 185px;gap:28px;"><div><div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#0f172a;border-bottom:2px solid #0f172a;padding-bottom:4px;margin-bottom:12px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;"><div style="display:flex;justify-content:space-between;align-items:baseline;"><div style="font-size:12.5px;font-weight:700;color:#0f172a;">'+(e.title||'')+'</div><div style="font-size:10px;color:#94a3b8;">'+(e.period||'')+'</div></div><div style="font-size:10.5px;color:#64748b;font-style:italic;margin-bottom:4px;">'+(e.company||'')+'</div><div style="font-size:11px;color:#475569;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projLight}</div><div><div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#0f172a;border-bottom:2px solid #0f172a;padding-bottom:4px;margin-bottom:12px;">Skills</div>${sk.map(s=>'<div style="font-size:11px;color:#475569;padding:4px 0;border-bottom:1px solid #e2e8f0;">'+s+'</div>').join('')}<div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#0f172a;border-bottom:2px solid #0f172a;padding-bottom:4px;margin:16px 0 10px;">Education</div><div style="font-size:12px;font-weight:700;color:#0f172a;">${edu.degree}</div><div style="font-size:10.5px;color:#94a3b8;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      mint: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;display:grid;grid-template-columns:195px 1fr;min-height:990px;"><div style="background:#ecfdf5;padding:28px 18px;border-right:2px solid #a7f3d0;"><div style="width:60px;height:60px;border-radius:16px;background:#059669;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;font-family:'DM Serif Display',serif;margin-bottom:14px;">${init}</div><div style="font-size:16.5px;font-weight:700;color:#064e3b;margin-bottom:2px;">${nm}</div><div style="font-size:10.5px;color:#6b7280;margin-bottom:18px;">${titleStr}</div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#059669;margin-bottom:8px;">Contact</div>${ctc.map(x=>'<div style="font-size:10px;color:#374151;margin-bottom:5px;word-break:break-all;">'+x+'</div>').join('')}<div style="height:1px;background:#a7f3d0;margin:14px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#059669;margin-bottom:10px;">Skills</div>${skillSection('#d1fae5','#065f46')}<div style="height:1px;background:#a7f3d0;margin:14px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#059669;margin-bottom:8px;">Education</div><div style="font-size:11px;font-weight:600;color:#064e3b;">${edu.degree}</div><div style="font-size:10px;color:#6b7280;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div><div style="padding:28px 26px;">${sh_('About','#059669','#a7f3d0')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#059669','#a7f3d0')}${exp.map(e=>xp_(e,'#064e3b','#6b7280','#4b5563')).join('')}${projLight}</div></div>`,
-
-      indigo: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;"><div style="background:#312e81;padding:32px 38px 52px;position:relative;overflow:hidden;"><div style="position:absolute;bottom:0;left:0;right:0;height:40px;background:#fff;clip-path:ellipse(60% 100% at 50% 100%);"></div><div style="font-family:'DM Serif Display',serif;font-size:34px;color:#fff;margin-bottom:5px;">${nm}</div><div style="font-size:12px;color:#a5b4fc;margin-bottom:12px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:rgba(255,255,255,.4);">'+x+'</span>').join('')}</div></div><div style="padding:20px 38px 32px;"><div style="display:grid;grid-template-columns:1fr 190px;gap:26px;"><div>${sh_('Summary','#4338ca','#e0e7ff')}<p style="font-size:11.5px;color:#374151;line-height:1.7;margin-bottom:4px;">${sumStr}</p>${sh_('Experience','#4338ca','#e0e7ff')}${exp.map(e=>xp_(e,'#1e1b4b','#8b9cf4','#4b5563')).join('')}${projLight}</div><div>${sh_('Skills','#4338ca','#e0e7ff')}<div style="margin-bottom:4px;">${skillSection('#e0e7ff','#4338ca')}</div>${sh_('Education','#4338ca','#e0e7ff')}<div style="font-size:11.5px;font-weight:600;color:#1e1b4b;">${edu.degree}</div><div style="font-size:10.5px;color:#9ca3af;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div></div>`,
-
-      amber: () => `<div style="width:700px;background:#0f0900;font-family:'${fontFamily}',sans-serif;min-height:990px;"><div style="padding:32px 36px 22px;border-bottom:1px solid #1c1400;"><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#fbbf24;margin-bottom:5px;">${nm}</div><div style="font-size:9px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#78350f;margin-bottom:10px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:#44403c;">'+x+'</span>').join('')}</div></div><div style="display:grid;grid-template-columns:1fr 205px;padding:0 36px;"><div style="padding:22px 22px 22px 0;border-right:1px solid #1c1400;"><div style="font-size:8.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#d97706;margin-bottom:9px;padding-bottom:5px;border-bottom:1px solid #1c1400;">Profile</div><p style="font-size:11.5px;color:#78716c;line-height:1.7;margin-bottom:18px;">${sumStr}</p><div style="font-size:8.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#d97706;margin-bottom:9px;padding-bottom:5px;border-bottom:1px solid #1c1400;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;"><div style="font-size:12.5px;font-weight:700;color:#fbbf24;">'+(e.title||'')+'</div><div style="font-size:10.5px;color:#44403c;margin-bottom:4px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#57534e;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projDark}</div><div style="padding:22px 0 22px 20px;"><div style="font-size:8.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#d97706;margin-bottom:9px;padding-bottom:5px;border-bottom:1px solid #1c1400;">Skills</div>${sk.map((s,i)=>'<div style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;font-size:10px;color:#78716c;margin-bottom:3px;"><span>'+s+'</span><span>'+pct_(i)+'%</span></div><div style="height:2px;background:#1c1400;border-radius:1px;"><div style="width:'+pct_(i)+'%;height:100%;background:#d97706;border-radius:1px;"></div></div></div>').join('')}<div style="font-size:8.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#d97706;margin:18px 0 9px;padding-bottom:5px;border-bottom:1px solid #1c1400;">Education</div><div style="font-size:11px;font-weight:600;color:#fbbf24;">${edu.degree}</div><div style="font-size:10px;color:#44403c;margin-top:3px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      diamond: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;padding:44px 50px;"><div style="display:flex;align-items:center;gap:20px;margin-bottom:18px;padding-bottom:18px;border-bottom:1.5px solid #e2e8f0;"><div style="width:72px;height:72px;background:linear-gradient(135deg,#0ea5e9,#2563eb);border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff;font-family:'DM Serif Display',serif;flex-shrink:0;">${init}</div><div style="flex:1;"><div style="font-size:28px;font-weight:700;color:#0f172a;margin-bottom:3px;">${nm}</div><div style="font-size:12.5px;color:#0369a1;font-weight:600;">${titleStr}</div></div><div style="text-align:right;">${ctc.map(x=>'<div style="font-size:10px;color:#94a3b8;margin-bottom:2px;">'+x+'</div>').join('')}</div></div><p style="font-size:11.5px;color:#475569;line-height:1.75;margin-bottom:22px;">${sumStr}</p><div style="display:grid;grid-template-columns:1fr 180px;gap:26px;"><div><div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#0369a1;border-bottom:2px solid #bae6fd;padding-bottom:5px;margin-bottom:12px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #f1f5f9;"><div style="display:flex;justify-content:space-between;align-items:baseline;"><div style="font-size:12.5px;font-weight:700;color:#0f172a;">'+(e.title||'')+'</div><div style="font-size:9.5px;color:#0369a1;font-weight:600;">'+(e.period||'')+'</div></div><div style="font-size:10.5px;color:#64748b;margin-bottom:4px;font-style:italic;">'+(e.company||'')+'</div><div style="font-size:11px;color:#475569;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projLight}</div><div><div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#0369a1;border-bottom:2px solid #bae6fd;padding-bottom:5px;margin-bottom:12px;">Skills</div>${skillSection('#0369a1','#bae6fd')}<div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#0369a1;border-bottom:2px solid #bae6fd;padding-bottom:5px;margin:16px 0 10px;">Education</div><div style="font-size:11.5px;font-weight:600;color:#0f172a;">${edu.degree}</div><div style="font-size:10.5px;color:#94a3b8;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      bloom: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;"><div style="background:linear-gradient(135deg,#be185d,#db2777,#ec4899);padding:32px 38px 22px;"><div style="font-family:'DM Serif Display',serif;font-size:34px;color:#fff;margin-bottom:5px;">${nm}</div><div style="font-size:11px;color:rgba(255,255,255,.6);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:rgba(255,255,255,.4);">'+x+'</span>').join('')}</div></div><div style="display:grid;grid-template-columns:1fr 195px;"><div style="padding:24px 26px;border-right:1px solid #fce7f3;">${sh_('Profile','#be185d','#fce7f3')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#be185d','#fce7f3')}${exp.map(e=>xp_(e,'#831843','#f9a8d4','#6b7280')).join('')}${projLight}</div><div style="padding:24px 18px;background:#fff1f2;">${sh_('Skills','#be185d','#fbcfe8')}<div style="margin-bottom:4px;">${skillSection('#fce7f3','#be185d')}</div>${sh_('Education','#be185d','#fbcfe8')}<div style="font-size:11.5px;font-weight:600;color:#831843;">${edu.degree}</div><div style="font-size:10.5px;color:#9ca3af;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      nordic: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;padding:44px 50px;"><div style="text-align:center;margin-bottom:24px;"><div style="font-family:'DM Serif Display',serif;font-size:38px;color:#1a202c;letter-spacing:-.02em;margin-bottom:6px;">${nm}</div><div style="font-size:11px;color:#718096;letter-spacing:.14em;text-transform:uppercase;margin-bottom:12px;">${titleStr}</div><div style="display:flex;justify-content:center;gap:18px;font-size:10.5px;color:#a0aec0;flex-wrap:wrap;">${ctc.map(x=>'<span>'+x+'</span>').join('')}</div></div><div style="height:3px;background:linear-gradient(90deg,#667eea,#764ba2,#f093fb);margin-bottom:24px;border-radius:2px;"></div><p style="font-size:12px;color:#4a5568;line-height:1.8;text-align:center;max-width:520px;margin:0 auto 24px;">${sumStr}</p><div style="height:1px;background:#e2e8f0;margin-bottom:22px;"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;"><div><div style="font-size:9px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#667eea;margin-bottom:10px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:12px;"><div style="font-size:12.5px;font-weight:700;color:#1a202c;">'+(e.title||'')+'</div><div style="font-size:10px;color:#a0aec0;font-style:italic;margin-bottom:3px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#4a5568;line-height:1.6;">'+(e.desc||'')+'</div></div>').join('')}${projLight}</div><div><div style="font-size:9px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#667eea;margin-bottom:10px;">Skills</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px;">${skillSection('#ebf4ff','#667eea')}</div><div style="font-size:9px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#667eea;margin-bottom:8px;">Education</div><div style="font-size:12px;font-weight:700;color:#1a202c;">${edu.degree}</div><div style="font-size:10.5px;color:#a0aec0;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-
-// batch 2 starts here
-      sakura: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;"><div style="background:linear-gradient(160deg,#fff0f6,#ffe4ef,#ffd6e8);padding:36px 40px 28px;border-bottom:3px solid #ffb3d1;"><div style="font-family:'DM Serif Display',serif;font-size:38px;color:#831843;letter-spacing:-.02em;margin-bottom:6px;">${nm}</div><div style="font-size:12px;color:#be185d;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:#f9a8d4;">'+x+'</span>').join('')}</div></div><div style="display:grid;grid-template-columns:1fr 195px;"><div style="padding:24px 28px;border-right:1px solid #ffe4ef;">${sh_('About','#be185d','#ffe4ef')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#be185d','#ffe4ef')}${exp.map(e=>xp_(e,'#831843','#f9a8d4','#6b7280')).join('')}${projLight}</div><div style="padding:24px 18px;background:#fff5f9;">${sh_('Skills','#be185d','#fbcfe8')}<div>${skillSection('#fce7f3','#be185d')}</div>${sh_('Education','#be185d','#fbcfe8')}<div style="font-size:11.5px;font-weight:600;color:#831843;">${edu.degree}</div><div style="font-size:10.5px;color:#f9a8d4;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${lang.length?sh('Languages','#be185d','#fbcfe8')+lang.map(l=>'<div style="font-size:11px;color:#6b7280;margin-bottom:4px;">'+l.name+' — '+l.level+'</div>').join(''):''}</div></div></div>`,
-
-      emerald: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;padding:44px 50px;"><div style="display:flex;align-items:center;gap:18px;margin-bottom:22px;padding-bottom:22px;border-bottom:2px solid #6ee7b7;"><div style="width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,#059669,#10b981);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff;font-family:'DM Serif Display',serif;flex-shrink:0;">${init}</div><div style="flex:1;"><div style="font-family:'DM Serif Display',serif;font-size:30px;color:#064e3b;margin-bottom:4px;">${nm}</div><div style="font-size:12.5px;color:#059669;font-weight:600;">${titleStr}</div></div><div style="text-align:right;">${ctc.map(x=>'<div style="font-size:10px;color:#9ca3af;margin-bottom:2px;">'+x+'</div>').join('')}</div></div><p style="font-size:11.5px;color:#374151;line-height:1.75;margin-bottom:22px;">${sumStr}</p><div style="display:grid;grid-template-columns:1fr 185px;gap:28px;"><div><div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#059669;border-bottom:2px solid #6ee7b7;padding-bottom:4px;margin-bottom:12px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;"><div style="display:flex;justify-content:space-between;align-items:baseline;"><div style="font-size:12.5px;font-weight:700;color:#064e3b;">'+(e.title||'')+'</div><div style="font-size:10px;color:#6ee7b7;font-weight:600;">'+(e.period||'')+'</div></div><div style="font-size:10.5px;color:#6b7280;font-style:italic;margin-bottom:4px;">'+(e.company||'')+'</div><div style="font-size:11px;color:#374151;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projLight}</div><div><div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#059669;border-bottom:2px solid #6ee7b7;padding-bottom:4px;margin-bottom:12px;">Skills</div>${skillSection('#059669','#d1fae5')}<div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#059669;border-bottom:2px solid #6ee7b7;padding-bottom:4px;margin:16px 0 10px;">Education</div><div style="font-size:12px;font-weight:700;color:#064e3b;">${edu.degree}</div><div style="font-size:10.5px;color:#9ca3af;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      cobalt: () => `<div style="width:700px;background:#0f1729;font-family:'${fontFamily}',sans-serif;min-height:990px;"><div style="background:linear-gradient(135deg,#1e3a8a,#1d4ed8,#3b82f6);padding:34px 38px 22px;"><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#fff;margin-bottom:5px;">${nm}</div><div style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:rgba(255,255,255,.35);">'+x+'</span>').join('')}</div></div><div style="display:grid;grid-template-columns:1fr 200px;"><div style="padding:24px 26px;border-right:1px solid #1e293b;"><div style="font-size:8.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#3b82f6;margin-bottom:9px;padding-bottom:5px;border-bottom:1px solid #1e293b;">Profile</div><p style="font-size:11.5px;color:#cbd5e1;line-height:1.7;margin-bottom:18px;">${sumStr}</p><div style="font-size:8.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#3b82f6;margin-bottom:9px;padding-bottom:5px;border-bottom:1px solid #1e293b;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;"><div style="font-size:12.5px;font-weight:700;color:#e2e8f0;">'+(e.title||'')+'</div><div style="font-size:10.5px;color:#3b82f6;margin-bottom:4px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#64748b;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projDark}</div><div style="padding:24px 18px;"><div style="font-size:8.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#3b82f6;margin-bottom:9px;padding-bottom:5px;border-bottom:1px solid #1e293b;">Skills</div>${sk.map((s,i)=>'<div style="margin-bottom:8px;"><div style="font-size:10.5px;color:#64748b;margin-bottom:3px;">'+s+'</div><div style="height:2px;background:#1e293b;border-radius:1px;"><div style="width:'+pct_(i)+'%;height:100%;background:#3b82f6;border-radius:1px;"></div></div></div>').join('')}<div style="font-size:8.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#3b82f6;margin:18px 0 9px;padding-bottom:5px;border-bottom:1px solid #1e293b;">Education</div><div style="font-size:11px;font-weight:600;color:#e2e8f0;">${edu.degree}</div><div style="font-size:10px;color:#3b82f6;margin-top:3px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      lemon: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;"><div style="background:#fefce8;border-bottom:3px solid #fde047;padding:32px 40px 22px;"><div style="display:flex;align-items:flex-end;justify-content:space-between;"><div><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#713f12;margin-bottom:4px;">${nm}</div><div style="font-size:12px;color:#a16207;font-weight:600;">${titleStr}</div></div><div style="text-align:right;padding-bottom:4px;">${ctc.map(x=>'<div style="font-size:10px;color:#ca8a04;margin-bottom:2px;">'+x+'</div>').join('')}</div></div></div><div style="display:grid;grid-template-columns:1fr 195px;"><div style="padding:22px 26px;border-right:1px solid #fef9c3;">${sh_('Summary','#a16207','#fef9c3')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#a16207','#fef9c3')}${exp.map(e=>xp_(e,'#713f12','#ca8a04','#4b5563')).join('')}${projLight}</div><div style="padding:22px 18px;background:#fffde7;">${sh_('Skills','#a16207','#fde047')}${skillSection('#ca8a04','#fde047')}${sh_('Education','#a16207','#fde047')}<div style="font-size:11.5px;font-weight:600;color:#713f12;">${edu.degree}</div><div style="font-size:10.5px;color:#ca8a04;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${cert.length?sh('Certs','#a16207','#fde047')+cert.map(c=>'<div style="font-size:10.5px;color:#4b5563;margin-bottom:3px;">'+c+'</div>').join(''):''}</div></div></div>`,
-
-      graphite: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;padding:0;"><div style="display:grid;grid-template-columns:230px 1fr;min-height:990px;"><div style="background:#2d2d2d;padding:32px 20px;"><div style="width:70px;height:70px;border-radius:50%;background:#444;border:3px solid #555;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:#fff;font-family:'DM Serif Display',serif;margin-bottom:14px;">${init}</div><div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:2px;">${nm}</div><div style="font-size:10px;color:#9ca3af;margin-bottom:18px;letter-spacing:.05em;">${titleStr}</div><div style="height:1px;background:#444;margin-bottom:14px;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#6b7280;margin-bottom:8px;">Contact</div>${ctc.map(x=>'<div style="font-size:10px;color:#9ca3af;margin-bottom:5px;word-break:break-all;">'+x+'</div>').join('')}${projDark}<div style="height:1px;background:#444;margin:14px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#6b7280;margin-bottom:10px;">Skills</div>${sk.map(s=>'<div style="font-size:10.5px;color:#e5e7eb;padding:4px 0;border-bottom:1px solid #3d3d3d;">'+s+'</div>').join('')}<div style="height:1px;background:#444;margin:14px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#6b7280;margin-bottom:8px;">Education</div><div style="font-size:11px;font-weight:600;color:#e5e7eb;">${edu.degree}</div><div style="font-size:10px;color:#6b7280;margin-top:3px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div><div style="padding:32px 28px;"><div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#2d2d2d;border-bottom:2px solid #2d2d2d;padding-bottom:5px;margin-bottom:12px;">Profile</div><p style="font-size:11.5px;color:#374151;line-height:1.7;margin-bottom:18px;">${sumStr}</p><div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#2d2d2d;border-bottom:2px solid #2d2d2d;padding-bottom:5px;margin-bottom:12px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #f3f4f6;"><div style="font-size:12.5px;font-weight:700;color:#111827;">'+(e.title||'')+'</div><div style="font-size:10.5px;color:#9ca3af;margin-bottom:4px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#374151;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}</div></div></div>`,
-
-      vega: () => `<div style="width:700px;background:#0c0c0c;font-family:'${fontFamily}',sans-serif;min-height:990px;"><div style="padding:36px 38px 0;"><div style="display:flex;align-items:flex-start;justify-content:space-between;padding-bottom:22px;border-bottom:1px solid #1a1a1a;"><div><div style="font-size:8px;font-weight:800;letter-spacing:.24em;text-transform:uppercase;color:#22d3ee;margin-bottom:10px;">${titleStr}</div><div style="font-family:'DM Serif Display',serif;font-size:40px;color:#f0f0f0;letter-spacing:-.02em;">${nm}</div></div><div style="text-align:right;padding-top:10px;">${ctc.map(x=>'<div style="font-size:10px;color:#333;margin-bottom:3px;">'+x+'</div>').join('')}</div></div></div><div style="display:grid;grid-template-columns:1fr 205px;padding:0 38px;"><div style="padding:22px 22px 22px 0;border-right:1px solid #1a1a1a;"><div style="font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#22d3ee;margin-bottom:9px;">Profile</div><p style="font-size:11.5px;color:#9ca3af;line-height:1.7;margin-bottom:18px;">${sumStr}</p><div style="font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#22d3ee;margin-bottom:9px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #1a1a1a;"><div style="font-size:12.5px;font-weight:700;color:#e5e7eb;">'+(e.title||'')+'</div><div style="font-size:10.5px;color:#22d3ee;margin-bottom:4px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#4b5563;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projDark}</div><div style="padding:22px 0 22px 20px;"><div style="font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#22d3ee;margin-bottom:10px;">Skills</div>${sk.map(s=>'<span style="display:inline-block;background:#111;border:1px solid #222;color:#22d3ee;font-size:9.5px;padding:2px 8px;border-radius:3px;margin:2px 3px 2px 0;">'+s+'</span>').join('')}<div style="font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#22d3ee;margin:18px 0 9px;">Education</div><div style="font-size:11px;font-weight:600;color:#e5e7eb;">${edu.degree}</div><div style="font-size:10px;color:#374151;margin-top:3px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      rose: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;padding:44px 50px;"><div style="display:flex;align-items:flex-start;gap:22px;margin-bottom:22px;padding-bottom:22px;border-bottom:1.5px solid #fecdd3;"><div style="flex:1;"><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#881337;letter-spacing:-.01em;margin-bottom:4px;">${nm}</div><div style="font-size:13px;color:#e11d48;font-weight:600;">${titleStr}</div></div><div style="text-align:right;padding-top:4px;">${ctc.map(x=>'<div style="font-size:10.5px;color:#fda4af;margin-bottom:2px;">'+x+'</div>').join('')}</div></div><p style="font-size:11.5px;color:#374151;line-height:1.75;margin-bottom:22px;">${sumStr}</p><div style="display:grid;grid-template-columns:1fr 185px;gap:28px;"><div><div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#e11d48;border-bottom:2px solid #fecdd3;padding-bottom:4px;margin-bottom:12px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #fff1f2;"><div style="display:flex;justify-content:space-between;align-items:baseline;"><div style="font-size:12.5px;font-weight:700;color:#881337;">'+(e.title||'')+'</div><div style="font-size:10px;color:#fda4af;">'+(e.period||'')+'</div></div><div style="font-size:10.5px;color:#9ca3af;font-style:italic;margin-bottom:4px;">'+(e.company||'')+'</div><div style="font-size:11px;color:#374151;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projLight}</div><div><div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#e11d48;border-bottom:2px solid #fecdd3;padding-bottom:4px;margin-bottom:12px;">Skills</div><div style="margin-bottom:4px;">${skillSection('#fff1f2','#e11d48')}</div><div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#e11d48;border-bottom:2px solid #fecdd3;padding-bottom:4px;margin:16px 0 10px;">Education</div><div style="font-size:12px;font-weight:700;color:#881337;">${edu.degree}</div><div style="font-size:10.5px;color:#fda4af;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      onyx: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;"><div style="background:#18181b;padding:36px 40px;"><div style="display:flex;align-items:center;justify-content:space-between;"><div><div style="font-family:'DM Serif Display',serif;font-size:34px;color:#fff;margin-bottom:5px;">${nm}</div><div style="font-size:11px;color:#71717a;letter-spacing:.1em;text-transform:uppercase;">${titleStr}</div></div><div style="width:56px;height:56px;border-radius:14px;background:#27272a;border:1px solid #3f3f46;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#a1a1aa;font-family:'DM Serif Display',serif;">${init}</div></div></div><div style="height:3px;background:linear-gradient(90deg,#a855f7,#6366f1,#06b6d4);"></div><div style="padding:20px 40px 10px;display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:#71717a;">'+x+'</span>').join('')}</div><div style="display:grid;grid-template-columns:1fr 200px;padding:10px 40px 32px;gap:24px;"><div>${sh_('Summary','#18181b','#f4f4f5')}<p style="font-size:11.5px;color:#52525b;line-height:1.7;">${sumStr}</p>${sh_('Experience','#18181b','#f4f4f5')}${exp.map(e=>xp_(e,'#18181b','#71717a','#52525b')).join('')}${projLight}</div><div>${sh_('Skills','#18181b','#f4f4f5')}${skillSection('#7c3aed','#ede9fe')}${sh_('Education','#18181b','#f4f4f5')}<div style="font-size:11.5px;font-weight:600;color:#18181b;">${edu.degree}</div><div style="font-size:10.5px;color:#71717a;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      aurora: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;"><div style="background:linear-gradient(135deg,#0f172a,#1e1b4b,#312e81);padding:36px 40px 28px;position:relative;overflow:hidden;"><div style="position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(45deg,rgba(167,139,250,.15) 0%,rgba(6,182,212,.1) 50%,rgba(52,211,153,.1) 100%);"></div><div style="position:relative;"><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#fff;margin-bottom:5px;">${nm}</div><div style="font-size:12px;background:linear-gradient(90deg,#a78bfa,#67e8f9,#6ee7b7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:rgba(255,255,255,.3);">'+x+'</span>').join('')}</div></div></div><div style="display:grid;grid-template-columns:1fr 200px;"><div style="padding:24px 26px;border-right:1px solid #f1f5f9;">${sh_('Summary','#312e81','#ede9fe')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#312e81','#ede9fe')}${exp.map(e=>xp_(e,'#0f172a','#a78bfa','#4b5563')).join('')}${projLight}</div><div style="padding:24px 18px;background:#fafafa;">${sh_('Skills','#312e81','#ede9fe')}<div>${skillSection('#ede9fe','#4338ca')}</div>${sh_('Education','#312e81','#ede9fe')}<div style="font-size:11.5px;font-weight:600;color:#0f172a;">${edu.degree}</div><div style="font-size:10.5px;color:#9ca3af;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${lang.length?sh('Languages','#312e81','#ede9fe')+lang.map(l=>'<div style="font-size:11px;color:#374151;margin-bottom:4px;">'+l.name+' — '+l.level+'</div>').join(''):''}</div></div></div>`,
-
-      carbon: () => `<div style="width:700px;background:#161616;font-family:'${fontFamily}',sans-serif;min-height:990px;"><div style="border-bottom:1px solid #262626;padding:32px 36px 22px;"><div style="display:grid;grid-template-columns:1fr auto;align-items:start;gap:20px;"><div><div style="font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#f97316;margin-bottom:10px;">${titleStr}</div><div style="font-family:'DM Serif Display',serif;font-size:38px;color:#fafafa;letter-spacing:-.01em;">${nm}</div></div><div style="text-align:right;padding-top:4px;">${ctc.map(x=>'<div style="font-size:10px;color:#404040;margin-bottom:3px;">'+x+'</div>').join('')}${projDark}</div></div></div><div style="display:grid;grid-template-columns:1fr 200px;padding:0 36px;"><div style="padding:22px 22px 22px 0;border-right:1px solid #262626;"><div style="font-size:8.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#f97316;margin-bottom:9px;">Profile</div><p style="font-size:11.5px;color:#737373;line-height:1.7;margin-bottom:18px;">${sumStr}</p><div style="font-size:8.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#f97316;margin-bottom:9px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #262626;"><div style="font-size:12.5px;font-weight:700;color:#fafafa;">'+(e.title||'')+'</div><div style="font-size:10.5px;color:#f97316;margin-bottom:4px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#737373;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}</div><div style="padding:22px 0 22px 20px;"><div style="font-size:8.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#f97316;margin-bottom:10px;">Skills</div>${sk.map(s=>'<span style="display:inline-block;background:#262626;border:1px solid #404040;color:#d4d4d4;font-size:9.5px;padding:3px 9px;border-radius:4px;margin:2px 3px 2px 0;">'+s+'</span>').join('')}<div style="font-size:8.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#f97316;margin:18px 0 9px;">Education</div><div style="font-size:11px;font-weight:600;color:#fafafa;">${edu.degree}</div><div style="font-size:10px;color:#404040;margin-top:3px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      sky: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;padding:44px 50px;"><div style="text-align:center;margin-bottom:24px;"><div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#0284c7,#0ea5e9);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#fff;font-family:'DM Serif Display',serif;margin:0 auto 14px;">${init}</div><div style="font-family:'DM Serif Display',serif;font-size:34px;color:#0c4a6e;margin-bottom:5px;">${nm}</div><div style="font-size:12px;color:#0284c7;font-weight:600;margin-bottom:12px;">${titleStr}</div><div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap;">${ctc.map(x=>'<span style="font-size:10.5px;color:#7dd3fc;">'+x+'</span>').join('')}</div></div><div style="height:2px;background:linear-gradient(90deg,transparent,#0284c7,transparent);margin-bottom:22px;"></div><p style="font-size:11.5px;color:#374151;line-height:1.75;text-align:center;max-width:480px;margin:0 auto 24px;">${sumStr}</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;"><div><div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#0284c7;margin-bottom:10px;padding-bottom:4px;border-bottom:2px solid #bae6fd;">Experience</div>${exp.map(e=>'<div style="margin-bottom:12px;"><div style="font-size:12.5px;font-weight:700;color:#0c4a6e;">'+(e.title||'')+'</div><div style="font-size:10px;color:#7dd3fc;margin-bottom:3px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#374151;line-height:1.6;">'+(e.desc||'')+'</div></div>').join('')}${projLight}</div><div><div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#0284c7;margin-bottom:10px;padding-bottom:4px;border-bottom:2px solid #bae6fd;">Skills</div><div style="margin-bottom:16px;">${skillSection('#e0f2fe','#0284c7')}</div><div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#0284c7;margin-bottom:8px;padding-bottom:4px;border-bottom:2px solid #bae6fd;">Education</div><div style="font-size:12px;font-weight:700;color:#0c4a6e;">${edu.degree}</div><div style="font-size:10.5px;color:#7dd3fc;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${lang.length?'<div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#0284c7;margin:14px 0 8px;padding-bottom:4px;border-bottom:2px solid #bae6fd;">Languages</div>'+lang.map(l=>'<div style="font-size:11px;color:#374151;margin-bottom:4px;">'+l.name+' — '+l.level+'</div>').join(''):''}</div></div></div>`,
-
-      obsidian: () => `<div style="width:700px;background:#09090b;font-family:'${fontFamily}',sans-serif;min-height:990px;"><div style="position:relative;padding:40px 38px 28px;"><div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#8b5cf6,#06b6d4,#10b981);"></div><div style="font-family:'DM Serif Display',serif;font-size:38px;color:#fafafa;letter-spacing:-.02em;margin-bottom:6px;">${nm}</div><div style="font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#3f3f46;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:#27272a;">'+x+'</span>').join('')}</div></div><div style="display:grid;grid-template-columns:1fr 205px;padding:0 38px 32px;gap:28px;"><div><div style="font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#8b5cf6;margin-bottom:10px;">Profile</div><p style="font-size:11.5px;color:#52525b;line-height:1.7;margin-bottom:20px;">${sumStr}</p><div style="font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#06b6d4;margin-bottom:10px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #18181b;"><div style="font-size:12.5px;font-weight:700;color:#e4e4e7;">'+(e.title||'')+'</div><div style="font-size:10.5px;color:#3f3f46;margin-bottom:4px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#3f3f46;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projDark}</div><div><div style="font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#10b981;margin-bottom:10px;">Skills</div>${sk.map((s,i)=>'<div style="margin-bottom:8px;"><div style="font-size:10.5px;color:#52525b;margin-bottom:3px;">'+s+'</div><div style="height:2px;background:#18181b;border-radius:1px;"><div style="width:'+pct_(i)+'%;height:100%;background:linear-gradient(90deg,#8b5cf6,#06b6d4);border-radius:1px;"></div></div></div>').join('')}<div style="font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#10b981;margin:18px 0 9px;">Education</div><div style="font-size:11px;font-weight:600;color:#e4e4e7;">${edu.degree}</div><div style="font-size:10px;color:#3f3f46;margin-top:3px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      slate2: () => `<div style="width:700px;background:#f8fafc;font-family:'${fontFamily}',sans-serif;display:grid;grid-template-columns:220px 1fr;min-height:990px;"><div style="background:#1e293b;padding:30px 18px;"><div style="font-size:17px;font-weight:700;color:#fff;margin-bottom:2px;">${nm}</div><div style="font-size:10px;color:#64748b;margin-bottom:18px;">${titleStr}</div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#334155;margin-bottom:8px;">Contact</div>${ctc.map(x=>'<div style="font-size:9.5px;color:#64748b;margin-bottom:5px;word-break:break-all;">'+x+'</div>').join('')}<div style="height:1px;background:#334155;margin:14px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#334155;margin-bottom:10px;">Skills</div>${skillSection('#38bdf8','rgba(56,189,248,.15)')}<div style="height:1px;background:#334155;margin:14px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#334155;margin-bottom:8px;">Education</div><div style="font-size:11px;font-weight:600;color:#e2e8f0;">${edu.degree}</div><div style="font-size:10px;color:#64748b;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${langFallbackHtml}${lang.length?'<div style="height:1px;background:#334155;margin:14px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#334155;margin-bottom:8px;">Languages</div>'+lang.map(l=>'<div style="font-size:10.5px;color:#64748b;margin-bottom:4px;">'+l.name+' — '+l.level+'</div>').join(''):''}</div><div style="padding:28px 24px;background:#fff;">${sh_('Summary','#0f172a','#e2e8f0')}<p style="font-size:11.5px;color:#475569;line-height:1.7;">${sumStr}</p>${sh_('Experience','#0f172a','#e2e8f0')}${exp.map(e=>xp_(e,'#0f172a','#94a3b8','#475569')).join('')}${projLight}${cert.length?sh('Certifications','#0f172a','#e2e8f0')+cert.map(c=>'<div style="font-size:11px;color:#475569;margin-bottom:4px;">'+c+'</div>').join(''):''}</div></div>`,
-
-      // ── BATCH 3 ──────────────────────────────────────────────────────────────
-
-      crimson: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;"><div style="background:#1a0a0a;padding:36px 40px 24px;position:relative;overflow:hidden;"><div style="position:absolute;top:0;left:0;width:100%;height:4px;background:linear-gradient(90deg,#dc2626,#ef4444,#fca5a5,#ef4444,#dc2626);"></div><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#fff;margin-bottom:5px;">${nm}</div><div style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#991b1b;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:#3d1515;">'+x+'</span>').join('')}</div></div><div style="display:grid;grid-template-columns:1fr 200px;"><div style="padding:24px 26px;border-right:1px solid #ffe4e6;">${sh_('Summary','#dc2626','#ffe4e6')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#dc2626','#ffe4e6')}${exp.map(e=>xp_(e,'#1a0a0a','#fca5a5','#6b7280')).join('')}${projLight}</div><div style="padding:24px 18px;background:#fff5f5;">${sh_('Skills','#dc2626','#fecaca')}${skillSection('#dc2626','#fecaca')}${sh_('Education','#dc2626','#fecaca')}<div style="font-size:11.5px;font-weight:600;color:#1a0a0a;">${edu.degree}</div><div style="font-size:10.5px;color:#fca5a5;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${lang.length?sh('Languages','#dc2626','#fecaca')+lang.map(l=>'<div style="font-size:11px;color:#6b7280;margin-bottom:4px;">'+l.name+' — '+l.level+'</div>').join(''):''}</div></div></div>`,
-
-      sage: () => `<div style="width:700px;background:#f6f7f4;font-family:'${fontFamily}',sans-serif;padding:44px 50px;"><div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;padding-bottom:20px;border-bottom:2px solid #a3b18a;"><div><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#2d4a1e;letter-spacing:-.01em;margin-bottom:4px;">${nm}</div><div style="font-size:13px;color:#588157;font-weight:600;">${titleStr}</div></div><div style="text-align:right;padding-top:6px;">${ctc.map(x=>'<div style="font-size:10.5px;color:#a3b18a;margin-bottom:2px;">'+x+'</div>').join('')}</div></div><p style="font-size:11.5px;color:#4a5e3a;line-height:1.75;margin-bottom:22px;">${sumStr}</p><div style="display:grid;grid-template-columns:1fr 185px;gap:28px;"><div><div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#588157;border-bottom:2px solid #a3b18a;padding-bottom:4px;margin-bottom:12px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;"><div style="display:flex;justify-content:space-between;align-items:baseline;"><div style="font-size:12.5px;font-weight:700;color:#2d4a1e;">'+(e.title||'')+'</div><div style="font-size:10px;color:#a3b18a;">'+(e.period||'')+'</div></div><div style="font-size:10.5px;color:#588157;font-style:italic;margin-bottom:4px;">'+(e.company||'')+'</div><div style="font-size:11px;color:#4a5e3a;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projLight}</div><div><div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#588157;border-bottom:2px solid #a3b18a;padding-bottom:4px;margin-bottom:12px;">Skills</div>${skillSection('#588157','#dad7cd')}<div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#588157;border-bottom:2px solid #a3b18a;padding-bottom:4px;margin:16px 0 10px;">Education</div><div style="font-size:12px;font-weight:700;color:#2d4a1e;">${edu.degree}</div><div style="font-size:10.5px;color:#a3b18a;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      dusk: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;"><div style="background:linear-gradient(135deg,#1e1b4b,#312e81,#4c1d95,#7c3aed);padding:36px 40px 28px;"><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#fff;margin-bottom:5px;">${nm}</div><div style="font-size:11px;color:rgba(255,255,255,.5);letter-spacing:.12em;text-transform:uppercase;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:rgba(255,255,255,.35);">'+x+'</span>').join('')}</div></div><div style="display:grid;grid-template-columns:1fr 200px;"><div style="padding:24px 26px;border-right:1px solid #ede9fe;">${sh_('Summary','#7c3aed','#ede9fe')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#7c3aed','#ede9fe')}${exp.map(e=>xp_(e,'#1e1b4b','#a78bfa','#6b7280')).join('')}${projLight}</div><div style="padding:24px 18px;background:#faf5ff;">${sh_('Skills','#7c3aed','#ddd6fe')}<div style="margin-bottom:4px;">${skillSection('#ede9fe','#7c3aed')}</div>${sh_('Education','#7c3aed','#ddd6fe')}<div style="font-size:11.5px;font-weight:600;color:#1e1b4b;">${edu.degree}</div><div style="font-size:10.5px;color:#a78bfa;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${langFallbackHtml}${cert.length?sh('Certifications','#7c3aed','#ddd6fe')+cert.map(c=>'<div style="font-size:10.5px;color:#6b7280;margin-bottom:4px;">'+c+'</div>').join(''):''}</div></div></div>`,
-
-      slate3: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;padding:0;display:grid;grid-template-columns:240px 1fr;min-height:990px;"><div style="background:#0f172a;padding:32px 20px;"><div style="font-family:'DM Serif Display',serif;font-size:20px;color:#fff;margin-bottom:2px;line-height:1.2;">${nm}</div><div style="font-size:10px;color:#475569;margin-bottom:22px;letter-spacing:.06em;">${titleStr}</div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#334155;margin-bottom:8px;">Contact</div>${ctc.map(x=>'<div style="font-size:9.5px;color:#64748b;margin-bottom:5px;word-break:break-all;">'+x+'</div>').join('')}<div style="height:1px;background:#1e293b;margin:16px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#334155;margin-bottom:10px;">Skills</div>${sk.map((s,i)=>'<div style="margin-bottom:8px;"><div style="font-size:10px;color:#94a3b8;margin-bottom:3px;">'+s+'</div><div style="height:2px;background:#1e293b;border-radius:1px;"><div style="width:'+pct_(i)+'%;height:100%;background:#3b82f6;border-radius:1px;"></div></div></div>').join('')}<div style="height:1px;background:#1e293b;margin:16px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#334155;margin-bottom:8px;">Education</div><div style="font-size:11px;font-weight:600;color:#e2e8f0;">${edu.degree}</div><div style="font-size:10px;color:#475569;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div><div style="padding:32px 26px;"><div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#0f172a;border-bottom:2px solid #e2e8f0;padding-bottom:5px;margin-bottom:12px;">Profile</div><p style="font-size:11.5px;color:#374151;line-height:1.7;margin-bottom:20px;">${sumStr}</p><div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#0f172a;border-bottom:2px solid #e2e8f0;padding-bottom:5px;margin-bottom:12px;">Experience</div>${exp.map(e=>xp_(e,'#0f172a','#94a3b8','#374151')).join('')}${projLight}</div></div>`,
-
-      copper2: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;padding:44px 50px;"><div style="border-left:6px solid #b45309;padding-left:22px;margin-bottom:22px;"><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#1c1917;margin-bottom:4px;">${nm}</div><div style="font-size:13px;color:#b45309;font-weight:600;">${titleStr}</div></div><div style="display:flex;flex-wrap:wrap;gap:16px;font-size:10.5px;color:#a8a29e;margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid #e7e5e4;">${ctc.map(x=>'<span>'+x+'</span>').join('')}</div><p style="font-size:11.5px;color:#44403c;line-height:1.75;margin-bottom:22px;">${sumStr}</p><div style="display:grid;grid-template-columns:1fr 185px;gap:28px;"><div><div style="font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#b45309;margin-bottom:10px;padding-bottom:5px;border-bottom:1.5px solid #b45309;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #f5f5f4;"><div style="font-size:12.5px;font-weight:700;color:#1c1917;">'+(e.title||'')+'</div><div style="font-size:10.5px;color:#b45309;font-style:italic;margin-bottom:4px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#44403c;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projLight}</div><div><div style="font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#b45309;margin-bottom:10px;padding-bottom:5px;border-bottom:1.5px solid #b45309;">Skills</div>${sk.map(s=>'<div style="font-size:11px;color:#44403c;padding:5px 0;border-bottom:1px solid #f5f5f4;">'+s+'</div>').join('')}<div style="font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#b45309;margin:16px 0 10px;padding-bottom:5px;border-bottom:1.5px solid #b45309;">Education</div><div style="font-size:12px;font-weight:700;color:#1c1917;">${edu.degree}</div><div style="font-size:10.5px;color:#a8a29e;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      neon: () => `<div style="width:700px;background:#030712;font-family:'${fontFamily}',sans-serif;min-height:990px;"><div style="padding:36px 38px 24px;"><div style="font-size:9px;font-weight:800;letter-spacing:.24em;text-transform:uppercase;color:#10b981;margin-bottom:10px;">${titleStr}</div><div style="font-family:'DM Serif Display',serif;font-size:38px;color:#f9fafb;margin-bottom:12px;">${nm}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:#1f2937;">'+x+'</span>').join('')}</div></div><div style="margin:0 38px;height:1px;background:#10b981;opacity:.3;"></div><div style="display:grid;grid-template-columns:1fr 205px;padding:0 38px;"><div style="padding:22px 22px 22px 0;border-right:1px solid #111827;"><div style="font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#10b981;margin-bottom:9px;">Profile</div><p style="font-size:11.5px;color:#9ca3af;line-height:1.7;margin-bottom:18px;">${sumStr}</p><div style="font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#10b981;margin-bottom:9px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #111827;"><div style="font-size:12.5px;font-weight:700;color:#f9fafb;">'+(e.title||'')+'</div><div style="font-size:10.5px;color:#10b981;margin-bottom:4px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#374151;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projDark}</div><div style="padding:22px 0 22px 20px;"><div style="font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#10b981;margin-bottom:10px;">Skills</div>${sk.map(s=>'<span style="display:inline-block;background:#0d1117;border:1px solid #10b981;color:#10b981;font-size:9.5px;padding:2px 8px;border-radius:3px;margin:2px 3px 2px 0;">'+s+'</span>').join('')}<div style="font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#10b981;margin:18px 0 9px;">Education</div><div style="font-size:11px;font-weight:600;color:#f9fafb;">${edu.degree}</div><div style="font-size:10px;color:#374151;margin-top:3px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      blush: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;"><div style="background:linear-gradient(160deg,#fdf2f8,#fce7f3,#fdf4ff);padding:36px 40px 24px;border-bottom:2px solid #f9a8d4;"><div style="display:flex;align-items:center;gap:18px;"><div style="width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,#ec4899,#a855f7);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:#fff;font-family:'DM Serif Display',serif;flex-shrink:0;">${init}</div><div><div style="font-family:'DM Serif Display',serif;font-size:30px;color:#831843;margin-bottom:3px;">${nm}</div><div style="font-size:12px;color:#ec4899;font-weight:600;">${titleStr}</div></div></div><div style="display:flex;flex-wrap:wrap;gap:16px;margin-top:14px;">${ctc.map(x=>'<span style="font-size:10.5px;color:#f9a8d4;">'+x+'</span>').join('')}</div></div><div style="display:grid;grid-template-columns:1fr 195px;"><div style="padding:24px 26px;border-right:1px solid #fce7f3;">${sh_('About','#ec4899','#fce7f3')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#ec4899','#fce7f3')}${exp.map(e=>xp_(e,'#831843','#f9a8d4','#6b7280')).join('')}${projLight}</div><div style="padding:24px 18px;background:#fdf8ff;">${sh_('Skills','#a855f7','#f3e8ff')}<div>${skillSection('#fce7f3','#ec4899')}</div>${sh_('Education','#a855f7','#f3e8ff')}<div style="font-size:11.5px;font-weight:600;color:#831843;">${edu.degree}</div><div style="font-size:10.5px;color:#f9a8d4;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      sand: () => `<div style="width:700px;background:#faf6f1;font-family:'${fontFamily}',sans-serif;padding:44px 50px;"><div style="text-align:center;margin-bottom:24px;"><div style="font-family:'DM Serif Display',serif;font-size:40px;color:#3d2b1a;letter-spacing:-.02em;margin-bottom:6px;">${nm}</div><div style="font-size:11px;color:#92400e;letter-spacing:.14em;text-transform:uppercase;margin-bottom:12px;">${titleStr}</div><div style="display:flex;justify-content:center;gap:18px;font-size:10.5px;color:#a8956e;flex-wrap:wrap;">${ctc.map(x=>'<span>'+x+'</span>').join('')}</div></div><div style="height:1px;background:linear-gradient(90deg,transparent,#c8a87a,transparent);margin-bottom:22px;"></div><p style="font-size:11.5px;color:#5c4033;line-height:1.8;text-align:center;max-width:500px;margin:0 auto 24px;">${sumStr}</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;"><div><div style="font-size:9px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#92400e;margin-bottom:10px;padding-bottom:4px;border-bottom:2px solid #c8a87a;">Experience</div>${exp.map(e=>'<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #e8d5c0;"><div style="font-size:12.5px;font-weight:700;color:#3d2b1a;">'+(e.title||'')+'</div><div style="font-size:10px;color:#a8956e;font-style:italic;margin-bottom:3px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#5c4033;line-height:1.6;">'+(e.desc||'')+'</div></div>').join('')}${projLight}</div><div><div style="font-size:9px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#92400e;margin-bottom:10px;padding-bottom:4px;border-bottom:2px solid #c8a87a;">Skills</div><div style="margin-bottom:16px;">${skillSection('#f3e0c8','#92400e')}</div><div style="font-size:9px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#92400e;margin-bottom:8px;padding-bottom:4px;border-bottom:2px solid #c8a87a;">Education</div><div style="font-size:12px;font-weight:700;color:#3d2b1a;">${edu.degree}</div><div style="font-size:10.5px;color:#a8956e;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${lang.length?'<div style="font-size:9px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#92400e;margin:14px 0 8px;padding-bottom:4px;border-bottom:2px solid #c8a87a;">Languages</div>'+lang.map(l=>'<div style="font-size:11px;color:#5c4033;margin-bottom:4px;">'+l.name+' — '+l.level+'</div>').join(''):''}</div></div></div>`,
-
-      phantom: () => `<div style="width:700px;background:#111;font-family:'${fontFamily}',sans-serif;min-height:990px;"><div style="padding:36px 38px 24px;position:relative;"><div style="position:absolute;top:0;left:38px;width:2px;height:100%;background:linear-gradient(180deg,#fff,rgba(255,255,255,0));opacity:.08;"></div><div style="font-size:10px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#555;margin-bottom:10px;">${titleStr}</div><div style="font-family:'DM Serif Display',serif;font-size:38px;color:#fff;margin-bottom:14px;">${nm}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:#333;">'+x+'</span>').join('')}</div></div><div style="display:grid;grid-template-columns:1fr 200px;padding:0 38px 32px;gap:24px;"><div><div style="font-size:8.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#888;margin-bottom:9px;padding-bottom:5px;border-bottom:1px solid #222;">Profile</div><p style="font-size:11.5px;color:#999;line-height:1.7;margin-bottom:18px;">${sumStr}</p><div style="font-size:8.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#888;margin-bottom:9px;padding-bottom:5px;border-bottom:1px solid #222;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #1a1a1a;"><div style="font-size:12.5px;font-weight:700;color:#fff;">'+(e.title||'')+'</div><div style="font-size:10.5px;color:#555;margin-bottom:4px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#4a4a4a;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projDark}</div><div><div style="font-size:8.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#888;margin-bottom:9px;padding-bottom:5px;border-bottom:1px solid #222;">Skills</div>${sk.map(s=>'<div style="font-size:10.5px;color:#666;padding:5px 0;border-bottom:1px solid #1a1a1a;">'+s+'</div>').join('')}<div style="font-size:8.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#888;margin:18px 0 9px;padding-bottom:5px;border-bottom:1px solid #222;">Education</div><div style="font-size:11px;font-weight:600;color:#fff;">${edu.degree}</div><div style="font-size:10px;color:#555;margin-top:3px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      electric: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;"><div style="background:#0ea5e9;padding:34px 40px 22px;"><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#fff;margin-bottom:5px;">${nm}</div><div style="font-size:11px;color:rgba(255,255,255,.6);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:rgba(255,255,255,.4);">'+x+'</span>').join('')}</div></div><div style="height:4px;background:linear-gradient(90deg,#0284c7,#06b6d4,#67e8f9,#06b6d4,#0284c7);"></div><div style="display:grid;grid-template-columns:1fr 200px;"><div style="padding:24px 26px;border-right:1px solid #e0f2fe;">${sh_('Profile','#0ea5e9','#e0f2fe')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#0ea5e9','#e0f2fe')}${exp.map(e=>xp_(e,'#0c4a6e','#7dd3fc','#6b7280')).join('')}${projLight}</div><div style="padding:24px 18px;background:#f0f9ff;">${sh_('Skills','#0ea5e9','#bae6fd')}${skillSection('#0ea5e9','#bae6fd')}${sh_('Education','#0ea5e9','#bae6fd')}<div style="font-size:11.5px;font-weight:600;color:#0c4a6e;">${edu.degree}</div><div style="font-size:10.5px;color:#7dd3fc;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${langFallbackHtml}${cert.length?sh('Certifications','#0ea5e9','#bae6fd')+cert.map(c=>'<div style="font-size:10.5px;color:#374151;margin-bottom:4px;">'+c+'</div>').join(''):''}</div></div></div>`,
-
-      luxe: () => `<div style="width:700px;background:#0c0a06;font-family:'${fontFamily}',sans-serif;min-height:990px;"><div style="padding:40px 40px 0;"><div style="border-top:1px solid #c9a84c;padding-top:18px;display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:18px;"><div><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#c9a84c;letter-spacing:-.01em;">${nm}</div><div style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#5a4a2a;margin-top:4px;">${titleStr}</div></div><div style="text-align:right;">${ctc.map(x=>'<div style="font-size:10px;color:#3a2e1a;margin-bottom:2px;">'+x+'</div>').join('')}</div></div><div style="border-bottom:1px solid #1a1408;margin-bottom:22px;"></div></div><div style="display:grid;grid-template-columns:1fr 200px;padding:0 40px 36px;gap:28px;"><div><div style="font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#c9a84c;margin-bottom:9px;">Profile</div><p style="font-size:11.5px;color:#8a7a5a;line-height:1.7;margin-bottom:18px;">${sumStr}</p><div style="font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#c9a84c;margin-bottom:9px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #1a1408;"><div style="font-size:12.5px;font-weight:700;color:#c9a84c;">'+(e.title||'')+'</div><div style="font-size:10.5px;color:#3a2e1a;margin-bottom:4px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#6b5a3a;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projLight}</div><div><div style="font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#c9a84c;margin-bottom:10px;">Skills</div>${sk.map((s,i)=>'<div style="margin-bottom:8px;"><div style="font-size:10.5px;color:#6b5a3a;margin-bottom:3px;">'+s+'</div><div style="height:2px;background:#1a1408;border-radius:1px;"><div style="width:'+pct_(i)+'%;height:100%;background:#c9a84c;border-radius:1px;"></div></div></div>').join('')}<div style="font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#c9a84c;margin:18px 0 9px;">Education</div><div style="font-size:11px;font-weight:600;color:#c9a84c;">${edu.degree}</div><div style="font-size:10px;color:#3a2e1a;margin-top:3px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      mono: () => `<div style="width:700px;background:#fff;font-family:'JetBrains Mono',monospace;padding:40px 44px;"><div style="border:2px solid #000;padding:20px;margin-bottom:24px;"><div style="font-size:28px;font-weight:700;color:#000;margin-bottom:4px;letter-spacing:-.02em;">${nm}</div><div style="font-size:11px;color:#666;margin-bottom:10px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:14px;">${ctc.map(x=>'<span style="font-size:9.5px;color:#999;">'+x+'</span>').join('')}</div></div><p style="font-size:11px;color:#333;line-height:1.8;margin-bottom:22px;border-left:3px solid #000;padding-left:14px;">${sumStr}</p><div style="display:grid;grid-template-columns:1fr 175px;gap:24px;"><div><div style="font-size:8.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;border-bottom:2px solid #000;padding-bottom:4px;margin-bottom:12px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #eee;"><div style="font-size:12px;font-weight:700;color:#000;">'+(e.title||'')+'</div><div style="font-size:9.5px;color:#666;margin-bottom:4px;">'+(e.company||'')+(e.period?' — '+e.period:'')+'</div><div style="font-size:10.5px;color:#333;line-height:1.6;">'+(e.desc||'')+'</div></div>').join('')}${projLight}</div><div><div style="font-size:8.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;border-bottom:2px solid #000;padding-bottom:4px;margin-bottom:12px;">Skills</div>${sk.map(s=>'<div style="font-size:10px;color:#333;padding:3px 0;border-bottom:1px dashed #ccc;">'+s+'</div>').join('')}<div style="font-size:8.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;border-bottom:2px solid #000;padding-bottom:4px;margin:14px 0 10px;">Education</div><div style="font-size:11px;font-weight:700;color:#000;">${edu.degree}</div><div style="font-size:9.5px;color:#666;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      wave: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;"><div style="background:#1e40af;padding:32px 38px 64px;position:relative;overflow:hidden;"><div style="position:absolute;bottom:-2px;left:0;right:0;"><svg viewBox="0 0 700 60" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;"><path d="M0,30 C175,60 350,0 525,30 C612,45 656,40 700,30 L700,60 L0,60 Z" fill="#fff"/></svg></div><div style="font-family:'DM Serif Display',serif;font-size:34px;color:#fff;margin-bottom:5px;">${nm}</div><div style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:rgba(255,255,255,.4);">'+x+'</span>').join('')}</div></div><div style="padding:20px 38px 32px;"><div style="display:grid;grid-template-columns:1fr 190px;gap:26px;"><div>${sh_('Summary','#1e40af','#dbeafe')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#1e40af','#dbeafe')}${exp.map(e=>xp_(e,'#1e3a8a','#93c5fd','#4b5563')).join('')}${projLight}</div><div>${sh_('Skills','#1e40af','#dbeafe')}<div style="margin-bottom:4px;">${skillSection('#dbeafe','#1e40af')}</div>${sh_('Education','#1e40af','#dbeafe')}<div style="font-size:11.5px;font-weight:600;color:#1e3a8a;">${edu.degree}</div><div style="font-size:10.5px;color:#93c5fd;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${lang.length?sh('Languages','#1e40af','#dbeafe')+lang.map(l=>'<div style="font-size:11px;color:#374151;margin-bottom:4px;">'+l.name+' — '+l.level+'</div>').join(''):''}</div></div></div></div>`,
-
-
-tealwave: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;"><div style="background:#0d9488;padding:32px 38px 60px;position:relative;overflow:hidden;"><div style="position:absolute;bottom:-2px;left:0;right:0;"><svg viewBox="0 0 700 50" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;"><path d="M0,25 C150,50 350,0 550,30 C630,42 670,38 700,25 L700,50 L0,50 Z" fill="#fff"/></svg></div><div style="font-family:'DM Serif Display',serif;font-size:34px;color:#fff;margin-bottom:5px;">${nm}</div><div style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:rgba(255,255,255,.4);">'+x+'</span>').join('')}${projLight}</div></div><div style="padding:16px 38px 32px;"><div style="display:grid;grid-template-columns:1fr 190px;gap:26px;"><div>${sh_('Summary','#0d9488','#ccfbf1')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#0d9488','#ccfbf1')}${exp.map(e=>xp_(e,'#134e4a','#5eead4','#4b5563')).join('')}${projLight}</div><div>${sh_('Skills','#0d9488','#ccfbf1')}<div style="margin-bottom:4px;">${skillSection('#ccfbf1','#0d9488')}</div>${sh_('Education','#0d9488','#ccfbf1')}<div style="font-size:11.5px;font-weight:600;color:#134e4a;">${edu.degree}</div><div style="font-size:10.5px;color:#5eead4;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${lang.length?sh('Languages','#0d9488','#ccfbf1')+lang.map(l=>'<div style="font-size:11px;color:#374151;margin-bottom:4px;">'+l.name+' — '+l.level+'</div>').join(''):''}</div></div></div></div>`,
-
-      navy: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;display:grid;grid-template-columns:200px 1fr;min-height:990px;"><div style="background:#0f172a;padding:30px 18px;"><div style="font-family:'DM Serif Display',serif;font-size:18px;color:#fff;margin-bottom:2px;line-height:1.2;">${nm}</div><div style="font-size:10px;color:#3b82f6;font-weight:600;margin-bottom:18px;letter-spacing:.04em;">${titleStr}</div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#1e3a5f;margin-bottom:8px;">Contact</div>${ctc.map(x=>'<div style="font-size:9.5px;color:#475569;margin-bottom:5px;word-break:break-all;">'+x+'</div>').join('')}${projLight}<div style="height:1px;background:#1e293b;margin:14px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#1e3a5f;margin-bottom:10px;">Skills</div>${sk.map((s,i)=>'<div style="margin-bottom:7px;"><div style="font-size:10px;color:#64748b;margin-bottom:3px;">'+s+'</div><div style="height:2px;background:#1e293b;border-radius:1px;"><div style="width:'+pct_(i)+'%;height:100%;background:#3b82f6;border-radius:1px;"></div></div></div>').join('')}<div style="height:1px;background:#1e293b;margin:14px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#1e3a5f;margin-bottom:8px;">Education</div><div style="font-size:11px;font-weight:600;color:#e2e8f0;">${edu.degree}</div><div style="font-size:10px;color:#475569;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}</div><div style="padding:28px 24px;background:#fff;"><div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#0f172a;border-bottom:2px solid #e2e8f0;padding-bottom:5px;margin-bottom:12px;">Profile</div><p style="font-size:11.5px;color:#374151;line-height:1.7;margin-bottom:20px;">${sumStr}</p><div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#0f172a;border-bottom:2px solid #e2e8f0;padding-bottom:5px;margin-bottom:12px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #f1f5f9;"><div style="display:flex;justify-content:space-between;align-items:baseline;"><div style="font-size:12.5px;font-weight:700;color:#0f172a;">'+(e.title||'')+'</div><div style="font-size:10px;color:#3b82f6;font-weight:600;">'+(e.period||'')+'</div></div><div style="font-size:10.5px;color:#64748b;font-style:italic;margin-bottom:4px;">'+(e.company||'')+'</div><div style="font-size:11px;color:#374151;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${cert.length?'<div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#0f172a;border-bottom:2px solid #e2e8f0;padding-bottom:5px;margin:16px 0 10px;">Certifications</div>'+cert.map(c=>'<div style="font-size:11px;color:#374151;margin-bottom:4px;">'+c+'</div>').join(''):''}</div></div>`,
-
-      violet2: () => `<div style="width:700px;background:#faf5ff;font-family:'${fontFamily}',sans-serif;padding:44px 50px;"><div style="display:flex;align-items:flex-start;gap:20px;margin-bottom:22px;padding-bottom:22px;border-bottom:2px solid #d8b4fe;"><div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff;font-family:'DM Serif Display',serif;flex-shrink:0;">${init}</div><div style="flex:1;"><div style="font-family:'DM Serif Display',serif;font-size:30px;color:#3b0764;margin-bottom:3px;">${nm}</div><div style="font-size:12.5px;color:#7c3aed;font-weight:600;">${titleStr}</div></div><div style="text-align:right;padding-top:4px;">${ctc.map(x=>'<div style="font-size:10px;color:#c4b5fd;margin-bottom:2px;">'+x+'</div>').join('')}${projLight}</div></div><p style="font-size:11.5px;color:#4b5563;line-height:1.75;margin-bottom:22px;">${sumStr}</p><div style="display:grid;grid-template-columns:1fr 185px;gap:28px;"><div><div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#7c3aed;border-bottom:2px solid #d8b4fe;padding-bottom:4px;margin-bottom:12px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #ede9fe;"><div style="display:flex;justify-content:space-between;align-items:baseline;"><div style="font-size:12.5px;font-weight:700;color:#3b0764;">'+(e.title||'')+'</div><div style="font-size:10px;color:#c4b5fd;">'+(e.period||'')+'</div></div><div style="font-size:10.5px;color:#a78bfa;font-style:italic;margin-bottom:4px;">'+(e.company||'')+'</div><div style="font-size:11px;color:#4b5563;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}</div><div><div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#7c3aed;border-bottom:2px solid #d8b4fe;padding-bottom:4px;margin-bottom:12px;">Skills</div><div style="margin-bottom:4px;">${skillSection('#ede9fe','#7c3aed')}</div><div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#7c3aed;border-bottom:2px solid #d8b4fe;padding-bottom:4px;margin:16px 0 10px;">Education</div><div style="font-size:12px;font-weight:700;color:#3b0764;">${edu.degree}</div><div style="font-size:10.5px;color:#c4b5fd;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      midnight2: () => `<div style="width:700px;background:#000;font-family:'${fontFamily}',sans-serif;min-height:990px;"><div style="padding:40px 40px 24px;border-bottom:1px solid #111;"><div style="font-family:'DM Serif Display',serif;font-size:38px;color:#fff;letter-spacing:-.02em;margin-bottom:5px;">${nm}</div><div style="font-size:10px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:#333;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10px;color:#222;">'+x+'</span>').join('')}</div></div><div style="display:grid;grid-template-columns:1fr 195px;padding:0 40px;"><div style="padding:22px 22px 22px 0;border-right:1px solid #111;"><div style="font-size:8px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:#555;margin-bottom:9px;">Profile</div><p style="font-size:11.5px;color:#888;line-height:1.7;margin-bottom:18px;">${sumStr}</p><div style="font-size:8px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:#555;margin-bottom:9px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #111;"><div style="font-size:12.5px;font-weight:700;color:#fff;">'+(e.title||'')+'</div><div style="font-size:10.5px;color:#333;margin-bottom:4px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#3a3a3a;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projDark}</div><div style="padding:22px 0 22px 20px;"><div style="font-size:8px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:#555;margin-bottom:10px;">Skills</div>${sk.map(s=>'<div style="font-size:10.5px;color:#444;padding:5px 0;border-bottom:1px solid #111;">'+s+'</div>').join('')}<div style="font-size:8px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:#555;margin:18px 0 9px;">Education</div><div style="font-size:11px;font-weight:600;color:#fff;">${edu.degree}</div><div style="font-size:10px;color:#333;margin-top:3px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      glacier: () => `<div style="width:700px;background:#f0f9ff;font-family:'${fontFamily}',sans-serif;padding:44px 50px;"><div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;padding-bottom:20px;border-bottom:2px solid #7dd3fc;"><div><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#0c4a6e;letter-spacing:-.01em;margin-bottom:4px;">${nm}</div><div style="font-size:13px;color:#0284c7;font-weight:600;">${titleStr}</div></div><div style="text-align:right;padding-top:6px;">${ctc.map(x=>'<div style="font-size:10.5px;color:#7dd3fc;margin-bottom:2px;">'+x+'</div>').join('')}</div></div><p style="font-size:11.5px;color:#164e63;line-height:1.75;margin-bottom:22px;">${sumStr}</p><div style="display:grid;grid-template-columns:1fr 185px;gap:28px;"><div><div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#0284c7;border-bottom:2px solid #7dd3fc;padding-bottom:4px;margin-bottom:12px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #e0f2fe;"><div style="display:flex;justify-content:space-between;align-items:baseline;"><div style="font-size:12.5px;font-weight:700;color:#0c4a6e;">'+(e.title||'')+'</div><div style="font-size:10px;color:#7dd3fc;">'+(e.period||'')+'</div></div><div style="font-size:10.5px;color:#0284c7;font-style:italic;margin-bottom:4px;">'+(e.company||'')+'</div><div style="font-size:11px;color:#164e63;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projLight}</div><div><div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#0284c7;border-bottom:2px solid #7dd3fc;padding-bottom:4px;margin-bottom:12px;">Skills</div>${skillSection('#0284c7','#bae6fd')}<div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#0284c7;border-bottom:2px solid #7dd3fc;padding-bottom:4px;margin:16px 0 10px;">Education</div><div style="font-size:12px;font-weight:700;color:#0c4a6e;">${edu.degree}</div><div style="font-size:10.5px;color:#7dd3fc;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      lava: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;"><div style="background:linear-gradient(135deg,#450a0a,#7f1d1d,#991b1b,#b91c1c);padding:36px 40px 26px;"><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#fff;margin-bottom:5px;">${nm}</div><div style="font-size:11px;color:rgba(255,255,255,.5);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:rgba(255,255,255,.35);">'+x+'</span>').join('')}</div></div><div style="height:3px;background:linear-gradient(90deg,#fbbf24,#f97316,#ef4444,#f97316,#fbbf24);"></div><div style="display:grid;grid-template-columns:1fr 195px;"><div style="padding:24px 26px;border-right:1px solid #fee2e2;">${sh_('Summary','#b91c1c','#fee2e2')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#b91c1c','#fee2e2')}${exp.map(e=>xp_(e,'#450a0a','#fca5a5','#6b7280')).join('')}${projLight}</div><div style="padding:24px 18px;background:#fff7f7;">${sh_('Skills','#b91c1c','#fecaca')}${skillSection('#b91c1c','#fecaca')}${sh_('Education','#b91c1c','#fecaca')}<div style="font-size:11.5px;font-weight:600;color:#450a0a;">${edu.degree}</div><div style="font-size:10.5px;color:#fca5a5;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${lang.length?sh('Languages','#b91c1c','#fecaca')+lang.map(l=>'<div style="font-size:11px;color:#6b7280;margin-bottom:4px;">'+l.name+' — '+l.level+'</div>').join(''):''}</div></div></div>`,
-
-      verdant: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;display:grid;grid-template-columns:210px 1fr;min-height:990px;"><div style="background:#14532d;padding:28px 18px;"><div style="font-size:17px;font-weight:700;color:#fff;margin-bottom:2px;font-family:'DM Serif Display',serif;">${nm}</div><div style="font-size:10px;color:#166534;margin-bottom:20px;">${titleStr}</div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#166534;margin-bottom:8px;">Contact</div>${ctc.map(x=>'<div style="font-size:9.5px;color:#4ade80;margin-bottom:5px;word-break:break-all;">'+x+'</div>').join('')}<div style="height:1px;background:#166534;margin:14px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#166534;margin-bottom:10px;">Skills</div>${sk.map((s,i)=>'<div style="margin-bottom:7px;"><div style="font-size:10px;color:#86efac;margin-bottom:3px;">'+s+'</div><div style="height:3px;background:#166534;border-radius:2px;"><div style="width:'+pct_(i)+'%;height:100%;background:#4ade80;border-radius:2px;"></div></div></div>').join('')}<div style="height:1px;background:#166534;margin:14px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#166534;margin-bottom:8px;">Education</div><div style="font-size:11px;font-weight:600;color:#fff;">${edu.degree}</div><div style="font-size:10px;color:#4ade80;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}</div><div style="padding:28px 26px;">${sh_('About','#16a34a','#dcfce7')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#16a34a','#dcfce7')}${exp.map(e=>xp_(e,'#14532d','#4ade80','#4b5563')).join('')}${projLight}${cert.length?sh('Certifications','#16a34a','#dcfce7')+cert.map(c=>'<div style="font-size:11px;color:#374151;margin-bottom:4px;">• '+c+'</div>').join(''):''}</div></div>`,
-
-      parchment: () => `<div style="width:700px;background:#fdf8f0;font-family:'DM Serif Display',serif;padding:50px 54px;"><div style="text-align:center;margin-bottom:24px;"><div style="font-size:42px;color:#2c1810;letter-spacing:-.01em;margin-bottom:6px;">${nm}</div><div style="font-family:'${fontFamily}',sans-serif;font-size:12px;color:#8b6914;font-weight:600;letter-spacing:.12em;text-transform:uppercase;margin-bottom:12px;">${titleStr}</div><div style="display:flex;justify-content:center;gap:20px;font-family:'${fontFamily}',sans-serif;font-size:10.5px;color:#a8956e;flex-wrap:wrap;">${ctc.map(x=>'<span>'+x+'</span>').join('')}${projLight}</div></div><div style="height:1px;background:linear-gradient(90deg,transparent,#c8a87a,#8b6914,#c8a87a,transparent);margin-bottom:22px;"></div><p style="font-family:'${fontFamily}',sans-serif;font-size:12px;color:#4a3520;line-height:1.8;text-align:center;max-width:500px;margin:0 auto 24px;font-style:italic;">${sumStr}</p><div style="height:1px;background:linear-gradient(90deg,transparent,#c8a87a,transparent);margin-bottom:22px;"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;"><div><div style="font-size:13px;color:#8b6914;border-bottom:1px solid #c8a87a;padding-bottom:6px;margin-bottom:12px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;"><div style="font-family:\'DM Sans\',sans-serif;font-size:12.5px;font-weight:700;color:#2c1810;">'+(e.title||'')+'</div><div style="font-family:\'DM Sans\',sans-serif;font-size:10px;color:#a8956e;font-style:italic;margin-bottom:4px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-family:\'DM Sans\',sans-serif;font-size:11px;color:#4a3520;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}</div><div><div style="font-size:13px;color:#8b6914;border-bottom:1px solid #c8a87a;padding-bottom:6px;margin-bottom:12px;">Skills</div><div style="font-family:'${fontFamily}',sans-serif;display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px;">${skillSection('#f3e0c8','#8b6914')}</div><div style="font-size:13px;color:#8b6914;border-bottom:1px solid #c8a87a;padding-bottom:6px;margin-bottom:10px;">Education</div><div style="font-family:'${fontFamily}',sans-serif;font-size:12px;font-weight:700;color:#2c1810;">${edu.degree}</div><div style="font-family:'${fontFamily}',sans-serif;font-size:10.5px;color:#a8956e;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      matrix: () => `<div style="width:700px;background:#0a0f0a;font-family:'JetBrains Mono',monospace;min-height:990px;"><div style="padding:36px 38px 24px;border-bottom:1px solid #0d2b0d;"><div style="font-size:11px;color:#15803d;margin-bottom:8px;letter-spacing:.1em;">$ whoami</div><div style="font-size:32px;font-weight:700;color:#22c55e;margin-bottom:4px;">${nm}</div><div style="font-size:10px;color:#166534;letter-spacing:.12em;margin-bottom:12px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:9.5px;color:#14532d;">'+x+'</span>').join('')}</div></div><div style="display:grid;grid-template-columns:1fr 200px;padding:0 38px;"><div style="padding:20px 20px 20px 0;border-right:1px solid #0d2b0d;"><div style="font-size:9px;color:#15803d;margin-bottom:8px;">$ cat profile.txt</div><p style="font-size:11px;color:#86efac;line-height:1.75;margin-bottom:18px;">${sumStr}</p><div style="font-size:9px;color:#15803d;margin-bottom:8px;">$ cat experience.log</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #0d2b0d;"><div style="font-size:12px;font-weight:700;color:#22c55e;">'+(e.title||'')+'</div><div style="font-size:9.5px;color:#166534;margin-bottom:4px;">'+(e.company||'')+(e.period?' // '+e.period:'')+'</div><div style="font-size:10.5px;color:#4ade80;line-height:1.6;">'+(e.desc||'')+'</div></div>').join('')}${projDark}</div><div style="padding:20px 0 20px 20px;"><div style="font-size:9px;color:#15803d;margin-bottom:8px;">$ ls skills/</div>${sk.map(s=>'<div style="font-size:10px;color:#4ade80;padding:3px 0;border-bottom:1px dashed #0d2b0d;">'+s+'</div>').join('')}<div style="font-size:9px;color:#15803d;margin:16px 0 8px;">$ cat education.txt</div><div style="font-size:11px;font-weight:700;color:#22c55e;">${edu.degree}</div><div style="font-size:9.5px;color:#166534;margin-top:3px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      retro: () => `<div style="width:700px;background:#fffbf0;font-family:'${fontFamily}',sans-serif;padding:0;"><div style="background:#1a0a00;padding:28px 36px;display:flex;align-items:center;justify-content:space-between;"><div><div style="font-family:'DM Serif Display',serif;font-size:32px;color:#f59e0b;margin-bottom:3px;">${nm}</div><div style="font-size:10px;color:#78350f;letter-spacing:.18em;text-transform:uppercase;">${titleStr}</div></div><div style="text-align:right;">${ctc.map(x=>'<div style="font-size:10px;color:#44403c;margin-bottom:2px;">'+x+'</div>').join('')}</div></div><div style="height:6px;background:repeating-linear-gradient(90deg,#f59e0b 0px,#f59e0b 20px,#1a0a00 20px,#1a0a00 22px);"></div><div style="display:grid;grid-template-columns:1fr 195px;"><div style="padding:22px 24px;border-right:2px dashed #d4a853;"><div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#92400e;margin-bottom:9px;padding-bottom:5px;border-bottom:2px solid #d4a853;">Profile</div><p style="font-size:11.5px;color:#44403c;line-height:1.7;margin-bottom:18px;">${sumStr}</p><div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#92400e;margin-bottom:9px;padding-bottom:5px;border-bottom:2px solid #d4a853;">Experience</div>${exp.map(e=>'<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px dashed #e8c87a;"><div style="font-size:12.5px;font-weight:700;color:#1a0a00;">'+(e.title||'')+'</div><div style="font-size:10.5px;color:#d4a853;margin-bottom:3px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#57534e;line-height:1.6;">'+(e.desc||'')+'</div></div>').join('')}${projLight}</div><div style="padding:22px 18px;background:#fef8e8;"><div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#92400e;margin-bottom:9px;padding-bottom:5px;border-bottom:2px solid #d4a853;">Skills</div>${skillSection('#d97706','#fde68a')}  <div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#92400e;margin:16px 0 9px;padding-bottom:5px;border-bottom:2px solid #d4a853;">Education</div><div style="font-size:11px;font-weight:600;color:#1a0a00;">${edu.degree}</div><div style="font-size:10px;color:#d4a853;margin-top:3px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      prism2: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;padding:0;"><div style="height:8px;background:linear-gradient(90deg,#ef4444,#f97316,#eab308,#22c55e,#06b6d4,#6366f1,#a855f7);"></div><div style="padding:32px 40px 22px;"><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#0f172a;margin-bottom:5px;">${nm}</div><div style="font-size:12px;color:#64748b;font-weight:600;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:#94a3b8;">'+x+'</span>').join('')}</div></div><div style="display:grid;grid-template-columns:1fr 200px;padding:0 40px 32px;gap:24px;"><div>${sh_('Summary','#6366f1','#e0e7ff')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#6366f1','#e0e7ff')}${exp.map(e=>xp_(e,'#0f172a','#818cf8','#6b7280')).join('')}${projLight}</div><div>${sh_('Skills','#6366f1','#e0e7ff')}<div style="margin-bottom:4px;">${skillSection('#e0e7ff','#6366f1')}</div>${sh_('Education','#6366f1','#e0e7ff')}<div style="font-size:11.5px;font-weight:600;color:#0f172a;">${edu.degree}</div><div style="font-size:10.5px;color:#818cf8;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${lang.length?sh('Languages','#6366f1','#e0e7ff')+lang.map(l=>'<div style="font-size:11px;color:#374151;margin-bottom:4px;">'+l.name+' — '+l.level+'</div>').join(''):''}</div></div></div>`,
-
-      zinc: () => `<div style="width:700px;background:#18181b;font-family:'${fontFamily}',sans-serif;min-height:990px;"><div style="padding:36px 38px 24px;"><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#fafafa;margin-bottom:5px;">${nm}</div><div style="font-size:10px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#52525b;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:#3f3f46;">'+x+'</span>').join('')}</div></div><div style="margin:0 38px;height:1px;background:#27272a;"></div><div style="display:grid;grid-template-columns:1fr 200px;padding:0 38px;"><div style="padding:22px 22px 22px 0;border-right:1px solid #27272a;"><div style="font-size:8.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#71717a;margin-bottom:9px;">Profile</div><p style="font-size:11.5px;color:#a1a1aa;line-height:1.7;margin-bottom:18px;">${sumStr}</p><div style="font-size:8.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#71717a;margin-bottom:9px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #27272a;"><div style="font-size:12.5px;font-weight:700;color:#fafafa;">'+(e.title||'')+'</div><div style="font-size:10.5px;color:#52525b;margin-bottom:4px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#52525b;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projDark}</div><div style="padding:22px 0 22px 20px;"><div style="font-size:8.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#71717a;margin-bottom:10px;">Skills</div>${sk.map((s,i)=>'<div style="margin-bottom:8px;"><div style="font-size:10.5px;color:#71717a;margin-bottom:3px;">'+s+'</div><div style="height:2px;background:#27272a;border-radius:1px;"><div style="width:'+pct_(i)+'%;height:100%;background:#a1a1aa;border-radius:1px;"></div></div></div>').join('')}<div style="font-size:8.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#71717a;margin:18px 0 9px;">Education</div><div style="font-size:11px;font-weight:600;color:#fafafa;">${edu.degree}</div><div style="font-size:10px;color:#52525b;margin-top:3px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-
-      coral: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;"><div style="background:linear-gradient(135deg,#c2410c,#ea580c,#fb923c);padding:34px 40px 22px;"><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#fff;margin-bottom:5px;">${nm}</div><div style="font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:rgba(255,255,255,.4);">'+x+'</span>').join('')}</div></div><div style="display:grid;grid-template-columns:1fr 195px;"><div style="padding:24px 26px;border-right:1px solid #ffedd5;">${sh_('Profile','#ea580c','#ffedd5')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#ea580c','#ffedd5')}${exp.map(e=>xp_(e,'#431407','#fdba74','#6b7280')).join('')}${projLight}</div><div style="padding:24px 18px;background:#fff7ed;">${sh_('Skills','#ea580c','#fed7aa')}<div style="margin-bottom:4px;">${skillSection('#ffedd5','#ea580c')}</div>${sh_('Education','#ea580c','#fed7aa')}<div style="font-size:11.5px;font-weight:600;color:#431407;">${edu.degree}</div><div style="font-size:10.5px;color:#fdba74;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${lang.length?sh('Languages','#ea580c','#fed7aa')+lang.map(l=>'<div style="font-size:11px;color:#6b7280;margin-bottom:4px;">'+l.name+' — '+l.level+'</div>').join(''):''}</div></div></div>`,
-
-      tan: () => `<div style="width:700px;background:#fdf8f2;font-family:'${fontFamily}',sans-serif;padding:44px 50px;"><div style="display:grid;grid-template-columns:1fr auto;gap:20px;align-items:flex-start;margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #e5d5c0;"><div><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#2c1a0e;margin-bottom:4px;">${nm}</div><div style="font-size:13px;color:#a0522d;font-weight:600;">${titleStr}</div></div><div style="text-align:right;">${ctc.map(x=>'<div style="font-size:10px;color:#c4956a;margin-bottom:2px;">'+x+'</div>').join('')}</div></div><p style="font-size:11.5px;color:#5c3d2e;line-height:1.75;margin-bottom:22px;">${sumStr}</p><div style="display:grid;grid-template-columns:1fr 180px;gap:28px;"><div><div style="font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#a0522d;border-bottom:1.5px solid #e5d5c0;padding-bottom:4px;margin-bottom:12px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #f0e6d8;"><div style="font-size:12.5px;font-weight:700;color:#2c1a0e;">'+(e.title||'')+'</div><div style="font-size:10.5px;color:#a0522d;font-style:italic;margin-bottom:4px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#5c3d2e;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projLight}</div><div><div style="font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#a0522d;border-bottom:1.5px solid #e5d5c0;padding-bottom:4px;margin-bottom:12px;">Skills</div>${skillSection('#a0522d','#e5d5c0')}<div style="font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#a0522d;border-bottom:1.5px solid #e5d5c0;padding-bottom:4px;margin:16px 0 10px;">Education</div><div style="font-size:12px;font-weight:700;color:#2c1a0e;">${edu.degree}</div><div style="font-size:10.5px;color:#c4956a;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      slate4: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;"><div style="background:#334155;padding:34px 40px 22px;"><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#fff;margin-bottom:5px;">${nm}</div><div style="font-size:11px;color:rgba(255,255,255,.45);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:rgba(255,255,255,.35);">'+x+'</span>').join('')}</div></div><div style="height:4px;background:linear-gradient(90deg,#38bdf8,#818cf8,#c084fc);"></div><div style="display:grid;grid-template-columns:1fr 195px;"><div style="padding:24px 26px;border-right:1px solid #f1f5f9;">${sh_('Summary','#334155','#f1f5f9')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#334155','#f1f5f9')}${exp.map(e=>xp_(e,'#0f172a','#94a3b8','#6b7280')).join('')}${projLight}</div><div style="padding:24px 18px;background:#f8fafc;">${sh_('Skills','#334155','#e2e8f0')}${skillSection('#38bdf8','#e0f2fe')}${sh_('Education','#334155','#e2e8f0')}<div style="font-size:11.5px;font-weight:600;color:#0f172a;">${edu.degree}</div><div style="font-size:10.5px;color:#94a3b8;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${cert.length?sh('Certifications','#334155','#e2e8f0')+cert.map(c=>'<div style="font-size:10.5px;color:#374151;margin-bottom:4px;">'+c+'</div>').join(''):''}</div></div></div>`,
-
-      clay: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;display:grid;grid-template-columns:195px 1fr;min-height:990px;"><div style="background:#d97706;padding:28px 18px;"><div style="font-size:17px;font-weight:700;color:#fff;margin-bottom:2px;font-family:'DM Serif Display',serif;">${nm}</div><div style="font-size:10px;color:rgba(255,255,255,.6);margin-bottom:18px;">${titleStr}</div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:8px;">Contact</div>${ctc.map(x=>'<div style="font-size:9.5px;color:rgba(255,255,255,.75);margin-bottom:5px;word-break:break-all;">'+x+'</div>').join('')}<div style="height:1px;background:rgba(255,255,255,.2);margin:14px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:10px;">Skills</div>${skillSection('rgba(255,255,255,.15)','#fff')}<div style="height:1px;background:rgba(255,255,255,.2);margin:14px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:8px;">Education</div><div style="font-size:11px;font-weight:600;color:#fff;">${edu.degree}</div><div style="font-size:10px;color:rgba(255,255,255,.6);margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}</div><div style="padding:28px 26px;">${sh_('About','#d97706','#fef3c7')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#d97706','#fef3c7')}${exp.map(e=>xp_(e,'#92400e','#fbbf24','#6b7280')).join('')}${projLight}${cert.length?sh('Certifications','#d97706','#fef3c7')+cert.map(c=>'<div style="font-size:11px;color:#374151;margin-bottom:4px;">• '+c+'</div>').join(''):''}</div></div>`,
-
-      frost: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;padding:44px 50px;"><div style="text-align:center;margin-bottom:22px;"><div style="width:80px;height:80px;border-radius:24px;background:linear-gradient(135deg,#e0e7ff,#c7d2fe);display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:700;color:#4338ca;font-family:'DM Serif Display',serif;margin:0 auto 14px;">${init}</div><div style="font-family:'DM Serif Display',serif;font-size:34px;color:#1e1b4b;margin-bottom:5px;">${nm}</div><div style="font-size:12px;color:#6366f1;font-weight:600;margin-bottom:12px;">${titleStr}</div><div style="display:flex;justify-content:center;gap:16px;font-size:10.5px;color:#a5b4fc;flex-wrap:wrap;">${ctc.map(x=>'<span>'+x+'</span>').join('')}</div></div><div style="height:2px;background:linear-gradient(90deg,transparent,#6366f1,transparent);margin-bottom:22px;"></div><p style="font-size:11.5px;color:#374151;line-height:1.75;text-align:center;max-width:490px;margin:0 auto 24px;">${sumStr}</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;"><div><div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#6366f1;margin-bottom:10px;padding-bottom:4px;border-bottom:2px solid #e0e7ff;">Experience</div>${exp.map(e=>'<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #f5f3ff;"><div style="font-size:12.5px;font-weight:700;color:#1e1b4b;">'+(e.title||'')+'</div><div style="font-size:10px;color:#a5b4fc;font-style:italic;margin-bottom:3px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#374151;line-height:1.6;">'+(e.desc||'')+'</div></div>').join('')}${projLight}</div><div><div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#6366f1;margin-bottom:10px;padding-bottom:4px;border-bottom:2px solid #e0e7ff;">Skills</div><div style="margin-bottom:18px;">${skillSection('#ede9fe','#6366f1')}</div><div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#6366f1;margin-bottom:8px;padding-bottom:4px;border-bottom:2px solid #e0e7ff;">Education</div><div style="font-size:12px;font-weight:700;color:#1e1b4b;">${edu.degree}</div><div style="font-size:10.5px;color:#a5b4fc;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${lang.length?'<div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#6366f1;margin:14px 0 8px;padding-bottom:4px;border-bottom:2px solid #e0e7ff;">Languages</div>'+lang.map(l=>'<div style="font-size:11px;color:#374151;margin-bottom:4px;">'+l.name+' — '+l.level+'</div>').join(''):''}</div></div></div>`,
-
-      steel: () => `<div style="width:700px;background:#f1f5f9;font-family:'${fontFamily}',sans-serif;padding:44px 50px;"><div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;padding-bottom:20px;border-bottom:3px solid #64748b;"><div><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#0f172a;margin-bottom:4px;">${nm}</div><div style="font-size:13px;color:#475569;font-weight:600;">${titleStr}</div></div><div style="text-align:right;padding-top:6px;">${ctc.map(x=>'<div style="font-size:10.5px;color:#94a3b8;margin-bottom:2px;">'+x+'</div>').join('')}</div></div><p style="font-size:11.5px;color:#334155;line-height:1.75;margin-bottom:22px;">${sumStr}</p><div style="display:grid;grid-template-columns:1fr 185px;gap:28px;"><div><div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#64748b;border-bottom:2px solid #94a3b8;padding-bottom:4px;margin-bottom:12px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #e2e8f0;"><div style="display:flex;justify-content:space-between;align-items:baseline;"><div style="font-size:12.5px;font-weight:700;color:#0f172a;">'+(e.title||'')+'</div><div style="font-size:10px;color:#94a3b8;">'+(e.period||'')+'</div></div><div style="font-size:10.5px;color:#64748b;font-style:italic;margin-bottom:4px;">'+(e.company||'')+'</div><div style="font-size:11px;color:#334155;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projLight}</div><div><div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#64748b;border-bottom:2px solid #94a3b8;padding-bottom:4px;margin-bottom:12px;">Skills</div>${skillSection('#64748b','#cbd5e1')}<div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#64748b;border-bottom:2px solid #94a3b8;padding-bottom:4px;margin:16px 0 10px;">Education</div><div style="font-size:12px;font-weight:700;color:#0f172a;">${edu.degree}</div><div style="font-size:10.5px;color:#94a3b8;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      mauve: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;"><div style="background:linear-gradient(160deg,#581c87,#7e22ce,#9333ea);padding:36px 40px 26px;"><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#fff;margin-bottom:5px;">${nm}</div><div style="font-size:11px;color:rgba(255,255,255,.5);letter-spacing:.12em;text-transform:uppercase;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:rgba(255,255,255,.35);">'+x+'</span>').join('')}</div></div><div style="display:grid;grid-template-columns:1fr 195px;"><div style="padding:24px 26px;border-right:1px solid #f3e8ff;">${sh_('Profile','#9333ea','#f3e8ff')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#9333ea','#f3e8ff')}${exp.map(e=>xp_(e,'#3b0764','#d8b4fe','#6b7280')).join('')}${projLight}</div><div style="padding:24px 18px;background:#faf5ff;">${sh_('Skills','#9333ea','#e9d5ff')}${skillSection('#9333ea','#e9d5ff')}${sh_('Education','#9333ea','#e9d5ff')}<div style="font-size:11.5px;font-weight:600;color:#3b0764;">${edu.degree}</div><div style="font-size:10.5px;color:#d8b4fe;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${lang.length?sh('Languages','#9333ea','#e9d5ff')+lang.map(l=>'<div style="font-size:11px;color:#6b7280;margin-bottom:4px;">'+l.name+' — '+l.level+'</div>').join(''):''}</div></div></div>`,
-
-      brick: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;padding:44px 50px;"><div style="border-left:6px solid #dc2626;padding-left:22px;margin-bottom:22px;"><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#1c1917;margin-bottom:4px;">${nm}</div><div style="font-size:13px;color:#dc2626;font-weight:600;">${titleStr}</div></div><div style="display:flex;flex-wrap:wrap;gap:16px;font-size:10.5px;color:#a8a29e;margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid #fee2e2;">${ctc.map(x=>'<span>'+x+'</span>').join('')}</div><p style="font-size:11.5px;color:#44403c;line-height:1.75;margin-bottom:22px;">${sumStr}</p><div style="display:grid;grid-template-columns:1fr 185px;gap:28px;"><div><div style="font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#dc2626;border-bottom:2px solid #dc2626;padding-bottom:4px;margin-bottom:12px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #fff1f2;"><div style="font-size:12.5px;font-weight:700;color:#1c1917;">'+(e.title||'')+'</div><div style="font-size:10.5px;color:#dc2626;font-style:italic;margin-bottom:4px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#44403c;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projLight}</div><div><div style="font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#dc2626;border-bottom:2px solid #dc2626;padding-bottom:4px;margin-bottom:12px;">Skills</div>${sk.map(s=>'<div style="font-size:11px;color:#44403c;padding:5px 0;border-bottom:1px solid #fff1f2;">'+s+'</div>').join('')}<div style="font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#dc2626;border-bottom:2px solid #dc2626;padding-bottom:4px;margin:16px 0 10px;">Education</div><div style="font-size:12px;font-weight:700;color:#1c1917;">${edu.degree}</div><div style="font-size:10.5px;color:#a8a29e;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      peach: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;"><div style="background:linear-gradient(135deg,#fdba74,#fb923c,#f97316);padding:32px 38px 22px;"><div style="font-family:'DM Serif Display',serif;font-size:34px;color:#fff;margin-bottom:5px;">${nm}</div><div style="font-size:11px;color:rgba(255,255,255,.6);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:rgba(255,255,255,.45);">'+x+'</span>').join('')}</div></div><div style="display:grid;grid-template-columns:1fr 195px;"><div style="padding:24px 26px;border-right:1px solid #ffedd5;">${sh_('About','#f97316','#ffedd5')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#f97316','#ffedd5')}${exp.map(e=>xp_(e,'#7c2d12','#fdba74','#6b7280')).join('')}${projLight}</div><div style="padding:24px 18px;background:#fff7ed;">${sh_('Skills','#f97316','#fed7aa')}<div>${skillSection('#ffedd5','#ea580c')}</div>${sh_('Education','#f97316','#fed7aa')}<div style="font-size:11.5px;font-weight:600;color:#7c2d12;">${edu.degree}</div><div style="font-size:10.5px;color:#fdba74;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      plum: () => `<div style="width:700px;background:#2d1b69;font-family:'${fontFamily}',sans-serif;min-height:990px;"><div style="padding:36px 38px 24px;border-bottom:1px solid #3d2878;"><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#fff;margin-bottom:5px;">${nm}</div><div style="font-size:10px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#7c5cbf;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:#4a3590;">'+x+'</span>').join('')}</div></div><div style="display:grid;grid-template-columns:1fr 200px;padding:0 38px;"><div style="padding:22px 22px 22px 0;border-right:1px solid #3d2878;"><div style="font-size:8.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#a78bfa;margin-bottom:9px;">Profile</div><p style="font-size:11.5px;color:#c4b0e8;line-height:1.7;margin-bottom:18px;">${sumStr}</p><div style="font-size:8.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#a78bfa;margin-bottom:9px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #3d2878;"><div style="font-size:12.5px;font-weight:700;color:#c4b5fd;">'+(e.title||'')+'</div><div style="font-size:10.5px;color:#7c5cbf;margin-bottom:4px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#8b78c8;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projDark}</div><div style="padding:22px 0 22px 20px;"><div style="font-size:8.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#a78bfa;margin-bottom:10px;">Skills</div>${sk.map((s,i)=>'<div style="margin-bottom:8px;"><div style="font-size:10.5px;color:#9f84d0;margin-bottom:3px;">'+s+'</div><div style="height:2px;background:#3d2878;border-radius:1px;"><div style="width:'+pct_(i)+'%;height:100%;background:#a78bfa;border-radius:1px;"></div></div></div>').join('')}<div style="font-size:8.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#a78bfa;margin:18px 0 9px;">Education</div><div style="font-size:11px;font-weight:600;color:#c4b5fd;">${edu.degree}</div><div style="font-size:10px;color:#7c5cbf;margin-top:3px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      spruce: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;padding:0;display:grid;grid-template-columns:215px 1fr;min-height:990px;"><div style="background:#14532d;padding:30px 18px;"><div style="width:56px;height:56px;border-radius:14px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;font-family:'DM Serif Display',serif;margin-bottom:12px;">${init}</div><div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:2px;">${nm}</div><div style="font-size:10px;color:#4ade80;margin-bottom:18px;">${titleStr}</div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#166534;margin-bottom:7px;">Contact</div>${ctc.map(x=>'<div style="font-size:9.5px;color:#86efac;margin-bottom:5px;word-break:break-all;">'+x+'</div>').join('')}<div style="height:1px;background:#166534;margin:12px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#166534;margin-bottom:8px;">Skills</div>${sk.map(s=>'<div style="font-size:10px;color:#86efac;padding:3px 0;border-bottom:1px solid #166534;">'+s+'</div>').join('')}<div style="height:1px;background:#166534;margin:12px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#166534;margin-bottom:7px;">Education</div><div style="font-size:11px;font-weight:600;color:#fff;">${edu.degree}</div><div style="font-size:10px;color:#4ade80;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div><div style="padding:28px 24px;"><div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#14532d;border-bottom:2px solid #dcfce7;padding-bottom:4px;margin-bottom:12px;">Profile</div><p style="font-size:11.5px;color:#374151;line-height:1.7;margin-bottom:20px;">${sumStr}</p><div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#14532d;border-bottom:2px solid #dcfce7;padding-bottom:4px;margin-bottom:12px;">Experience</div>${exp.map(e=>xp_(e,'#14532d','#4ade80','#374151')).join('')}${projLight}</div></div>`,
-
-
-      pine: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;padding:44px 50px;"><div style="display:flex;align-items:flex-start;gap:20px;margin-bottom:20px;padding-bottom:20px;border-bottom:2px solid #166534;"><div style="flex:1;"><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#14532d;margin-bottom:4px;">${nm}</div><div style="font-size:13px;color:#16a34a;font-weight:600;">${titleStr}</div></div><div style="text-align:right;padding-top:4px;">${ctc.map(x=>'<div style="font-size:10px;color:#86efac;margin-bottom:2px;">'+x+'</div>').join('')}</div></div><p style="font-size:11.5px;color:#374151;line-height:1.75;margin-bottom:22px;">${sumStr}</p><div style="display:grid;grid-template-columns:1fr 180px;gap:28px;"><div><div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#166534;border-bottom:2px solid #166534;padding-bottom:4px;margin-bottom:12px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #dcfce7;"><div style="display:flex;justify-content:space-between;align-items:baseline;"><div style="font-size:12.5px;font-weight:700;color:#14532d;">'+(e.title||'')+'</div><div style="font-size:10px;color:#86efac;">'+(e.period||'')+'</div></div><div style="font-size:10.5px;color:#16a34a;font-style:italic;margin-bottom:4px;">'+(e.company||'')+'</div><div style="font-size:11px;color:#374151;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projLight}</div><div><div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#166534;border-bottom:2px solid #166534;padding-bottom:4px;margin-bottom:12px;">Skills</div>${skillSection('#16a34a','#dcfce7')}<div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#166534;border-bottom:2px solid #166534;padding-bottom:4px;margin:16px 0 10px;">Education</div><div style="font-size:12px;font-weight:700;color:#14532d;">${edu.degree}</div><div style="font-size:10.5px;color:#86efac;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      ochre: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;"><div style="background:linear-gradient(135deg,#78350f,#92400e,#b45309);padding:34px 40px 22px;"><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#fff;margin-bottom:5px;">${nm}</div><div style="font-size:11px;color:rgba(255,255,255,.5);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:rgba(255,255,255,.35);">'+x+'</span>').join('')}</div></div><div style="height:4px;background:linear-gradient(90deg,#fbbf24,#f59e0b,#d97706,#f59e0b,#fbbf24);"></div><div style="display:grid;grid-template-columns:1fr 195px;"><div style="padding:24px 26px;border-right:1px solid #fef3c7;">${sh_('Summary','#b45309','#fef3c7')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#b45309','#fef3c7')}${exp.map(e=>xp_(e,'#78350f','#fbbf24','#6b7280')).join('')}${projLight}</div><div style="padding:24px 18px;background:#fffbeb;">${sh_('Skills','#b45309','#fde68a')}${skillSection('#d97706','#fde68a')}${sh_('Education','#b45309','#fde68a')}<div style="font-size:11.5px;font-weight:600;color:#78350f;">${edu.degree}</div><div style="font-size:10.5px;color:#fbbf24;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      ash: () => `<div style="width:700px;background:#fafafa;font-family:'${fontFamily}',sans-serif;padding:44px 50px;"><div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #d4d4d4;"><div><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#171717;letter-spacing:-.01em;margin-bottom:4px;">${nm}</div><div style="font-size:13px;color:#737373;font-weight:500;">${titleStr}</div></div><div style="text-align:right;padding-top:5px;">${ctc.map(x=>'<div style="font-size:10px;color:#a3a3a3;margin-bottom:2px;">'+x+'</div>').join('')}</div></div><p style="font-size:11.5px;color:#525252;line-height:1.75;margin-bottom:22px;">${sumStr}</p><div style="display:grid;grid-template-columns:1fr 180px;gap:28px;"><div><div style="font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#737373;border-bottom:1px solid #d4d4d4;padding-bottom:4px;margin-bottom:12px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #f5f5f5;"><div style="display:flex;justify-content:space-between;align-items:baseline;"><div style="font-size:12.5px;font-weight:700;color:#171717;">'+(e.title||'')+'</div><div style="font-size:10px;color:#a3a3a3;">'+(e.period||'')+'</div></div><div style="font-size:10.5px;color:#737373;font-style:italic;margin-bottom:4px;">'+(e.company||'')+'</div><div style="font-size:11px;color:#737373;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projLight}</div><div><div style="font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#737373;border-bottom:1px solid #d4d4d4;padding-bottom:4px;margin-bottom:12px;">Skills</div>${sk.map(s=>'<div style="font-size:11px;color:#525252;padding:5px 0;border-bottom:1px solid #f5f5f5;">'+s+'</div>').join('')}<div style="font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#737373;border-bottom:1px solid #d4d4d4;padding-bottom:4px;margin:16px 0 10px;">Education</div><div style="font-size:12px;font-weight:700;color:#171717;">${edu.degree}</div><div style="font-size:10.5px;color:#a3a3a3;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      jade: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;display:grid;grid-template-columns:200px 1fr;min-height:990px;"><div style="background:#065f46;padding:28px 18px;"><div style="width:56px;height:56px;border-radius:14px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;font-family:'DM Serif Display',serif;margin-bottom:14px;">${init}</div><div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:2px;">${nm}</div><div style="font-size:10px;color:#6ee7b7;margin-bottom:20px;">${titleStr}</div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#064e3b;margin-bottom:8px;">Contact</div>${ctc.map(x=>'<div style="font-size:9.5px;color:#6ee7b7;margin-bottom:5px;word-break:break-all;">'+x+'</div>').join('')}<div style="height:1px;background:#064e3b;margin:14px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#064e3b;margin-bottom:10px;">Skills</div>${sk.map((s,i)=>'<div style="margin-bottom:7px;"><div style="font-size:10px;color:#a7f3d0;margin-bottom:3px;">'+s+'</div><div style="height:3px;background:#064e3b;border-radius:2px;"><div style="width:'+pct_(i)+'%;height:100%;background:#34d399;border-radius:2px;"></div></div></div>').join('')}<div style="height:1px;background:#064e3b;margin:14px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#064e3b;margin-bottom:8px;">Education</div><div style="font-size:11px;font-weight:600;color:#fff;">${edu.degree}</div><div style="font-size:10px;color:#6ee7b7;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div><div style="padding:28px 24px;">${sh_('Profile','#059669','#d1fae5')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#059669','#d1fae5')}${exp.map(e=>xp_(e,'#065f46','#6ee7b7','#374151')).join('')}${projLight}</div></div>`,
-
-      wine: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;"><div style="background:#4a0e1c;padding:36px 40px 26px;"><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#fff;margin-bottom:5px;">${nm}</div><div style="font-size:11px;color:rgba(255,255,255,.45);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:rgba(255,255,255,.3);">'+x+'</span>').join('')}</div></div><div style="height:3px;background:linear-gradient(90deg,#fbbf24,#f59e0b,#fbbf24);"></div><div style="display:grid;grid-template-columns:1fr 195px;"><div style="padding:24px 26px;border-right:1px solid #fce7f3;">${sh_('Summary','#881337','#fff1f2')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#881337','#fff1f2')}${exp.map(e=>xp_(e,'#4a0e1c','#fda4af','#6b7280')).join('')}${projLight}</div><div style="padding:24px 18px;background:#fff5f6;">${sh_('Skills','#881337','#fecdd3')}<div style="margin-bottom:4px;">${skillSection('#fff1f2','#be123c')}</div>${sh_('Education','#881337','#fecdd3')}<div style="font-size:11.5px;font-weight:600;color:#4a0e1c;">${edu.degree}</div><div style="font-size:10.5px;color:#fda4af;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${lang.length?sh('Languages','#881337','#fecdd3')+lang.map(l=>'<div style="font-size:11px;color:#6b7280;margin-bottom:4px;">'+l.name+' — '+l.level+'</div>').join(''):''}</div></div></div>`,
-
-      ultraviolet: () => `<div style="width:700px;background:#09000f;font-family:'${fontFamily}',sans-serif;min-height:990px;"><div style="padding:36px 38px 24px;position:relative;"><div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#7c3aed,#a855f7,#ec4899,#a855f7,#7c3aed);"></div><div style="font-family:'DM Serif Display',serif;font-size:38px;color:#fff;margin-bottom:5px;">${nm}</div><div style="font-size:10px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#4c1d95;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:#2e1065;">'+x+'</span>').join('')}${projDark}</div></div><div style="display:grid;grid-template-columns:1fr 200px;padding:0 38px;"><div style="padding:22px 22px 22px 0;border-right:1px solid #1a0a2e;"><div style="font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#a855f7;margin-bottom:9px;">Profile</div><p style="font-size:11.5px;color:#a855f7;line-height:1.7;margin-bottom:18px;">${sumStr}</p><div style="font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#a855f7;margin-bottom:9px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #1a0a2e;"><div style="font-size:12.5px;font-weight:700;color:#e879f9;">'+(e.title||'')+'</div><div style="font-size:10.5px;color:#4c1d95;margin-bottom:4px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#581c87;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}</div><div style="padding:22px 0 22px 20px;"><div style="font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#a855f7;margin-bottom:10px;">Skills</div>${sk.map(s=>'<span style="display:inline-block;background:#1a0a2e;border:1px solid #4c1d95;color:#a855f7;font-size:9.5px;padding:2px 8px;border-radius:3px;margin:2px 3px 2px 0;">'+s+'</span>').join('')}<div style="font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#a855f7;margin:18px 0 9px;">Education</div><div style="font-size:11px;font-weight:600;color:#e879f9;">${edu.degree}</div><div style="font-size:10px;color:#4c1d95;margin-top:3px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      blueprint: () => `<div style="width:700px;background:#1e3a5f;font-family:'${fontFamily}',sans-serif;min-height:990px;"><div style="padding:36px 38px 24px;border-bottom:1px dashed rgba(255,255,255,.1);"><div style="font-size:9px;font-weight:800;letter-spacing:.24em;text-transform:uppercase;color:rgba(255,255,255,.25);margin-bottom:10px;">[CURRICULUM VITAE]</div><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#fff;margin-bottom:5px;">${nm}</div><div style="font-size:10px;color:rgba(255,255,255,.4);letter-spacing:.12em;text-transform:uppercase;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:rgba(255,255,255,.3);">'+x+'</span>').join('')}</div></div><div style="display:grid;grid-template-columns:1fr 200px;padding:0 38px;"><div style="padding:22px 22px 22px 0;border-right:1px dashed rgba(255,255,255,.1);"><div style="font-size:8.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:9px;">[PROFILE]</div><p style="font-size:11.5px;color:rgba(255,255,255,.8);line-height:1.7;margin-bottom:18px;">${sumStr}</p><div style="font-size:8.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:9px;">[EXPERIENCE]</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px dashed rgba(255,255,255,.08);"><div style="font-size:12.5px;font-weight:700;color:#93c5fd;">'+(e.title||'')+'</div><div style="font-size:10.5px;color:rgba(255,255,255,.3);margin-bottom:4px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:rgba(255,255,255,.5);line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projDark}</div><div style="padding:22px 0 22px 20px;"><div style="font-size:8.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:10px;">[SKILLS]</div>${sk.map((s,i)=>'<div style="margin-bottom:8px;"><div style="font-size:10.5px;color:rgba(255,255,255,.5);margin-bottom:3px;">'+s+'</div><div style="height:2px;background:rgba(255,255,255,.08);border-radius:1px;"><div style="width:'+pct_(i)+'%;height:100%;background:#93c5fd;border-radius:1px;"></div></div></div>').join('')}<div style="font-size:8.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.3);margin:18px 0 9px;">[EDUCATION]</div><div style="font-size:11px;font-weight:600;color:#93c5fd;">${edu.degree}</div><div style="font-size:10px;color:rgba(255,255,255,.3);margin-top:3px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      meadow: () => `<div style="width:700px;background:#f0fdf4;font-family:'${fontFamily}',sans-serif;padding:44px 50px;"><div style="text-align:center;margin-bottom:22px;"><div style="font-family:'DM Serif Display',serif;font-size:38px;color:#14532d;margin-bottom:5px;">${nm}</div><div style="font-size:12px;color:#16a34a;font-weight:600;letter-spacing:.08em;margin-bottom:12px;">${titleStr}</div><div style="display:flex;justify-content:center;gap:16px;font-size:10.5px;color:#86efac;flex-wrap:wrap;">${ctc.map(x=>'<span>'+x+'</span>').join('')}</div></div><div style="height:2px;background:linear-gradient(90deg,transparent,#16a34a,transparent);margin-bottom:22px;"></div><p style="font-size:11.5px;color:#374151;line-height:1.75;text-align:center;max-width:490px;margin:0 auto 24px;">${sumStr}</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;"><div><div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#16a34a;margin-bottom:10px;padding-bottom:4px;border-bottom:2px solid #bbf7d0;">Experience</div>${exp.map(e=>'<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #dcfce7;"><div style="font-size:12.5px;font-weight:700;color:#14532d;">'+(e.title||'')+'</div><div style="font-size:10px;color:#86efac;font-style:italic;margin-bottom:3px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#374151;line-height:1.6;">'+(e.desc||'')+'</div></div>').join('')}${projLight}</div><div><div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#16a34a;margin-bottom:10px;padding-bottom:4px;border-bottom:2px solid #bbf7d0;">Skills</div><div style="margin-bottom:18px;">${skillSection('#dcfce7','#16a34a')}</div><div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#16a34a;margin-bottom:8px;padding-bottom:4px;border-bottom:2px solid #bbf7d0;">Education</div><div style="font-size:12px;font-weight:700;color:#14532d;">${edu.degree}</div><div style="font-size:10.5px;color:#86efac;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      glacier2: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;display:grid;grid-template-columns:210px 1fr;min-height:990px;"><div style="background:#e0f2fe;padding:28px 18px;border-right:3px solid #7dd3fc;"><div style="font-size:17px;font-weight:700;color:#0c4a6e;margin-bottom:2px;font-family:'DM Serif Display',serif;">${nm}</div><div style="font-size:10px;color:#0284c7;font-weight:600;margin-bottom:18px;">${titleStr}</div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7dd3fc;margin-bottom:8px;">Contact</div>${ctc.map(x=>'<div style="font-size:9.5px;color:#0369a1;margin-bottom:5px;word-break:break-all;">'+x+'</div>').join('')}<div style="height:1px;background:#7dd3fc;margin:14px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7dd3fc;margin-bottom:10px;">Skills</div>${skillSection('#0284c7','#bae6fd')}<div style="height:1px;background:#7dd3fc;margin:14px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7dd3fc;margin-bottom:8px;">Education</div><div style="font-size:11px;font-weight:600;color:#0c4a6e;">${edu.degree}</div><div style="font-size:10px;color:#7dd3fc;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}</div><div style="padding:28px 24px;">${sh_('Profile','#0284c7','#e0f2fe')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#0284c7','#e0f2fe')}${exp.map(e=>xp_(e,'#0c4a6e','#7dd3fc','#374151')).join('')}${projLight}${cert.length?sh('Certifications','#0284c7','#e0f2fe')+cert.map(c=>'<div style="font-size:11px;color:#374151;margin-bottom:4px;">'+c+'</div>').join(''):''}</div></div>`,
-
-      garnet: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;padding:0;"><div style="background:#6b1a2b;padding:32px 38px 22px;"><div style="font-family:'DM Serif Display',serif;font-size:34px;color:#fff;margin-bottom:5px;">${nm}</div><div style="font-size:11px;color:rgba(255,255,255,.45);letter-spacing:.12em;text-transform:uppercase;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:rgba(255,255,255,.3);">'+x+'</span>').join('')}</div></div><div style="height:5px;background:linear-gradient(90deg,#fbbf24,#fde68a,#fbbf24);"></div><div style="display:grid;grid-template-columns:1fr 195px;"><div style="padding:24px 26px;border-right:1px solid #fce7f3;">${sh_('Summary','#9f1239','#fff1f2')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#9f1239','#fff1f2')}${exp.map(e=>xp_(e,'#6b1a2b','#fda4af','#6b7280')).join('')}${projLight}</div><div style="padding:24px 18px;background:#fdf2f4;">${sh_('Skills','#9f1239','#fecdd3')}${skillSection('#be123c','#fecdd3')}${sh_('Education','#9f1239','#fecdd3')}<div style="font-size:11.5px;font-weight:600;color:#6b1a2b;">${edu.degree}</div><div style="font-size:10.5px;color:#fda4af;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${cert.length?sh('Certs','#9f1239','#fecdd3')+cert.map(c=>'<div style="font-size:10.5px;color:#374151;margin-bottom:3px;">'+c+'</div>').join(''):''}</div></div></div>`,
-
-
-      topaz: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;padding:44px 50px;"><div style="display:flex;align-items:flex-start;gap:20px;margin-bottom:20px;padding-bottom:20px;border-bottom:2px solid #0891b2;"><div style="flex:1;"><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#0e4a5f;margin-bottom:4px;">${nm}</div><div style="font-size:13px;color:#0891b2;font-weight:600;">${titleStr}</div></div><div style="text-align:right;">${ctc.map(x=>'<div style="font-size:10px;color:#67e8f9;margin-bottom:2px;">'+x+'</div>').join('')}</div></div><p style="font-size:11.5px;color:#374151;line-height:1.75;margin-bottom:22px;">${sumStr}</p><div style="display:grid;grid-template-columns:1fr 180px;gap:28px;"><div><div style="font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#0891b2;border-bottom:2px solid #0891b2;padding-bottom:4px;margin-bottom:12px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #e0f2fe;"><div style="display:flex;justify-content:space-between;align-items:baseline;"><div style="font-size:12.5px;font-weight:700;color:#0e4a5f;">'+(e.title||'')+'</div><div style="font-size:10px;color:#67e8f9;">'+(e.period||'')+'</div></div><div style="font-size:10.5px;color:#0891b2;font-style:italic;margin-bottom:4px;">'+(e.company||'')+'</div><div style="font-size:11px;color:#374151;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projLight}</div><div><div style="font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#0891b2;border-bottom:2px solid #0891b2;padding-bottom:4px;margin-bottom:12px;">Skills</div>${skillSection('#0891b2','#cffafe')}<div style="font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#0891b2;border-bottom:2px solid #0891b2;padding-bottom:4px;margin:16px 0 10px;">Education</div><div style="font-size:12px;font-weight:700;color:#0e4a5f;">${edu.degree}</div><div style="font-size:10.5px;color:#67e8f9;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      walnut: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;display:grid;grid-template-columns:205px 1fr;min-height:990px;"><div style="background:#3b1f0a;padding:28px 18px;"><div style="width:58px;height:58px;border-radius:50%;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#f5deb3;font-family:'DM Serif Display',serif;margin-bottom:14px;">${init}</div><div style="font-size:16px;font-weight:700;color:#f5deb3;margin-bottom:2px;">${nm}</div><div style="font-size:10px;color:#8b6914;margin-bottom:20px;">${titleStr}</div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#5c3a1a;margin-bottom:8px;">Contact</div>${ctc.map(x=>'<div style="font-size:9.5px;color:#c49860;margin-bottom:5px;word-break:break-all;">'+x+'</div>').join('')}<div style="height:1px;background:#5c3a1a;margin:14px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#5c3a1a;margin-bottom:10px;">Skills</div>${sk.map((s,i)=>'<div style="margin-bottom:7px;"><div style="font-size:10px;color:#a07040;margin-bottom:3px;">'+s+'</div><div style="height:3px;background:#5c3a1a;border-radius:2px;"><div style="width:'+pct_(i)+'%;height:100%;background:#d4a853;border-radius:2px;"></div></div></div>').join('')}<div style="height:1px;background:#5c3a1a;margin:14px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#5c3a1a;margin-bottom:8px;">Education</div><div style="font-size:11px;font-weight:600;color:#f5deb3;">${edu.degree}</div><div style="font-size:10px;color:#8b6914;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div><div style="padding:28px 24px;">${sh_('Profile','#8b6914','#fef3c7')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#8b6914','#fef3c7')}${exp.map(e=>xp_(e,'#3b1f0a','#d4a853','#6b7280')).join('')}${projLight}</div></div>`,
-
-      ivory2: () => `<div style="width:700px;background:#fffff8;font-family:'DM Serif Display',serif;padding:50px 56px;"><div style="text-align:center;margin-bottom:28px;"><div style="font-size:42px;color:#1a1209;letter-spacing:-.02em;margin-bottom:6px;">${nm}</div><div style="font-size:11px;color:#9c7c38;font-weight:600;letter-spacing:.18em;text-transform:uppercase;margin-bottom:12px;">${titleStr}</div><div style="font-size:10.5px;color:#b8a070;display:flex;justify-content:center;gap:20px;flex-wrap:wrap;">${ctc.map(x=>"<span>"+x+"</span>").join("")}</div></div><div style="height:1px;background:linear-gradient(90deg,transparent,#9c7c38,transparent);margin-bottom:8px;"></div><div style="height:1px;background:linear-gradient(90deg,transparent,#d4b87a,transparent);margin-bottom:24px;"></div><p style="font-size:12px;color:#4a3a1a;line-height:1.85;text-align:center;max-width:500px;margin:0 auto 28px;">${sumStr}</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;"><div><div style="font-size:14px;color:#9c7c38;border-bottom:1px solid #d4b87a;padding-bottom:6px;margin-bottom:14px;">Experience</div>${exp.map(e=>"<div style=\"margin-bottom:14px;\"><div style=\"font-size:12.5px;font-weight:700;color:#1a1209;\">"+(e.title||"")+"</div><div style=\"font-size:10px;color:#b8a070;font-style:italic;margin-bottom:4px;\">"+(e.company||"")+(e.period?" · "+e.period:"")+"</div><div style=\"font-size:11px;color:#4a3a1a;line-height:1.65;\">"+(e.desc||"")+"</div></div>").join("")}${projLight}</div><div><div style="font-size:14px;color:#9c7c38;border-bottom:1px solid #d4b87a;padding-bottom:6px;margin-bottom:14px;">Skills</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px;">${chips(sk,"#fef9ec","#9c7c38","20px")}</div><div style="font-size:14px;color:#9c7c38;border-bottom:1px solid #d4b87a;padding-bottom:6px;margin-bottom:10px;">Education</div><div style="font-size:12px;font-weight:700;color:#1a1209;">${edu.degree}</div><div style="font-size:10.5px;color:#b8a070;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-      slate5: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;"><div style="background:linear-gradient(135deg,#1e293b,#334155);padding:36px 40px 26px;"><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#fff;margin-bottom:5px;">${nm}</div><div style="font-size:11px;color:rgba(255,255,255,.4);letter-spacing:.12em;text-transform:uppercase;margin-bottom:14px;">${titleStr}</div><div style="display:flex;flex-wrap:wrap;gap:16px;">${ctc.map(x=>'<span style="font-size:10.5px;color:rgba(255,255,255,.3);">'+x+'</span>').join('')}</div></div><div style="height:3px;background:linear-gradient(90deg,#f59e0b,#fbbf24,#fde68a,#fbbf24,#f59e0b);"></div><div style="display:grid;grid-template-columns:1fr 195px;"><div style="padding:24px 26px;border-right:1px solid #f1f5f9;">${sh_('Profile','#1e293b','#f1f5f9')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#1e293b','#f1f5f9')}${exp.map(e=>xp_(e,'#0f172a','#94a3b8','#6b7280')).join('')}${projLight}</div><div style="padding:24px 18px;background:#f8f9fa;">${sh_('Skills','#1e293b','#e2e8f0')}${skillSection('#475569','#e2e8f0')}${sh_('Education','#1e293b','#e2e8f0')}<div style="font-size:11.5px;font-weight:600;color:#0f172a;">${edu.degree}</div><div style="font-size:10.5px;color:#94a3b8;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${lang.length?sh('Languages','#1e293b','#e2e8f0')+lang.map(l=>'<div style="font-size:11px;color:#374151;margin-bottom:4px;">'+l.name+' — '+l.level+'</div>').join(''):''}</div></div></div>`,
-
-      crimson2: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;padding:44px 50px;"><div style="border-bottom:3px solid #dc2626;padding-bottom:20px;margin-bottom:20px;display:flex;align-items:flex-end;justify-content:space-between;"><div><div style="font-family:'DM Serif Display',serif;font-size:38px;color:#1c1917;margin-bottom:4px;">${nm}</div><div style="font-size:13px;color:#dc2626;font-weight:600;">${titleStr}</div></div><div style="text-align:right;">${ctc.map(x=>'<div style="font-size:10px;color:#9ca3af;margin-bottom:2px;">'+x+'</div>').join('')}${projLight}</div></div><p style="font-size:11.5px;color:#374151;line-height:1.75;margin-bottom:22px;">${sumStr}</p><div style="display:grid;grid-template-columns:1fr 185px;gap:28px;"><div><div style="font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#dc2626;padding-bottom:4px;border-bottom:2px solid #fecaca;margin-bottom:12px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #fff5f5;"><div style="display:flex;justify-content:space-between;"><div style="font-size:12.5px;font-weight:700;color:#1c1917;">'+(e.title||'')+'</div><div style="font-size:10px;color:#fca5a5;">'+(e.period||'')+'</div></div><div style="font-size:10.5px;color:#dc2626;font-style:italic;margin-bottom:4px;">'+(e.company||'')+'</div><div style="font-size:11px;color:#374151;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}</div><div><div style="font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#dc2626;padding-bottom:4px;border-bottom:2px solid #fecaca;margin-bottom:12px;">Skills</div><div style="margin-bottom:4px;">${skillSection('#fff5f5','#dc2626')}</div><div style="font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#dc2626;padding-bottom:4px;border-bottom:2px solid #fecaca;margin:16px 0 10px;">Education</div><div style="font-size:12px;font-weight:700;color:#1c1917;">${edu.degree}</div><div style="font-size:10.5px;color:#9ca3af;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      sepia: () => `<div style="width:700px;background:#faf5e8;font-family:'${fontFamily}',sans-serif;padding:44px 50px;"><div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;padding-bottom:18px;border-bottom:2px solid #c8a96a;"><div><div style="font-family:'DM Serif Display',serif;font-size:36px;color:#2c1a0e;margin-bottom:4px;">${nm}</div><div style="font-size:12.5px;color:#8b6914;font-weight:600;">${titleStr}</div></div><div style="text-align:right;">${ctc.map(x=>'<div style="font-size:10px;color:#c4956a;margin-bottom:2px;">'+x+'</div>').join('')}${projLight}</div></div><p style="font-size:11.5px;color:#5c3d2e;line-height:1.75;margin-bottom:22px;">${sumStr}</p><div style="display:grid;grid-template-columns:1fr 182px;gap:26px;"><div><div style="font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#8b6914;border-bottom:1.5px solid #c8a96a;padding-bottom:4px;margin-bottom:12px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #ede0c8;"><div style="display:flex;justify-content:space-between;align-items:baseline;"><div style="font-size:12.5px;font-weight:700;color:#2c1a0e;">'+(e.title||'')+'</div><div style="font-size:10px;color:#c4956a;">'+(e.period||'')+'</div></div><div style="font-size:10.5px;color:#8b6914;font-style:italic;margin-bottom:4px;">'+(e.company||'')+'</div><div style="font-size:11px;color:#5c3d2e;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}</div><div><div style="font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#8b6914;border-bottom:1.5px solid #c8a96a;padding-bottom:4px;margin-bottom:12px;">Skills</div>${skillSection('#8b6914','#ede0c8')}<div style="font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#8b6914;border-bottom:1.5px solid #c8a96a;padding-bottom:4px;margin:16px 0 10px;">Education</div><div style="font-size:12px;font-weight:700;color:#2c1a0e;">${edu.degree}</div><div style="font-size:10.5px;color:#c4956a;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      lavender: () => `<div style="width:700px;background:#faf5ff;font-family:'${fontFamily}',sans-serif;padding:44px 50px;"><div style="display:flex;align-items:center;gap:18px;margin-bottom:22px;padding-bottom:22px;border-bottom:2px solid #c4b5fd;"><div style="width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,#c4b5fd,#a78bfa);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:#fff;font-family:'DM Serif Display',serif;flex-shrink:0;">${init}</div><div style="flex:1;"><div style="font-family:'DM Serif Display',serif;font-size:30px;color:#2e1065;margin-bottom:3px;">${nm}</div><div style="font-size:12px;color:#7c3aed;font-weight:600;">${titleStr}</div></div><div style="text-align:right;">${ctc.map(x=>'<div style="font-size:10px;color:#c4b5fd;margin-bottom:2px;">'+x+'</div>').join('')}</div></div><p style="font-size:11.5px;color:#374151;line-height:1.75;margin-bottom:22px;">${sumStr}</p><div style="display:grid;grid-template-columns:1fr 182px;gap:26px;"><div><div style="font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#7c3aed;border-bottom:2px solid #ddd6fe;padding-bottom:4px;margin-bottom:12px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #ede9fe;"><div style="display:flex;justify-content:space-between;align-items:baseline;"><div style="font-size:12.5px;font-weight:700;color:#2e1065;">'+(e.title||'')+'</div><div style="font-size:10px;color:#c4b5fd;">'+(e.period||'')+'</div></div><div style="font-size:10.5px;color:#7c3aed;font-style:italic;margin-bottom:4px;">'+(e.company||'')+'</div><div style="font-size:11px;color:#374151;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projLight}</div><div><div style="font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#7c3aed;border-bottom:2px solid #ddd6fe;padding-bottom:4px;margin-bottom:12px;">Skills</div><div style="margin-bottom:4px;">${skillSection('#ede9fe','#7c3aed')}</div><div style="font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#7c3aed;border-bottom:2px solid #ddd6fe;padding-bottom:4px;margin:16px 0 10px;">Education</div><div style="font-size:12px;font-weight:700;color:#2e1065;">${edu.degree}</div><div style="font-size:10.5px;color:#c4b5fd;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      ink: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;padding:44px 50px;"><div style="margin-bottom:22px;"><div style="font-family:'DM Serif Display',serif;font-size:42px;color:#09090b;letter-spacing:-.03em;margin-bottom:4px;">${nm}</div><div style="font-size:12px;color:#71717a;font-weight:500;margin-bottom:12px;">${titleStr}</div><div style="display:flex;gap:16px;flex-wrap:wrap;">${ctc.map(x=>'<span style="font-size:10px;color:#a1a1aa;">'+x+'</span>').join('')}</div></div><div style="height:2px;background:#09090b;margin-bottom:20px;"></div><p style="font-size:11.5px;color:#3f3f46;line-height:1.8;margin-bottom:22px;">${sumStr}</p><div style="height:1px;background:#e4e4e7;margin-bottom:20px;"></div><div style="display:grid;grid-template-columns:1fr 180px;gap:28px;"><div><div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#09090b;margin-bottom:12px;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #f4f4f5;"><div style="display:flex;justify-content:space-between;align-items:baseline;"><div style="font-size:12.5px;font-weight:700;color:#09090b;">'+(e.title||'')+'</div><div style="font-size:10px;color:#a1a1aa;">'+(e.period||'')+'</div></div><div style="font-size:10.5px;color:#71717a;margin-bottom:4px;">'+(e.company||'')+'</div><div style="font-size:11px;color:#3f3f46;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projLight}</div><div><div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#09090b;margin-bottom:12px;">Skills</div>${sk.map(s=>'<div style="font-size:11px;color:#3f3f46;padding:4px 0;border-bottom:1px solid #f4f4f5;">'+s+'</div>').join('')}<div style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#09090b;margin:16px 0 10px;">Education</div><div style="font-size:12px;font-weight:700;color:#09090b;">${edu.degree}</div><div style="font-size:10.5px;color:#a1a1aa;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div></div></div>`,
-
-      moss: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;display:grid;grid-template-columns:200px 1fr;min-height:990px;"><div style="background:#3d4f1c;padding:28px 18px;"><div style="font-size:16px;font-weight:700;color:#d4e8a0;margin-bottom:2px;font-family:'DM Serif Display',serif;">${nm}</div><div style="font-size:10px;color:#7a9640;margin-bottom:18px;">${titleStr}</div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#4a6020;margin-bottom:8px;">Contact</div>${ctc.map(x=>'<div style="font-size:9.5px;color:#a8c860;margin-bottom:5px;word-break:break-all;">'+x+'</div>').join('')}<div style="height:1px;background:#4a6020;margin:14px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#4a6020;margin-bottom:10px;">Skills</div>${sk.map(s=>'<div style="font-size:10px;color:#8aaa48;padding:3px 0;border-bottom:1px solid #4a6020;">'+s+'</div>').join('')}<div style="height:1px;background:#4a6020;margin:14px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#4a6020;margin-bottom:8px;">Education</div><div style="font-size:11px;font-weight:600;color:#d4e8a0;">${edu.degree}</div><div style="font-size:10px;color:#7a9640;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div><div style="padding:28px 24px;">${sh_('Profile','#5a7a28','#f0f8dc')}<p style="font-size:11.5px;color:#374151;line-height:1.7;">${sumStr}</p>${sh_('Experience','#5a7a28','#f0f8dc')}${exp.map(e=>xp_(e,'#3d4f1c','#8aaa48','#374151')).join('')}${projLight}</div></div>`,
-
-      futura: () => `<div style="width:700px;background:#fff;font-family:'${fontFamily}',sans-serif;padding:0;"><div style="display:grid;grid-template-columns:1fr 1fr;"><div style="background:#1a1a2e;padding:36px 28px;"><div style="font-family:'DM Serif Display',serif;font-size:30px;color:#fff;margin-bottom:4px;line-height:1.2;">${nm}</div><div style="font-size:10px;color:#4a4a7a;letter-spacing:.12em;text-transform:uppercase;margin-bottom:18px;">${titleStr}</div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#2a2a5a;margin-bottom:8px;">Contact</div>${ctc.map(x=>'<div style="font-size:9.5px;color:#6a6a9a;margin-bottom:5px;word-break:break-all;">'+x+'</div>').join('')}${projLight}<div style="height:1px;background:#2a2a5a;margin:14px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#2a2a5a;margin-bottom:10px;">Skills</div>${skillSection('rgba(255,255,255,.06)','#6a6aff')}<div style="height:1px;background:#2a2a5a;margin:14px 0;"></div><div style="font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#2a2a5a;margin-bottom:8px;">Education</div><div style="font-size:11px;font-weight:600;color:#e0e0ff;">${edu.degree}</div><div style="font-size:10px;color:#4a4a7a;margin-top:2px;">${edu.school} · ${edu.year}</div>${eduExtraHtml}${certFallbackHtml}${langFallbackHtml}</div><div style="padding:36px 26px;background:#f8f8ff;"><div style="font-size:8.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#1a1a2e;margin-bottom:9px;padding-bottom:5px;border-bottom:1px solid #e0e0ff;">Profile</div><p style="font-size:11.5px;color:#374151;line-height:1.7;margin-bottom:18px;">${sumStr}</p><div style="font-size:8.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#1a1a2e;margin-bottom:9px;padding-bottom:5px;border-bottom:1px solid #e0e0ff;">Experience</div>${exp.map(e=>'<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #ebebff;"><div style="font-size:12px;font-weight:700;color:#1a1a2e;">'+(e.title||'')+'</div><div style="font-size:10px;color:#6a6aff;margin-bottom:4px;">'+(e.company||'')+(e.period?' · '+e.period:'')+'</div><div style="font-size:11px;color:#374151;line-height:1.65;">'+(e.desc||'')+'</div></div>').join('')}${projLight}</div></div></div>`,
-
-    }
-
-    return (T[tpl] || T.executive)()
-  }
-
   return { render }
 }
-// BATCH 3 — appended below existing export

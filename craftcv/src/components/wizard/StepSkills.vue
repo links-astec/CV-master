@@ -16,39 +16,15 @@
       <button class="btn-add-skill" @click="addSkill">Add</button>
     </div>
 
-    <!-- Skill level sliders — shown when bars/dots + show % is active -->
-    <template v-if="showLevelControls && store.data.skills.length">
-      <div class="sug-label" style="margin-top:14px;margin-bottom:8px;">🎯 Set skill levels</div>
-      <div v-for="(s, i) in store.data.skills" :key="s" class="skill-level-row">
-        <span class="skill-level-name" :title="s">{{ s }}</span>
-        <input
-          type="range" min="1" max="100"
-          :value="store.data.skillLevels?.[i] ?? 80"
-          @input="store.setSkillLevel(i, $event.target.value)"
-          class="skill-level-range"
-        />
-        <input
-          type="number" min="1" max="100"
-          :value="store.data.skillLevels?.[i] ?? 80"
-          @change="store.setSkillLevel(i, $event.target.value)"
-          class="skill-level-num"
-        />
-        <button class="skill-rm" @click="store.removeSkill(s)">×</button>
-      </div>
-    </template>
-
-    <!-- Chip tags for all other modes -->
-    <template v-else>
-      <div class="skill-wrap" style="margin-top:12px;min-height:48px;">
-        <TransitionGroup name="skill-tag">
-          <span v-for="s in store.data.skills" :key="s" class="skill-tag">
-            {{ s }}
-            <button class="skill-rm" @click="store.removeSkill(s)">×</button>
-          </span>
-        </TransitionGroup>
-        <div v-if="!store.data.skills.length" class="empty-skills">No skills added yet</div>
-      </div>
-    </template>
+    <div class="skill-wrap" style="margin-top:12px;min-height:48px;">
+      <TransitionGroup name="skill-tag">
+        <span v-for="s in store.data.skills" :key="s" class="skill-tag">
+          {{ s }}
+          <button class="skill-rm" @click="store.removeSkill(s)" :aria-label="`Remove ${s}`">×</button>
+        </span>
+      </TransitionGroup>
+      <div v-if="!store.data.skills.length" class="empty-skills">No skills added yet</div>
+    </div>
 
     <div v-if="aiLoading" class="thinking" style="margin-top:14px;">
       <div class="thinking-dots"><span></span><span></span><span></span></div>
@@ -77,13 +53,13 @@
       <span :class="{ warn: store.data.skills.length < 5, ok: store.data.skills.length >= 5 }">
         {{ store.data.skills.length }} skill{{ store.data.skills.length !== 1 ? 's' : '' }}
       </span>
-      · 5–10 recommended
+      · 6–12 recommended
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, inject } from 'vue'
+import { ref, inject } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
 import { useAuthStore } from '../../stores/auth.js'
 
@@ -91,18 +67,6 @@ const store = useCvStore()
 const showToast = inject('showToast', null)
 const auth  = useAuthStore()
 const emit = defineEmits(['next', 'ai-thinking'])
-
-// Inject fmt from the nearest parent that provides it
-// WizardModal provides 'wizardFmt'; App.vue builder provides 'builderFmt'
-const wizardFmt  = inject('wizardFmt',  null)
-const builderFmt = inject('builderFmt', null)
-const activeFmt  = computed(() => wizardFmt?.value ?? builderFmt?.value ?? { skillStyle: 'bars', showSkillPct: true })
-
-const showLevelControls = computed(() => {
-  const style   = activeFmt.value.skillStyle  ?? 'bars'
-  const showPct = activeFmt.value.showSkillPct ?? true
-  return (style === 'bars' || style === 'dots') && showPct
-})
 
 const newSkill  = ref('')
 const aiLoading = ref(false)
@@ -143,7 +107,7 @@ async function suggestSkills() {
 <style scoped>
 .step-intro { margin-bottom: 20px; }
 .step-icon  { font-size: 28px; margin-bottom: 8px; }
-h3 { font-size: 18px; font-weight: 700; color: var(--c-text); margin-bottom: 5px; font-family: 'DM Serif Display', serif; }
+h3 { font-size: 18px; font-weight: 700; color: var(--c-text); margin-bottom: 5px; font-family:inherit;letter-spacing:-.01em; }
 p  { font-size: 13px; color: var(--c-text2); line-height: 1.5; }
 
 .skill-input-row { display: flex; gap: 8px; }
@@ -151,7 +115,7 @@ p  { font-size: 13px; color: var(--c-text2); line-height: 1.5; }
   background: var(--c-accent); color: #fff; border: none;
   padding: 9px 16px; border-radius: var(--radius-sm);
   font-size: 12.5px; font-weight: 600; cursor: pointer;
-  font-family: 'DM Sans', sans-serif; white-space: nowrap;
+  font-family:inherit; white-space: nowrap;
 }
 .empty-skills { font-size: 12.5px; color: var(--c-text3); padding: 8px 0; }
 
@@ -159,7 +123,7 @@ p  { font-size: 13px; color: var(--c-text2); line-height: 1.5; }
 .skill-level-row   { display: flex; align-items: center; gap: 7px; margin-bottom: 9px; }
 .skill-level-name  { font-size: 11px; color: var(--c-text2); min-width: 90px; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
 .skill-level-range { flex: 1; min-width: 0; accent-color: var(--c-accent); cursor: pointer; }
-.skill-level-num   { width: 40px; border: 1px solid var(--c-border); border-radius: 4px; padding: 2px 4px; font-size: 11px; font-weight: 700; color: var(--c-accent); text-align: center; background: var(--c-bg); flex-shrink: 0; font-family: 'DM Sans', sans-serif; }
+.skill-level-num   { width: 40px; border: 1px solid var(--c-border); border-radius: 4px; padding: 2px 4px; font-size: 11px; font-weight: 700; color: var(--c-accent); text-align: center; background: var(--c-bg); flex-shrink: 0; font-family:inherit; }
 .skill-level-num:focus { outline: none; border-color: var(--c-accent); }
 
 .suggested-block { background: var(--c-surface2); border: 1px solid var(--c-border); border-radius: var(--radius); padding: 14px; margin-top: 14px; }
@@ -168,11 +132,11 @@ p  { font-size: 13px; color: var(--c-text2); line-height: 1.5; }
 .sug-chip {
   background: var(--c-amber-lt); border: 1px solid #f0c080; color: var(--c-amber);
   font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px;
-  cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all .14s;
+  cursor: pointer; font-family:inherit; transition: all .14s;
 }
 .sug-chip:hover { background: var(--c-amber); color: #fff; border-color: var(--c-amber); }
 .sug-chip.added { background: var(--c-green-lt); border-color: var(--c-green); color: var(--c-green); }
-.btn-add-all { background: none; border: none; font-size: 11.5px; font-weight: 700; color: var(--c-accent); cursor: pointer; font-family: 'DM Sans', sans-serif; text-decoration: underline; }
+.btn-add-all { background: none; border: none; font-size: 11.5px; font-weight: 700; color: var(--c-accent); cursor: pointer; font-family:inherit; text-decoration: underline; }
 
 .skill-count { font-size: 12px; color: var(--c-text3); margin-top: 10px; }
 .skill-count .warn { color: var(--c-amber); font-weight: 700; }

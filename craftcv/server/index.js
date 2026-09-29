@@ -37,22 +37,25 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const FRONTEND_URL     = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 // ── Mailer ────────────────────────────────────────────────────────────────────
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+// Resend (HTTPS API) is the primary sender: Render's free tier blocks outbound SMTP,
+// so Gmail SMTP only works locally. Resend only sends from a verified domain, so the
+// sender must be @cvmaster.live (RESEND_FROM), never a gmail.com address.
+const resend      = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+const RESEND_FROM = process.env.RESEND_FROM || 'CVMaster <noreply@cvmaster.live>';
 
-// Gmail/SMTP fallback — used when Resend isn't configured, or its send fails
-// (e.g. the "from" domain isn't verified with Resend yet).
 const smtpTransport = (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
   ? nodemailer.createTransport({
       host:   process.env.SMTP_HOST,
       port:   Number(process.env.SMTP_PORT) || 587,
       secure: Number(process.env.SMTP_PORT) === 465,
       auth:   { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      // Fail fast when the port is blocked instead of hanging the request for 2 minutes
+      connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 20000,
     })
   : null;
 
 async function sendViaResend({ to, subject, html, attachments }) {
-  const from = process.env.SMTP_FROM || 'noreply@cvmaster.live';
-  const payload = { from: `CVMaster <${from}>`, to, subject, html };
+  const payload = { from: RESEND_FROM, to, subject, html };
   if (attachments?.length) {
     payload.attachments = attachments.map(a => ({
       filename: a.filename,
@@ -74,19 +77,20 @@ async function sendViaSmtp({ to, subject, html, attachments }) {
 }
 
 async function sendMail(opts) {
-  // SMTP (Gmail) is the active path for now — Resend stays wired up below as a
-  // fallback if SMTP isn't configured, but isn't the primary sender currently.
+  const errors = [];
+  if (resend) {
+    try { return await sendViaResend(opts); }
+    catch (e) { errors.push('Resend: ' + e.message); console.warn('[mailer] Resend failed:', e.message); }
+  }
   if (smtpTransport) {
     try { return await sendViaSmtp(opts); }
-    catch (e) {
-      if (!resend) throw e;
-      console.warn('[mailer] SMTP failed, falling back to Resend:', e.message);
-    }
+    catch (e) { errors.push('SMTP: ' + e.message); console.warn('[mailer] SMTP failed:', e.message); }
   }
-  if (resend) return sendViaResend(opts);
-
-  console.log('[mailer] No mail provider configured — email skipped. To:', opts.to, '| Subject:', opts.subject);
-  throw new Error('Email not configured. Set RESEND_API_KEY or SMTP_HOST/USER/PASS in environment.');
+  if (!errors.length) {
+    console.log('[mailer] No mail provider configured — email skipped. To:', opts.to);
+    throw new Error('Email is not configured on the server.');
+  }
+  throw new Error(errors.join(' | '));
 }
 
 // ── Security ──────────────────────────────────────────────────────────────────
@@ -158,6 +162,8 @@ app.set('trust proxy', 1);
 // ── Rate limiting ─────────────────────────────────────────────────────────────
 app.use('/api/',      rateLimit({ windowMs: 15*60*1000, max: 200, standardHeaders: true, legacyHeaders: false }));
 app.use('/api/ai/',   rateLimit({ windowMs: 60*1000,    max: 20,  message: { error: 'Too many AI requests, wait a minute.' } }));
+// Guests (no account) get a smaller hourly AI budget per IP
+const guestAiLimiter = rateLimit({ windowMs: 60*60*1000, max: 40, message: { error: 'Guest AI limit reached — create a free account to keep going.' } });
 app.use('/api/auth/', rateLimit({ windowMs: 15*60*1000, max: 15,  message: { error: 'Too many attempts, try again later.' } }));
 
 // ── Auth helpers ──────────────────────────────────────────────────────────────
@@ -186,6 +192,17 @@ function authMiddleware(req, res, next) {
   try { req.user = jwt.verify(token, JWT_SECRET); next(); }
   catch { res.status(401).json({ error: 'Session expired, please sign in again.' }); }
 }
+// AI + CV import work for guests too: attach the user if there is a valid session,
+// otherwise apply the guest limiter. Guests can build a CV before creating an account.
+function aiAccess(req, res, next) {
+  const token = req.cookies?.token || req.headers.authorization?.replace('Bearer ', '');
+  if (token) {
+    try { req.user = jwt.verify(token, JWT_SECRET); return next(); } catch {}
+  }
+  req.user = null;
+  guestAiLimiter(req, res, next);
+}
+
 function publicUser(row) {
   return {
     id:         row.id,
@@ -539,7 +556,7 @@ async function callGroq(prompt, model = AI_MODEL, systemPrompt = null, maxTokens
 // prompts are capped, so this isn't a free general-purpose proxy on our Groq key.
 const MAX_PROMPT_CHARS  = 12000;
 
-app.post('/api/ai/complete', authMiddleware, async (req, res) => {
+app.post('/api/ai/complete', aiAccess, async (req, res) => {
   const { prompt } = req.body;
   if (!prompt || typeof prompt !== 'string') return res.status(400).json({ error: 'prompt required.' });
   if (prompt.length > MAX_PROMPT_CHARS) return res.status(413).json({ error: 'Prompt too long.' });
@@ -558,7 +575,7 @@ function parseJsonObject(raw) {
 // ── TAILOR CV TO A JOB OFFER ──────────────────────────────────────────────────
 // Returns *proposals* only — the client shows a before/after and the user picks
 // what to apply. The model may rephrase and reorder, never invent facts.
-app.post('/api/ai/tailor', authMiddleware, async (req, res) => {
+app.post('/api/ai/tailor', aiAccess, async (req, res) => {
   try {
     const { cv = {}, jobOffer = '' } = req.body || {};
     const job = String(jobOffer).trim().slice(0, 6000);
@@ -648,7 +665,7 @@ Only include experiences whose description you actually improved. Use the [index
   }
 });
 
-app.post('/api/ai/enhance', authMiddleware, async (req, res) => {
+app.post('/api/ai/enhance', aiAccess, async (req, res) => {
   const { type, data } = req.body;
   const isFrench = data.lang === 'fr';
   const prompts = isFrench ? {
@@ -696,7 +713,7 @@ async function extractTextFromBuffer(buffer, mimetype, originalname) {
   return buffer.toString('utf-8').replace(/[^\x20-\x7E\n\r\t]/g, ' ').replace(/\s{3,}/g, '\n').trim();
 }
 
-app.post('/api/cv/upload', authMiddleware, upload.single('cv'), async (req, res) => {
+app.post('/api/cv/upload', aiAccess, upload.single('cv'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
   try {
     const rawText = await extractTextFromBuffer(req.file.buffer, req.file.mimetype, req.file.originalname);
@@ -1007,6 +1024,10 @@ async function getLocalFontCss() {
       // DM Serif Display
       { pkg: '@fontsource/dm-serif-display/files/dm-serif-display-latin-400-normal.woff2', family: 'DM Serif Display', weight: 400, style: 'normal' },
       { pkg: '@fontsource/dm-serif-display/files/dm-serif-display-latin-400-italic.woff2', family: 'DM Serif Display', weight: 400, style: 'italic' },
+      // Inter and Lora — the other CV font choices (see FONTS in src/composables/cvRenderer.js)
+      ...[400, 500, 600, 700].map(w => ({ pkg: `@fontsource/inter/files/inter-latin-${w}-normal.woff2`, family: 'Inter', weight: w, style: 'normal' })),
+      ...[400, 500, 600, 700].map(w => ({ pkg: `@fontsource/lora/files/lora-latin-${w}-normal.woff2`, family: 'Lora', weight: w, style: 'normal' })),
+      { pkg: '@fontsource/lora/files/lora-latin-400-italic.woff2', family: 'Lora', weight: 400, style: 'italic' },
     ];
     const faces = [];
     for (const f of fonts) {
@@ -1053,21 +1074,30 @@ async function renderPdfFromHtml(html) {
     await page.setViewport({ width: PAGE_W, height: PAGE_H, deviceScaleFactor: 1 });
     await page.setContent(enforceSinglePage(prepared), { waitUntil: 'domcontentloaded', timeout: 10000 });
 
-    // Measure natural content height at full 700px width
-    const naturalH = await page.evaluate(() =>
-      Math.max(document.body.scrollHeight, document.body.offsetHeight,
-               document.documentElement.scrollHeight)
-    );
-
-    // If content overflows the page, scale it down to fit exactly one page.
-    // Widen the body to 700/scale so after zoom it renders at exactly 700px wide.
-    if (naturalH > PAGE_H) {
-      const scale = PAGE_H / naturalH;
-      const widerW = Math.ceil(PAGE_W / scale);
-      await page.addStyleTag({ content:
-        `html,body { zoom:${scale} !important; width:${widerW}px !important; max-width:${widerW}px !important; }`
-      });
-    }
+    // Shrink-to-fit: if the CV is taller than one page, zoom the CV root out. The root is
+    // widened to PAGE_W/zoom first, so after zooming it still fills the full page width
+    // (zooming a fixed 700px root is what left white space on the right before), and its
+    // min-height becomes PAGE_H/zoom so backgrounds still reach the bottom of the page.
+    // Wider content wraps less, so the best zoom is found by binary search.
+    await page.evaluate(({ PAGE_W, PAGE_H }) => {
+      const root = document.querySelector('[data-cv-root]') || document.body.firstElementChild;
+      if (!root) return;
+      const height = () => root.getBoundingClientRect().height; // visual (zoomed) height
+      const apply = (z) => {
+        root.style.zoom      = String(z);
+        root.style.width     = `${PAGE_W / z}px`;
+        root.style.maxWidth  = 'none';
+        root.style.minHeight = `${PAGE_H / z}px`;
+      };
+      if (height() <= PAGE_H + 1) return;
+      let lo = 0.5, hi = 1, best = 0.5;
+      for (let i = 0; i < 9; i++) {
+        const mid = (lo + hi) / 2;
+        apply(mid);
+        if (height() <= PAGE_H + 1) { best = mid; lo = mid; } else { hi = mid; }
+      }
+      apply(best);
+    }, { PAGE_W, PAGE_H });
 
     return await page.pdf({
       width:             `${PAGE_W}px`,
@@ -1169,6 +1199,11 @@ async function generateCvPdf(htmlContent) {
 // ── PAYMENT HELPERS ───────────────────────────────────────────────────────────
 // Products: 'email_export' (£1.99 — unlocks one draft; re-sends of that draft are free)
 //           'clean_download' (€0.50 — one watermark-free PDF, keyed by clean token)
+// Without a Stripe key, exports are free ("demo mode") — but only in development, or
+// in production when explicitly allowed. Otherwise payments report as unavailable.
+const FREE_EXPORTS = !STRIPE_KEY && (!IS_PROD || process.env.ALLOW_FREE_EXPORTS === 'true');
+const PAYMENTS_DOWN = 'Payments are temporarily unavailable. Please try again later.';
+
 let _stripe = null;
 async function getStripe() {
   if (!STRIPE_KEY) return null;
@@ -1369,6 +1404,7 @@ app.post('/api/payment/create-session', authMiddleware, async (req, res) => {
     }
     const stripe = await getStripe();
     if (!stripe) {
+      if (!FREE_EXPORTS) return res.status(503).json({ error: PAYMENTS_DOWN });
       // Demo mode — no Stripe key configured on the server
       await recordPayment({ userId: req.user.sub, draftId, sessionId: `demo_${uuid()}`, product: 'email_export', source: 'demo' });
       return res.json({ url: null, demo: true });
@@ -1533,6 +1569,7 @@ app.post('/api/cv/unlock', authMiddleware, async (req, res) => {
 
     const stripe = await getStripe();
     if (!stripe) {
+      if (!FREE_EXPORTS) return res.status(503).json({ error: PAYMENTS_DOWN });
       await recordPayment({ userId: req.user.sub, draftId: 'wm_' + token, sessionId: token, product: 'clean_download', source: 'demo' });
       return res.json({ demo: true });
     }
@@ -1634,6 +1671,26 @@ async function handleWatermarkWebhook(req, res) {
   } catch (e) { console.error('[webhook]', e.message); }
   res.json({ received: true });
 }
+
+// ── DIRECT PDF DOWNLOAD (paid drafts) ────────────────────────────────────────
+// The £1.99 export covers that CV, so a direct download is allowed too — this is the
+// fallback when email delivery fails, so a paying user always gets their PDF.
+app.post('/api/cv/export-pdf', authMiddleware, async (req, res) => {
+  try {
+    const { draftId, htmlContent, fileName } = req.body;
+    if (!htmlContent) return res.status(400).json({ error: 'htmlContent required.' });
+    if (!draftId || !(await hasEmailExport(req.user.sub, draftId))) {
+      return res.status(402).json({ error: 'This CV has not been paid for yet.' });
+    }
+    const pdf = await generateCvPdf(htmlContent);
+    if (!pdf) return res.status(500).json({ error: 'PDF generation failed. Please try again.' });
+    const safe = String(fileName || 'cv.pdf').replace(/\.pdf$/i, '').replace(/[^a-zA-Z0-9-_.]/g, '-') + '.pdf';
+    sendPdf(res, pdf, safe);
+  } catch (e) {
+    console.error('[cv/export-pdf]', e.message);
+    res.status(500).json({ error: 'Download failed: ' + e.message });
+  }
+});
 
 // ── CV RE-SEND (paid drafts) ─────────────────────────────────────────────────
 // £1.99 unlocks one draft — re-sending that same draft (even after edits) is free.
@@ -1936,7 +1993,7 @@ app.get('/api/health', async (req, res) => {
   if (maintenanceMode) {
     return res.status(503).json({ ok: false, maintenance: true, message: 'Under maintenance' });
   }
-  res.json({ ok: true, maintenance: false, db, groq: !!GROQ_KEY, stripe: !!STRIPE_KEY, google: !!GOOGLE_CLIENT_ID, time: new Date().toISOString() });
+  res.json({ ok: true, maintenance: false, db, groq: !!GROQ_KEY, stripe: !!STRIPE_KEY, freeExports: FREE_EXPORTS, email: !!(resend || smtpTransport), google: !!GOOGLE_CLIENT_ID, time: new Date().toISOString() });
 });
 
 // Frontend is served by Vercel — no static file serving needed here.

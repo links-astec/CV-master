@@ -1,118 +1,94 @@
 <template>
   <Teleport to="body">
-    <Transition name="paywall-fade">
-      <div v-if="show" class="paywall-backdrop" @click.self="$emit('close')">
-        <div class="paywall-modal">
-          <button class="paywall-close" @click="$emit('close')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    <Transition name="modal-fade">
+      <div v-if="show" class="modal-backdrop" @click.self="close">
+        <div class="modal pw" role="dialog" aria-modal="true">
+          <button class="icon-btn modal-close" @click="close" aria-label="Close">
+            <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
 
-          <!-- Sending -->
-          <div v-if="sending" class="paywall-sending">
-            <div class="send-spinner"></div>
-            <div class="send-title">{{ sendStatus }}</div>
-            <div class="send-sub">{{ sendSub }}</div>
+          <!-- Working -->
+          <div v-if="state === 'checking' || state === 'sending'" class="pw-center">
+            <span class="pw-spin"></span>
+            <h2>{{ state === 'sending' ? 'Creating your PDF…' : 'Getting your CV ready…' }}</h2>
+            <p v-if="state === 'sending'">Sending to {{ deliveryEmail.trim() || userEmail }}. This takes a few seconds.</p>
           </div>
 
-          <!-- Success — stays until user clicks Done -->
-          <div v-else-if="sent" class="paywall-success">
-            <div class="success-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px;"><polyline points="20 6 9 17 4 12"/></svg>
+          <!-- Sent -->
+          <div v-else-if="state === 'sent'" class="pw-center">
+            <span class="pw-ok"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span>
+            <h2>Your CV is on its way</h2>
+            <p>We emailed the PDF to <strong>{{ sentTo }}</strong>. Check your spam folder if it isn't there in a minute.</p>
+            <div class="pw-row">
+              <button class="btn-secondary" :disabled="downloading" @click="downloadPdf">{{ downloading ? 'Preparing…' : 'Download PDF' }}</button>
+              <button class="btn-primary accent" @click="close">Done</button>
             </div>
-            <div class="success-title">CV sent!</div>
-            <div class="success-sub">Your CV has been emailed to <strong>{{ sentTo }}</strong>. Check your inbox (and spam folder).</div>
-            <button class="btn-primary accent" style="width:100%;justify-content:center;margin-top:20px;" @click="showPreview=true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-              Preview My CV
+          </div>
+
+          <!-- Paid, but the email failed -->
+          <div v-else-if="state === 'emailFailed'" class="pw-center">
+            <span class="pw-warn"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg></span>
+            <h2>We couldn't email your CV</h2>
+            <p>Your payment is safe and this CV is unlocked. Download the PDF now, or try the email again.</p>
+            <div class="pw-row">
+              <button class="btn-primary accent" :disabled="downloading" @click="downloadPdf">{{ downloading ? 'Preparing…' : 'Download PDF' }}</button>
+              <button class="btn-secondary" @click="sendEmail()">Try email again</button>
+            </div>
+          </div>
+
+          <!-- Longer than one page -->
+          <div v-else-if="state === 'tooLong'" class="pw-body">
+            <div class="pw-hd">
+              <h2>Your CV is longer than one page</h2>
+              <p>It's about {{ overPct }}% over. We'll shrink it to fit one A4 page — text will be at {{ zoomPct }}% of its normal size{{ page.zoom < 0.82 ? ', which is quite small' : '' }}.</p>
+            </div>
+            <div class="pw-row">
+              <button class="btn-secondary" @click="close">Edit it first</button>
+              <button class="btn-primary accent" @click="acceptShrink">Continue &amp; shrink to fit</button>
+            </div>
+          </div>
+
+          <!-- Choose how to pay / send -->
+          <div v-else-if="state === 'ready'" class="pw-body">
+            <div class="pw-hd">
+              <h2>{{ paidForDraft ? 'Send your CV' : 'Get your CV as a PDF' }}</h2>
+              <p v-if="paidForDraft">This CV is already paid for — send it as often as you like, even after edits.</p>
+              <p v-else-if="demoMode">Payments aren't switched on yet, so this is free for now.</p>
+              <p v-else>A clean, one-page PDF, emailed to you.</p>
+            </div>
+
+            <div v-if="!paidForDraft && !demoMode" class="pw-price">
+              <div class="pw-amt">£1.99 <span>one-time, for this CV</span></div>
+              <ul>
+                <li v-for="f in FEATURES" :key="f"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ f }}</li>
+              </ul>
+            </div>
+
+            <div class="f-grp">
+              <label class="f-lbl" for="pw-email">Send to</label>
+              <input id="pw-email" class="f-inp" v-model="deliveryEmail" type="email" :placeholder="userEmail" @keydown.enter="primary" />
+              <p class="f-hint" :class="{ err: !deliveryOk }">{{ deliveryOk ? 'Leave blank to use your account email.' : 'Please enter a valid email address.' }}</p>
+            </div>
+
+            <div v-if="error" class="notice error pw-err">{{ error }}</div>
+
+            <button class="btn-primary accent btn-lg btn-block" :disabled="loading || !deliveryOk" @click="primary">
+              {{ loading ? 'Please wait…' : paidForDraft || demoMode ? 'Email my CV' : 'Pay £1.99 and email my CV' }}
             </button>
-            <button class="btn-secondary" style="width:100%;justify-content:center;margin-top:8px;" @click="$emit('close')">Done</button>
-          </div>
-
-          <!-- Checking this CV's payment status -->
-          <div v-else-if="checking" class="paywall-sending">
-            <div class="send-spinner"></div>
-            <div class="send-title">Preparing your CV…</div>
-          </div>
-
-          <!-- Normal / demo -->
-          <template v-else>
-            <div class="paywall-head">
-              <div class="paywall-cv-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              </div>
-              <h2 class="paywall-title">{{ paidForDraft ? 'Send your CV' : demoMode ? 'Demo Export' : 'Export Your CV' }}</h2>
-              <p class="paywall-sub">{{ paidForDraft ? 'This CV is already paid for — send it as often as you like, even after edits.' : demoMode ? "Payments aren't switched on yet — sending is free for now." : 'Your CV will be emailed as a PDF.' }}</p>
-            </div>
-
-            <div v-if="loadError" class="paywall-error">{{ loadError }}</div>
-
-            <!-- Already paid for this draft, or demo mode: just send -->
-            <div v-if="paidForDraft || demoMode" class="demo-email-section">
-              <label class="f-lbl">Send to (optional)</label>
-              <input class="f-inp" v-model="deliveryEmail" type="email" :placeholder="userEmail" @keydown.enter="sendNow" />
-              <button class="btn-pay" @click="sendNow" :disabled="sending || !deliveryOk">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8l10 7 10-7"/></svg>
-                {{ paidForDraft ? 'Send My CV — Free' : 'Send My CV — Free Demo' }}
-              </button>
-              <p class="paywall-secure">PDF sent to {{ deliveryEmail.trim() || userEmail }}</p>
-            </div>
-
-            <!-- Paid mode -->
-            <template v-else>
-              <div class="paywall-price-wrap">
-                <div class="paywall-price">£1.99</div>
-                <div class="paywall-price-sub">one-time for this CV · re-send free anytime</div>
-              </div>
-              <div class="paywall-features">
-                <div class="paywall-feature" v-for="f in features" :key="f">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-green)" stroke-width="2.5" style="width:14px;height:14px;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
-                  {{ f }}
-                </div>
-              </div>
-
-              <div class="delivery-email-wrap">
-                <label class="f-lbl">Send PDF to (optional)</label>
-                <input class="f-inp" v-model="deliveryEmail" type="email" :placeholder="userEmail" />
-                <p class="f-hint" :class="{ 'f-hint-err': !deliveryOk }">{{ deliveryOk ? 'Leave blank to use your account email' : 'Enter a valid email address' }}</p>
-              </div>
-
-              <button class="btn-pay" @click="pay" :disabled="loading || !deliveryOk">
-                <svg v-if="loading" class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" opacity=".2"/><path d="M21 12a9 9 0 00-9-9"/></svg>
-                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8l10 7 10-7"/></svg>
-                {{ loading ? 'Processing...' : 'Pay £1.99 — Email My CV' }}
-              </button>
-
-              <button v-if="credits > 0" class="btn-credit" @click="useCredit" :disabled="loading || !deliveryOk">
-                🎁 Use 1 referral credit instead — free ({{ credits }} left)
-              </button>
-
-              <p class="paywall-secure">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:13px;height:13px;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-                Secured by Stripe · PDF sent to {{ deliveryEmail.trim() || userEmail }}
-              </p>
-            </template>
-          </template>
-        </div>
-      </div>
-    </Transition>
-
-    <!-- CV Preview Modal -->
-    <Transition name="cv-preview-fade">
-      <div v-if="showPreview" class="cv-preview-backdrop">
-        <div class="cv-preview-modal">
-          <div class="cv-preview-topbar">
-            <div class="cv-preview-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:16px;height:16px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-              CV Preview
-            </div>
-            <button class="cv-preview-close" @click="showPreview=false">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:14px;height:14px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            <button v-if="!paidForDraft && !demoMode && credits > 0" class="btn-secondary btn-block pw-credit" :disabled="loading || !deliveryOk" @click="useCredit">
+              Use a referral credit instead — free ({{ credits }} left)
             </button>
+            <p v-if="!paidForDraft && !demoMode" class="pw-secure">
+              <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+              Secure payment by Stripe · No subscription
+            </p>
           </div>
-          <div class="cv-preview-canvas" ref="previewCanvasRef">
-            <div :style="previewOuterStyle">
-              <div :style="previewScalerStyle" v-html="cvHtmlContent"></div>
-            </div>
+
+          <!-- Couldn't prepare -->
+          <div v-else-if="state === 'error'" class="pw-center">
+            <h2>Something went wrong</h2>
+            <p>{{ error }}</p>
+            <div class="pw-row"><button class="btn-secondary" @click="close">Close</button><button class="btn-primary accent" @click="prepare">Try again</button></div>
           </div>
         </div>
       </div>
@@ -121,233 +97,199 @@
 </template>
 
 <script setup>
-import { ref, computed, inject, watch, nextTick, onUnmounted } from 'vue'
+import { ref, computed, inject, watch } from 'vue'
 import { useCvStore }    from '../stores/cv.js'
 import { useAuthStore }  from '../stores/auth.js'
 import { useNotifStore } from '../stores/notifications.js'
-import { useCvRenderer } from '../composables/cvRenderer.js'
+import { render } from '../composables/cvRenderer.js'
+import { analysePage, exportDocument } from '../composables/pageFit.js'
 
 const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
 
 const props = defineProps({ show: Boolean })
-const emit = defineEmits(['close', 'paid'])
+const emit  = defineEmits(['close'])
 
 const store      = useCvStore()
 const auth       = useAuthStore()
 const notifStore = useNotifStore()
-const { render } = useCvRenderer()
-const showToast  = inject('showToast')
+const showToast      = inject('showToast', null)
+const requireAccount = inject('requireAccount')
 
+const FEATURES = ['Watermark-free PDF, sent to your inbox', 'Re-send it free, even after edits', 'Direct download included']
+
+// checking | tooLong | ready | sending | sent | emailFailed | error
+const state         = ref('checking')
 const loading       = ref(false)
-const checking      = ref(false)
-const sending       = ref(false)
-const sent          = ref(false)
+const downloading   = ref(false)
+const error         = ref('')
 const demoMode      = ref(false)
-const paidForDraft  = ref(false)   // £1.99 already paid for this draft → re-sends are free
-const credits       = ref(0)       // referral credits available
-const loadError     = ref('')
+const paidForDraft  = ref(false)
+const credits       = ref(0)
 const deliveryEmail = ref('')
 const sentTo        = ref('')
-const sendStatus    = ref('Generating your PDF...')
-const sendSub       = ref('')
-const showPreview      = ref(false)
-const cvHtmlContent    = ref('')
-const previewCanvasRef = ref(null)
-const previewCanvasW   = ref(0)
+const draftId       = ref(null)
+const page          = ref({ overflow: false, overBy: 0, zoom: 1 })
 
-const userEmail = computed(() => auth.user?.email || 'your email')
-function isValidEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e || '') }
-const deliveryOk = computed(() => !deliveryEmail.value.trim() || isValidEmail(deliveryEmail.value.trim()))
+const userEmail  = computed(() => auth.user?.email || 'your email')
+const deliveryOk = computed(() => !deliveryEmail.value.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(deliveryEmail.value.trim()))
+const overPct    = computed(() => Math.max(1, Math.round(page.value.overBy * 100)))
+const zoomPct    = computed(() => Math.round(page.value.zoom * 100))
 
-async function getJson(path, opts = {}) {
-  const r = await fetch(apiUrl(path), { credentials: 'include', ...opts })
+const cvHtml = () => render(store.template, store.data, store.fmt)
+const fileName = () => {
+  const name = [store.data.fn, store.data.ln].filter(Boolean).join(' ') || 'My CV'
+  return name.replace(/[^a-zA-Z0-9\s-]/g, '').trim().replace(/\s+/g, '-') + '-CV.pdf'
+}
+
+async function api(path, body) {
+  const r = await fetch(apiUrl(path), {
+    method: body ? 'POST' : 'GET', credentials: 'include',
+    headers: body ? { 'Content-Type': 'application/json' } : {},
+    body: body ? JSON.stringify(body) : undefined,
+  })
   const data = await r.json().catch(() => ({}))
-  if (!r.ok) throw new Error(data.error || `Request failed (${r.status})`)
+  if (!r.ok) { const e = new Error(data.error || `Request failed (${r.status})`); e.status = r.status; throw e }
   return data
 }
 
-// On open: make sure the CV is saved (payment is per draft), then look up its status
-async function prepare() {
-  sent.value = false
-  loadError.value = ''
-  checking.value = true
-  try {
-    const draftId = await store.ensureSavedDraftId()
-    if (!draftId) {
-      loadError.value = "We couldn't save your CV. Check your connection and try again."
-      return
-    }
-    const [status, refInfo] = await Promise.all([
-      getJson(`/api/payment/status/${draftId}`).catch(() => ({ paid: false })),
-      getJson('/api/referral/info').catch(() => ({ credits: 0 })),
-    ])
-    paidForDraft.value = !!status.paid
-    credits.value      = Number(refInfo.credits) || 0
-  } finally {
-    checking.value = false
-  }
-}
+function close() { if (state.value !== 'sending' && !loading.value) emit('close') }
 
 // Stripe returns are handled by handleStripeReturn — don't run prepare over the top of them
 let handlingReturn = false
-watch(() => props.show, (v) => {
-  if (v && !handlingReturn) prepare()
-  if (!v) { sent.value = false; demoMode.value = false }
+watch(() => props.show, async (v) => {
+  if (!v || handlingReturn) return
+  error.value = ''
+  // Guests create an account here; the CV they built is saved into it automatically
+  if (!auth.isLoggedIn) {
+    const ok = await requireAccount('export')
+    if (!ok) { emit('close'); return }
+  }
+  prepare()
 })
 
-const previewScale = computed(() => {
-  const w = previewCanvasW.value
-  return w ? Math.min(0.9, (w - 48) / 700) : 0.8
-})
-const previewOuterStyle  = computed(() => ({ width: '100%', display: 'flex', justifyContent: 'center' }))
-const previewScalerStyle = computed(() => ({ width: '700px', zoom: String(previewScale.value), flexShrink: '0' }))
-
-let _ro
-watch(showPreview, async (v) => {
-  if (v) {
-    cvHtmlContent.value = render(store.template, normalisedData(), store.fmt)
-    await nextTick()
-    if (previewCanvasRef.value) {
-      previewCanvasW.value = previewCanvasRef.value.clientWidth
-      _ro = new ResizeObserver(() => { previewCanvasW.value = previewCanvasRef.value?.clientWidth || 0 })
-      _ro.observe(previewCanvasRef.value)
-    }
-  } else { _ro?.disconnect() }
-})
-onUnmounted(() => _ro?.disconnect())
-
-const features = [
-  'CV emailed directly as a PDF',
-  'ATS-optimised formatting',
-  'Re-send this CV free, even after edits',
-  'Keep forever — yours to use',
-]
-
-function normalisedData() {
-  // Fix education being stored as plain object in older drafts
-  const d = { ...store.data }
-  if (d.education && !Array.isArray(d.education)) d.education = [d.education]
-  if (!d.education || d.education.length === 0) d.education = [{ degree: '', school: '', year: '' }]
-  return d
-}
-
-function buildCvHtml() {
-  const cvHtml = render(store.template, normalisedData(), store.fmt)
-  const name   = `${store.data.fn || 'My'} ${store.data.ln || 'CV'}`.trim()
-  const html   = `<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>CV</title>
-<style>*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-html,body{background:#fff;width:700px;margin:0;padding:0;}
-@page{margin:0;}</style>
-</head><body>${cvHtml}</body></html>`
-  return { html, name }
-}
-
-async function sendCvEmail(sessionId, draftId) {
-  sending.value    = true
-  sendStatus.value = 'Generating your PDF...'
-  const to = deliveryEmail.value.trim() || null
-  sendSub.value    = `Sending to ${to || userEmail.value}`
+async function prepare() {
+  state.value = 'checking'
+  error.value = ''
+  demoMode.value = false
   try {
-    const { html, name } = buildCvHtml()
-    const data = await getJson('/api/cv/email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        htmlContent:   html,
-        fileName:      `${name.replace(/\s+/g, '-')}-CV.pdf`,
-        overrideEmail: to,
-        sessionId:     sessionId || null,
-        draftId:       draftId || store.currentDraftId,
-      }),
-    })
-    sentTo.value       = data.sentTo || to || userEmail.value
-    paidForDraft.value = true
-    notifStore.fetch()
-    sending.value = false
-    sent.value    = true
+    const [id, info] = await Promise.all([store.ensureSavedDraftId(), analysePage(cvHtml())])
+    page.value = info
+    if (!id) throw new Error("We couldn't save your CV to your account. Check your connection and try again.")
+    draftId.value = id
+    const [status, refInfo] = await Promise.all([
+      api(`/api/payment/status/${id}`).catch(() => ({ paid: false })),
+      api('/api/referral/info').catch(() => ({ credits: 0 })),
+    ])
+    paidForDraft.value = !!status.paid
+    credits.value = Number(refInfo.credits) || 0
+    state.value = info.overflow && !store.data.shrinkToFit ? 'tooLong' : 'ready'
   } catch (e) {
-    console.error('sendCvEmail error:', e)
-    sending.value = false
-    showToast?.('Email failed: ' + e.message)
+    error.value = e.message
+    state.value = 'error'
   }
 }
 
-// Paid already (or demo mode): send straight away
-async function sendNow() {
-  if (!deliveryOk.value) return
-  await sendCvEmail(null, store.currentDraftId)
+function acceptShrink() {
+  store.data.shrinkToFit = true
+  state.value = 'ready'
+}
+
+// Main button: send if already paid (or demo), otherwise go to Stripe
+function primary() {
+  if (!deliveryOk.value || loading.value) return
+  if (paidForDraft.value || demoMode.value) sendEmail()
+  else pay()
 }
 
 async function pay() {
   loading.value = true
+  error.value = ''
   try {
-    const draftId = await store.ensureSavedDraftId()
-    if (!draftId) throw new Error("We couldn't save your CV. Check your connection and try again.")
-    const data = await getJson('/api/payment/create-session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ draftId }),
-    })
-    if (data.alreadyPaid) {
-      paidForDraft.value = true
-      loading.value = false
-    } else if (data.demo) {
-      demoMode.value = true
-      loading.value  = false
-    } else if (data.url) {
-      if (deliveryEmail.value.trim()) sessionStorage.setItem('pcv_delivery_email', deliveryEmail.value.trim())
-      window.location.href = data.url
-    } else {
-      throw new Error('Payment could not be started.')
-    }
+    const data = await api('/api/payment/create-session', { draftId: draftId.value })
+    if (data.alreadyPaid) { paidForDraft.value = true; loading.value = false; return sendEmail() }
+    if (data.demo)        { demoMode.value = true;     loading.value = false; return sendEmail() }
+    if (!data.url) throw new Error('Payment could not be started.')
+    if (deliveryEmail.value.trim()) sessionStorage.setItem('pcv_delivery_email', deliveryEmail.value.trim())
+    window.location.href = data.url
   } catch (e) {
-    showToast?.('Error: ' + e.message)
+    error.value = e.message
     loading.value = false
   }
 }
 
 async function useCredit() {
   loading.value = true
+  error.value = ''
   try {
-    const draftId = await store.ensureSavedDraftId()
-    if (!draftId) throw new Error("We couldn't save your CV. Check your connection and try again.")
-    const data = await getJson('/api/referral/redeem', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ product: 'email_export', draftId }),
-    })
+    const data = await api('/api/referral/redeem', { product: 'email_export', draftId: draftId.value })
     if (typeof data.credits === 'number') credits.value = data.credits
     paidForDraft.value = true
     loading.value = false
-    await sendCvEmail(null, draftId)
+    await sendEmail()
   } catch (e) {
-    showToast?.(e.message)
+    error.value = e.message
     loading.value = false
   }
 }
 
-// After Stripe redirects back, the paid draft must be the one in the editor before we render it
-async function loadDraft(draftId) {
-  if (!draftId || store.currentDraftId === draftId) return
-  const drafts = await getJson('/api/drafts')
-  const d = drafts.find(x => x.id === draftId)
-  if (!d?.data) return
-  store.currentDraftId = d.id
-  store.wizardDraftId  = d.id
-  Object.assign(store.data, d.data)
-  store.data.jobOffer    = d.data.jobOffer    || ''
-  store.data.skillLevels = d.data.skillLevels || {}
-  if (d.template) store.template = d.template
+async function sendEmail(sessionId = null) {
+  state.value = 'sending'
+  try {
+    const data = await api('/api/cv/email', {
+      htmlContent:   exportDocument(cvHtml()),
+      fileName:      fileName(),
+      overrideEmail: deliveryEmail.value.trim() || null,
+      sessionId,
+      draftId:       draftId.value || store.currentDraftId,
+    })
+    sentTo.value = data.sentTo
+    paidForDraft.value = true
+    state.value = 'sent'
+    notifStore.fetch()
+  } catch (e) {
+    if (e.status === 403 || e.status === 401) { error.value = e.message; state.value = 'ready' }
+    else state.value = 'emailFailed'
+  }
 }
 
-async function handleStripeReturn(sessionId, draftId) {
+// Paid CVs can always be downloaded directly too
+async function downloadPdf() {
+  downloading.value = true
+  try {
+    const r = await fetch(apiUrl('/api/cv/export-pdf'), {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ draftId: draftId.value || store.currentDraftId, htmlContent: exportDocument(cvHtml()), fileName: fileName() }),
+    })
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Download failed.')
+    const url = URL.createObjectURL(await r.blob())
+    const a = document.createElement('a')
+    a.href = url; a.download = fileName()
+    document.body.appendChild(a); a.click(); a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  } catch (e) {
+    showToast?.(e.message)
+  } finally {
+    downloading.value = false
+  }
+}
+
+// After Stripe redirects back, make sure the paid draft is the one in the editor, then send it
+async function handleStripeReturn(sessionId, paidDraftId) {
   handlingReturn = true
+  state.value = 'sending'
   try {
     const saved = sessionStorage.getItem('pcv_delivery_email')
     if (saved) { deliveryEmail.value = saved; sessionStorage.removeItem('pcv_delivery_email') }
-    try { await loadDraft(draftId) } catch (e) { console.warn('[paywall] could not load paid draft:', e.message) }
-    await sendCvEmail(sessionId, draftId)
+    if (paidDraftId && store.currentDraftId !== paidDraftId && auth.isLoggedIn) {
+      try {
+        const drafts = await api('/api/drafts')
+        const d = drafts.find(x => x.id === paidDraftId)
+        if (d) store.loadDraft(d)
+      } catch {}
+    }
+    draftId.value = paidDraftId || store.currentDraftId
+    await sendEmail(sessionId)
   } finally {
     handlingReturn = false
   }
@@ -357,67 +299,29 @@ defineExpose({ handleStripeReturn })
 </script>
 
 <style scoped>
-.paywall-fade-enter-active,.paywall-fade-leave-active{transition:opacity .25s,transform .25s;}
-.paywall-fade-enter-from,.paywall-fade-leave-to{opacity:0;transform:scale(.97);}
-
-.paywall-backdrop{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px;}
-.paywall-modal{background:var(--c-surface);border-radius:20px;padding:28px 26px;width:100%;max-width:380px;box-shadow:0 24px 64px rgba(0,0,0,.2);position:relative;overflow-y:auto;max-height:90dvh;}
-.paywall-close{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:50%;background:var(--c-bg);border:1px solid var(--c-border);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--c-text2);}
-.paywall-close svg{width:13px;height:13px;}
-
-.paywall-sending{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 20px;text-align:center;min-height:180px;}
-.send-spinner{width:44px;height:44px;border:3px solid var(--c-border);border-top-color:var(--c-accent);border-radius:50%;animation:spin .8s linear infinite;margin-bottom:16px;}
-@keyframes spin{to{transform:rotate(360deg);}}
-.send-title{font-size:16px;font-weight:700;color:var(--c-text);margin-bottom:6px;}
-.send-sub{font-size:13px;color:var(--c-text3);}
-
-.paywall-success{text-align:center;padding:12px 4px;}
-.success-icon{width:64px;height:64px;border-radius:50%;background:var(--c-green-lt);border:2px solid var(--c-green);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:var(--c-green);}
-.success-title{font-size:22px;font-weight:700;color:var(--c-text);margin-bottom:8px;}
-.success-sub{font-size:13px;color:var(--c-text2);line-height:1.6;}
-
-.paywall-head{text-align:center;margin-bottom:18px;}
-.paywall-cv-icon{width:56px;height:56px;background:var(--c-accent-lt);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;}
-.paywall-cv-icon svg{width:28px;height:28px;color:var(--c-accent);}
-.paywall-title{font-family:'DM Serif Display',serif;font-size:22px;color:var(--c-text);margin-bottom:6px;}
-.paywall-sub{font-size:13px;color:var(--c-text2);line-height:1.5;}
-
-.demo-email-section{display:flex;flex-direction:column;gap:10px;margin-bottom:4px;}
-
-.paywall-price-wrap{text-align:center;margin-bottom:16px;}
-.paywall-price{font-size:46px;font-weight:800;color:var(--c-accent);line-height:1;margin-bottom:4px;}
-.paywall-price-sub{font-size:12px;color:var(--c-text3);}
-
-.paywall-features{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
-.paywall-feature{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--c-text2);}
-
-.delivery-email-wrap{display:flex;flex-direction:column;gap:4px;margin-bottom:14px;}
-
-.btn-pay{width:100%;background:var(--c-accent);color:#fff;border:none;padding:14px 20px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;font-family:'DM Sans',sans-serif;transition:opacity .15s;margin-bottom:10px;}
-.btn-pay:hover:not(:disabled){opacity:.88;}
-.btn-credit{width:100%;background:var(--c-green-lt);color:var(--c-green);border:1.5px solid var(--c-green);padding:11px 16px;border-radius:12px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:10px;}
-.btn-credit:disabled{opacity:.45;cursor:not-allowed;}
-.paywall-error{background:var(--c-rose-lt);color:var(--c-rose);border-radius:10px;padding:10px 12px;font-size:12.5px;margin-bottom:12px;}
-.f-hint-err{color:var(--c-rose)!important;}
-.btn-pay:disabled{opacity:.45;cursor:not-allowed;}
-
-.paywall-secure{display:flex;align-items:center;justify-content:center;gap:6px;font-size:11.5px;color:var(--c-text3);margin:0;}
-
-.spin{animation:spin .7s linear infinite;}
-
-.cv-preview-fade-enter-active,.cv-preview-fade-leave-active{transition:opacity .25s;}
-.cv-preview-fade-enter-from,.cv-preview-fade-leave-to{opacity:0;}
-.cv-preview-backdrop{position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:16px;}
-.cv-preview-modal{width:100%;max-width:780px;height:92dvh;max-height:920px;background:var(--c-bg);border-radius:16px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,.4);}
-.cv-preview-topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--c-surface);border-bottom:1px solid var(--c-border);flex-shrink:0;}
-.cv-preview-title{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--c-text);}
-.cv-preview-close{width:30px;height:30px;border-radius:50%;background:var(--c-bg);border:1px solid var(--c-border);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--c-text2);}
-.cv-preview-canvas{flex:1;overflow-y:auto;overflow-x:hidden;padding:24px;display:flex;justify-content:center;align-items:flex-start;}
-
-@media (max-width:768px){
-  .paywall-backdrop{padding:0;align-items:flex-end;}
-  .paywall-modal{border-radius:20px 20px 0 0;max-width:100%;padding-bottom:calc(28px + env(safe-area-inset-bottom));}
-  .cv-preview-backdrop{padding:0;align-items:flex-end;}
-  .cv-preview-modal{border-radius:20px 20px 0 0;height:95dvh;max-height:95dvh;max-width:100%;}
-}
+.pw{max-width:460px;padding:30px 28px 26px}
+.pw-hd h2,.pw-center h2{font-size:20px;font-weight:650;letter-spacing:-.015em}
+.pw-hd p,.pw-center p{color:var(--c-text2);margin-top:6px;line-height:1.55}
+.pw-hd{margin-bottom:20px;padding-right:24px}
+.pw-center{display:flex;flex-direction:column;align-items:center;text-align:center;padding:18px 6px 4px}
+.pw-center h2{margin-top:16px}
+.pw-row{display:flex;gap:10px;justify-content:center;margin-top:22px;flex-wrap:wrap}
+.pw-body .pw-row{justify-content:flex-end}
+.pw-spin{width:34px;height:34px;border-radius:50%;border:3px solid var(--c-border);border-top-color:var(--c-accent);animation:spin .8s linear infinite}
+.pw-ok,.pw-warn{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.pw-ok{background:var(--c-green-lt)}
+.pw-ok svg{width:26px;height:26px;fill:none;stroke:var(--c-green);stroke-width:2.6}
+.pw-warn{background:var(--c-amber-lt)}
+.pw-warn svg{width:26px;height:26px;fill:none;stroke:var(--c-amber);stroke-width:2}
+.pw-price{border:1px solid var(--c-border);border-radius:12px;padding:16px 18px;margin-bottom:18px;background:var(--c-surface2)}
+.pw-amt{font-size:28px;font-weight:700;letter-spacing:-.02em}
+.pw-amt span{font-size:13px;font-weight:500;color:var(--c-text3);letter-spacing:0}
+.pw-price ul{list-style:none;margin-top:10px;display:flex;flex-direction:column;gap:7px}
+.pw-price li{display:flex;gap:8px;font-size:13.5px;color:var(--c-text2)}
+.pw-price li svg{width:16px;height:16px;flex-shrink:0;fill:none;stroke:var(--c-green);stroke-width:2.6;margin-top:1px}
+.f-hint.err{color:var(--c-rose)}
+.pw-err{margin-bottom:14px}
+.pw-credit{margin-top:8px}
+.pw-secure{display:flex;align-items:center;justify-content:center;gap:6px;font-size:12.5px;color:var(--c-text3);margin-top:12px}
+.pw-secure svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2}
 </style>

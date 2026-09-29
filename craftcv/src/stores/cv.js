@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
+import { useAuthStore } from './auth.js'
+import { DEFAULT_TEMPLATE, normalizeTemplate, FONTS } from '../composables/cvRenderer.js'
 
 const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
-
 
 const emptyData = () => ({
   fn: '', ln: '',
@@ -19,7 +20,15 @@ const emptyData = () => ({
   certifications: [],
   languages: [],
   lang: 'en',
-  jobOffer: '',   // job description the CV is being tailored to (optional)
+  jobOffer: '',        // job description the CV is being tailored to (optional)
+  shrinkToFit: false,  // user accepted shrinking an over-long CV onto one page
+})
+
+const defaultFmt = () => ({
+  fontFamily:     'DM Sans',
+  fontSize:       'normal',
+  lineSpacing:    'normal',
+  sectionSpacing: 'normal',
 })
 
 // Safe localStorage helpers
@@ -40,7 +49,7 @@ function plainClone(obj) {
   try { return JSON.parse(JSON.stringify(obj)) } catch { return null }
 }
 
-function hasDraftableContent(d) {
+export function hasDraftableContent(d) {
   if (!d || typeof d !== 'object') return false
   return Boolean(
     d.fn || d.ln || d.title || d.email || d.phone || d.loc || d.li || d.website || d.photo || d.sum ||
@@ -55,74 +64,61 @@ function hasDraftableContent(d) {
   )
 }
 
+// Saved data (localStorage or a server draft) → a complete, well-formed CV object
+function normaliseData(saved) {
+  const merged = { ...emptyData(), ...(saved && typeof saved === 'object' ? saved : {}) }
+  delete merged.fmt
+  for (const k of ['skills', 'certifications', 'languages', 'projects']) {
+    if (!Array.isArray(merged[k])) merged[k] = []
+  }
+  if (!Array.isArray(merged.experiences) || !merged.experiences.length) merged.experiences = emptyData().experiences
+  // Legacy single-object education → array
+  if (!Array.isArray(merged.education)) {
+    merged.education = merged.education && typeof merged.education === 'object' ? [merged.education] : []
+  }
+  if (!merged.education.length) merged.education = emptyData().education
+  merged.jobOffer    = typeof merged.jobOffer === 'string' ? merged.jobOffer : ''
+  merged.shrinkToFit = !!merged.shrinkToFit
+  return merged
+}
+
+function normaliseFmt(f) {
+  const out = { ...defaultFmt(), ...(f && typeof f === 'object' ? f : {}) }
+  if (!FONTS.some(x => x.id === out.fontFamily)) out.fontFamily = 'DM Sans'
+  delete out.skillStyle; delete out.showSkillPct
+  return out
+}
+
 export const useCvStore = defineStore('cv', () => {
-  const data           = ref(emptyData())
-  const template       = ref('executive')
+  const auth = useAuthStore()
+
+  const data           = ref(normaliseData(safeParse(lsGet('pcv-draft'))))
+  const template       = ref(normalizeTemplate(lsGet('pcv-template') || DEFAULT_TEMPLATE))
+  const fmt            = ref(normaliseFmt(safeParse(lsGet('pcv-fmt'))))
   const darkMode       = ref(false)
   const wizardOpen     = ref(false)
-  const fmt            = ref({
-    fontFamily:     'DM Sans',
-    fontSize:       'normal',
-    skillStyle:     'bars',
-    showSkillPct:   true,
-    lineSpacing:    'normal',
-    sectionSpacing: 'normal',
-  })
   const wizardMode     = ref(null)
   const wizardStep     = ref(0)
   const wizardDraftId  = ref(null)
   const currentDraftId = ref(null)
+  const lastSavedAt    = ref(null)
 
-  // ── Restore persisted data on load ──────────────────────────────────────────
-  const savedData = safeParse(lsGet('pcv-draft'))
-  if (savedData && typeof savedData === 'object') {
-    // Merge carefully — keep emptyData structure, overlay saved values
-    const merged = { ...emptyData(), ...savedData }
-    // Ensure arrays are plain arrays
-    if (!Array.isArray(merged.experiences))    merged.experiences = emptyData().experiences
-    if (!Array.isArray(merged.skills))          merged.skills = []
-    if (!Array.isArray(merged.certifications))  merged.certifications = []
-    if (!Array.isArray(merged.languages))       merged.languages = []
-    if (!Array.isArray(merged.projects))        merged.projects = []
-    // Migrate legacy single-object education to array
-    if (!Array.isArray(merged.education)) {
-      if (merged.education && typeof merged.education === 'object' && merged.education.degree !== undefined) {
-        merged.education = [merged.education]
-      } else {
-        merged.education = emptyData().education
-      }
-    }
-    // Always ensure at least one education entry
-    if (merged.education.length === 0) merged.education = emptyData().education
-    data.value = merged
-  }
-  const savedTpl = lsGet('pcv-template')
-  if (savedTpl) template.value = savedTpl
-
-  // ── Persist on change — localStorage immediately, DB debounced ────────────
+  // ── Persist on change — localStorage immediately, account debounced ─────────
   let saveTimer = null
   let savePromise = null
-  watch(data, (v) => {
-    // Always save to localStorage immediately
-    const clone = plainClone(v)
-    if (clone) lsSet('pcv-draft', JSON.stringify(clone))
-    // Debounce DB save
+  function scheduleSave(delay = 1500) {
     clearTimeout(saveTimer)
     saveTimer = setTimeout(() => {
-      if (hasDraftableContent(v)) saveDraft().catch(() => {})
-    }, 1500)
+      if (currentDraftId.value || hasDraftableContent(data.value)) saveDraft().catch(() => {})
+    }, delay)
+  }
+  watch(data, (v) => {
+    const clone = plainClone(v)
+    if (clone) lsSet('pcv-draft', JSON.stringify(clone))
+    scheduleSave()
   }, { deep: true, flush: 'post' })
-
-  watch(template, (v) => {
-    lsSet('pcv-template', v)
-    // Use setTimeout with longer delay to ensure we're outside any render cycle
-    // flush:'post' ensures this runs after Vue has finished rendering
-    setTimeout(() => {
-      if (currentDraftId.value || hasDraftableContent(data.value)) {
-        saveDraft().catch(() => {})
-      }
-    }, 1000)
-  }, { flush: 'post' })
+  watch(template, (v) => { lsSet('pcv-template', v); scheduleSave(800) }, { flush: 'post' })
+  watch(fmt, (v) => { lsSet('pcv-fmt', JSON.stringify(v)); scheduleSave(800) }, { deep: true, flush: 'post' })
 
   watch(darkMode, (v) => {
     document.documentElement.setAttribute('data-theme', v ? 'dark' : 'light')
@@ -136,11 +132,8 @@ export const useCvStore = defineStore('cv', () => {
   }
 
   const fullName = computed(() => `${data.value.fn} ${data.value.ln}`.trim() || 'Your Name')
-  const initials = computed(() => {
-    const f = data.value.fn?.[0] || 'Y'
-    const l = data.value.ln?.[0] || 'N'
-    return f + l
-  })
+  const initials = computed(() => ((data.value.fn?.[0] || '') + (data.value.ln?.[0] || '')).toUpperCase())
+  const hasContent = computed(() => hasDraftableContent(data.value))
 
   function openWizard(preserveStep = false) {
     wizardOpen.value = true
@@ -164,50 +157,40 @@ export const useCvStore = defineStore('cv', () => {
     data.value.experiences = data.value.experiences.filter(e => e.id !== id)
   }
   function addSkill(s) {
-    if (s && !data.value.skills.includes(s)) data.value.skills.push(s)
+    const v = String(s || '').trim()
+    if (v && !data.value.skills.some(x => x.toLowerCase() === v.toLowerCase())) data.value.skills.push(v)
   }
   function removeSkill(s) {
-    const i = data.value.skills.indexOf(s)
-    if (i === -1) return
     data.value.skills = data.value.skills.filter(x => x !== s)
-    // Levels are stored by index — shift later ones down so they stay with their skill
-    const lv = data.value.skillLevels
-    if (lv && typeof lv === 'object') {
-      const next = {}
-      Object.keys(lv).forEach(k => {
-        const n = Number(k)
-        if (n < i) next[n] = lv[k]
-        else if (n > i) next[n - 1] = lv[k]
-      })
-      data.value.skillLevels = next
-    }
   }
 
+  // New, empty CV. Keeps the chosen template and formatting.
   function resetData() {
     data.value = emptyData()
     wizardDraftId.value  = null
     currentDraftId.value = null
     lsSet('pcv-draft', '')
-    lsSet('pcv-template', 'executive')
-    template.value = 'executive'
+  }
+
+  // Open a saved draft (from the account) in the editor
+  function loadDraft(draft) {
+    if (!draft) return
+    currentDraftId.value = draft.id || null
+    wizardDraftId.value  = draft.id || null
+    data.value     = normaliseData(draft.data)
+    template.value = normalizeTemplate(draft.template)
+    if (draft.data?.fmt) fmt.value = normaliseFmt(draft.data.fmt)
   }
 
   // Safe way to apply extracted data from upload/narrate without crashing reactivity
   function applyExtracted(ext) {
     if (!ext || typeof ext !== 'object') return
     const d = data.value
-    if (ext.fn    && typeof ext.fn    === 'string') d.fn    = ext.fn
-    if (ext.ln    && typeof ext.ln    === 'string') d.ln    = ext.ln
-    if (ext.title && typeof ext.title === 'string') d.title = ext.title
-    if (ext.email && typeof ext.email === 'string') d.email = ext.email
-    if (ext.phone && typeof ext.phone === 'string') d.phone = ext.phone
-    if (ext.loc   && typeof ext.loc   === 'string') d.loc   = ext.loc
-    if (ext.li    && typeof ext.li    === 'string') d.li    = ext.li
-    if (ext.website && typeof ext.website === 'string') d.website = ext.website
-    if (ext.sum   && typeof ext.sum   === 'string') d.sum   = ext.sum
+    for (const k of ['fn', 'ln', 'title', 'email', 'phone', 'loc', 'li', 'website', 'sum']) {
+      if (ext[k] && typeof ext[k] === 'string') d[k] = ext[k]
+    }
     if (Array.isArray(ext.skills) && ext.skills.length) {
-      d.skills = ext.skills.filter(s => typeof s === 'string').slice(0, 20)
-      d.skillLevels = {} // levels are per index — stale once the list is replaced
+      d.skills = ext.skills.filter(s => typeof s === 'string' && s.trim()).map(s => s.trim()).slice(0, 30)
     }
     if (Array.isArray(ext.experiences) && ext.experiences.length) {
       d.experiences = ext.experiences
@@ -222,26 +205,16 @@ export const useCvStore = defineStore('cv', () => {
         .slice(0, 10)
     }
     if (ext.education) {
-      if (Array.isArray(ext.education)) {
-        d.education = ext.education
-          .filter(e => e && typeof e === 'object')
-          .map(e => ({
-            degree: typeof e.degree === 'string' ? e.degree : '',
-            school: typeof e.school === 'string' ? e.school : '',
-            year:   typeof e.year   === 'string' ? e.year   : '',
-          }))
-          .slice(0, 5)
-        if (d.education.length === 0) d.education = [{ degree: '', school: '', year: '' }]
-      } else if (typeof ext.education === 'object') {
-        // AI returns plain object — wrap in array so StepEducation renders it correctly
-        d.education = [{
-          degree: typeof ext.education.degree === 'string' ? ext.education.degree : '',
-          school: typeof ext.education.school === 'string' ? ext.education.school : '',
-          year:   typeof ext.education.year   === 'string' ? ext.education.year   : '',
-        }]
-      }
-      // Ensure it's always an array after this block
-      if (!Array.isArray(d.education)) d.education = [{ degree: '', school: '', year: '' }]
+      const list = Array.isArray(ext.education) ? ext.education : (typeof ext.education === 'object' ? [ext.education] : [])
+      d.education = list
+        .filter(e => e && typeof e === 'object')
+        .map(e => ({
+          degree: typeof e.degree === 'string' ? e.degree : '',
+          school: typeof e.school === 'string' ? e.school : '',
+          year:   typeof e.year   === 'string' ? e.year   : '',
+        }))
+        .slice(0, 5)
+      if (!d.education.length) d.education = [{ degree: '', school: '', year: '' }]
     }
     if (Array.isArray(ext.projects) && ext.projects.length) {
       d.projects = ext.projects
@@ -266,14 +239,17 @@ export const useCvStore = defineStore('cv', () => {
     }
   }
 
+  // Saves to the account. Guests have no account yet — their CV lives in this
+  // browser until they sign up (App.vue then saves it as their first draft).
   async function saveDraft() {
+    if (!auth.isLoggedIn) return false
     if (savePromise) return savePromise
     savePromise = (async () => {
-      if (!hasDraftableContent(data.value)) return false
+      if (!currentDraftId.value && !hasDraftableContent(data.value)) return false
       const name = fullName.value
       const payload = {
         title: `${name}${data.value.title ? ' — ' + data.value.title : ''}`,
-        data: plainClone(data.value),
+        data: plainClone({ ...data.value, fmt: fmt.value }),
         template: template.value,
       }
       const draftId = currentDraftId.value || wizardDraftId.value
@@ -284,12 +260,19 @@ export const useCvStore = defineStore('cv', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
+      if (r.status === 404 && draftId) {
+        // Draft was deleted elsewhere — save this CV as a new one
+        currentDraftId.value = null; wizardDraftId.value = null
+        savePromise = null
+        return saveDraft()
+      }
       if (!r.ok) return false
       const draft = await r.json()
-      // Already outside any render cycle here (after an await), so set ids directly —
+      // Outside any render cycle here (after an await), so set ids directly —
       // callers such as checkout need the id as soon as this resolves.
       if (!wizardDraftId.value)  wizardDraftId.value  = draft.id
       if (!currentDraftId.value) currentDraftId.value = draft.id
+      lastSavedAt.value = Date.now()
       return draft.id
     })().catch((e) => {
       console.warn('Draft save failed:', e.message)
@@ -312,44 +295,18 @@ export const useCvStore = defineStore('cv', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt }), // model is chosen server-side
     })
-    const json = await r.json()
-    if (json.error) throw new Error(json.error)
+    const json = await r.json().catch(() => ({}))
+    if (!r.ok || json.error) throw new Error(json.error || 'AI request failed.')
     return json.result
   }
 
-  function setSkillLevel(i, value) {
-    if (!data.value.skillLevels) data.value.skillLevels = {}
-    data.value.skillLevels[i] = Number(value)
-  }
-
-  const cvScore = computed(() => {
-    const d = data.value
-    const exp = d.experiences || []
-    const edu = Array.isArray(d.education) ? d.education : []
-    const skills = d.skills || []
-    let pts = 0
-    if (d.fn && d.ln) pts += 10
-    if (d.email) pts += 10
-    if (d.phone) pts += 5
-    if (d.title) pts += 5
-    if (d.loc) pts += 5
-    if ((d.sum?.length ?? 0) > 20) pts += 10
-    if ((d.sum?.length ?? 0) >= 100 && (d.sum?.length ?? 0) <= 600) pts += 5
-    if (exp.filter(e => e.title || e.company).length >= 1) pts += 15
-    if (exp.length > 0 && exp.every(e => (e.desc?.length ?? 0) > 30)) pts += 10
-    if (skills.length >= 6) pts += 10
-    if (edu.some(e => e.degree || e.school)) pts += 10
-    if (d.li) pts += 5
-    return pts
-  })
-
   return {
-    data, template, darkMode, wizardOpen, wizardMode, wizardStep,
-    wizardDraftId, currentDraftId,
-    fullName, initials, fmt,
+    data, template, fmt, darkMode, wizardOpen, wizardMode, wizardStep,
+    wizardDraftId, currentDraftId, lastSavedAt,
+    fullName, initials, hasContent,
     initDarkMode, openWizard, openWizardAtStep, closeWizard,
     setMode, nextStep, prevStep,
     addExperience, removeExperience, addSkill, removeSkill,
-    resetData, applyExtracted, saveDraft, ensureSavedDraftId, callAi, setSkillLevel, cvScore,
+    resetData, loadDraft, applyExtracted, saveDraft, ensureSavedDraftId, callAi,
   }
 })

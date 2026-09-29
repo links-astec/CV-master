@@ -85,13 +85,13 @@ defineExpose({ ask })
 .confirm-cancel {
   padding: 9px 18px; border-radius: 9px; border: 1px solid var(--c-border);
   background: var(--c-bg); color: var(--c-text2); font-size: 13px; font-weight: 600;
-  cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all .15s;
+  cursor: pointer; font-family:inherit; transition: all .15s;
 }
 .confirm-cancel:hover { border-color: var(--c-text3); color: var(--c-text); }
 .confirm-ok {
   padding: 9px 18px; border-radius: 9px; border: none;
   font-size: 13px; font-weight: 700; cursor: pointer;
-  font-family: 'DM Sans', sans-serif; transition: opacity .15s; color: #fff;
+  font-family:inherit; transition: opacity .15s; color: #fff;
 }
 .ok-danger  { background: #dc2626; }
 .ok-warning { background: #ca8a04; }

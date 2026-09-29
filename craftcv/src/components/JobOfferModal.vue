@@ -103,7 +103,7 @@ defineExpose({ ask })
   width: 100%; box-sizing: border-box; resize: vertical; min-height: 140px;
   border: 1.5px solid var(--c-border); border-radius: 10px; padding: 10px 12px;
   background: var(--c-bg); color: var(--c-text);
-  font-family: 'DM Sans', sans-serif; font-size: 13px; line-height: 1.55;
+  font-family:inherit; font-size: 13px; line-height: 1.55;
 }
 .jo-textarea:focus { outline: none; border-color: var(--c-accent); }
 .jo-hint { font-size: 11.5px; color: var(--c-text3); }

@@ -17,7 +17,8 @@
         <h2>2. What data we collect</h2>
         <ul>
           <li><strong>Account data:</strong> Name, email address, and password (hashed) when you register.</li>
-          <li><strong>CV data:</strong> Career information you enter — name, work history, skills, education, etc.</li>
+          <li><strong>CV data:</strong> Career information you enter — name, work history, skills, education, etc. If you use CVMaster without an account, your CV is stored only in your browser's local storage until you create an account.</li>
+          <li><strong>Job offers:</strong> Job descriptions you paste so we can tailor your CV and check your ATS match. They are saved with the CV they belong to.</li>
           <li><strong>Payment data:</strong> We use Stripe to process payments. We never store your card details. Stripe's privacy policy applies to payment data.</li>
           <li><strong>Usage data:</strong> Basic server logs (IP address, timestamps) for security and debugging.</li>
         </ul>
@@ -35,9 +36,10 @@
         <p>We do not sell your data. We share data only with:</p>
         <ul>
           <li><strong>Stripe</strong> — for payment processing.</li>
-          <li><strong>Groq</strong> — for AI-powered CV generation (your CV content is sent to Groq's API).</li>
+          <li><strong>Groq</strong> — for AI features (your CV content and any job offer you paste are sent to Groq's API).</li>
+          <li><strong>Resend</strong> — to deliver emails, including the CV PDF you export.</li>
           <li><strong>Google</strong> — if you use Google Sign-In.</li>
-          <li><strong>Render / Vercel</strong> — hosting providers where your data is stored.</li>
+          <li><strong>Render, Vercel and Neon</strong> — hosting and database providers where your data is processed and stored.</li>
         </ul>
 
         <h2>5. Data retention</h2>
@@ -120,13 +122,13 @@ const tab = ref('privacy')
 .legal-page { padding: 0; overflow-y: auto; }
 .legal-inner { max-width: 720px; margin: 0 auto; padding: 32px 24px 64px; }
 .legal-tabs { display: flex; gap: 8px; margin-bottom: 28px; border-bottom: 1px solid var(--c-border); padding-bottom: 0; }
-.legal-tab { background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 10px 16px; font-size: 14px; font-weight: 600; color: var(--c-text3); cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all .15s; }
+.legal-tab { background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 10px 16px; font-size: 14px; font-weight: 600; color: var(--c-text3); cursor: pointer; font-family:inherit; transition: all .15s; }
 .legal-tab.active { color: var(--c-accent); border-bottom-color: var(--c-accent); }
-.legal-content h1 { font-family: 'DM Serif Display', serif; font-size: 28px; color: var(--c-text); margin-bottom: 6px; }
-.legal-content h2 { font-size: 15px; font-weight: 700; color: var(--c-text); margin: 22px 0 8px; }
-.legal-content p { font-size: 13.5px; color: var(--c-text2); line-height: 1.75; margin-bottom: 10px; }
+.legal-content h1 { font-size: 28px; font-weight: 700; letter-spacing: -.02em; color: var(--c-text); margin-bottom: 6px; }
+.legal-content h2 { font-size: 16.5px; font-weight: 650; color: var(--c-text); margin: 22px 0 8px; }
+.legal-content p { font-size: 14.5px; color: var(--c-text2); line-height: 1.75; margin-bottom: 10px; }
 .legal-content ul { padding-left: 20px; margin-bottom: 10px; }
-.legal-content li { font-size: 13.5px; color: var(--c-text2); line-height: 1.75; margin-bottom: 4px; }
+.legal-content li { font-size: 14.5px; color: var(--c-text2); line-height: 1.75; margin-bottom: 4px; }
 .legal-content a { color: var(--c-accent); }
 .legal-date { font-size: 12px; color: var(--c-text3); margin-bottom: 24px; }
 </style>
