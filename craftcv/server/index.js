@@ -691,6 +691,7 @@ async function creditAiPack(userId, sessionId, source) {
 
 app.post('/api/payment/ai-pack', authMiddleware, async (req, res) => {
   try {
+    if (req.body?.withdrawalConsent !== true) return res.status(400).json({ error: 'Please tick the box to confirm you want the requests straight away.' });
     const stripe = await getStripe();
     if (!stripe) {
       if (!FREE_EXPORTS) return res.status(503).json({ error: PAYMENTS_DOWN });
@@ -704,7 +705,7 @@ app.post('/api/payment/ai-pack', authMiddleware, async (req, res) => {
       success_url: `${FRONTEND_URL}/?ai_pack={CHECKOUT_SESSION_ID}`,
       cancel_url:  `${FRONTEND_URL}/`,
       client_reference_id: req.user.sub,
-      metadata: { product: 'ai_pack', userId: req.user.sub },
+      metadata: { product: 'ai_pack', userId: req.user.sub, withdrawal_waiver: `accepted ${new Date().toISOString()}` },
     });
     res.json({ url: session.url });
   } catch (e) { console.error('[ai-pack]', e.message); res.status(500).json({ error: 'Could not start payment. Please try again.' }); }
@@ -1800,7 +1801,7 @@ async function assertOwnDraft(userId, draftId) {
 
 app.post('/api/payment/create-session', authMiddleware, async (req, res) => {
   try {
-    const { draftId } = req.body;
+    const { draftId, withdrawalConsent } = req.body;
     if (!(await assertOwnDraft(req.user.sub, draftId))) {
       return res.status(400).json({ error: 'Your CV hasn\'t been saved yet — please try again in a moment.' });
     }
@@ -1814,6 +1815,7 @@ app.post('/api/payment/create-session', authMiddleware, async (req, res) => {
       await recordPayment({ userId: req.user.sub, draftId, sessionId: `demo_${uuid()}`, product: 'email_export', source: 'demo' });
       return res.json({ url: null, demo: true });
     }
+    if (withdrawalConsent !== true) return res.status(400).json({ error: 'Please tick the box to confirm you want your PDF straight away.' });
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [{ price_data: { currency: CV_CURRENCY, product_data: { name: 'CVMaster — your CV as a clean PDF', description: 'Emailed and downloadable · re-send free, even after edits' }, unit_amount: CV_PRICE_CENTS }, quantity: 1 }],
@@ -1821,7 +1823,8 @@ app.post('/api/payment/create-session', authMiddleware, async (req, res) => {
       success_url: `${FRONTEND_URL}/export-success?session={CHECKOUT_SESSION_ID}&draft=${draftId}`,
       cancel_url:  `${FRONTEND_URL}/`,
       client_reference_id: req.user.sub,
-      metadata: { product: 'email_export', draftId, userId: req.user.sub },
+      metadata: { product: 'email_export', draftId, userId: req.user.sub, withdrawal_waiver: `accepted ${new Date().toISOString()}` },
+      payment_intent_data: { description: 'CVMaster clean PDF — immediate delivery, withdrawal right waived by the customer' },
     });
     res.json({ url: session.url, sessionId: session.id });
   } catch (e) { console.error('[create-session]', e.message); res.status(500).json({ error: 'Could not start payment. Please try again.' }); }
