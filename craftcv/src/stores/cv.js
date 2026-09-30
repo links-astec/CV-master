@@ -31,6 +31,7 @@ const defaultFmt = () => ({
   fontSize:       'normal',
   lineSpacing:    'normal',
   sectionSpacing: 'normal',
+  linkStyle:      'plain',   // 'plain' | 'underline' — links are clickable either way
 })
 
 // Safe localStorage helpers
@@ -89,6 +90,7 @@ function normaliseData(saved) {
 function normaliseFmt(f) {
   const out = { ...defaultFmt(), ...(f && typeof f === 'object' ? f : {}) }
   if (!FONTS.some(x => x.id === out.fontFamily)) out.fontFamily = 'DM Sans'
+  if (out.linkStyle !== 'underline') out.linkStyle = 'plain'
   delete out.skillStyle; delete out.showSkillPct
   return out
 }

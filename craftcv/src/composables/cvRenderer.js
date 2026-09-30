@@ -169,7 +169,9 @@ function buildModel(raw, preview) {
   const contacts = []
   const email = str(d.email), phone = str(d.phone), loc = str(d.loc)
   if (email) contacts.push(`<a href="mailto:${esc(email)}">${esc(email)}</a>`)
-  if (phone) contacts.push(`<span>${esc(phone)}</span>`)
+  // Phone numbers are tappable (tel:) when they look like one
+  const tel = phone.replace(/[^\d+]/g, '')
+  if (phone) contacts.push(tel.replace('+', '').length >= 6 ? `<a href="tel:${esc(tel)}">${esc(phone)}</a>` : `<span>${esc(phone)}</span>`)
   if (loc)   contacts.push(`<span>${esc(loc)}</span>`)
   for (const u of [str(d.li), str(d.website)]) {
     if (!u) continue
@@ -410,6 +412,7 @@ const BASE_CSS = `
   -webkit-print-color-adjust:exact;print-color-adjust:exact}
 .cvr *{box-sizing:border-box;margin:0;padding:0}
 .cvr a{color:inherit;text-decoration:none}
+.cvr.links-u a{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:2px;text-decoration-color:color-mix(in srgb,currentColor 55%,transparent)}
 .cvr strong{font-weight:600;color:#111827}
 .cvr .ph{color:#9ca3af;font-style:italic;font-weight:400}
 .cvr .muted{color:#6b7280}
@@ -619,7 +622,10 @@ export function render(tpl, rawData, fmt = {}, opts = {}) {
     `--s:${scale}`, `--lh:${lh}`, `--sp:${sp}`, `--gap:calc(20px*${sp})`,
   ].join(';')
 
-  return `<div class="cvr l-${layout}" data-cv-root data-template="${layout}:${theme}" lang="${m.lang}" style="${vars}">`
+  // Links are real <a> links (clickable in the PDF) either way; 'underline' also makes them look like links
+  const linkCls = fmt.linkStyle === 'underline' ? ' links-u' : ''
+
+  return `<div class="cvr l-${layout}${linkCls}" data-cv-root data-template="${layout}:${theme}" lang="${m.lang}" style="${vars}">`
     // Layout rules get .cvr.l-x so they always beat the base rules, even when several
     // CVs (e.g. thumbnails) put their stylesheets on the same page
     + `<style>${BASE_CSS}${LAYOUT_CSS[layout].replace(/\.l-/g, '.cvr.l-')}</style>`

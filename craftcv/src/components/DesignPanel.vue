@@ -50,6 +50,14 @@
         </div>
       </div>
       <div>
+        <div class="dp-hd">Links</div>
+        <div class="seg dp-seg">
+          <button :class="{ active: store.fmt.linkStyle !== 'underline' }" @click="store.fmt.linkStyle = 'plain'">Plain text</button>
+          <button :class="{ active: store.fmt.linkStyle === 'underline' }" @click="store.fmt.linkStyle = 'underline'">Underlined</button>
+        </div>
+        <p class="dp-hint">Email, phone, LinkedIn, website and project links are clickable in your PDF either way.</p>
+      </div>
+      <div>
         <div class="dp-hd">CV language</div>
         <div class="seg dp-seg">
           <button :class="{ active: store.data.lang !== 'fr' }" @click="switchLang('en')">English</button>
@@ -113,6 +121,7 @@ function undoTranslate() {
 .dp-layout.active :deep(.cvt){border-color:var(--c-accent);box-shadow:0 0 0 3px var(--c-accent-ring)}
 .dp-undo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;padding:8px 12px;border-radius:9px;background:var(--c-green-lt);color:var(--c-green);font-size:13px;font-weight:600}
 .dp-note{font-size:12.5px;color:var(--c-text3);margin-top:10px;line-height:1.5}
+.dp-hint{font-size:12px;color:var(--c-text3);margin-top:6px;line-height:1.45}
 .dp-swatches{display:grid;grid-template-columns:repeat(12,1fr);gap:7px}
 .dp-swatch{width:100%;aspect-ratio:1;border-radius:50%;background:var(--sw);border:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.1);transition:transform .12s}
 .dp-swatch:hover{transform:scale(1.08)}
