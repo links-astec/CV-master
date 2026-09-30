@@ -46,7 +46,7 @@ The job offer is stored on the draft (`cv_data.jobOffer`), so it follows the CV 
 
 | Product | Price | What it unlocks |
 |---|---|---|
-| Emailed export | £1.99 | That one CV — re-send it free as often as you like, even after edits |
+| Clean PDF | €0.99 | That one CV — re-send it free as often as you like, even after edits |
 | Clean download | €0.50 | One watermark-free PDF download (the watermarked one is free) |
 | Referral credit | free | One of the above, chosen at checkout. Earned when someone signs up with your link |
 
@@ -65,7 +65,7 @@ development (demo mode); in production they are unavailable unless `ALLOW_FREE_E
 | `src/views/Editor.vue` | Editor page: `CvEditor` (Content / Design / Job & ATS) + `CvPreview` |
 | `src/stores/cv.js` | CV data + formatting, autosave (browser for guests, account when signed in) |
 | `src/components/WizardModal.vue` | Wizard shell; steps live in `src/components/wizard/` |
-| `src/components/PaywallModal.vue` | £1.99 email export |
+| `src/components/PaywallModal.vue` | €0.99 clean PDF (email + download) |
 | `src/components/WatermarkUnlock.vue` | Free watermarked / €0.50 clean download |
 | `admin.html` | Admin panel served at `/admin` |
 

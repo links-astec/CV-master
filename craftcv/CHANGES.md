@@ -1,5 +1,11 @@
 # Changes
 
+## 2026-09-30 — Prices in euros
+
+- **The clean PDF now costs €0.99 per CV** (was £0.99). Stripe Checkout charges in EUR (`CV_CURRENCY = 'eur'`, `CV_PRICE_CENTS = 99` in `server/index.js`). What €0.99 buys is unchanged.
+- **Price shown in euros everywhere:** payment pop-up, My CVs unlock, homepage pricing and FAQ, terms, tutorial, README.
+- **Admin revenue:** now one euro figure (`revenue_eur_cents`) instead of £ and € shown separately.
+
 ## 2026-09-30 (night) — Feedback & complaints, new Privacy & Terms page, template polish
 
 - **Feedback & complaints.**

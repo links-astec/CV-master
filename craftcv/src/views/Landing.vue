@@ -261,14 +261,14 @@ const FEATURES = [
 ]
 
 const PLANS = [
-  { name: 'Free', price: '£0', per: '', cta: 'Start building',
+  { name: 'Free', price: '€0', per: '', cta: 'Start building',
     items: ['All 50 layouts and 12 colours', 'AI writing and job tailoring', 'ATS job-match check', 'Watermarked PDF download'] },
-  { name: 'Clean PDF', price: '£0.99', per: ' per CV', cta: 'Build my CV', featured: true,
+  { name: 'Clean PDF', price: '€0.99', per: ' per CV', cta: 'Build my CV', featured: true,
     items: ['Watermark-free, one-page PDF', 'Emailed to you and downloadable', 'Re-send or download again free, even after edits', 'Pay once per CV — no subscription'] },
 ]
 
 const FAQ = [
-  { q: 'Is it really free to start?', a: 'Yes. You can build, edit, tailor and preview your CV without paying or creating an account. You only pay if you want the clean PDF: £0.99 once per CV, emailed and downloadable, and you can re-send or download it again for free after edits.' },
+  { q: 'Is it really free to start?', a: 'Yes. You can build, edit, tailor and preview your CV without paying or creating an account. You only pay if you want the clean PDF: €0.99 once per CV, emailed and downloadable, and you can re-send or download it again for free after edits.' },
   { q: 'Will my CV pass applicant tracking systems (ATS)?', a: 'No one can honestly guarantee that, because every company configures its ATS differently. What we do: every layout is plain, selectable text in a logical reading order with standard headings, and the ATS check shows how well your CV matches the specific job offer so you can close the gaps.' },
   { q: 'Does the AI make things up?', a: 'It is instructed not to. It rewrites and reorders what you have written using the job offer’s language, and you approve every change. Keywords you do not show evidence of are listed separately so you only add the ones that are true.' },
   { q: 'Do I need an account?', a: 'Not to build. Your CV is saved in your browser as you go. When you want to export, you create a free account (email or Google) and your CV moves into it automatically.' },
