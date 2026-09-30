@@ -1,5 +1,25 @@
 # Changes
 
+## 2026-09-30 (evening) — AI allowance, short links, reordering, simpler homepage
+
+- **AI allowance: 30 free requests a day, then paid extra credits.**
+  - Counted per account (per IP for guests) in a new `ai_usage` table. Extra credits are `users.ai_credits`; both are also created on demand.
+  - Every AI route counts, including CV import. The old guest hourly limit is removed.
+  - When refused (`429 AI_LIMIT`), a pop-up offers **100 extra requests for €0.50**, which never expire.
+  - **Buying:** Stripe Checkout (`POST /api/payment/ai-pack`), confirmed on return (`/api/payment/ai-pack/verify`) and by the webhook. It's credited once per session.
+  - Settings shows what's left; admin revenue includes packs; the Terms explain it.
+- **Claude key:** the server also accepts `CLAUDE_API_KEY`, `ANTHROPIC_KEY` or `CLAUDE_KEY`.
+- **Short links:** long links show as "LinkedIn", "github.com/name", the bare domain or "Website" (and "View project" for projects). The full address stays behind the link.
+- **Tidier headers:** each contact detail stays on one line, and a wrapped line never starts with "·".
+- **Skills:**
+  - Missing keywords in the ATS check can be added to your skills with one tap.
+  - AI skill suggestions use the job offer and your experience, and skip skills you already have.
+- **Reordering:** drag handle and ↑ ↓ on roles, qualifications and projects.
+- **Date-order warning:** shown in the editor and the checklist when dated entries aren't most-recent-first, with "Sort by date". Dates like "2021 – Present", "Oct. 2024" and "2025 — en cours" are understood.
+- **Homepage simplified:** 5 sections instead of 9.
+  - The hero is one CV and one match card; three steps, four templates, two price cards and four FAQs.
+  - The nav is Templates, Pricing and FAQ.
+
 ## 2026-09-30 (later) — Improve a low ATS score with AI
 
 - **"Improve my score with AI" under a low ATS score** (below 70%). The warning reads "may not get you shortlisted", or "unlikely to get past the screening" below 50%.

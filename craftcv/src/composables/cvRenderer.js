@@ -151,6 +151,29 @@ const displayUrl = (u) => str(u).replace(/^https?:\/\//i, '').replace(/^www\./i,
 // reads as two broken pieces to an ATS.
 const urlHtml = (u) => displayUrl(u).split('/').map(part => `<span class="nw">${esc(part)}</span>`).join('/<wbr>')
 
+// Link text: short URLs are shown as they are; long ones get a short, readable form
+// ("LinkedIn", "github.com/name", the bare domain, or "Website"). The link itself keeps the
+// full address, so it still opens the right page from the PDF.
+const LINK_MAX = 30
+const LINK_LABELS = { en: { site: 'Website', project: 'View project' }, fr: { site: 'Site web', project: 'Voir le projet' } }
+const HOSTED = /\.(vercel\.app|netlify\.app|github\.io|herokuapp\.com|web\.app|pages\.dev|onrender\.com)$/i
+function linkText(raw, kind, lang) {
+  const d = displayUrl(raw)
+  if (d.length <= LINK_MAX) return urlHtml(raw)
+  const [host, ...rest] = d.split(/[/?#]/)
+  const h = host.toLowerCase()
+  if (h.endsWith('linkedin.com')) {
+    const handle = d.match(/\/in\/([^/?#]+)/i)?.[1]
+    return handle && handle.length <= 20 ? urlHtml(`linkedin.com/in/${handle}`) : 'LinkedIn'
+  }
+  if (h.endsWith('github.com')) {
+    const user = rest.find(Boolean)
+    return user && `github.com/${user}`.length <= LINK_MAX ? urlHtml(`github.com/${user}`) : 'GitHub'
+  }
+  if (host.length <= LINK_MAX && !HOSTED.test(h)) return esc(host)   // e.g. janedoe.com/portfolio/2024 → janedoe.com
+  return LINK_LABELS[lang][kind]
+}
+
 // Description text → bullet lines (new lines, "•", or "-"/"*" at line start)
 const toBullets = (desc) =>
   str(desc).split(/\n|•/).map(l => l.replace(/^\s*[-*–]\s+/, '').trim()).filter(l => l.length > 1)
@@ -176,7 +199,7 @@ function buildModel(raw, preview) {
   for (const u of [str(d.li), str(d.website)]) {
     if (!u) continue
     const h = hrefFor(u)
-    contacts.push(h ? `<a href="${esc(h)}">${urlHtml(u)}</a>` : `<span>${esc(u)}</span>`)
+    contacts.push(h ? `<a href="${esc(h)}">${linkText(u, 'site', lang)}</a>` : `<span>${esc(u)}</span>`)
   }
   if (!contacts.length && preview) contacts.push(ph(P.email), ph(P.phone), ph(P.loc))
 
@@ -192,7 +215,7 @@ function buildModel(raw, preview) {
     .map(p => {
       const h = hrefFor(p.url)
       return { name: esc(str(p.name)), tech: esc(str(p.tech)), desc: esc(str(p.desc)),
-               url: h ? `<a href="${esc(h)}">${urlHtml(p.url)}</a>` : '' }
+               url: h ? `<a href="${esc(h)}">${linkText(p.url, 'project', lang)}</a>` : '' }
     })
   const languages = (Array.isArray(d.languages) ? d.languages : [])
     .filter(l => l && str(l.name)).map(l => ({ name: esc(str(l.name)), level: esc(str(l.level)) }))
@@ -227,7 +250,9 @@ const bulletsHtml = (bullets) =>
   : bullets.length ? `<p class="prose">${bullets[0]}</p>` : ''
 
 const B = {
-  contact: (m) => m.contacts.length ? `<p class="contact">${m.contacts.join(sep)}</p>` : '',
+  // Each detail stays on one line; the "·" sticks to the item before it, so a wrapped
+  // line never starts with a separator
+  contact: (m) => m.contacts.length ? `<p class="contact">${m.contacts.map(c => `<span class="ci">${c}</span>`).join('<span class="sep">&nbsp;·</span> ')}</p>` : '',
   contactList: (m) => m.contacts.length ? `<ul class="contact-list">${m.contacts.map(c => `<li>${c}</li>`).join('')}</ul>` : '',
   profile: (m) => m.sum ? `<p class="prose">${m.sum}</p>` : '',
   experience: (m) => m.exps.map(e => `
@@ -422,6 +447,7 @@ const BASE_CSS = `
 .cvr .title{color:var(--ac);font-weight:600;font-size:calc(12.4px*var(--s));margin-top:5px;letter-spacing:.01em}
 .cvr .contact{color:#4b5563;font-size:calc(9.8px*var(--s));margin-top:9px;line-height:1.65}
 .cvr .sep{color:#9ca3af}
+.cvr .ci{white-space:nowrap}
 .cvr .contact-list{list-style:none;font-size:calc(9.6px*var(--s));color:#4b5563;line-height:1.6}
 .cvr .contact-list li{overflow-wrap:anywhere}
 .cvr .sec{margin-top:var(--gap)}

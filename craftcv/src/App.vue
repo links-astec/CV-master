@@ -103,6 +103,7 @@
   <OnboardingModal v-if="showOnboarding" @done="onboardingDismissed = true" />
   <ConfirmModal ref="confirmRef" />
   <FeedbackModal ref="feedbackRef" />
+  <AiLimitModal ref="aiLimitRef" />
   <TutorialOverlay :visible="showTutorial" @close="showTutorial = false" />
 
   <div class="toast-wrap">
@@ -126,6 +127,7 @@ import PaywallModal from './components/PaywallModal.vue'
 import NotificationDropdown from './components/NotificationDropdown.vue'
 import ConfirmModal from './components/ConfirmModal.vue'
 import FeedbackModal from './components/FeedbackModal.vue'
+import AiLimitModal from './components/AiLimitModal.vue'
 import TutorialOverlay from './components/TutorialOverlay.vue'
 import BrandLogo from './components/BrandLogo.vue'
 
@@ -171,6 +173,43 @@ provide('startTutorial', () => { showTutorial.value = true })
 const feedbackRef = ref(null)
 function openFeedback(kind) { feedbackRef.value?.show(kind) }
 provide('openFeedback', openFeedback)
+
+// AI allowance: any AI call refused for the daily limit opens the "get more" pop-up.
+// Watching fetch here means every AI feature gets this without its own handling.
+const aiLimitRef = ref(null)
+provide('openAiAllowance', () => aiLimitRef.value?.show('info'))
+if (!window.__aiLimitWatch) {
+  window.__aiLimitWatch = true
+  const _fetch = window.fetch.bind(window)
+  window.fetch = async (...args) => {
+    const res = await _fetch(...args)
+    if (res.status === 429) {
+      const url = String(args[0]?.url || args[0] || '')
+      if (url.includes('/api/ai/') || url.includes('/api/cv/upload')) {
+        res.clone().json().then(j => { if (j?.code === 'AI_LIMIT') aiLimitRef.value?.show('limit') }).catch(() => {})
+      }
+    }
+    return res
+  }
+}
+
+// Back from buying an AI pack: confirm it and add the credits
+async function handleAiPackReturn() {
+  const sessionId = new URLSearchParams(window.location.search).get('ai_pack')
+  if (!sessionId) return
+  window.history.replaceState({}, '', '/')
+  try {
+    const r = await fetch(apiUrl('/api/payment/ai-pack/verify'), {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId }),
+    })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(j.error)
+    showToast(`100 AI requests added — you now have ${j.credits} extra.`)
+  } catch (e) {
+    showToast(e.message || 'We couldn’t confirm your payment — contact us if you were charged.')
+  }
+}
 provide('fmt', computed(() => store.fmt))
 
 // ── Auth modal (sign in / create account) ─────────────────────────────────────
@@ -312,6 +351,7 @@ onMounted(async () => {
   if (params.get('token')) openAuth('reset')
   else if (!auth.isLoggedIn && (params.get('ref') || params.get('referral'))) openAuth('register')
   handleStripeReturn()
+  handleAiPackReturn()
 })
 
 // Signing out elsewhere (Settings) returns to the guest experience

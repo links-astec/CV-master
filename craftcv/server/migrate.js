@@ -93,6 +93,15 @@ UPDATE payments SET source  = 'demo' WHERE session_id LIKE 'demo\\_%' AND source
 CREATE INDEX IF NOT EXISTS payments_user_product ON payments(user_id, product);
 
 -- ADMINS (separate table from users)
+-- AI ALLOWANCE (also created on demand by the server): daily free requests + paid extra credits
+CREATE TABLE IF NOT EXISTS ai_usage (
+  subject TEXT NOT NULL,   -- 'u:<user id>' or 'ip:<address>' for guests
+  day     DATE NOT NULL,
+  count   INT  NOT NULL DEFAULT 0,
+  PRIMARY KEY (subject, day)
+);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_credits INT NOT NULL DEFAULT 0;
+
 -- FEEDBACK & COMPLAINTS (also created on demand by the server)
 CREATE TABLE IF NOT EXISTS feedback (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),

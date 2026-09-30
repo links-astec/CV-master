@@ -24,7 +24,8 @@
         <div class="ck-item-txt">{{ r.text }}</div>
       </div>
       <div class="ck-acts">
-        <button v-if="aiFix(r)" class="btn-secondary btn-sm ck-ai" @click="fixRef.start(aiFix(r), r.title, r.id)">
+        <button v-if="r.id === 'date-order'" class="btn-secondary btn-sm" @click="sortAll">Sort by date</button>
+        <button v-else-if="aiFix(r)" class="btn-secondary btn-sm ck-ai" @click="fixRef.start(aiFix(r), r.title, r.id)">
           <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
           Fix with AI
         </button>
@@ -53,6 +54,7 @@
 import { ref, computed, inject } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
 import AiFixModal from '../AiFixModal.vue'
+import { isOutOfOrder, sortByDate } from '../../composables/reorder.js'
 
 const store = useCvStore()
 defineEmits(['next'])
@@ -159,6 +161,18 @@ const rules = computed(() => {
       stepIndex: 2,
     },
 
+    // Most recent first — read from the dates the user typed
+    (() => {
+      const bad = [isOutOfOrder(roles, 'period') && 'experience', isOutOfOrder(edu, 'year') && 'education'].filter(Boolean)
+      return {
+        id: 'date-order', cat: 'Experience', points: 5,
+        severity: bad.length ? 'warn' : 'pass',
+        title: bad.length ? `${bad.length === 2 ? 'Experience and education aren’t' : bad[0] === 'experience' ? 'Experience isn’t' : 'Education isn’t'} in date order` : 'Entries are in date order',
+        text: bad.length ? 'Put the most recent first — recruiters and ATS expect reverse-chronological order. Sort it here, or drag entries in the editor.' : 'Most recent first, as recruiters expect.',
+        stepIndex: bad[0] === 'education' ? 4 : 2,
+      }
+    })(),
+
     // AI "quantify" leaves [X%] / [N] placeholders instead of inventing numbers — they
     // must be filled in (or removed) before the CV is sent anywhere
     (() => {
@@ -247,6 +261,11 @@ const AI_FIX = {
   'skills-count':     () => hasText() && 'skills',
 }
 const aiFix = (r) => AI_FIX[r.id]?.() || null
+function sortAll() {
+  sortByDate(store.data.experiences, 'period')
+  if (Array.isArray(store.data.education)) sortByDate(store.data.education, 'year')
+}
+
 // After applying, re-check that exact item and say plainly if it still needs the user
 function onFixed({ title, snapshot, ruleId }) {
   const r = rules.value.find(x => x.id === ruleId)

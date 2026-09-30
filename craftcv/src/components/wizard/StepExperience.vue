@@ -6,9 +6,16 @@
       <p>Add your roles. AI can quantify your achievements with real metrics.</p>
     </div>
 
+    <div v-if="outOfOrder" class="order-note">
+      <span>These roles aren’t in date order — recruiters expect the most recent first.</span>
+      <button class="btn-secondary btn-sm" @click="sortByDate(store.data.experiences, 'period')">Sort by date</button>
+    </div>
+
     <TransitionGroup name="exp-list">
-      <div v-for="(exp, idx) in store.data.experiences" :key="exp.id" class="exp-card">
+      <div v-for="(exp, idx) in store.data.experiences" :key="exp.id" class="exp-card" v-bind="ro.card(idx)">
         <div class="exp-card-hd">
+          <ReorderControls v-if="store.data.experiences.length > 1" :index="idx" :total="store.data.experiences.length"
+            @move="d => ro.move(idx, idx + d)" @arm="ro.arm(idx)" @disarm="ro.disarm()" />
           <span class="exp-num">Role {{ idx + 1 }}</span>
           <button v-if="store.data.experiences.length > 1" class="exp-rm" @click="store.removeExperience(exp.id)">Remove</button>
         </div>
@@ -59,10 +66,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, inject } from 'vue'
+import { ref, reactive, inject, computed } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
+import { useReorder, isOutOfOrder, sortByDate } from '../../composables/reorder.js'
+import ReorderControls from '../ReorderControls.vue'
 
 const store = useCvStore()
+const ro = useReorder(() => store.data.experiences)
+const outOfOrder = computed(() => isOutOfOrder(store.data.experiences, 'period'))
 const showToast = inject('showToast', null)
 const emit = defineEmits(['next', 'ai-thinking'])
 const quantifyIdx = ref(null)
@@ -115,7 +126,11 @@ h3{font-size:18px;font-weight:700;color:var(--c-text);margin-bottom:5px;font-fam
 p{font-size:13px;color:var(--c-text2);line-height:1.5;}
 .f-hint{font-size:11px;color:var(--c-text3);margin-top:4px;}
 .exp-card{background:var(--c-surface2);border:1px solid var(--c-border);border-radius:var(--radius);padding:16px;margin-bottom:12px;}
-.exp-card-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.exp-card-hd{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.exp-card-hd .exp-rm{margin-left:auto;}
+.exp-card.ro-dragging{opacity:.45;}
+.exp-card.ro-over{border-color:var(--c-accent);box-shadow:0 -3px 0 var(--c-accent);}
+.order-note{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--c-amber-lt);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12.5px;color:var(--c-text);line-height:1.45;}
 .exp-num{font-size:11px;font-weight:700;color:var(--c-accent);letter-spacing:.06em;text-transform:uppercase;}
 .exp-rm{background:none;border:none;font-size:11.5px;color:var(--c-rose);cursor:pointer;font-weight:600;font-family:inherit;}
 .exp-rm:hover{text-decoration:underline;}
