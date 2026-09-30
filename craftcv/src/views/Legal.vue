@@ -74,7 +74,7 @@ const DOCS = [
       'One login cookie. No tracking or advertising cookies.',
     ],
     sections: [
-      { id: 'who', title: 'Who we are', html: `<p>CVMaster ("we", "us") is an AI-assisted CV builder at cvmaster.live, operated by Gabriel Quaye. Contact: ${mail}.</p>` },
+      { id: 'who', title: 'Who we are', html: `<p>CVMaster ("we", "us") is an AI-assisted CV builder at cvmaster.live, run by Gabriel Quaye in France, who is responsible for your personal data (the “data controller”). Contact: ${mail}.</p>` },
       { id: 'collect', title: 'What we collect', html: `<ul>
         <li><strong>Account details</strong> — your name, email address and password (stored only as a secure hash).</li>
         <li><strong>Your CVs</strong> — everything you put in them. Without an account, your CV stays only in your browser until you sign up.</li>
@@ -96,9 +96,9 @@ const DOCS = [
         <li><strong>Resend</strong> — sending emails, including the CV PDFs you export.</li>
         <li><strong>Google</strong> — only if you sign in with Google.</li>
         <li><strong>Vercel, Render and Neon</strong> — hosting and the database where your data is stored.</li>
-      </ul>` },
+      </ul><p>Some of these providers are based in, or process data in, the United States. Where data leaves the EU, it is protected by the safeguards the GDPR requires, such as the European Commission’s standard contractual clauses or the EU–US Data Privacy Framework.</p>` },
       { id: 'keep', title: 'How long we keep it', html: `<p>We keep your account and CVs until you delete them or ask us to. Feedback and complaints are kept for as long as we need them to deal with the matter. Payment records may be kept longer where the law requires it.</p>` },
-      { id: 'rights', title: 'Your rights', html: `<p>Under UK and EU data protection law you can ask to see, correct, export or delete your personal data, or object to how we use it. Email ${mail} and we will respond within one month.</p><p>If you are unhappy with how we handle your data, you can also complain to the Information Commissioner’s Office (ico.org.uk) in the UK, or your local data protection authority.</p>` },
+      { id: 'rights', title: 'Your rights', html: `<p>Under UK and EU data protection law you can ask to see, correct, export or delete your personal data, or object to how we use it. Email ${mail} and we will respond within one month.</p><p>If you are unhappy with how we handle your data, you can complain to the CNIL (cnil.fr), the French data protection authority, or to the authority where you live — for example the ICO (ico.org.uk) in the UK.</p>` },
       { id: 'cookies', title: 'Cookies', html: `<p>We use one cookie to keep you signed in. We do not use tracking or advertising cookies. Your browser’s local storage holds your CV if you use CVMaster without an account.</p>` },
       { id: 'security', title: 'Security', html: `<p>Passwords are hashed with bcrypt, everything travels over HTTPS, and card payments are handled entirely by Stripe.</p>` },
       { id: 'changes', title: 'Changes to this policy', html: `<p>If we change this policy we will update the date above, and tell you by email for significant changes.</p>` },
@@ -124,7 +124,8 @@ const DOCS = [
         <li>A preview PDF with a watermark is free.</li>
         <li>AI features include <strong>30 free requests a day</strong> for accounts with a confirmed email (guests and unconfirmed accounts get 5), reset daily at midnight (UTC). A pack of <strong>100 extra requests</strong> costs <strong>€0.50</strong>; extra requests don’t expire, are used only after the day’s free ones, and have no cash value.</li>
         <li>Referrals: someone who signs up with your invite link gets 25 extra AI requests. When they buy their first clean PDF, you earn a referral credit, which unlocks the clean PDF of one CV. Credits have no cash value.</li>
-        <li>Payments are processed by Stripe. Because the PDF is delivered straight away, payments are final once your CV has been delivered.</li>
+        <li>Payments are processed by Stripe.</li>
+        <li><strong>Right of withdrawal:</strong> you normally have 14 days to cancel an online purchase. Because your PDF (or AI requests) are delivered immediately, at checkout you ask us to start straight away and confirm that you lose this right once delivery has happened, as allowed by EU consumer law (in France, article L221-28 of the Code de la consommation).</li>
         <li>If your CV never arrived, or something went wrong with a payment, contact us within 14 days and we will resend it or refund you.</li>
       </ul>` },
       { id: 'complaints', title: 'Complaints', html: `<p>If you are unhappy with anything — the service, a payment or how we treated you — please tell us:</p><ul>
@@ -141,7 +142,13 @@ const DOCS = [
       { id: 'ai', title: 'AI-generated content', html: `<p>AI suggestions can be wrong. CVMaster never adds anything without your approval, but you are responsible for checking that everything on your CV is true before you send it.</p>` },
       { id: 'ip', title: 'Who owns what', html: `<p>You own the content of your CV. We own the CVMaster platform, its designs and templates.</p>` },
       { id: 'liability', title: 'Liability', html: `<p>We are not liable for indirect or consequential losses, including the outcome of any job application. Nothing in these terms limits rights you have under consumer law.</p>` },
-      { id: 'law', title: 'Governing law', html: `<p>These terms are governed by the laws of England and Wales.</p>` },
+      { id: 'law', title: 'Governing law', html: `<p>These terms are governed by French law. If you are a consumer, you also keep the protection of the mandatory consumer laws of the country where you live, and you can bring a claim in your local courts.</p>` },
+      { id: 'notice', title: 'Legal notice', html: `<ul>
+        <li><strong>Publisher:</strong> Gabriel Quaye, France — ${mail}</li>
+        <li><strong>Website hosting:</strong> Vercel Inc. (vercel.com)</li>
+        <li><strong>Application hosting:</strong> Render Services, Inc. (render.com)</li>
+        <li><strong>Database:</strong> Neon (neon.tech)</li>
+      </ul>` },
     ],
   },
 ]

@@ -70,9 +70,16 @@
               <p class="f-hint" :class="{ err: !deliveryOk }">{{ deliveryOk ? 'Leave blank to use your account email.' : 'Please enter a valid email address.' }}</p>
             </div>
 
+            <!-- EU/French law: buyers of instant digital content must agree before paying
+                 that delivery starts now and ends the 14-day right of withdrawal -->
+            <label v-if="!paidForDraft && !demoMode" class="pw-consent">
+              <input type="checkbox" v-model="withdrawalOk" />
+              <span>I want my PDF straight away and agree that I lose my 14-day right of withdrawal once it’s delivered.</span>
+            </label>
+
             <div v-if="error" class="notice error pw-err">{{ error }}</div>
 
-            <button class="btn-primary accent btn-lg btn-block" :disabled="loading || !deliveryOk" @click="primary">
+            <button class="btn-primary accent btn-lg btn-block" :disabled="loading || !deliveryOk || (!paidForDraft && !demoMode && !withdrawalOk)" @click="primary">
               {{ loading ? 'Please wait…' : paidForDraft || demoMode ? 'Email my CV' : 'Pay €0.99 — get my CV' }}
             </button>
             <button v-if="!paidForDraft && !demoMode && credits > 0" class="btn-secondary btn-block pw-credit" :disabled="loading || !deliveryOk" @click="useCredit">
@@ -131,6 +138,7 @@ const draftId       = ref(null)
 const page          = ref({ overflow: false, overBy: 0, zoom: 1 })
 
 const userEmail  = computed(() => auth.user?.email || 'your email')
+const withdrawalOk = ref(false)
 const deliveryOk = computed(() => !deliveryEmail.value.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(deliveryEmail.value.trim()))
 const overPct    = computed(() => Math.max(1, Math.round(page.value.overBy * 100)))
 const zoomPct    = computed(() => Math.round(page.value.zoom * 100))
@@ -205,7 +213,7 @@ async function pay() {
   loading.value = true
   error.value = ''
   try {
-    const data = await api('/api/payment/create-session', { draftId: draftId.value })
+    const data = await api('/api/payment/create-session', { draftId: draftId.value, withdrawalConsent: withdrawalOk.value })
     if (data.alreadyPaid) { paidForDraft.value = true; loading.value = false; return sendEmail() }
     if (data.demo)        { demoMode.value = true;     loading.value = false; return sendEmail() }
     if (!data.url) throw new Error('Payment could not be started.')
@@ -328,6 +336,8 @@ defineExpose({ handleStripeReturn })
 .f-hint.err{color:var(--c-rose)}
 .pw-err{margin-bottom:14px}
 .pw-credit{margin-top:8px}
+.pw-consent{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:var(--c-text2);line-height:1.45;margin:4px 0 12px;cursor:pointer}
+.pw-consent input{margin-top:2px;accent-color:var(--c-accent);flex-shrink:0;width:15px;height:15px}
 .pw-secure{display:flex;align-items:center;justify-content:center;gap:6px;font-size:12.5px;color:var(--c-text3);margin-top:12px}
 .pw-secure svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2}
 </style>

@@ -21,8 +21,9 @@
               <div class="al-offer-t">100 extra AI requests</div>
               <div class="al-offer-s">One-time €0.50 · they never expire</div>
             </div>
-            <button class="btn-primary accent" :disabled="buying" @click="buy">{{ buying ? 'Please wait…' : 'Get them — €0.50' }}</button>
+            <button class="btn-primary accent" :disabled="buying || !withdrawalOk" @click="buy">{{ buying ? 'Please wait…' : 'Get them — €0.50' }}</button>
           </div>
+          <label v-if="tier === 'verified'" class="al-consent"><input type="checkbox" v-model="withdrawalOk" /><span>I want the requests straight away and agree that I lose my 14-day right of withdrawal once they’re added.</span></label>
           <div v-if="error" class="al-err">{{ error }}</div>
           <button class="btn-ghost al-later" @click="open = false">{{ reason === 'limit' ? 'Maybe tomorrow' : 'Close' }}</button>
         </div>
@@ -40,6 +41,7 @@ const requireAccount = inject('requireAccount', null)
 const resendVerification = inject('resendVerification', null)
 const tier   = computed(() => quota.value?.tier || (auth.isLoggedIn ? (auth.user?.emailVerified === false ? 'unverified' : 'verified') : 'guest'))
 const resent = ref(false)
+const withdrawalOk = ref(false)
 async function signUp() { open.value = false; await requireAccount?.('ai') }
 async function resend() { await resendVerification?.(); resent.value = true }
 const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
@@ -69,7 +71,10 @@ async function buy() {
   }
   buying.value = true
   try {
-    const r = await fetch(apiUrl('/api/payment/ai-pack'), { method: 'POST', credentials: 'include' })
+    const r = await fetch(apiUrl('/api/payment/ai-pack'), {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ withdrawalConsent: withdrawalOk.value }),
+    })
     const j = await r.json().catch(() => ({}))
     if (!r.ok) throw new Error(j.error || 'Could not start payment.')
     if (j.url) { window.location.href = j.url; return }
@@ -94,6 +99,8 @@ defineExpose({ show })
 .al-offer{display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;border:1.5px solid var(--c-accent);background:var(--c-accent-lt);border-radius:12px;padding:12px 14px}
 .al-offer-t{font-size:14px;font-weight:700;color:var(--c-text)}
 .al-offer-s{font-size:12px;color:var(--c-text2);margin-top:2px}
+.al-consent{display:flex;gap:8px;align-items:flex-start;text-align:left;font-size:12px;color:var(--c-text2);line-height:1.45;margin-top:10px;cursor:pointer}
+.al-consent input{margin-top:2px;accent-color:var(--c-accent);flex-shrink:0}
 .al-next{margin:4px 0 6px}
 .al-err{font-size:12.5px;color:var(--c-rose);margin-top:10px}
 .al-later{margin-top:10px}
