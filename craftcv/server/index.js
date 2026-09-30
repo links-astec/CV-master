@@ -263,16 +263,57 @@ function publicUser(row) {
 async function seedNotifications(userId) {
   await query(`
     INSERT INTO notifications (user_id, type, title, body, created_at) VALUES
-    ($1, 'welcome', 'Welcome to CVMaster',  'Your account is ready. Start building your CV now.',                  NOW()),
-    ($1, 'tip',     'AI Tip',                'Use Narrate mode — tell your story and AI builds your whole CV.',      NOW() - INTERVAL '1 minute'),
-    ($1, 'feature', 'Photo Templates',       'Upload a headshot to unlock the Photo Professional template.',         NOW() - INTERVAL '2 minutes')
+    ($1, 'welcome', 'Welcome to CVMaster',  'Your account is ready. Start building your CV now.',                                   NOW()),
+    ($1, 'tip',     'AI tip',               'Try “Tell your story” — describe your career and AI builds your CV, asking about anything missing.', NOW() - INTERVAL '1 minute'),
+    ($1, 'feature', '50 templates',         'ATS-friendly layouts for online applications and creative ones for print — switch any time.',     NOW() - INTERVAL '2 minutes')
   `, [userId]);
+}
+
+// ── REFERRALS ─────────────────────────────────────────────────────────────────
+// Signing up with a friend's link gives the new user REFERRAL_WELCOME_AI extra AI requests.
+// The friend who shared the link earns one free CV (a referral credit) only when the new
+// user buys their first clean PDF — so fake sign-ups can't be farmed for free CVs.
+const REFERRAL_WELCOME_AI = 25;
+let _refCols = null;
+function ensureReferralColumns() {
+  if (!_refCols) {
+    _refCols = query('ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_rewarded BOOLEAN NOT NULL DEFAULT FALSE')
+      .then(() => ensureAiTables())
+      .catch(e => { _refCols = null; throw e; });
+  }
+  return _refCols;
+}
+// Referrer id for a code, or null (the new user's own email can't refer itself)
+async function findReferrer(code, newEmail) {
+  const c = String(code || '').trim().toUpperCase();
+  if (!c || c.length > 40) return null;
+  const { rows } = await query('SELECT id, email FROM users WHERE UPPER(referral_code) = $1', [c]);
+  return rows[0] && rows[0].email !== newEmail ? rows[0].id : null;
+}
+async function welcomeReferred(userId) {
+  await ensureReferralColumns();
+  await query('UPDATE users SET ai_credits = ai_credits + $1 WHERE id = $2', [REFERRAL_WELCOME_AI, userId]);
+}
+// Called whenever a paid CV is recorded; rewards the referrer once per referred user
+async function rewardReferrer(userId) {
+  await ensureReferralColumns();
+  const { rows } = await query(
+    `UPDATE users SET referral_rewarded = TRUE
+     WHERE id = $1 AND referred_by IS NOT NULL AND referral_rewarded = FALSE
+     RETURNING referred_by, name`, [userId]);
+  if (!rows.length) return;
+  const { referred_by: referrerId, name } = rows[0];
+  await query('UPDATE users SET referral_credits = referral_credits + 1 WHERE id = $1', [referrerId]);
+  const first = String(name || 'A friend').split(' ')[0];
+  await query(`INSERT INTO notifications (user_id, type, title, body) VALUES ($1, 'referral', 'You earned a free CV', $2)`,
+    [referrerId, `${first} got their CV with your link — your next clean PDF is on us.`]).catch(() => {});
 }
 
 // ── REGISTER ──────────────────────────────────────────────────────────────────
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { email, password, name, referredBy } = req.body;
+    const { email, password, name } = req.body;
+    const referredBy = req.body.referredBy || req.cookies?.pcv_ref || '';
     if (!email || !password || !name) return res.status(400).json({ error: 'All fields required.' });
     if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
     const key = email.toLowerCase().trim();
@@ -281,13 +322,7 @@ app.post('/api/auth/register', async (req, res) => {
     const hash   = await bcrypt.hash(password, 12);
     const avatar = name.trim()[0].toUpperCase();
 
-    // Resolve referrer
-    let referrerId = null;
-    if (referredBy) {
-      const ref = await query('SELECT id FROM users WHERE UPPER(referral_code) = $1', [referredBy.trim().toUpperCase()]);
-      if (ref.rows.length) referrerId = ref.rows[0].id;
-    } else {
-    }
+    const referrerId = await findReferrer(referredBy, key);
 
     // Generate unique referral code
     let referralCode = ''
@@ -304,13 +339,8 @@ app.post('/api/auth/register', async (req, res) => {
     );
     const user = rows[0];
 
-    // Credit referrer +1
-    if (referrerId) {
-      await query(
-        'UPDATE users SET referral_credits = referral_credits + 1 WHERE id = $1',
-        [referrerId]
-      );
-    }
+    // Joined with a friend's link: welcome bonus now; the friend is rewarded on first purchase
+    if (referrerId) await welcomeReferred(user.id).catch(e => console.warn('[referral] welcome bonus:', e.message));
 
     await seedNotifications(user.id);
     setAuthCookie(res, signToken(user.id));
@@ -336,7 +366,8 @@ app.post('/api/auth/login', async (req, res) => {
 // ── GOOGLE OAUTH ──────────────────────────────────────────────────────────────
 app.post('/api/auth/google', async (req, res) => {
   try {
-    const { credential, referredBy } = req.body;
+    const { credential } = req.body;
+    const referredBy = req.body.referredBy || req.cookies?.pcv_ref || '';
     if (!credential) return res.status(400).json({ error: 'Google credential missing.' });
     if (!GOOGLE_CLIENT_ID) return res.status(503).json({ error: 'Google login is not configured on this server.' });
     const client  = new OAuth2Client(GOOGLE_CLIENT_ID);
@@ -345,12 +376,7 @@ app.post('/api/auth/google', async (req, res) => {
     const { email, name, picture, sub: googleId } = payload;
     const key = email.toLowerCase();
 
-    // Resolve referrer
-    let googleReferrerId = null;
-    if (referredBy) {
-      const ref = await query('SELECT id FROM users WHERE UPPER(referral_code) = $1', [referredBy.trim().toUpperCase()]);
-      if (ref.rows.length) googleReferrerId = ref.rows[0].id;
-    }
+    const googleReferrerId = await findReferrer(referredBy, key);
 
     const googleRefCode = generateReferralCode(name || key.split('@')[0], key);
     const avatar        = (name?.[0] || 'G').toUpperCase();
@@ -368,13 +394,8 @@ app.post('/api/auth/google', async (req, res) => {
     const user      = rows[0];
     const isNewUser = user.is_new_row;
 
-    // Credit referrer only for brand-new users
-    if (isNewUser && googleReferrerId) {
-      await query(
-        'UPDATE users SET referral_credits = referral_credits + 1 WHERE id = $1',
-        [googleReferrerId]
-      );
-    }
+    // Brand-new user from a friend's link: welcome bonus (the friend is rewarded on first purchase)
+    if (isNewUser && googleReferrerId) await welcomeReferred(user.id).catch(e => console.warn('[referral] welcome bonus:', e.message));
 
     // Seed notifications only for brand-new users
     if (isNewUser) await seedNotifications(user.id);
@@ -1523,6 +1544,10 @@ async function recordPayment({ userId, draftId, sessionId, product, source }) {
      ON CONFLICT (session_id) DO UPDATE SET paid = TRUE`,
     [userId, draftId, sessionId, product, source]
   );
+  // A real purchase (not a credit or demo) completes a referral
+  if (source === 'stripe' && product === 'email_export') {
+    await rewardReferrer(userId).catch(e => console.warn('[referral] reward failed:', e.message));
+  }
 }
 
 // Payments made before per-draft tracking were stored with draft_id 'current' — honour them.
@@ -2320,17 +2345,20 @@ app.get('/api/referral/info', authMiddleware, async (req, res) => {
   try {
     const { rows } = await query(
       `SELECT referral_code, referral_credits,
+              (SELECT COUNT(*) FROM users WHERE referred_by = $1 AND referral_rewarded) AS rewarded_count,
               (SELECT COUNT(*) FROM users WHERE referred_by = $1) AS referral_count,
               (SELECT COUNT(*) FROM users WHERE referred_by = $1 AND created_at > NOW() - INTERVAL '30 days') AS recent_count
        FROM users WHERE id = $1`, [req.user.sub]
     );
     if (!rows.length) return res.status(404).json({ error: 'User not found.' });
-    const { referral_code, referral_credits, referral_count, recent_count } = rows[0];
+    const { referral_code, referral_credits, referral_count, recent_count, rewarded_count } = rows[0];
     res.json({
       code:        referral_code,
       credits:     Number(referral_credits),
-      count:       Number(referral_count),
+      count:       Number(referral_count),       // friends who joined with the link
+      rewarded:    Number(rewarded_count),       // …and bought their CV (each earned a credit)
       recentCount: Number(recent_count),
+      welcomeAi:   REFERRAL_WELCOME_AI,
       link:        `${FRONTEND_URL}?ref=${referral_code}`,
     });
   } catch (e) { res.status(500).json({ error: e.message }); }

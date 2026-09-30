@@ -1,5 +1,20 @@
 # Changes
 
+## 2026-09-30 (night) — Fairer referrals, homepage access, new Settings
+
+- **Referrals can no longer be farmed.**
+  - **Before:** the referrer earned a free CV the moment anyone signed up with their link, and sign-ups aren't email-verified, so fake accounts meant unlimited free CVs.
+  - **Now:** the friend gets 25 extra AI requests on joining. The referrer earns one free CV only when that friend buys their first clean PDF, rewarded once per friend (`users.referral_rewarded`), with a notification.
+  - A referral code in the link is remembered until sign-up (localStorage, plus the `pcv_ref` cookie on the server), and a user can't refer themselves.
+- **Homepage access:** signing out goes to the homepage, and the sidebar logo opens it any time. When signed in, the homepage shows "Open my CVs".
+- **Settings redesigned:**
+  - account header with sign out
+  - name and password
+  - Invite friends: joined / got their CV / free CVs, copy link, share
+  - AI requests with a usage bar
+  - Preferences and Help & feedback cards
+- The welcome notifications no longer mention old template names.
+
 ## 2026-09-30 (evening) — AI allowance, short links, reordering, simpler homepage
 
 - **AI allowance: 30 free requests a day, then paid extra credits.**

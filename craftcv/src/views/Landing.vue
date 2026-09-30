@@ -10,8 +10,8 @@
           <a href="#faq" @click.prevent="go('#faq')">FAQ</a>
         </nav>
         <div class="lp-nav-cta">
-          <button class="btn-ghost" @click="$emit('sign-in')">Sign in</button>
-          <button class="btn-primary accent" @click="$emit('start')">Build my CV</button>
+          <button v-if="!signedIn" class="btn-ghost" @click="$emit('sign-in')">Sign in</button>
+          <button class="btn-primary accent" @click="$emit('start')">{{ signedIn ? 'Open my CVs' : 'Build my CV' }}</button>
         </div>
       </div>
     </header>
@@ -129,6 +129,7 @@ import { SAMPLE_CV } from '../composables/sampleCv.js'
 
 const openFeedback = inject('openFeedback', null)
 
+defineProps({ signedIn: Boolean })
 defineEmits(['start', 'sign-in'])
 
 const rootEl = ref(null)
