@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { setSeo, seoForRoute } from './composables/seo.js'
 import Dashboard from './views/Dashboard.vue'
 import Templates from './views/Templates.vue'
 import Editor    from './views/Editor.vue'
@@ -20,4 +21,7 @@ const routes = [
   { path: '/:pathMatch(.*)*', redirect: '/'       },
 ]
 
-export default createRouter({ history: createWebHistory(), routes })
+const router = createRouter({ history: createWebHistory(), routes })
+// Title, description and canonical URL for each page
+router.afterEach((to) => setSeo(seoForRoute(to)))
+export default router

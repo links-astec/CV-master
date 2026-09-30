@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+# Private, per-user pages — nothing useful for search
+Disallow: /editor
+Disallow: /settings
+
+Sitemap: https://www.cvmaster.live/sitemap.xml

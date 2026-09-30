@@ -133,6 +133,7 @@ import PaywallModal from './components/PaywallModal.vue'
 import NotificationDropdown from './components/NotificationDropdown.vue'
 import ConfirmModal from './components/ConfirmModal.vue'
 import FeedbackModal from './components/FeedbackModal.vue'
+import { setSeo, seoForRoute, HOME_SEO } from './composables/seo.js'
 import AiLimitModal from './components/AiLimitModal.vue'
 import TutorialOverlay from './components/TutorialOverlay.vue'
 import BrandLogo from './components/BrandLogo.vue'
@@ -213,6 +214,8 @@ async function confirmEmail(token) {
 
 // The homepage (Landing) — reachable from the sidebar logo and after signing out
 function showHome() { showLanding.value = true }
+// The homepage keeps its own title/description while it's showing
+watch(showLanding, (v) => { if (v) setSeo(HOME_SEO); else setSeo(seoForRoute(route)) })
 provide('showHome', showHome)
 
 // AI allowance: any AI call refused for the daily limit opens the "get more" pop-up.
