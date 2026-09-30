@@ -73,6 +73,21 @@
       </div>
     </section>
 
+    <!-- Reviews — real ones only, shown once there are enough -->
+    <section v-if="rv.average" class="lp-sec" id="reviews">
+      <div class="lp-wrap">
+        <h2 class="lp-h2">Rated {{ rv.average.toFixed(1) }} out of 5</h2>
+        <p class="lp-sub"><span class="lp-stars" :aria-label="`${rv.average} out of 5 stars`">{{ '★'.repeat(Math.round(rv.average)) }}<span>{{ '★'.repeat(5 - Math.round(rv.average)) }}</span></span> from {{ rv.count }} reviews by people who built their CV here</p>
+        <div v-if="rv.reviews.length" class="lp-reviews">
+          <figure v-for="(r, i) in rv.reviews.slice(0, 3)" :key="i" class="lp-review">
+            <div class="lp-stars">{{ '★'.repeat(r.rating) }}<span>{{ '★'.repeat(5 - r.rating) }}</span></div>
+            <blockquote>“{{ r.comment }}”</blockquote>
+            <figcaption>{{ r.name }}<span v-if="r.role"> · {{ r.role }}</span></figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
     <!-- Pricing -->
     <section class="lp-sec lp-alt" id="pricing">
       <div class="lp-wrap">
@@ -128,6 +143,26 @@ import CvThumb from '../components/CvThumb.vue'
 import { SAMPLE_CV } from '../composables/sampleCv.js'
 
 const openFeedback = inject('openFeedback', null)
+
+// Real reviews; the rating is also given to search engines (structured data) once shown
+const rv = ref({ count: 0, average: null, reviews: [] })
+onMounted(async () => {
+  try {
+    const r = await fetch((import.meta.env.VITE_API_URL || '') + '/api/reviews/public')
+    if (!r.ok) return
+    rv.value = await r.json()
+    if (!rv.value.average || document.getElementById('ld-rating')) return
+    const ld = document.createElement('script')
+    ld.type = 'application/ld+json'; ld.id = 'ld-rating'
+    ld.textContent = JSON.stringify({
+      '@context': 'https://schema.org', '@type': 'WebApplication', name: 'CVMaster', url: 'https://www.cvmaster.live/',
+      applicationCategory: 'BusinessApplication', operatingSystem: 'Web browser',
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
+      aggregateRating: { '@type': 'AggregateRating', ratingValue: rv.value.average, ratingCount: rv.value.count, bestRating: 5, worstRating: 1 },
+    })
+    document.head.appendChild(ld)
+  } catch {}
+})
 
 defineProps({ signedIn: Boolean })
 defineEmits(['start', 'sign-in'])
@@ -225,6 +260,13 @@ const FAQ = [
 .lp-tpl figcaption{text-align:center;margin-top:12px;font-weight:700;font-size:14.5px}
 .lp-center{text-align:center;margin-top:34px}
 
+.lp-stars{color:#F59E0B;letter-spacing:1px}
+.lp-stars span{color:var(--c-border2)}
+.lp-reviews{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:36px}
+.lp-review{margin:0;padding:22px;border:1px solid var(--c-border);border-radius:18px;background:var(--c-surface);display:flex;flex-direction:column;gap:10px}
+.lp-review blockquote{margin:0;font-size:15px;line-height:1.6;color:var(--c-text)}
+.lp-review figcaption{font-size:13.5px;font-weight:700;color:var(--c-text2);margin-top:auto}
+.lp-review figcaption span{font-weight:500;color:var(--c-text3)}
 .lp-prices{display:grid;grid-template-columns:repeat(2,minmax(0,360px));justify-content:center;gap:18px;align-items:stretch;margin-top:40px}
 .lp-price{padding:28px;display:flex;flex-direction:column;border-radius:20px;border:1px solid var(--c-border);background:var(--c-surface)}
 .lp-price.featured{border-color:var(--c-accent);box-shadow:0 0 0 1px var(--c-accent),var(--shadow-lg)}
@@ -260,7 +302,7 @@ const FAQ = [
   .lp-hero-in{grid-template-columns:1fr;gap:40px}
   .lp-hero-art{margin:0 auto;max-width:360px}
   .lp-check{left:-18px}
-  .lp-steps,.lp-prices{grid-template-columns:1fr}
+  .lp-steps,.lp-prices,.lp-reviews{grid-template-columns:1fr}
   .lp-tpls{grid-template-columns:1fr 1fr}
   .lp-step{padding:8px 4px}
 }

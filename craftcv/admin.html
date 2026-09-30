@@ -317,6 +317,7 @@ const ICON = {
   inbox: '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/>',
   users: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>',
   newsletter: '<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/>',
+  reviews: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
   settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/>',
   out: '<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
   ext: '<path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>',
@@ -355,6 +356,7 @@ const PAGES = {
   overview:   ['Overview', 'How CVMaster is doing'],
   inbox:      ['Inbox', 'Emails to support@cvmaster.live and messages from the site'],
   users:      ['Users', 'Accounts, credits and referrals'],
+  reviews:    ['Reviews', 'Ratings from people who made a CV — approve comments for the homepage'],
   newsletter: ['Newsletter', 'Write and send an email to your users'],
   settings:   ['Settings', 'Maintenance mode and setup status'],
 }
@@ -366,12 +368,14 @@ async function go(p) {
   if (p === 'overview') await loadStats()
   if (p === 'inbox') await loadInbox()
   if (p === 'users' && !S.users.length) await loadUsers(1)
+  if (p === 'reviews') await loadReviews()
   if (p === 'settings') await Promise.all([loadConfig(), S.stats ? null : loadStats()])
   if (p === 'overview' || !S.stats) loadCounts()
 }
 // Unread emails + open site messages for the nav badge
 async function loadCounts() {
   try { const d = await api('GET', '/stats'); S.stats = d; S.maintenance = !!d.maintenance; render() } catch {}
+  try { S.rv = await api('GET', '/reviews'); render() } catch {}
 }
 
 // ── Overview ──────────────────────────────────────────────────────────────────
@@ -602,6 +606,46 @@ function renderUsers() {
       ${S.userPage > 1 ? `<button class="btn btn-sm" data-page="${S.userPage - 1}">‹</button>` : ''}
       ${Array.from({ length: Math.min(7, pages) }, (_, i) => start + i).map(p => `<button class="btn btn-sm ${p === S.userPage ? 'btn-primary' : ''}" data-page="${p}">${p}</button>`).join('')}
       ${S.userPage < pages ? `<button class="btn btn-sm" data-page="${S.userPage + 1}">›</button>` : ''}</div></div>`}
+  </div>`
+}
+
+// ── Reviews ───────────────────────────────────────────────────────────────────
+async function loadReviews() {
+  S.rvLoading = !S.rv; render()
+  try { S.rv = await api('GET', '/reviews') } catch (e) { toast(e.message) }
+  S.rvLoading = false; render()
+}
+async function setReview(id, status) {
+  try { await api('PATCH', '/reviews/' + id, { status }); toast(status === 'approved' ? 'Approved — shown on the homepage' : status === 'hidden' ? 'Hidden' : 'Moved back to pending'); await loadReviews() } catch (e) { toast(e.message) }
+}
+function renderReviews() {
+  if (S.rvLoading || !S.rv) return `<div class="loading"><div class="spinner"></div></div>`
+  const r = S.rv
+  const stars = (n) => `<span style="color:#F59E0B;letter-spacing:1px">${'★'.repeat(n)}</span><span style="color:var(--b2)">${'★'.repeat(5 - n)}</span>`
+  const STATUS = { pending: ['Pending', 'b-amber'], approved: ['On homepage', 'b-green'], hidden: ['Hidden', 'b-gray'] }
+  return `
+  <div class="kpis" style="grid-template-columns:repeat(3,1fr)">
+    <div class="card kpi"><div class="kpi-l">Average rating</div><div class="kpi-v">${r.average ? r.average.toFixed(1) : '—'}</div><div class="kpi-s">${r.average ? stars(Math.round(r.average)) : 'No reviews yet'}</div></div>
+    <div class="card kpi"><div class="kpi-l">Reviews counted</div><div class="kpi-v">${fmt(r.count)}</div><div class="kpi-s">${r.count >= r.minToShow ? 'Shown on the homepage and to Google' : `Shown once there are ${r.minToShow}`}</div></div>
+    <div class="card kpi"><div class="kpi-l">Comments to check</div><div class="kpi-v">${fmt(r.pending)}</div><div class="kpi-s">Approve to show on the homepage</div></div>
+  </div>
+  <div class="card">
+    <div class="card-hd"><h3>All reviews</h3><span class="muted" style="font-size:12.5px">Hide only spam or abuse — the average must include bad reviews too.</span></div>
+    ${!r.items.length ? `<div class="empty"><strong>No reviews yet</strong>People are asked for one after they get their CV.</div>` : r.items.map(x => {
+      const st = STATUS[x.status] || STATUS.pending
+      return `<div class="pay-row" style="align-items:flex-start">
+        <div class="av">${esc(initials(x.display_name || x.email))}</div>
+        <div class="pay-who" style="white-space:normal">
+          <div style="white-space:normal">${stars(x.rating)} <b style="margin-left:6px">${esc(x.display_name || '')}</b>${x.role ? `<span class="muted"> · ${esc(x.role)}</span>` : ''}</div>
+          ${x.comment ? `<div style="margin-top:4px;font-size:13.5px;line-height:1.55;color:var(--t1);white-space:pre-wrap">${esc(x.comment)}</div>` : '<div class="muted" style="font-size:12.5px;margin-top:2px">No comment</div>'}
+          <div class="muted" style="font-size:12px;margin-top:4px">${esc(x.email || '')} · ${fmtDate(x.created_at)}</div>
+        </div>
+        <span class="badge ${st[1]}">${st[0]}</span>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          ${x.status !== 'approved' && x.comment ? `<button class="btn btn-sm btn-primary" data-review="${x.id}" data-st="approved">Approve</button>` : ''}
+          ${x.status !== 'hidden' ? `<button class="btn btn-sm" data-review="${x.id}" data-st="hidden">Hide</button>` : `<button class="btn btn-sm" data-review="${x.id}" data-st="pending">Unhide</button>`}
+        </div></div>`
+    }).join('')}
   </div>`
 }
 
@@ -1062,8 +1106,8 @@ function renderLogin() {
 function renderApp() {
   const [title, sub] = PAGES[S.page]
   const inboxCount = (S.stats?.inbox_unread || 0) + (S.stats?.feedback_open || 0)
-  const nav = [['overview', 'Overview'], ['inbox', 'Inbox', inboxCount], ['users', 'Users'], ['newsletter', 'Newsletter'], ['settings', 'Settings']]
-  const body = { overview: renderOverview, inbox: renderInbox, users: renderUsers, newsletter: renderEmail, settings: renderSettings }[S.page]()
+  const nav = [['overview', 'Overview'], ['inbox', 'Inbox', inboxCount], ['users', 'Users'], ['reviews', 'Reviews', S.rv?.pending], ['newsletter', 'Newsletter'], ['settings', 'Settings']]
+  const body = { overview: renderOverview, inbox: renderInbox, users: renderUsers, reviews: renderReviews, newsletter: renderEmail, settings: renderSettings }[S.page]()
   return `<div class="app">
     <aside class="sb">
       <div class="sb-head"><span class="sb-mark">${MARK}</span><span class="sb-name">CV<span>Master</span></span><span class="sb-tag">Admin</span></div>
@@ -1093,8 +1137,9 @@ function bind() {
   })
 }
 document.addEventListener('click', (e) => {
-  const t = e.target.closest('[data-go],[data-act],[data-open],[data-ibtab],[data-ibstatus],[data-edit],[data-del],[data-page]')
+  const t = e.target.closest('[data-go],[data-act],[data-open],[data-ibtab],[data-ibstatus],[data-edit],[data-del],[data-page],[data-review]')
   if (!t) return
+  if (t.dataset.review) { setReview(t.dataset.review, t.dataset.st); return }
   if (t.dataset.go) { if (t.dataset.tab) S.inbox.tab = t.dataset.tab; go(t.dataset.go); return }
   if (t.dataset.open) { const [k, id] = t.dataset.open.split(':'); openItem(k, id); return }
   if (t.dataset.ibtab) { S.inbox.tab = t.dataset.ibtab; render(); return }

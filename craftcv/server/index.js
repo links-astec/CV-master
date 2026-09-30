@@ -2340,6 +2340,96 @@ app.post('/api/admin/email/send', adminAuthMiddleware, async (req, res) => {
 });
 
 // POST /api/admin/maintenance — toggle maintenance mode
+// ── REVIEWS ───────────────────────────────────────────────────────────────────
+// Real users who have made a CV can rate CVMaster (1–5) once, with an optional comment.
+// Admins approve comments to show on the homepage; "hidden" is only for spam/abuse.
+// The average counts every review that isn't hidden (good and bad), as Google requires.
+const REVIEWS_MIN_TO_SHOW = 3;
+let _reviewsTable = null;
+function ensureReviewsTable() {
+  if (!_reviewsTable) {
+    _reviewsTable = query(`CREATE TABLE IF NOT EXISTS reviews (
+      id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id      UUID UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+      rating       INT  NOT NULL CHECK (rating BETWEEN 1 AND 5),
+      comment      TEXT,
+      display_name TEXT,
+      role         TEXT,
+      status       TEXT NOT NULL DEFAULT 'pending',
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW())`).catch(e => { _reviewsTable = null; throw e; });
+  }
+  return _reviewsTable;
+}
+
+app.get('/api/reviews/mine', authMiddleware, async (req, res) => {
+  try {
+    await ensureReviewsTable();
+    const r = (await query('SELECT rating, comment, status FROM reviews WHERE user_id = $1', [req.user.sub])).rows[0];
+    const drafts = (await query('SELECT COUNT(*)::int AS n FROM drafts WHERE user_id = $1', [req.user.sub])).rows[0].n;
+    res.json({ review: r || null, canReview: drafts > 0 });
+  } catch (e) { res.status(500).json({ error: 'Could not load your review.' }); }
+});
+
+app.post('/api/reviews', authMiddleware, rateLimit({ windowMs: 60 * 60 * 1000, max: 10 }), async (req, res) => {
+  try {
+    await ensureReviewsTable();
+    const rating = Math.round(Number(req.body?.rating));
+    if (!(rating >= 1 && rating <= 5)) return res.status(400).json({ error: 'Choose 1 to 5 stars.' });
+    const comment = String(req.body?.comment || '').trim().slice(0, 600) || null;
+    const drafts = (await query('SELECT COUNT(*)::int AS n FROM drafts WHERE user_id = $1', [req.user.sub])).rows[0].n;
+    if (!drafts) return res.status(403).json({ error: 'Make a CV first, then tell us how it went.' });
+    // Name for the review, plus the job title from their latest CV ("Amara M., Product Manager")
+    const u = (await query(
+      `SELECT u.name, (SELECT d.cv_data->>'title' FROM drafts d WHERE d.user_id = u.id ORDER BY d.updated_at DESC LIMIT 1) AS title
+       FROM users u WHERE u.id = $1`, [req.user.sub])).rows[0] || {};
+    // Shown as "Amara M." — first name and initial only
+    const parts = String(u.name || 'CVMaster user').trim().split(/\s+/);
+    const displayName = parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.` : parts[0];
+    await query(
+      `INSERT INTO reviews (user_id, rating, comment, display_name, role) VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (user_id) DO UPDATE SET rating = EXCLUDED.rating, comment = EXCLUDED.comment,
+         display_name = EXCLUDED.display_name, role = EXCLUDED.role, updated_at = NOW(),
+         status = CASE WHEN reviews.comment IS DISTINCT FROM EXCLUDED.comment THEN 'pending' ELSE reviews.status END`,
+      [req.user.sub, rating, comment, displayName.slice(0, 60), String(u.title || '').slice(0, 80) || null]);
+    res.json({ ok: true });
+  } catch (e) { console.error('[reviews]', e.message); res.status(500).json({ error: 'Could not save your review.' }); }
+});
+
+// Public: rating summary + approved comments (only once there are enough reviews)
+app.get('/api/reviews/public', async (req, res) => {
+  try {
+    await ensureReviewsTable();
+    const agg = (await query(`SELECT COUNT(*)::int AS count, ROUND(AVG(rating)::numeric, 1)::float AS average FROM reviews WHERE status <> 'hidden'`)).rows[0];
+    if (agg.count < REVIEWS_MIN_TO_SHOW) return res.json({ count: agg.count, average: null, reviews: [] });
+    const reviews = (await query(`SELECT rating, comment, display_name AS name, role, created_at FROM reviews
+                                  WHERE status = 'approved' AND comment IS NOT NULL ORDER BY created_at DESC LIMIT 6`)).rows;
+    res.set('Cache-Control', 'public, max-age=300');
+    res.json({ count: agg.count, average: agg.average, reviews });
+  } catch (e) { res.status(500).json({ error: 'Could not load reviews.' }); }
+});
+
+app.get('/api/admin/reviews', adminAuthMiddleware, async (req, res) => {
+  try {
+    await ensureReviewsTable();
+    const rows = (await query(`SELECT r.id, r.rating, r.comment, r.display_name, r.role, r.status, r.created_at, u.email
+                               FROM reviews r LEFT JOIN users u ON u.id = r.user_id ORDER BY r.created_at DESC LIMIT 300`)).rows;
+    const agg = (await query(`SELECT COUNT(*)::int AS count, ROUND(AVG(rating)::numeric, 1)::float AS average,
+                                     COUNT(*) FILTER (WHERE status = 'pending' AND comment IS NOT NULL)::int AS pending
+                              FROM reviews WHERE status <> 'hidden'`)).rows[0];
+    res.json({ items: rows, ...agg, minToShow: REVIEWS_MIN_TO_SHOW });
+  } catch (e) { res.status(500).json({ error: 'Failed to load reviews.' }); }
+});
+app.patch('/api/admin/reviews/:id', adminAuthMiddleware, async (req, res) => {
+  try {
+    await ensureReviewsTable();
+    const status = ['approved', 'pending', 'hidden'].includes(req.body?.status) ? req.body.status : null;
+    if (!status) return res.status(400).json({ error: 'Unknown status.' });
+    await query('UPDATE reviews SET status = $1 WHERE id = $2', [status, req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Update failed.' }); }
+});
+
 // ── SUPPORT INBOX (email received through Resend) ─────────────────────────────
 // Mail sent to support@cvmaster.live is received by Resend, which calls
 // /api/webhooks/resend-inbound (signed with Svix). We fetch the full message from

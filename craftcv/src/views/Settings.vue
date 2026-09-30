@@ -112,6 +112,9 @@
         </div>
       </section>
 
+      <!-- Review (only shows for people who have made a CV) -->
+      <ReviewPrompt class="st-review" />
+
       <!-- Help -->
       <section class="st-card">
         <div class="st-card-t">Help &amp; feedback</div>
@@ -131,6 +134,7 @@ import { ref, computed, onMounted, inject, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { useCvStore } from '../stores/cv.js'
+import ReviewPrompt from '../components/ReviewPrompt.vue'
 
 const apiUrl    = (p) => (import.meta.env.VITE_API_URL || '') + p
 const auth      = useAuthStore()
@@ -247,6 +251,7 @@ watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota() } }
 .st-unv{color:var(--c-amber)}
 .st-ver{color:var(--c-green)}
 .st-link-btn{background:none;border:none;padding:0;font:inherit;color:var(--c-accent);font-weight:600;text-decoration:underline}
+.st-review{border-radius:16px;padding:20px 22px;box-shadow:var(--shadow-xs)}
 .st-rows{display:flex;flex-direction:column;gap:12px}
 .st-row{display:grid;grid-template-columns:140px 1fr;align-items:center;gap:14px}
 .st-lbl{font-size:13px;font-weight:600;color:var(--c-text2)}

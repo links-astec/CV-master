@@ -23,6 +23,7 @@
               <button class="btn-secondary" :disabled="downloading" @click="downloadPdf">{{ downloading ? 'Preparing…' : 'Download PDF' }}</button>
               <button class="btn-primary accent" @click="close">Done</button>
             </div>
+            <ReviewPrompt compact only-if-new />
           </div>
 
           <!-- Paid, but the email failed -->
@@ -108,6 +109,7 @@ import { ref, computed, inject, watch } from 'vue'
 import { useCvStore }    from '../stores/cv.js'
 import { useAuthStore }  from '../stores/auth.js'
 import { useNotifStore } from '../stores/notifications.js'
+import ReviewPrompt from './ReviewPrompt.vue'
 import { render } from '../composables/cvRenderer.js'
 import { analysePage, exportDocument } from '../composables/pageFit.js'
 
