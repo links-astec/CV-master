@@ -50,8 +50,9 @@
             </div>
             <div class="f-grp">
               <label class="f-lbl" for="au-email">Email</label>
-              <input id="au-email" class="f-inp" v-model="form.email" type="email" autocomplete="email" :class="{ err: errors.email }" />
+              <input id="au-email" class="f-inp" v-model="form.email" type="email" autocomplete="email" :class="{ err: errors.email }" @blur="onEmailBlur" />
               <div v-if="errors.email" class="field-err">{{ errors.email }}</div>
+              <div v-else-if="emailSuggestion" class="field-hint">Did you mean <button type="button" class="link-fix" @click="form.email = emailSuggestion; emailSuggestion = ''; onEmailBlur()">{{ emailSuggestion }}</button>?</div>
             </div>
             <div class="f-grp">
               <div class="auth-lbl-row">
@@ -126,6 +127,7 @@
 
 <script setup>
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { suggestEmail, checkEmail } from '../../composables/emailTypos.js'
 import { useAuthStore } from '../../stores/auth.js'
 import BrandLogo from '../BrandLogo.vue'
 import CvThumb from '../CvThumb.vue'
@@ -158,6 +160,18 @@ const resetToken  = ref('')
 const resetTokenError = ref('')
 const form   = ref({ name: '', email: '', password: '', confirm: '' })
 const errors = ref({})
+
+// Sign-up: suggest a fix for domain typos, then ask the server whether the domain can
+// receive email and isn't a throwaway service
+const emailSuggestion = ref('')
+async function onEmailBlur() {
+  if (view.value !== 'register' || !form.value.email.trim()) return
+  emailSuggestion.value = suggestEmail(form.value.email)
+  if (emailSuggestion.value) return
+  const r = await checkEmail(form.value.email)
+  if (!r.ok) errors.value = { ...errors.value, email: r.error }
+  else if (errors.value.email) { const { email, ...rest } = errors.value; errors.value = rest }
+}
 
 const subtitle = computed(() => {
   if (view.value === 'forgot') return "Enter your email and we'll send you a reset link."
@@ -318,6 +332,8 @@ onMounted(async () => {
 .pw-toggle:hover{background:var(--c-surface2)}
 .f-inp.err{border-color:var(--c-rose)}
 .field-err{font-size:12.5px;color:var(--c-rose);margin-top:5px}
+.field-hint{font-size:12.5px;color:var(--c-text2);margin-top:5px}
+.link-fix{background:none;border:none;padding:0;font:inherit;font-weight:700;color:var(--c-accent);text-decoration:underline;cursor:pointer}
 .terms{display:flex;gap:9px;align-items:flex-start;font-size:13px;color:var(--c-text2);margin:4px 0 14px;line-height:1.5;cursor:pointer}
 .terms input{margin-top:3px;accent-color:var(--c-accent);width:15px;height:15px;flex-shrink:0}
 .auth-err{margin-bottom:14px}

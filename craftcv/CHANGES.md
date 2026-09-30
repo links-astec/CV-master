@@ -1,5 +1,15 @@
 # Changes
 
+## 2026-09-30 (night) — Email address checks at sign-up
+
+- **Sign-up checks the email address** before creating the account:
+  - It must look like an email.
+  - The domain must be able to receive mail (MX record, or an address record as the fallback; DNS results are cached for an hour, and DNS trouble never blocks a sign-up).
+  - It must not be a throwaway service (`disposable-email-domains`, about 120k domains).
+  - The same check is available as `GET /api/email-check`, rate-limited.
+- **"Did you mean …?" typo suggestions** for common providers (gmail, hotmail, outlook, yahoo, orange, free, laposte…) on the sign-up form and the export "Send to" field.
+- No service can prove a mailbox exists without emailing it; the confirmation link does that part.
+
 ## 2026-09-30 (late night) — Verification, legal, SEO, reviews
 
 - **Links:**
