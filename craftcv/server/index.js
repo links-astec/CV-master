@@ -16,6 +16,8 @@ import { OAuth2Client } from 'google-auth-library';
 import { Resend } from 'resend';
 import nodemailer from 'nodemailer';
 import { query } from './db.js';
+import { createRequire } from 'module';
+import { promises as dns } from 'dns';
 
 const __dirname    = dirname(fileURLToPath(import.meta.url));
 const app          = express();
@@ -380,6 +382,39 @@ async function rewardReferrer(userId) {
     [referrerId, `${first} got their CV with your link — your next clean PDF is on us.`]).catch(() => {});
 }
 
+// ── EMAIL ADDRESS CHECK ───────────────────────────────────────────────────────
+// Nobody can reliably confirm a mailbox exists without emailing it (that's what the
+// confirmation link is for). What we can check: the domain can receive email at all,
+// and it isn't a throwaway service. DNS failures never block a sign-up.
+const DISPOSABLE = new Set(createRequire(import.meta.url)('disposable-email-domains'));
+const _mxCache = new Map();   // domain → { ok, at }
+async function domainAcceptsMail(domain) {
+  const hit = _mxCache.get(domain);
+  if (hit && Date.now() - hit.at < 60 * 60 * 1000) return hit.ok;
+  const withTimeout = (p) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error('timeout'), { code: 'ETIMEOUT' })), 3000))]);
+  let ok;
+  try { ok = (await withTimeout(dns.resolveMx(domain))).some(r => r.exchange && r.exchange !== '.'); }
+  catch (e) {
+    if (!['ENOTFOUND', 'ENODATA', 'ESERVFAIL'].includes(e.code)) return true;   // DNS trouble: don't block
+    // No MX: mail can still go to the domain's own address (A record)
+    try { ok = (await withTimeout(dns.resolve4(domain))).length > 0; } catch (e2) { ok = !['ENOTFOUND', 'ENODATA'].includes(e2.code); }
+  }
+  _mxCache.set(domain, { ok, at: Date.now() });
+  return ok;
+}
+// { ok, error? } — error is a message to show the user
+async function checkEmailAddress(email) {
+  const e = String(email || '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) return { ok: false, error: 'That doesn’t look like an email address.' };
+  const domain = e.split('@')[1];
+  if (DISPOSABLE.has(domain)) return { ok: false, error: 'Temporary / throwaway email addresses can’t be used — please use your real email.' };
+  if (!(await domainAcceptsMail(domain))) return { ok: false, error: `“${domain}” can’t receive email — check for a typo.` };
+  return { ok: true };
+}
+app.get('/api/email-check', rateLimit({ windowMs: 10 * 60 * 1000, max: 40 }), async (req, res) => {
+  try { res.json(await checkEmailAddress(req.query.email)); } catch { res.json({ ok: true }); }
+});
+
 // ── REGISTER ──────────────────────────────────────────────────────────────────
 app.post('/api/auth/register', async (req, res) => {
   try {
@@ -388,6 +423,8 @@ app.post('/api/auth/register', async (req, res) => {
     if (!email || !password || !name) return res.status(400).json({ error: 'All fields required.' });
     if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
     const key = email.toLowerCase().trim();
+    const emailCheck = await checkEmailAddress(key);
+    if (!emailCheck.ok) return res.status(400).json({ error: emailCheck.error });
     const existing = await query('SELECT id FROM users WHERE email = $1', [key]);
     if (existing.rows.length) return res.status(409).json({ error: 'An account with this email already exists.' });
     const hash   = await bcrypt.hash(password, 12);

@@ -68,7 +68,8 @@
             <div class="f-grp">
               <label class="f-lbl" for="pw-email">Send to</label>
               <input id="pw-email" class="f-inp" v-model="deliveryEmail" type="email" :placeholder="userEmail" @keydown.enter="primary" />
-              <p class="f-hint" :class="{ err: !deliveryOk }">{{ deliveryOk ? 'Leave blank to use your account email.' : 'Please enter a valid email address.' }}</p>
+              <p v-if="deliverySuggestion && deliveryOk" class="f-hint">Did you mean <button type="button" class="pw-fix" @click="deliveryEmail = deliverySuggestion">{{ deliverySuggestion }}</button>?</p>
+              <p v-else class="f-hint" :class="{ err: !deliveryOk }">{{ deliveryOk ? 'Leave blank to use your account email.' : 'Please enter a valid email address.' }}</p>
             </div>
 
             <!-- EU/French law: buyers of instant digital content must agree before paying
@@ -110,6 +111,7 @@ import { useCvStore }    from '../stores/cv.js'
 import { useAuthStore }  from '../stores/auth.js'
 import { useNotifStore } from '../stores/notifications.js'
 import ReviewPrompt from './ReviewPrompt.vue'
+import { suggestEmail } from '../composables/emailTypos.js'
 import { render } from '../composables/cvRenderer.js'
 import { analysePage, exportDocument } from '../composables/pageFit.js'
 
@@ -141,6 +143,8 @@ const page          = ref({ overflow: false, overBy: 0, zoom: 1 })
 
 const userEmail  = computed(() => auth.user?.email || 'your email')
 const withdrawalOk = ref(false)
+// "Did you mean …@gmail.com?" so a PDF never goes to a typo
+const deliverySuggestion = computed(() => suggestEmail(deliveryEmail.value))
 const deliveryOk = computed(() => !deliveryEmail.value.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(deliveryEmail.value.trim()))
 const overPct    = computed(() => Math.max(1, Math.round(page.value.overBy * 100)))
 const zoomPct    = computed(() => Math.round(page.value.zoom * 100))
@@ -338,6 +342,7 @@ defineExpose({ handleStripeReturn })
 .f-hint.err{color:var(--c-rose)}
 .pw-err{margin-bottom:14px}
 .pw-credit{margin-top:8px}
+.pw-fix{background:none;border:none;padding:0;font:inherit;font-weight:700;color:var(--c-accent);text-decoration:underline;cursor:pointer}
 .pw-consent{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:var(--c-text2);line-height:1.45;margin:4px 0 12px;cursor:pointer}
 .pw-consent input{margin-top:2px;accent-color:var(--c-accent);flex-shrink:0;width:15px;height:15px}
 .pw-secure{display:flex;align-items:center;justify-content:center;gap:6px;font-size:12.5px;color:var(--c-text3);margin-top:12px}
