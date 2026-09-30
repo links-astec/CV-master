@@ -656,13 +656,23 @@ async function callClaude(prompt, systemPrompt, maxTokens) {
 }
 
 // Every AI feature goes through here. `model` / `reasoningEffort` only apply to Groq.
+// Which provider answered the last request (shown in /api/health), so a silent
+// Claude → Groq fallback is visible
+const aiLast = { provider: null, claudeError: null, at: null };
+
 async function callAi(prompt, model = AI_MODEL, systemPrompt = null, maxTokens = 800, reasoningEffort = 'low') {
   if (ANTHROPIC_KEY) {
-    try { return await callClaude(prompt, systemPrompt, maxTokens); }
-    catch (e) {
+    try {
+      const out = await callClaude(prompt, systemPrompt, maxTokens);
+      Object.assign(aiLast, { provider: 'claude', claudeError: null, at: new Date().toISOString() });
+      return out;
+    } catch (e) {
+      Object.assign(aiLast, { provider: GROQ_KEY ? 'groq (fallback)' : 'none', claudeError: e.message.slice(0, 200), at: new Date().toISOString() });
       if (!GROQ_KEY) throw e;
       console.warn('[ai] Claude failed, falling back to Groq:', e.message);
     }
+  } else {
+    Object.assign(aiLast, { provider: 'groq', at: new Date().toISOString() });
   }
   return callGroq(prompt, model, systemPrompt, maxTokens, reasoningEffort);
 }
@@ -2382,7 +2392,7 @@ app.get('/api/health', async (req, res) => {
   if (maintenanceMode) {
     return res.status(503).json({ ok: false, maintenance: true, message: 'Under maintenance' });
   }
-  res.json({ ok: true, maintenance: false, db, groq: !!GROQ_KEY, ai: AI_PROVIDER, stripe: !!STRIPE_KEY, freeExports: FREE_EXPORTS, pdf: pdfEngine.status, pdfError: pdfEngine.error, pdfMs: pdfEngine.lastMs, email: !!(resend || smtpTransport), google: !!GOOGLE_CLIENT_ID, time: new Date().toISOString() });
+  res.json({ ok: true, maintenance: false, db, groq: !!GROQ_KEY, ai: AI_PROVIDER, aiLast, stripe: !!STRIPE_KEY, freeExports: FREE_EXPORTS, pdf: pdfEngine.status, pdfError: pdfEngine.error, pdfMs: pdfEngine.lastMs, email: !!(resend || smtpTransport), google: !!GOOGLE_CLIENT_ID, time: new Date().toISOString() });
 });
 
 // Frontend is served by Vercel — no static file serving needed here.
