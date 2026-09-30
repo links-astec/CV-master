@@ -9,13 +9,13 @@
     </div>
   </div>
 
-  <LandingPage v-else-if="showLanding" @start="startBuilding" @sign-in="openAuth('signin')" />
+  <LandingPage v-else-if="showLanding" :signed-in="auth.isLoggedIn" @start="startBuilding" @sign-in="openAuth('signin')" />
 
   <div v-else-if="ready" class="shell">
     <!-- Sidebar -->
     <div class="sb-dim" :class="{ on: navOpen }" @click="navOpen = false"></div>
     <aside class="sb" :class="{ open: navOpen }">
-      <RouterLink to="/" class="sb-brand" @click="navOpen = false"><BrandLogo /></RouterLink>
+      <button type="button" class="sb-brand" title="CVMaster home" @click="navOpen = false; showHome()"><BrandLogo /></button>
 
       <button class="btn-primary accent btn-block sb-new" data-tour="new-cv" @click="newCV">
         <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -174,6 +174,10 @@ const feedbackRef = ref(null)
 function openFeedback(kind) { feedbackRef.value?.show(kind) }
 provide('openFeedback', openFeedback)
 
+// The homepage (Landing) — reachable from the sidebar logo and after signing out
+function showHome() { showLanding.value = true }
+provide('showHome', showHome)
+
 // AI allowance: any AI call refused for the daily limit opens the "get more" pop-up.
 // Watching fetch here means every AI feature gets this without its own handling.
 const aiLimitRef = ref(null)
@@ -282,7 +286,7 @@ async function newCV() {
 function startBuilding() {
   lsSet('pcv-started', '1')
   showLanding.value = false
-  router.push('/templates')
+  router.push(auth.isLoggedIn ? '/' : '/templates')   // signed in → My CVs
 }
 
 // ── Maintenance ───────────────────────────────────────────────────────────────
@@ -350,12 +354,16 @@ onMounted(async () => {
 
   if (params.get('token')) openAuth('reset')
   else if (!auth.isLoggedIn && (params.get('ref') || params.get('referral'))) openAuth('register')
+  // Remember a friend's referral code even if they sign up later (AuthModal reads it back)
+  const refParam = params.get('ref') || params.get('referral')
+  if (refParam && !auth.isLoggedIn) { try { localStorage.setItem('cvmaster_ref', refParam) } catch {} }
   handleStripeReturn()
   handleAiPackReturn()
 })
 
 // Signing out elsewhere (Settings) returns to the guest experience
-watch(() => auth.isLoggedIn, (v, was) => { if (was && !v) { store.resetData(); notif.items = [] } })
+// …and back to the homepage, so there's a clear way to sign in again or look around
+watch(() => auth.isLoggedIn, (v, was) => { if (was && !v) { store.resetData(); notif.items = []; showHome() } })
 watch(() => route.path, () => { navOpen.value = false })
 </script>
 
@@ -364,7 +372,7 @@ watch(() => route.path, () => { navOpen.value = false })
 
 /* Sidebar */
 .sb{width:var(--sb);flex-shrink:0;display:flex;flex-direction:column;gap:18px;padding:18px 14px;background:var(--c-surface);border-right:1px solid var(--c-border);overflow-y:auto}
-.sb-brand{padding:2px 6px;text-decoration:none}
+.sb-brand{padding:2px 6px;text-decoration:none;background:none;border:none;text-align:left;cursor:pointer}
 .sb-new svg{width:16px;height:16px}
 .sb-nav{display:flex;flex-direction:column;gap:2px}
 .sb-link{display:flex;align-items:center;gap:11px;height:38px;padding:0 10px;border-radius:9px;font-size:14px;font-weight:500;color:var(--c-text2);text-decoration:none;transition:background .15s,color .15s}

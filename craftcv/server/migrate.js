@@ -101,6 +101,8 @@ CREATE TABLE IF NOT EXISTS ai_usage (
   PRIMARY KEY (subject, day)
 );
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_credits INT NOT NULL DEFAULT 0;
+-- Referral: set once the referred user's first purchase has rewarded their referrer
+ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_rewarded BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- FEEDBACK & COMPLAINTS (also created on demand by the server)
 CREATE TABLE IF NOT EXISTS feedback (
