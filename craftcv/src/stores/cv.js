@@ -22,6 +22,7 @@ const emptyData = () => ({
   lang: 'en',
   jobOffer: '',        // job description the CV is being tailored to (optional)
   jobTailored: '',     // Job match step 2 for this offer: '' | 'applied' | 'skipped'
+  checkIgnored: [],    // checklist warnings the user chose to ignore for this CV
   shrinkToFit: false,  // user accepted shrinking an over-long CV onto one page
 })
 
@@ -81,6 +82,7 @@ function normaliseData(saved) {
   merged.jobOffer    = typeof merged.jobOffer === 'string' ? merged.jobOffer : ''
   merged.shrinkToFit = !!merged.shrinkToFit
   merged.jobTailored = ['applied', 'skipped'].includes(merged.jobTailored) ? merged.jobTailored : ''
+  merged.checkIgnored = Array.isArray(merged.checkIgnored) ? merged.checkIgnored.filter(x => typeof x === 'string') : []
   return merged
 }
 

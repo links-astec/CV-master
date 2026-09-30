@@ -6,8 +6,9 @@
     </div>
     <div class="ck-bar"><div :style="{ width: (passed.length / rules.length * 100) + '%' }"></div></div>
 
-    <div v-if="lastFix" class="ck-fixed">
-      <span>✓ Fixed: {{ lastFix.title }}</span>
+    <div v-if="lastFix" class="ck-fixed" :class="{ still: lastFix.still }">
+      <span v-if="!lastFix.still">✓ Fixed: {{ lastFix.title }}</span>
+      <span v-else>Changes applied, but this still needs you: {{ lastFix.still }}</span>
       <button class="btn-ghost btn-sm" @click="undoFix">Undo</button>
     </div>
 
@@ -22,11 +23,14 @@
         <div class="ck-item-ttl">{{ r.title }}</div>
         <div class="ck-item-txt">{{ r.text }}</div>
       </div>
-      <button v-if="aiFix(r)" class="btn-secondary btn-sm ck-ai" @click="fixRef.start(aiFix(r), r.title)">
-        <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
-        Fix with AI
-      </button>
-      <button v-else-if="r.stepIndex !== undefined" class="btn-secondary btn-sm" @click="fixStep(r.stepIndex)">Add</button>
+      <div class="ck-acts">
+        <button v-if="aiFix(r)" class="btn-secondary btn-sm ck-ai" @click="fixRef.start(aiFix(r), r.title, r.id)">
+          <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+          Fix with AI
+        </button>
+        <button v-else-if="r.stepIndex !== undefined" class="btn-secondary btn-sm" @click="fixStep(r.stepIndex)">Add</button>
+        <button v-if="r.severity === 'warn'" class="ck-ignore" title="Hide this suggestion for this CV" @click="ignore(r.id)">Ignore</button>
+      </div>
     </div>
 
     <AiFixModal ref="fixRef" @applied="onFixed" />
@@ -39,6 +43,9 @@
         <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ r.title }}
       </li>
     </ul>
+    <div v-if="ignoredList.length" class="ck-ignored">
+      Ignored: <span v-for="r in ignoredList" :key="r.id">{{ r.title }} <button @click="unignore(r.id)">Undo</button></span>
+    </div>
   </div>
 </template>
 
@@ -51,11 +58,17 @@ const store = useCvStore()
 defineEmits(['next'])
 const showPassed = ref(false)
 
+// A real figure anywhere in the text (not a year, not an unfilled [X%] placeholder)
+const PLACEHOLDER = /\[[^\]\n]{0,12}\b[XN]\b[^\]\n]{0,12}\]/g
+const hasMetric = (t) => /\d/.test(String(t || '').replace(PLACEHOLDER, '').replace(/\b(19|20)\d{2}\b/g, ''))
+
 // ── RULES ENGINE ─────────────────────────────────────────────────────────────
 // Each rule: { id, category, severity('error'|'warn'|'pass'), title, text, tip?, points, stepIndex? }
 const rules = computed(() => {
   const d = store.data
   const exp = d.experiences || []
+  // Blank entries aren't printed on the CV, so they don't count against it
+  const roles = exp.filter(e => e.title || e.company || e.desc)
   const edu = Array.isArray(d.education) ? d.education : (d.education?.degree ? [d.education] : [])
   const skills = d.skills || []
 
@@ -124,28 +137,25 @@ const rules = computed(() => {
     },
     {
       id: 'exp-descriptions', cat: 'Experience', points: 10,
-      severity: exp.length === 0 ? 'error' : exp.every(e => e.desc && e.desc.length > 30) ? 'pass' : 'warn',
-      title: exp.length === 0 ? 'No experience' : exp.every(e => e.desc?.length > 30) ? 'All roles have descriptions' : 'Some roles lack descriptions',
-      text: exp.length === 0 ? 'Add experience entries.' : exp.every(e => e.desc?.length > 30) ? 'Good — descriptions help ATS and recruiters.' : 'Add bullet-point descriptions to every role. Describe responsibilities and achievements.',
+      severity: roles.length === 0 ? 'error' : roles.every(e => e.desc && e.desc.length > 30) ? 'pass' : 'warn',
+      title: roles.length === 0 ? 'No experience' : roles.every(e => e.desc?.length > 30) ? 'All roles have descriptions' : 'Some roles lack descriptions',
+      text: roles.length === 0 ? 'Add experience entries.' : roles.every(e => e.desc?.length > 30) ? 'Good — descriptions help ATS and recruiters.' : 'Add bullet-point descriptions to every role. Describe responsibilities and achievements.',
       tip: 'Use the format: [Action verb] + [task] + [result/metric]',
       stepIndex: 2,
     },
     {
       id: 'exp-metrics', cat: 'Experience', points: 10,
-      severity: exp.length === 0 ? 'error' : exp.some(e => /\d+[%£$€kKmM]|\d+ (user|client|team|staff|project|million|thousand|percent)/i.test(e.desc||'')
-        ) ? 'pass' : 'warn',
-      title: exp.some(e => /\d+[%£$€kKmM]|\d+ (user|client|team|staff|project|million|thousand|percent)/i.test(e.desc||'')
-        ) ? 'Quantified achievements found' : 'No quantified achievements',
-      text: exp.some(e => /\d+[%£$€kKmM]|\d+ (user|client|team|staff|project|million|thousand|percent)/i.test(e.desc||'')
-        ) ? 'Numbers make your CV stand out to recruiters.' : 'Add metrics to your experience: "Grew revenue by 40%", "Managed a team of 8", "Reduced costs by £50K".',
+      severity: roles.length === 0 ? 'error' : roles.some(e => hasMetric(e.desc)) ? 'pass' : 'warn',
+      title: roles.some(e => hasMetric(e.desc)) ? 'Quantified achievements found' : 'No quantified achievements',
+      text: roles.some(e => hasMetric(e.desc)) ? 'Numbers make your CV stand out to recruiters.' : 'Add metrics to your experience: "Grew revenue by 40%", "Managed a team of 8", "Reduced costs by £50K".',
       tip: 'CVs with numbers get 40% more callbacks according to recruiter surveys.',
       stepIndex: 2,
     },
     {
       id: 'exp-periods', cat: 'Experience', points: 5,
-      severity: exp.length === 0 ? 'error' : exp.every(e => e.period) ? 'pass' : 'warn',
-      title: exp.every(e => e.period) ? 'All roles have dates' : 'Some roles missing dates',
-      text: exp.every(e => e.period) ? 'Date ranges show career progression clearly.' : 'Add start/end dates to every role. Gaps are noticed by ATS systems.',
+      severity: roles.length === 0 ? 'error' : roles.every(e => e.period) ? 'pass' : 'warn',
+      title: roles.every(e => e.period) ? 'All roles have dates' : 'Some roles missing dates',
+      text: roles.every(e => e.period) ? 'Date ranges show career progression clearly.' : 'Add start/end dates to every role. Gaps are noticed by ATS systems.',
       stepIndex: 2,
     },
 
@@ -209,7 +219,14 @@ const rules = computed(() => {
 })
 
 
-const todo   = computed(() => rules.value.filter(r => r.severity !== 'pass')
+// Warnings the user chose to ignore for this CV (saved with it)
+const ignored = computed(() => new Set(store.data.checkIgnored || []))
+const isIgnored = (r) => r.severity === 'warn' && ignored.value.has(r.id)
+function ignore(id)   { store.data.checkIgnored = [...new Set([...(store.data.checkIgnored || []), id])] }
+function unignore(id) { store.data.checkIgnored = (store.data.checkIgnored || []).filter(x => x !== id) }
+const ignoredList = computed(() => rules.value.filter(isIgnored))
+
+const todo   = computed(() => rules.value.filter(r => r.severity !== 'pass' && !isIgnored(r))
   .sort((a, b) => (a.severity === 'error' ? 0 : 1) - (b.severity === 'error' ? 0 : 1)))
 const passed = computed(() => rules.value.filter(r => r.severity === 'pass'))
 
@@ -230,7 +247,11 @@ const AI_FIX = {
   'skills-count':     () => hasText() && 'skills',
 }
 const aiFix = (r) => AI_FIX[r.id]?.() || null
-function onFixed({ title, snapshot }) { lastFix.value = { title, snapshot } }
+// After applying, re-check that exact item and say plainly if it still needs the user
+function onFixed({ title, snapshot, ruleId }) {
+  const r = rules.value.find(x => x.id === ruleId)
+  lastFix.value = { title, snapshot, still: r && r.severity !== 'pass' ? r.text : '' }
+}
 function undoFix() {
   if (!lastFix.value) return
   Object.assign(store.data, lastFix.value.snapshot)
@@ -260,6 +281,13 @@ function fixStep(stepIndex) {
 .ck-body{flex:1;min-width:0}
 .ck-item-ttl{font-size:13px;font-weight:600;color:var(--c-text)}
 .ck-item-txt{font-size:12px;color:var(--c-text2);line-height:1.5;margin-top:2px}
+.ck-acts{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
+.ck-ignore{background:none;border:none;padding:0 2px;font-size:11.5px;color:var(--c-text3)}
+.ck-ignore:hover{color:var(--c-text)}
+.ck-fixed.still{background:var(--c-amber-lt);color:var(--c-amber)}
+.ck-ignored{font-size:12px;color:var(--c-text3);line-height:1.7}
+.ck-ignored span{margin-right:10px}
+.ck-ignored button{background:none;border:none;padding:0;font-size:12px;color:var(--c-accent);font-weight:600}
 .ck-ai svg{width:12px;height:12px;fill:var(--c-accent);stroke:none}
 .ck-fixed{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 8px 8px 12px;border-radius:10px;background:var(--c-green-lt);color:var(--c-green);font-size:12.5px;font-weight:600}
 .ck-toggle{align-self:flex-start;background:none;border:none;padding:4px 0;font-size:12.5px;font-weight:600;color:var(--c-accent)}

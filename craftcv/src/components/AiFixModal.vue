@@ -35,13 +35,19 @@
               <div v-if="c.before" class="fx-before"><span>Before</span>{{ c.before }}</div>
               <div class="fx-after-lbl">{{ c.before ? 'After — you can edit this' : 'New — you can edit this' }}</div>
               <textarea v-model="c.after" class="f-ta fx-after" :rows="rowsFor(c.after)" :disabled="!c.checked"></textarea>
-              <div v-if="c.checked && hasPlaceholder(c.after)" class="fx-ph">
-                Replace {{ placeholdersIn(c.after).join(' ') }} with your real figure, or delete it.
+              <div v-if="c.checked && hasPlaceholder(c.after)" class="fx-fill">
+                <div class="fx-fill-h">Type your real numbers</div>
+                <div v-for="p in phList(c.after)" :key="p.at + p.ph" class="fx-fill-row">
+                  <span class="fx-fill-ctx">…{{ p.before }}<mark>{{ p.ph }}</mark>{{ p.after }}…</span>
+                  <input class="f-inp" :placeholder="hintFor(p.ph)" @keydown.enter.prevent="fill(c, p, $event.target.value)" @change="fill(c, p, $event.target.value)" />
+                </div>
+                <div class="fx-ph">Don’t know a figure? Edit the text above to take that part out.</div>
               </div>
             </div>
 
             <div v-if="skills.length" class="fx-skills">
               <div class="fx-skills-lbl">Tick the skills you really have</div>
+              <div class="fx-skills-n" :class="{ ok: skillTotal >= 6 }">You’ll have {{ skillTotal }} skill{{ skillTotal === 1 ? '' : 's' }} — 6 or more is recommended.</div>
               <div class="fx-chips">
                 <label v-for="s in skills" :key="s.name" class="fx-chip" :class="{ on: s.checked }">
                   <input type="checkbox" v-model="s.checked" /> {{ s.name }}
@@ -51,8 +57,8 @@
 
             <div class="fx-ft">
               <button class="btn-ghost" @click="close">Cancel</button>
-              <button class="btn-primary accent" :disabled="!selected" @click="apply">
-                Apply {{ selected || '' }} change{{ selected === 1 ? '' : 's' }}
+              <button class="btn-primary accent" :disabled="!selected || blocked" @click="apply">
+                {{ blocked ? 'Fill in the numbers first' : `Apply ${selected || ''} change${selected === 1 ? '' : 's'}` }}
               </button>
             </div>
           </template>
@@ -75,6 +81,7 @@ const loading = ref(false)
 const error   = ref('')
 const issue   = ref('')
 const issueTitle = ref('')
+const ruleId  = ref('')
 const changes = ref([])   // [{ key, label, before, after, checked }]
 const skills  = ref([])   // [{ name, checked }]
 const note    = ref('')
@@ -83,12 +90,34 @@ const PH = /\[[^\]\n]{0,12}\b[XN]\b[^\]\n]{0,12}\]/g
 const placeholdersIn = (t) => [...new Set(String(t).match(PH) || [])]
 const hasPlaceholder = (t) => placeholdersIn(t).length > 0
 const rowsFor = (t) => Math.min(9, Math.max(2, Math.ceil(String(t).length / 60) + (String(t).match(/\n/g) || []).length))
+// Each unfilled placeholder with a little of the text around it
+function phList(t) {
+  const out = []
+  for (const mt of String(t).matchAll(PH)) {
+    const at = mt.index, line0 = t.lastIndexOf('\n', at) + 1, line1 = t.indexOf('\n', at)
+    out.push({ ph: mt[0], at,
+      before: t.slice(Math.max(line0, at - 40), at).replace(/^[•\s]+/, ''),
+      after:  t.slice(at + mt[0].length, Math.min(line1 === -1 ? t.length : line1, at + mt[0].length + 30)) })
+  }
+  return out
+}
+const hintFor = (ph) => /%/.test(ph) ? 'e.g. 25%' : /[£$€]/.test(ph) ? 'e.g. 40k' : 'e.g. 12'
+// Put the typed value in place of that exact placeholder
+function fill(c, p, value) {
+  const v = String(value || '').trim()
+  if (!v || c.after.slice(p.at, p.at + p.ph.length) !== p.ph) return
+  c.after = c.after.slice(0, p.at) + v + c.after.slice(p.at + p.ph.length)
+}
+// Apply waits until every placeholder in a ticked change is filled or edited out
+const blocked = computed(() => changes.value.some(c => c.checked && hasPlaceholder(c.after)))
+const skillTotal = computed(() => (store.data.skills || []).length + skills.value.filter(s => s.checked).length)
 const selected = computed(() => changes.value.filter(c => c.checked && c.after.trim()).length + skills.value.filter(s => s.checked).length)
 
 // Opens the pop-up and asks the AI for a fix for one checklist issue
-function start(issueId, title) {
+function start(issueId, title, id = '') {
   issue.value = issueId
   issueTitle.value = title
+  ruleId.value = id
   open.value = true
   run()
 }
@@ -129,7 +158,7 @@ function apply() {
     }
   }
   for (const s of skills.value) if (s.checked) store.addSkill(s.name)
-  emit('applied', { title: issueTitle.value, count: selected.value, snapshot })
+  emit('applied', { title: issueTitle.value, count: selected.value, snapshot, ruleId: ruleId.value })
   open.value = false
 }
 
@@ -158,7 +187,15 @@ defineExpose({ start })
 .fx-before{font-size:12.5px;line-height:1.5;color:var(--c-text3);background:var(--c-bg);border-radius:8px;padding:7px 10px;margin-bottom:8px;white-space:pre-line;text-decoration:line-through;text-decoration-color:rgba(0,0,0,.2)}
 .fx-before span,.fx-after-lbl{display:block;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--c-text3);margin-bottom:3px;text-decoration:none}
 .fx-after{font-size:13px;line-height:1.55;background:var(--c-green-lt);border-color:transparent;resize:vertical}
-.fx-ph{font-size:12px;color:var(--c-amber);margin-top:6px}
+.fx-ph{font-size:12px;color:var(--c-text3);margin-top:6px}
+.fx-fill{margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--c-amber-lt)}
+.fx-fill-h{font-size:12.5px;font-weight:700;color:var(--c-text);margin-bottom:8px}
+.fx-fill-row{display:grid;grid-template-columns:1fr 110px;gap:10px;align-items:center;margin-bottom:6px}
+.fx-fill-ctx{font-size:12px;color:var(--c-text2);line-height:1.45}
+.fx-fill-ctx mark{background:#fde68a;color:var(--c-text);border-radius:3px;padding:0 2px}
+.fx-fill-row .f-inp{height:32px;font-size:13px}
+.fx-skills-n{font-size:12px;color:var(--c-amber);margin:-4px 0 8px}
+.fx-skills-n.ok{color:var(--c-green)}
 
 .fx-skills{border:1px solid var(--c-border);border-radius:12px;padding:12px 14px;margin-bottom:10px}
 .fx-skills-lbl{font-size:13px;font-weight:600;color:var(--c-text);margin-bottom:8px}
