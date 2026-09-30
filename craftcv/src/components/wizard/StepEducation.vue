@@ -10,9 +10,15 @@
     <div class="f-sec-hd">
       Education
     </div>
+    <div v-if="eduOutOfOrder" class="order-note">
+      <span>Your qualifications aren’t in date order — put the most recent first.</span>
+      <button class="btn-secondary btn-sm" @click="sortByDate(store.data.education, 'year')">Sort by date</button>
+    </div>
     <div class="edu-list">
-      <div v-for="(edu, i) in store.data.education" :key="i" class="edu-card">
+      <div v-for="(edu, i) in store.data.education" :key="i" class="edu-card" v-bind="roEdu.card(i)">
         <div class="edu-card-hd">
+          <ReorderControls v-if="store.data.education.length > 1" :index="i" :total="store.data.education.length"
+            @move="d => roEdu.move(i, i + d)" @arm="roEdu.arm(i)" @disarm="roEdu.disarm()" />
           <span class="edu-num">{{ i === 0 ? 'Primary' : 'Additional' }}</span>
           <button v-if="i > 0" class="rm-btn" @click="store.data.education.splice(i, 1)" title="Remove">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -45,8 +51,10 @@
     </div>
     <p class="f-sec-sub">Great for developers, designers, or anyone with side projects worth showcasing.</p>
     <div class="proj-list">
-      <div v-for="(proj, i) in store.data.projects" :key="proj.id" class="proj-card">
+      <div v-for="(proj, i) in store.data.projects" :key="proj.id" class="proj-card" v-bind="roProj.card(i)">
         <div class="proj-card-hd">
+          <ReorderControls v-if="store.data.projects.length > 1" :index="i" :total="store.data.projects.length"
+            @move="d => roProj.move(i, i + d)" @arm="roProj.arm(i)" @disarm="roProj.disarm()" />
           <span class="proj-num">Project {{ i + 1 }}</span>
           <button class="rm-btn" @click="store.data.projects.splice(i, 1)" title="Remove project">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -130,8 +138,14 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
+import { useReorder, isOutOfOrder, sortByDate } from '../../composables/reorder.js'
+import ReorderControls from '../ReorderControls.vue'
 const store = useCvStore()
+const roEdu  = useReorder(() => store.data.education)
+const roProj = useReorder(() => store.data.projects)
+const eduOutOfOrder = computed(() => isOutOfOrder(store.data.education, 'year'))
 defineEmits(['next'])
 
 // Ensure all arrays exist and education is array
@@ -174,9 +188,13 @@ p   { font-size: 13px; color: var(--c-text2); line-height: 1.5; }
   border-radius: 10px; padding: 14px;
 }
 .edu-card-hd {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; gap: 8px;
   margin-bottom: 10px;
 }
+.edu-card-hd .rm-btn, .proj-card-hd .rm-btn { margin-left: auto; }
+.edu-card.ro-dragging, .proj-card.ro-dragging { opacity: .45; }
+.edu-card.ro-over, .proj-card.ro-over { border-color: var(--c-accent); box-shadow: 0 -3px 0 var(--c-accent); }
+.order-note { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; background: var(--c-amber-lt); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; font-size: 12.5px; color: var(--c-text); line-height: 1.45; }
 .edu-num {
   font-size: 10.5px; font-weight: 700; color: var(--c-accent);
   text-transform: uppercase; letter-spacing: .06em;
@@ -189,7 +207,7 @@ p   { font-size: 13px; color: var(--c-text2); line-height: 1.5; }
   border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px;
 }
 .proj-card-hd {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; gap: 8px;
 }
 .proj-num {
   font-size: 10.5px; font-weight: 700; color: var(--c-accent);

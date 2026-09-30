@@ -172,6 +172,20 @@
         </button>
       </div>
 
+      <!-- AI allowance -->
+      <div class="settings-card">
+        <div class="settings-ttl">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+          AI requests
+        </div>
+        <p style="font-size:13.5px;color:var(--c-text2);line-height:1.6;margin-bottom:12px;">
+          <template v-if="aiQuota"><strong style="color:var(--c-text)">{{ aiQuota.freeLeft }} of {{ aiQuota.limit }}</strong> free requests left today<template v-if="aiQuota.credits"> · <strong style="color:var(--c-text)">{{ aiQuota.credits }}</strong> extra</template>.</template>
+          <template v-else>30 free AI requests every day.</template>
+          Need more? 100 extra cost €0.50 and never expire.
+        </p>
+        <button class="btn-secondary" @click="openAiAllowance()">Get more AI requests</button>
+      </div>
+
       <!-- Feedback & complaints -->
       <div class="settings-card">
         <div class="settings-ttl">
@@ -209,6 +223,12 @@ const store     = useCvStore()
 const showToast = inject('showToast')
 const openAuth  = inject('openAuth')
 const openFeedback = inject('openFeedback')
+const openAiAllowance = inject('openAiAllowance')
+const aiQuota = ref(null)
+async function loadAiQuota() {
+  try { const r = await fetch(apiUrl('/api/ai/quota'), { credentials: 'include' }); if (r.ok) aiQuota.value = await r.json() } catch {}
+}
+onMounted(loadAiQuota)
 
 const name        = ref(auth.user?.name || '')
 const newPassword = ref('')

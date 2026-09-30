@@ -67,11 +67,15 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" style="width:10px;height:10px"><polyline points="20 6 9 17 4 12"/></svg>
             {{ kw }}
           </span>
-          <span v-for="kw in result.missing" :key="kw" class="ats-kw ats-kw-miss">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="width:10px;height:10px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <!-- Missing keywords: one tap adds it to the CV's skills -->
+          <button v-for="kw in result.missing" :key="kw" type="button" class="ats-kw ats-kw-miss" :class="{ added: hasSkill(kw) }"
+                  :disabled="hasSkill(kw)" :title="hasSkill(kw) ? 'Added to your skills' : 'Add to your skills'" @click="store.addSkill(kw)">
+            <svg v-if="hasSkill(kw)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" style="width:10px;height:10px"><polyline points="20 6 9 17 4 12"/></svg>
+            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="width:10px;height:10px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             {{ kw }}
-          </span>
+          </button>
         </div>
+        <p v-if="result.missing?.length" class="ats-add-note">Tap a missing keyword to add it to your skills — only add the ones you really have. Then “Check again”.</p>
       </div>
 
       <!-- Gaps -->
@@ -112,6 +116,7 @@ const emit    = defineEmits(['scored'])
 const store   = useCvStore()
 // The job offer lives on the CV itself, so the Tailor step, this check and the saved draft share it
 const jobDesc = computed(() => store.data.jobOffer || '')
+const hasSkill = (kw) => (store.data.skills || []).some(s => s.toLowerCase() === String(kw).toLowerCase())
 const scoring = ref(false)
 const result  = ref(null)
 const error   = ref('')
@@ -265,7 +270,10 @@ defineExpose({ runScore })
 .ats-keywords { display:flex; flex-wrap:wrap; gap:6px; }
 .ats-kw { display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:600; padding:3px 10px; border-radius:20px; }
 .ats-kw-match { background:var(--c-green-lt); color:var(--c-green); }
-.ats-kw-miss  { background:var(--c-rose-lt);  color:var(--c-rose);  }
+.ats-kw-miss  { background:var(--c-rose-lt);  color:var(--c-rose); border:1px dashed color-mix(in srgb,var(--c-rose) 45%,transparent); cursor:pointer; font-family:inherit; }
+.ats-kw-miss:hover:not(:disabled) { background:var(--c-surface); }
+.ats-kw-miss.added { background:var(--c-green-lt); color:var(--c-green); border-color:transparent; cursor:default; }
+.ats-add-note { font-size:12px; color:var(--c-text3); margin-top:8px; line-height:1.5; }
 .ats-gap { display:flex; align-items:flex-start; gap:8px; font-size:12.5px; color:var(--c-text2); padding:6px 0; border-bottom:1px solid var(--c-border); line-height:1.5; }
 .ats-gap:last-child { border-bottom:none; }
 .ats-suggestion { display:flex; align-items:flex-start; gap:10px; font-size:12.5px; color:var(--c-text2); padding:6px 0; border-bottom:1px solid var(--c-border); line-height:1.5; }

@@ -92,12 +92,21 @@ async function suggestSkills() {
       u?.industry   ? `in the ${u.industry} industry` : '',
       u?.experience ? `at ${u.experience} level`      : '',
     ].filter(Boolean).join(' ')
-    const prompt = `List 10 highly relevant skills for a ${store.data.title || 'professional'} role${ctx ? ' ' + ctx : ''} at a modern company. Return ONLY a JSON array of strings, no markdown, no explanation.${store.data.lang === 'fr' ? ' Skills in French (keep technical terms that are normally in English).' : ''}`
+    // Use the job offer (if any) and what the CV already says, and skip skills already listed
+    const d = store.data
+    const have = (d.skills || []).join(', ')
+    const work = (d.experiences || []).map(e => [e.title, e.company, (e.desc || '').slice(0, 240)].filter(Boolean).join(' — ')).filter(Boolean).join('\n').slice(0, 1500)
+    const job  = (d.jobOffer || '').trim().slice(0, 1800)
+    const prompt = `Suggest 10 skills for this CV${ctx ? ` (${ctx})` : ''}. Target role: ${d.title || 'professional'}.
+${job ? `The job they are applying for:\n${job}\n\nPrefer skills this job asks for that fit their experience.\n` : ''}${work ? `Their experience:\n${work}\n` : ''}Skills already on the CV (do NOT repeat): ${have || 'none'}.
+Concrete skills (tools, methods, domain knowledge), short names, at most 2 soft skills.
+Return ONLY a JSON array of strings, no markdown, no explanation.${d.lang === 'fr' ? ' Skills in French (keep technical terms that are normally in English).' : ''}`
     const result = await store.callAi(prompt)
-    const parsed = JSON.parse(result.replace(/```json|```/g, '').trim())
-    suggested.value = Array.isArray(parsed) ? parsed : parsed.skills || []
-  } catch {
-    showToast?.('AI is unavailable right now — please try again in a moment.')
+    const parsed = JSON.parse(result.slice(result.indexOf('['), result.lastIndexOf(']') + 1))
+    const lower  = new Set((d.skills || []).map(s => s.toLowerCase()))
+    suggested.value = (Array.isArray(parsed) ? parsed : []).filter(s => typeof s === 'string' && !lower.has(s.toLowerCase()))
+  } catch (e) {
+    showToast?.(/free AI requests/.test(e?.message || '') ? e.message : 'AI is unavailable right now — please try again in a moment.')
   }
   aiLoading.value = false
   emit('ai-thinking', false)

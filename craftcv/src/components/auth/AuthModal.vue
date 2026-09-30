@@ -145,6 +145,7 @@ const REASONS = {
   export:   'Create a free account to export — the CV you built comes with you.',
   download: 'Create a free account to download — the CV you built comes with you.',
   save:     'Create a free account to keep your CV safe and edit it anywhere.',
+  ai:       'Create a free account to buy extra AI requests — they’re saved to your account.',
 }
 
 const view   = ref(props.initialView === 'signin' || props.initialView === 'forgot' || props.initialView === 'reset' ? props.initialView : 'register')

@@ -163,7 +163,6 @@ app.set('trust proxy', 1);
 app.use('/api/',      rateLimit({ windowMs: 15*60*1000, max: 200, standardHeaders: true, legacyHeaders: false }));
 app.use('/api/ai/',   rateLimit({ windowMs: 60*1000,    max: 20,  message: { error: 'Too many AI requests, wait a minute.' } }));
 // Guests (no account) get a smaller hourly AI budget per IP
-const guestAiLimiter = rateLimit({ windowMs: 60*60*1000, max: 40, message: { error: 'Guest AI limit reached — create a free account to keep going.' } });
 app.use('/api/auth/', rateLimit({ windowMs: 15*60*1000, max: 15,  message: { error: 'Too many attempts, try again later.' } }));
 
 // ── Auth helpers ──────────────────────────────────────────────────────────────
@@ -192,15 +191,58 @@ function authMiddleware(req, res, next) {
   try { req.user = jwt.verify(token, JWT_SECRET); next(); }
   catch { res.status(401).json({ error: 'Session expired, please sign in again.' }); }
 }
-// AI + CV import work for guests too: attach the user if there is a valid session,
-// otherwise apply the guest limiter. Guests can build a CV before creating an account.
-function aiAccess(req, res, next) {
-  const token = req.cookies?.token || req.headers.authorization?.replace('Bearer ', '');
-  if (token) {
-    try { req.user = jwt.verify(token, JWT_SECRET); return next(); } catch {}
+// AI + CV import work for guests too (attach the user when there is a valid session).
+// Every AI request uses the daily allowance — AI_FREE_PER_DAY per account, or per IP for
+// guests — and after that one of the account's paid extra credits (AI_PACK_SIZE for €0.50).
+const AI_FREE_PER_DAY = 30;
+const AI_PACK_SIZE    = 100;
+const AI_PACK_CENTS   = 50;
+let _aiTables = null;
+function ensureAiTables() {
+  if (!_aiTables) {
+    _aiTables = (async () => {
+      await query(`CREATE TABLE IF NOT EXISTS ai_usage (
+        subject TEXT NOT NULL, day DATE NOT NULL, count INT NOT NULL DEFAULT 0, PRIMARY KEY (subject, day))`);
+      await query('ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_credits INT NOT NULL DEFAULT 0');
+    })().catch(e => { _aiTables = null; throw e; });
   }
+  return _aiTables;
+}
+const aiSubject = (req) => req.user ? `u:${req.user.sub}` : `ip:${req.ip}`;
+
+// { ok, freeLeft, credits } — counts this request
+async function useAiAllowance(req) {
+  await ensureAiTables();
+  const { rows } = await query(
+    `INSERT INTO ai_usage (subject, day, count) VALUES ($1, CURRENT_DATE, 1)
+     ON CONFLICT (subject, day) DO UPDATE SET count = ai_usage.count + 1 RETURNING count`,
+    [aiSubject(req)]
+  );
+  const used = rows[0].count;
+  if (used <= AI_FREE_PER_DAY) return { ok: true, freeLeft: AI_FREE_PER_DAY - used };
+  if (req.user) {
+    const r = await query('UPDATE users SET ai_credits = ai_credits - 1 WHERE id = $1 AND ai_credits > 0 RETURNING ai_credits', [req.user.sub]);
+    if (r.rows.length) return { ok: true, freeLeft: 0, credits: r.rows[0].ai_credits };
+  }
+  return { ok: false };
+}
+
+async function aiAccess(req, res, next) {
+  const token = req.cookies?.token || req.headers.authorization?.replace('Bearer ', '');
   req.user = null;
-  guestAiLimiter(req, res, next);
+  if (token) { try { req.user = jwt.verify(token, JWT_SECRET); } catch {} }
+  try {
+    const a = await useAiAllowance(req);
+    if (!a.ok) {
+      return res.status(429).json({
+        code: 'AI_LIMIT', signedIn: !!req.user,
+        error: `You’ve used today’s ${AI_FREE_PER_DAY} free AI requests. Get ${AI_PACK_SIZE} more for €0.50, or come back tomorrow.`,
+      });
+    }
+  } catch (e) {
+    console.warn('[ai-allowance] check failed, allowing request:', e.message); // never block AI because of a counter error
+  }
+  next();
 }
 
 function publicUser(row) {
@@ -526,6 +568,65 @@ app.post('/api/notifications/add', authMiddleware, async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Failed to add notification.' }); }
 });
 
+// ── AI ALLOWANCE: status and the €0.50 pack ─────────────────────────────────────
+app.get('/api/ai/quota', async (req, res) => {
+  const token = req.cookies?.token;
+  req.user = null;
+  if (token) { try { req.user = jwt.verify(token, JWT_SECRET); } catch {} }
+  try {
+    await ensureAiTables();
+    const used = (await query('SELECT count FROM ai_usage WHERE subject = $1 AND day = CURRENT_DATE', [aiSubject(req)])).rows[0]?.count || 0;
+    const credits = req.user ? (await query('SELECT ai_credits FROM users WHERE id = $1', [req.user.sub])).rows[0]?.ai_credits || 0 : 0;
+    res.json({ limit: AI_FREE_PER_DAY, freeLeft: Math.max(0, AI_FREE_PER_DAY - used), credits, packSize: AI_PACK_SIZE, packPrice: '€0.50' });
+  } catch (e) { res.status(500).json({ error: 'Could not load your AI allowance.' }); }
+});
+
+// Adds a pack once per Stripe session (the return page and the webhook may both report it)
+async function creditAiPack(userId, sessionId, source) {
+  await ensureAiTables();
+  const ins = await query(
+    `INSERT INTO payments (user_id, draft_id, session_id, paid, product, source)
+     VALUES ($1, 'ai_pack', $2, TRUE, 'ai_pack', $3) ON CONFLICT (session_id) DO NOTHING RETURNING id`,
+    [userId, sessionId, source]
+  );
+  if (ins.rows.length) await query('UPDATE users SET ai_credits = ai_credits + $1 WHERE id = $2', [AI_PACK_SIZE, userId]);
+  return (await query('SELECT ai_credits FROM users WHERE id = $1', [userId])).rows[0]?.ai_credits || 0;
+}
+
+app.post('/api/payment/ai-pack', authMiddleware, async (req, res) => {
+  try {
+    const stripe = await getStripe();
+    if (!stripe) {
+      if (!FREE_EXPORTS) return res.status(503).json({ error: PAYMENTS_DOWN });
+      const credits = await creditAiPack(req.user.sub, `demo_ai_${uuid()}`, 'demo');
+      return res.json({ url: null, demo: true, credits });
+    }
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{ price_data: { currency: CV_CURRENCY, product_data: { name: `CVMaster — ${AI_PACK_SIZE} extra AI requests`, description: 'Never expire · use them for writing help, tailoring, ATS checks and fixes' }, unit_amount: AI_PACK_CENTS }, quantity: 1 }],
+      mode: 'payment',
+      success_url: `${FRONTEND_URL}/?ai_pack={CHECKOUT_SESSION_ID}`,
+      cancel_url:  `${FRONTEND_URL}/`,
+      client_reference_id: req.user.sub,
+      metadata: { product: 'ai_pack', userId: req.user.sub },
+    });
+    res.json({ url: session.url });
+  } catch (e) { console.error('[ai-pack]', e.message); res.status(500).json({ error: 'Could not start payment. Please try again.' }); }
+});
+
+app.post('/api/payment/ai-pack/verify', authMiddleware, async (req, res) => {
+  try {
+    const stripe = await getStripe();
+    const sessionId = String(req.body?.sessionId || '');
+    if (!stripe || !sessionId.startsWith('cs_')) return res.status(400).json({ error: 'Invalid payment session.' });
+    const s = await stripe.checkout.sessions.retrieve(sessionId);
+    if (s.payment_status !== 'paid' || s.metadata?.product !== 'ai_pack' || s.metadata?.userId !== req.user.sub) {
+      return res.status(402).json({ error: 'This payment has not completed.' });
+    }
+    res.json({ credits: await creditAiPack(req.user.sub, sessionId, 'stripe') });
+  } catch (e) { console.error('[ai-pack/verify]', e.message); res.status(500).json({ error: 'Could not confirm your payment — contact us if you were charged.' }); }
+});
+
 // ── AI PROXY ──────────────────────────────────────────────────────────────────
 // Groq retires models (llama-3.3-70b-versatile disappeared and broke every AI feature),
 // so the model is configurable. gpt-oss models reason before answering: keep that short,
@@ -533,7 +634,7 @@ app.post('/api/notifications/add', authMiddleware, async (req, res) => {
 const AI_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
 
 // Claude is the main AI when ANTHROPIC_API_KEY is set; Groq is the fallback.
-const ANTHROPIC_KEY   = process.env.ANTHROPIC_API_KEY || '';
+const ANTHROPIC_KEY   = (process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_KEY || process.env.CLAUDE_KEY || '').trim();
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5';
 const AI_READY        = !!(ANTHROPIC_KEY || GROQ_KEY);
 const AI_PROVIDER     = ANTHROPIC_KEY ? `claude (${ANTHROPIC_MODEL})` : GROQ_KEY ? `groq (${AI_MODEL})` : null;
@@ -1859,6 +1960,9 @@ async function handleWatermarkWebhook(req, res) {
     if (paid && meta.product === 'cvmaster_clean_download' && meta.clean_token && meta.user_id) {
       await recordPayment({ userId: meta.user_id, draftId: 'wm_' + meta.clean_token, sessionId: meta.clean_token, product: 'clean_download', source: 'stripe' });
     }
+    if (paid && event.type === 'checkout.session.completed' && meta.product === 'ai_pack' && meta.userId) {
+      await creditAiPack(meta.userId, obj.id, 'stripe');
+    }
     if (paid && event.type === 'checkout.session.completed' && meta.product === 'email_export' && meta.userId && meta.draftId) {
       await recordPayment({ userId: meta.userId, draftId: meta.draftId, sessionId: obj.id, product: 'email_export', source: 'stripe' });
     }
@@ -2005,7 +2109,8 @@ app.get('/api/admin/stats', adminAuthMiddleware, async (req, res) => {
       query(`SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') AS week FROM users`),
       query(`SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') AS week,
                     COUNT(*) FILTER (WHERE source = 'stripe' AND product = 'email_export')   AS email_paid,
-                    COUNT(*) FILTER (WHERE source = 'stripe' AND product = 'clean_download') AS clean_paid
+                    COUNT(*) FILTER (WHERE source = 'stripe' AND product = 'clean_download') AS clean_paid,
+                    COUNT(*) FILTER (WHERE source = 'stripe' AND product = 'ai_pack')        AS ai_paid
              FROM payments WHERE paid = TRUE`),
       query(`SELECT COUNT(*) AS total FROM drafts`),
       query(`SELECT COUNT(*) AS total FROM users WHERE referred_by IS NOT NULL`),
@@ -2018,7 +2123,8 @@ app.get('/api/admin/stats', adminAuthMiddleware, async (req, res) => {
       referrals:       { total: Number(referrals.rows[0].total) },
       // Only real Stripe payments count as revenue (not demo or referral-credit rows)
       // In euro cents, at today's prices (€0.99 per CV; the old clean download was €0.50)
-      revenue_eur_cents: Number(payments.rows[0].email_paid) * CV_PRICE_CENTS + Number(payments.rows[0].clean_paid) * 50,
+      revenue_eur_cents: Number(payments.rows[0].email_paid) * CV_PRICE_CENTS + Number(payments.rows[0].clean_paid) * 50
+                         + Number(payments.rows[0].ai_paid) * AI_PACK_CENTS,
       recent_payments: recentPayments.rows,
       maintenance:     maintenanceMode,
     });
