@@ -1,5 +1,15 @@
 # Changes
 
+## 2026-10-01 — Faster mobile load, accessibility, one canonical domain
+
+- **Smaller render-blocking CSS:** only the Latin and Latin Extended font subsets are loaded (the CSS is about 22 KB gzipped instead of about 53 KB). The PDF server already used Latin only.
+- **Google sign-in script loads on demand:** the sign-in modal loads it, so the homepage no longer downloads about 98 KB it doesn't use.
+- **Accessibility:**
+  - The decorative hero preview is `inert`, so its links can't be focused inside `aria-hidden`.
+  - The logo and star rating use `role="img"` for their labels.
+  - Muted text is darker to meet the 4.5:1 contrast ratio.
+- **Links in emails, the admin page and `render.yaml` use https://www.cvmaster.live**, the canonical domain.
+
 ## 2026-09-30 (night) — Email address checks at sign-up
 
 - **Sign-up checks the email address** before creating the account:
