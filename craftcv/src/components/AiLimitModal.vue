@@ -7,12 +7,16 @@
             <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
           </div>
           <h3 id="al-title">{{ reason === 'limit' ? 'You’ve used today’s free AI' : 'Your AI requests' }}</h3>
-          <p>Everyone gets <strong>30 free AI requests a day</strong> — writing help, tailoring, ATS checks and fixes. They reset every day at midnight (UTC).</p>
+          <p v-if="tier === 'guest'">Guests get <strong>5 free AI requests a day</strong>. Create a free account to get <strong>30 a day</strong> — your CV comes with you.</p>
+          <p v-else-if="tier === 'unverified'">You get <strong>5 a day</strong> until you confirm your email — then it’s <strong>30 a day</strong>. Check your inbox for our link.</p>
+          <p v-else>You get <strong>30 free AI requests a day</strong> — writing help, tailoring, ATS checks and fixes. They reset every day at midnight (UTC).</p>
+          <div v-if="tier === 'guest'" class="al-next"><button class="btn-primary accent" @click="signUp">Create free account</button></div>
+          <div v-else-if="tier === 'unverified'" class="al-next"><button class="btn-primary accent" @click="resend">{{ resent ? 'Sent ✓' : 'Resend confirmation email' }}</button></div>
           <div v-if="quota" class="al-quota">
             <div><span>{{ quota.freeLeft }}</span> free left today</div>
             <div><span>{{ quota.credits }}</span> extra</div>
           </div>
-          <div class="al-offer">
+          <div v-if="tier === 'verified'" class="al-offer">
             <div>
               <div class="al-offer-t">100 extra AI requests</div>
               <div class="al-offer-s">One-time €0.50 · they never expire</div>
@@ -28,11 +32,16 @@
 </template>
 
 <script setup>
-import { ref, inject } from 'vue'
+import { ref, computed, inject } from 'vue'
 import { useAuthStore } from '../stores/auth.js'
 
 const auth = useAuthStore()
 const requireAccount = inject('requireAccount', null)
+const resendVerification = inject('resendVerification', null)
+const tier   = computed(() => quota.value?.tier || (auth.isLoggedIn ? (auth.user?.emailVerified === false ? 'unverified' : 'verified') : 'guest'))
+const resent = ref(false)
+async function signUp() { open.value = false; await requireAccount?.('ai') }
+async function resend() { await resendVerification?.(); resent.value = true }
 const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
 
 const open   = ref(false)
@@ -85,6 +94,7 @@ defineExpose({ show })
 .al-offer{display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;border:1.5px solid var(--c-accent);background:var(--c-accent-lt);border-radius:12px;padding:12px 14px}
 .al-offer-t{font-size:14px;font-weight:700;color:var(--c-text)}
 .al-offer-s{font-size:12px;color:var(--c-text2);margin-top:2px}
+.al-next{margin:4px 0 6px}
 .al-err{font-size:12.5px;color:var(--c-rose);margin-top:10px}
 .al-later{margin-top:10px}
 @media (max-width:480px){ .al-offer{flex-direction:column;align-items:stretch;text-align:center} }

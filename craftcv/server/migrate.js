@@ -103,6 +103,9 @@ CREATE TABLE IF NOT EXISTS ai_usage (
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_credits INT NOT NULL DEFAULT 0;
 -- Referral: set once the referred user's first purchase has rewarded their referrer
 ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_rewarded BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_welcomed BOOLEAN NOT NULL DEFAULT FALSE;
+-- Email sign-ups confirm by link; Google accounts count as confirmed
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- SUPPORT INBOX (also created on demand): emails to support@cvmaster.live received via Resend
 CREATE TABLE IF NOT EXISTS inbox_messages (

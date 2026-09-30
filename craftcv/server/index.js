@@ -199,7 +199,8 @@ function authMiddleware(req, res, next) {
 // AI + CV import work for guests too (attach the user when there is a valid session).
 // Every AI request uses the daily allowance — AI_FREE_PER_DAY per account, or per IP for
 // guests — and after that one of the account's paid extra credits (AI_PACK_SIZE for €0.50).
-const AI_FREE_PER_DAY = 30;
+const AI_FREE_PER_DAY = 30;   // confirmed accounts (Google, or email confirmed)
+const AI_GUEST_PER_DAY = 5;   // guests and accounts that haven't confirmed their email
 const AI_PACK_SIZE    = 100;
 const AI_PACK_CENTS   = 50;
 let _aiTables = null;
@@ -215,21 +216,31 @@ function ensureAiTables() {
 }
 const aiSubject = (req) => req.user ? `u:${req.user.sub}` : `ip:${req.ip}`;
 
-// { ok, freeLeft, credits } — counts this request
+// 'verified' | 'unverified' | 'guest'
+async function aiTier(req) {
+  if (!req.user) return 'guest';
+  await ensureReferralColumns();
+  const u = (await query('SELECT provider, email_verified FROM users WHERE id = $1', [req.user.sub])).rows[0];
+  return !u ? 'guest' : (u.provider === 'google' || u.email_verified) ? 'verified' : 'unverified';
+}
+const aiLimitFor = (tier) => tier === 'verified' ? AI_FREE_PER_DAY : AI_GUEST_PER_DAY;
+
+// { ok, freeLeft, credits, tier } — counts this request
 async function useAiAllowance(req) {
   await ensureAiTables();
+  const tier = await aiTier(req), limit = aiLimitFor(tier);
   const { rows } = await query(
     `INSERT INTO ai_usage (subject, day, count) VALUES ($1, CURRENT_DATE, 1)
      ON CONFLICT (subject, day) DO UPDATE SET count = ai_usage.count + 1 RETURNING count`,
     [aiSubject(req)]
   );
   const used = rows[0].count;
-  if (used <= AI_FREE_PER_DAY) return { ok: true, freeLeft: AI_FREE_PER_DAY - used };
+  if (used <= limit) return { ok: true, freeLeft: limit - used, tier };
   if (req.user) {
     const r = await query('UPDATE users SET ai_credits = ai_credits - 1 WHERE id = $1 AND ai_credits > 0 RETURNING ai_credits', [req.user.sub]);
-    if (r.rows.length) return { ok: true, freeLeft: 0, credits: r.rows[0].ai_credits };
+    if (r.rows.length) return { ok: true, freeLeft: 0, credits: r.rows[0].ai_credits, tier };
   }
-  return { ok: false };
+  return { ok: false, tier };
 }
 
 async function aiAccess(req, res, next) {
@@ -239,10 +250,12 @@ async function aiAccess(req, res, next) {
   try {
     const a = await useAiAllowance(req);
     if (!a.ok) {
-      return res.status(429).json({
-        code: 'AI_LIMIT', signedIn: !!req.user,
-        error: `You’ve used today’s ${AI_FREE_PER_DAY} free AI requests. Get ${AI_PACK_SIZE} more for €0.50, or come back tomorrow.`,
-      });
+      const error = a.tier === 'guest'
+        ? `You’ve used today’s ${AI_GUEST_PER_DAY} free AI requests. Create a free account to get ${AI_FREE_PER_DAY} a day.`
+        : a.tier === 'unverified'
+          ? `You’ve used today’s ${AI_GUEST_PER_DAY} AI requests. Confirm your email to get ${AI_FREE_PER_DAY} a day.`
+          : `You’ve used today’s ${AI_FREE_PER_DAY} free AI requests. Get ${AI_PACK_SIZE} more for €0.50, or come back tomorrow.`;
+      return res.status(429).json({ code: 'AI_LIMIT', tier: a.tier, signedIn: !!req.user, error });
     }
   } catch (e) {
     console.warn('[ai-allowance] check failed, allowing request:', e.message); // never block AI because of a counter error
@@ -262,6 +275,8 @@ function publicUser(row) {
     industry:   row.industry   || null,
     goal:       row.goal       || null,
     experience: row.experience || null,
+    // Google accounts are verified by Google; email accounts confirm by link
+    emailVerified: row.provider === 'google' || !!row.email_verified,
   };
 }
 
@@ -283,6 +298,8 @@ let _refCols = null;
 function ensureReferralColumns() {
   if (!_refCols) {
     _refCols = query('ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_rewarded BOOLEAN NOT NULL DEFAULT FALSE')
+      .then(() => query('ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_welcomed BOOLEAN NOT NULL DEFAULT FALSE'))
+      .then(() => query('ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE'))
       .then(() => ensureAiTables())
       .catch(e => { _refCols = null; throw e; });
   }
@@ -297,8 +314,57 @@ async function findReferrer(code, newEmail) {
 }
 async function welcomeReferred(userId) {
   await ensureReferralColumns();
-  await query('UPDATE users SET ai_credits = ai_credits + $1 WHERE id = $2', [REFERRAL_WELCOME_AI, userId]);
+  await query(
+    `UPDATE users SET ai_credits = ai_credits + $1, referral_welcomed = TRUE
+     WHERE id = $2 AND referred_by IS NOT NULL AND NOT referral_welcomed
+       AND (provider = 'google' OR email_verified)`, [REFERRAL_WELCOME_AI, userId]);
 }
+
+// ── EMAIL VERIFICATION ────────────────────────────────────────────────────────
+// Email sign-ups get a link (a signed token, valid 3 days). Until they confirm, they get
+// the guest AI allowance; confirming unlocks the full daily allowance and any welcome bonus.
+const signVerifyToken = (user) => jwt.sign({ sub: user.id, email: user.email, purpose: 'verify' }, JWT_SECRET, { expiresIn: '3d' });
+async function sendVerificationEmail(user) {
+  const link = `${FRONTEND_URL}/?verify=${encodeURIComponent(signVerifyToken(user))}`;
+  await sendMail({
+    to: user.email,
+    subject: 'Confirm your email for CVMaster',
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#fff;color:#14142B">
+        <div style="font-size:18px;font-weight:800;margin-bottom:24px">CV<span style="color:#4338CA">Master</span></div>
+        <h2 style="font-size:22px;margin:0 0 10px">Confirm your email</h2>
+        <p style="color:#55556F;line-height:1.65;margin:0 0 22px">Hi ${escHtml(String(user.name || '').split(' ')[0] || 'there')},<br><br>
+          Tap the button to confirm this is your email. It unlocks <strong>${AI_FREE_PER_DAY} AI requests a day</strong> and keeps your account secure.</p>
+        <a href="${link}" style="display:inline-block;background:#4338CA;color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-weight:700;font-size:15px">Confirm my email</a>
+        <p style="color:#8A8AA3;font-size:12px;line-height:1.6;margin-top:26px;border-top:1px solid #eee;padding-top:14px">
+          The link works for 3 days. If you didn’t create a CVMaster account, you can ignore this email.</p>
+      </div>`,
+  });
+}
+
+app.post('/api/auth/verify-email', async (req, res) => {
+  try {
+    let p;
+    try { p = jwt.verify(String(req.body?.token || ''), JWT_SECRET); } catch { return res.status(400).json({ error: 'This confirmation link is invalid or has expired. Send a new one from Settings.' }); }
+    if (p.purpose !== 'verify') return res.status(400).json({ error: 'Invalid link.' });
+    await ensureReferralColumns();
+    const { rows } = await query('UPDATE users SET email_verified = TRUE WHERE id = $1 AND email = $2 RETURNING *', [p.sub, p.email]);
+    if (!rows.length) return res.status(400).json({ error: 'This confirmation link no longer matches an account.' });
+    await welcomeReferred(rows[0].id).catch(() => {});
+    res.json({ ok: true, user: publicUser(rows[0]) });
+  } catch (e) { res.status(500).json({ error: 'Could not confirm your email — please try again.' }); }
+});
+
+app.post('/api/auth/resend-verification', authMiddleware, async (req, res) => {
+  try {
+    await ensureReferralColumns();
+    const u = (await query('SELECT * FROM users WHERE id = $1', [req.user.sub])).rows[0];
+    if (!u) return res.status(404).json({ error: 'Account not found.' });
+    if (u.provider === 'google' || u.email_verified) return res.json({ ok: true, alreadyVerified: true });
+    await sendVerificationEmail(u);
+    res.json({ ok: true });
+  } catch (e) { console.error('[verify/resend]', e.message); res.status(500).json({ error: 'Could not send the email — please try again in a minute.' }); }
+});
 // Called whenever a paid CV is recorded; rewards the referrer once per referred user
 async function rewardReferrer(userId) {
   await ensureReferralColumns();
@@ -344,8 +410,8 @@ app.post('/api/auth/register', async (req, res) => {
     );
     const user = rows[0];
 
-    // Joined with a friend's link: welcome bonus now; the friend is rewarded on first purchase
-    if (referrerId) await welcomeReferred(user.id).catch(e => console.warn('[referral] welcome bonus:', e.message));
+    // Confirmation email (the referral welcome bonus is given once they confirm)
+    sendVerificationEmail(user).catch(e => console.warn('[verify] email failed:', e.message));
 
     await seedNotifications(user.id);
     setAuthCookie(res, signToken(user.id));
@@ -386,13 +452,16 @@ app.post('/api/auth/google', async (req, res) => {
     const googleRefCode = generateReferralCode(name || key.split('@')[0], key);
     const avatar        = (name?.[0] || 'G').toUpperCase();
 
-    // Upsert: if email exists link Google, otherwise create new user
+    // Upsert: if email exists link Google, otherwise create new user. Signing in with
+    // Google proves the email, so the account counts as confirmed either way.
+    await ensureReferralColumns();
     const { rows } = await query(
-      `INSERT INTO users (email, name, provider, google_id, google_picture, avatar, referral_code, referred_by)
-       VALUES ($1, $2, 'google', $3, $4, $5, $6, $7)
+      `INSERT INTO users (email, name, provider, google_id, google_picture, avatar, referral_code, referred_by, email_verified)
+       VALUES ($1, $2, 'google', $3, $4, $5, $6, $7, TRUE)
        ON CONFLICT (email) DO UPDATE
          SET google_id      = EXCLUDED.google_id,
-             google_picture = COALESCE(users.google_picture, EXCLUDED.google_picture)
+             google_picture = COALESCE(users.google_picture, EXCLUDED.google_picture),
+             email_verified = TRUE
        RETURNING *, (xmax = 0) AS is_new_row`,
       [key, name || key.split('@')[0], googleId, picture, avatar, googleRefCode, googleReferrerId]
     );
@@ -447,7 +516,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
           </div>
           <h2 style="font-size:22px;color:#1a1916;margin-bottom:8px;">Reset your password</h2>
           <p style="color:#6b6860;line-height:1.65;margin-bottom:24px;">
-            Hi ${user.name},<br/><br/>
+            Hi ${escHtml(user.name)},<br/><br/>
             We received a request to reset your password. Click the button below — this link expires in <strong>1 hour</strong>.
           </p>
           <a href="${resetUrl}" style="display:inline-block;background:#4338CA;color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-weight:600;font-size:15px;margin-bottom:24px;">
@@ -601,9 +670,10 @@ app.get('/api/ai/quota', async (req, res) => {
   if (token) { try { req.user = jwt.verify(token, JWT_SECRET); } catch {} }
   try {
     await ensureAiTables();
+    const tier = await aiTier(req), limit = aiLimitFor(tier);
     const used = (await query('SELECT count FROM ai_usage WHERE subject = $1 AND day = CURRENT_DATE', [aiSubject(req)])).rows[0]?.count || 0;
     const credits = req.user ? (await query('SELECT ai_credits FROM users WHERE id = $1', [req.user.sub])).rows[0]?.ai_credits || 0 : 0;
-    res.json({ limit: AI_FREE_PER_DAY, freeLeft: Math.max(0, AI_FREE_PER_DAY - used), credits, packSize: AI_PACK_SIZE, packPrice: '€0.50' });
+    res.json({ tier, limit, fullLimit: AI_FREE_PER_DAY, freeLeft: Math.max(0, limit - used), credits, packSize: AI_PACK_SIZE, packPrice: '€0.50' });
   } catch (e) { res.status(500).json({ error: 'Could not load your AI allowance.' }); }
 });
 
