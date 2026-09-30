@@ -1,5 +1,12 @@
 # Changes
 
+## 2026-09-30 (later) — Links option
+
+- **Design tab → Links: Plain text / Underlined** (`fmt.linkStyle`, saved with the CV).
+  - Underlined uses the text's own colour, so it works on dark headers too.
+- **Links were already clickable in the PDF;** this option only changes how they look.
+- **Phone numbers are now links too** (`tel:`). A real PDF contains clickable email, phone, LinkedIn, website and project links.
+
 ## 2026-09-30 (later) — "Fix with AI" now actually clears the issue
 
 - **Why items stayed after a fix:**
