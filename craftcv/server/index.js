@@ -9,7 +9,7 @@ import multer from 'multer';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuid } from 'uuid';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHmac, timingSafeEqual } from 'crypto';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { OAuth2Client } from 'google-auth-library';
@@ -54,8 +54,10 @@ const smtpTransport = (process.env.SMTP_HOST && process.env.SMTP_USER && process
     })
   : null;
 
-async function sendViaResend({ to, subject, html, attachments }) {
-  const payload = { from: RESEND_FROM, to, subject, html };
+async function sendViaResend({ to, subject, html, attachments, from, replyTo, headers }) {
+  const payload = { from: from || RESEND_FROM, to, subject, html };
+  if (replyTo) payload.replyTo = replyTo;
+  if (headers) payload.headers = headers;
   if (attachments?.length) {
     payload.attachments = attachments.map(a => ({
       filename: a.filename,
@@ -141,6 +143,7 @@ app.use((req, res, next) => {
 
 // Stripe webhook for watermark unlock — raw body required, must be BEFORE express.json
 app.post('/api/webhooks/stripe', express.raw({type:'application/json'}), handleWatermarkWebhook);
+app.post('/api/webhooks/resend-inbound', express.raw({ type: 'application/json', limit: '2mb' }), handleInboundEmail);
 
 app.use(express.json({ limit: '10mb' }));
 app.use(cors({
@@ -2138,6 +2141,18 @@ app.get('/api/admin/me', adminAuthMiddleware, (req, res) => {
 });
 
 // GET /api/admin/stats
+// What's configured on the server (no secrets — just yes/no and public addresses)
+app.get('/api/admin/config', adminAuthMiddleware, (req, res) => {
+  res.json({
+    ai: AI_PROVIDER, aiLast,
+    stripe: !!STRIPE_KEY, stripeWebhook: !!process.env.STRIPE_WEBHOOK_SECRET, stripeMode: STRIPE_KEY.startsWith('sk_live') ? 'live' : STRIPE_KEY ? 'test' : null,
+    email: !!(resend || smtpTransport), sendingFrom: RESEND_FROM, supportFrom: SUPPORT_FROM,
+    inbound: !!process.env.RESEND_INBOUND_SECRET, inboundUrl: 'https://api.cvmaster.live/api/webhooks/resend-inbound',
+    feedbackEmail: FEEDBACK_TO || null,
+    pdf: pdfEngine.status,
+  });
+});
+
 app.get('/api/admin/stats', adminAuthMiddleware, async (req, res) => {
   try {
     const [users, payments, drafts, referrals, recentPayments] = await Promise.all([
@@ -2149,8 +2164,19 @@ app.get('/api/admin/stats', adminAuthMiddleware, async (req, res) => {
              FROM payments WHERE paid = TRUE`),
       query(`SELECT COUNT(*) AS total FROM drafts`),
       query(`SELECT COUNT(*) AS total FROM users WHERE referred_by IS NOT NULL`),
-      query(`SELECT u.email, p.created_at FROM payments p JOIN users u ON u.id = p.user_id WHERE p.paid = TRUE ORDER BY p.created_at DESC LIMIT 10`),
+      query(`SELECT u.email, u.name, p.created_at, p.product, p.source FROM payments p JOIN users u ON u.id = p.user_id WHERE p.paid = TRUE ORDER BY p.created_at DESC LIMIT 10`),
     ]);
+    // Last 14 days of sign-ups and real payments, for the dashboard chart
+    const daily = (await query(`
+      SELECT d::date AS day,
+             (SELECT COUNT(*)::int FROM users    WHERE created_at::date = d::date) AS signups,
+             (SELECT COUNT(*)::int FROM payments WHERE paid AND source = 'stripe' AND created_at::date = d::date) AS payments
+      FROM generate_series(CURRENT_DATE - INTERVAL '13 days', CURRENT_DATE, INTERVAL '1 day') d ORDER BY d`)).rows;
+    // Unread emails and open site messages (tables may not exist yet on a fresh database)
+    let inboxUnread = 0, feedbackOpen = 0, aiToday = 0;
+    try { await ensureInboxTables(); inboxUnread = (await query('SELECT COUNT(*)::int AS n FROM inbox_messages WHERE NOT read')).rows[0].n; } catch {}
+    try { await ensureFeedbackTable(); feedbackOpen = (await query(`SELECT COUNT(*)::int AS n FROM feedback WHERE status = 'open'`)).rows[0].n; } catch {}
+    try { await ensureAiTables(); aiToday = (await query('SELECT COALESCE(SUM(count), 0)::int AS n FROM ai_usage WHERE day = CURRENT_DATE')).rows[0].n; } catch {}
     res.json({
       users:           { total: Number(users.rows[0].total), week: Number(users.rows[0].week) },
       payments:        { total: Number(payments.rows[0].total), week: Number(payments.rows[0].week) },
@@ -2161,6 +2187,7 @@ app.get('/api/admin/stats', adminAuthMiddleware, async (req, res) => {
       revenue_eur_cents: Number(payments.rows[0].email_paid) * CV_PRICE_CENTS + Number(payments.rows[0].clean_paid) * 50
                          + Number(payments.rows[0].ai_paid) * AI_PACK_CENTS,
       recent_payments: recentPayments.rows,
+      daily, inbox_unread: inboxUnread, feedback_open: feedbackOpen, ai_requests_today: aiToday,
       maintenance:     maintenanceMode,
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -2171,14 +2198,16 @@ app.get('/api/admin/users', adminAuthMiddleware, async (req, res) => {
   try {
     const { page = 1, search = '', plan = '' } = req.query;
     const limit = 25, offset = (Number(page) - 1) * limit;
+    await ensureReferralColumns().catch(() => {});   // makes sure ai_credits exists
     const params = [], conds = ['1=1'];
     if (search) { params.push(`%${search}%`); conds.push(`(email ILIKE $${params.length} OR name ILIKE $${params.length})`); }
     if (plan)   { params.push(plan); conds.push(`plan = $${params.length}`); }
     const where = 'WHERE ' + conds.join(' AND ');
     params.push(limit, offset);
     const { rows } = await query(
-      `SELECT id, email, name, plan, provider, onboarded, referral_code, referral_credits,
-              (SELECT COUNT(*) FROM payments WHERE user_id = users.id AND paid = TRUE) AS payment_count,
+      `SELECT id, email, name, plan, provider, onboarded, referral_code, referral_credits, ai_credits,
+              (SELECT COUNT(*) FROM users r WHERE r.referred_by = users.id) AS referred_count,
+              (SELECT COUNT(*) FROM payments WHERE user_id = users.id AND paid = TRUE AND source = 'stripe') AS payment_count,
               (SELECT COUNT(*) FROM drafts WHERE user_id = users.id) AS draft_count,
               created_at
        FROM users ${where} ORDER BY created_at DESC LIMIT $${params.length-1} OFFSET $${params.length}`,
@@ -2192,12 +2221,14 @@ app.get('/api/admin/users', adminAuthMiddleware, async (req, res) => {
 // PATCH /api/admin/users/:id
 app.patch('/api/admin/users/:id', adminAuthMiddleware, async (req, res) => {
   try {
-    const { plan, referral_credits } = req.body;
+    const { plan, referral_credits, ai_credits } = req.body;
     const sets = [], params = [req.params.id];
+    const count = (v) => Math.max(0, Math.min(100000, Math.floor(Number(v) || 0)));
     if (plan !== undefined)             { params.push(plan); sets.push(`plan = $${params.length}`); }
-    if (referral_credits !== undefined) { params.push(Number(referral_credits)); sets.push(`referral_credits = $${params.length}`); }
+    if (referral_credits !== undefined) { params.push(count(referral_credits)); sets.push(`referral_credits = $${params.length}`); }
+    if (ai_credits !== undefined)       { params.push(count(ai_credits)); sets.push(`ai_credits = $${params.length}`); }
     if (!sets.length) return res.status(400).json({ error: 'Nothing to update.' });
-    const { rows } = await query(`UPDATE users SET ${sets.join(', ')} WHERE id = $1 RETURNING id, email, plan, referral_credits`, params);
+    const { rows } = await query(`UPDATE users SET ${sets.join(', ')} WHERE id = $1 RETURNING id, email, plan, referral_credits, ai_credits`, params);
     res.json(rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -2234,6 +2265,201 @@ app.post('/api/admin/email/send', adminAuthMiddleware, async (req, res) => {
 });
 
 // POST /api/admin/maintenance — toggle maintenance mode
+// ── SUPPORT INBOX (email received through Resend) ─────────────────────────────
+// Mail sent to support@cvmaster.live is received by Resend, which calls
+// /api/webhooks/resend-inbound (signed with Svix). We fetch the full message from
+// Resend's API and keep it here; admins read and reply from the admin panel.
+const SUPPORT_FROM = process.env.SUPPORT_FROM || 'CVMaster Support <support@cvmaster.live>';
+let _inboxTables = null;
+function ensureInboxTables() {
+  if (!_inboxTables) {
+    _inboxTables = (async () => {
+      await query(`CREATE TABLE IF NOT EXISTS inbox_messages (
+        id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        resend_id   TEXT UNIQUE,
+        message_id  TEXT,
+        from_addr   TEXT NOT NULL,
+        from_name   TEXT,
+        to_addrs    TEXT,
+        subject     TEXT,
+        text_body   TEXT,
+        html_body   TEXT,
+        attachments JSONB NOT NULL DEFAULT '[]',
+        read        BOOLEAN NOT NULL DEFAULT FALSE,
+        status      TEXT NOT NULL DEFAULT 'open',
+        received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+      await query(`CREATE TABLE IF NOT EXISTS admin_replies (
+        id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        kind     TEXT NOT NULL,          -- 'email' (inbox_messages) | 'feedback'
+        ref_id   UUID NOT NULL,
+        body     TEXT NOT NULL,
+        sent_to  TEXT NOT NULL,
+        sent_at  TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+      await query('CREATE INDEX IF NOT EXISTS admin_replies_ref ON admin_replies(ref_id)');
+    })().catch(e => { _inboxTables = null; throw e; });
+  }
+  return _inboxTables;
+}
+
+// Svix signature: base64 HMAC-SHA256 of "id.timestamp.body" with the whsec_ secret
+function verifySvix(raw, headers, secret) {
+  const id = headers['svix-id'], ts = headers['svix-timestamp'], sigs = headers['svix-signature'];
+  if (!id || !ts || !sigs) return false;
+  if (Math.abs(Date.now() / 1000 - Number(ts)) > 300) return false;
+  const expected = createHmac('sha256', Buffer.from(String(secret).replace(/^whsec_/, ''), 'base64'))
+    .update(`${id}.${ts}.${raw}`).digest('base64');
+  return String(sigs).split(' ').some(part => {
+    const [ver, sig] = part.split(',');
+    return ver === 'v1' && sig && sig.length === expected.length && timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+  });
+}
+function parseAddress(v) {
+  const s = String(v || '').trim();
+  const m = s.match(/^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/);
+  return m ? { name: m[1].trim(), addr: m[2].trim().toLowerCase() } : { name: '', addr: s.toLowerCase() };
+}
+function decodeMaybeDataUri(html) {
+  const h = String(html || '');
+  const m = h.match(/^data:text\/html[^,]*?(;base64)?,(.*)$/s);
+  if (!m) return h;
+  try { return m[1] ? Buffer.from(m[2], 'base64').toString('utf8') : decodeURIComponent(m[2]); } catch { return h; }
+}
+
+async function handleInboundEmail(req, res) {
+  const secret = process.env.RESEND_INBOUND_SECRET;
+  const raw = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : '';
+  if (!secret) return res.status(503).json({ error: 'Inbound email is not configured.' });
+  if (!verifySvix(raw, req.headers, secret)) return res.status(400).json({ error: 'Invalid signature.' });
+  let evt;
+  try { evt = JSON.parse(raw); } catch { return res.status(400).json({ error: 'Bad JSON.' }); }
+  if (evt?.type !== 'email.received') return res.json({ ok: true });
+  const d = evt.data || {};
+  try {
+    await ensureInboxTables();
+    // The webhook only has metadata — fetch the body from Resend
+    let full = {};
+    if (d.email_id && process.env.RESEND_API_KEY) {
+      const r = await fetch(`https://api.resend.com/emails/receiving/${encodeURIComponent(d.email_id)}`,
+        { headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` } });
+      if (r.ok) full = await r.json();
+      else console.warn('[inbound] could not fetch email body:', r.status);
+    }
+    const from = parseAddress(full.headers?.from || full.from || d.from);
+    const attachments = (full.attachments || d.attachments || []).map(a => ({ filename: a.filename, type: a.content_type, size: a.size || null }));
+    await query(
+      `INSERT INTO inbox_messages (resend_id, message_id, from_addr, from_name, to_addrs, subject, text_body, html_body, attachments, received_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE($10::timestamptz, NOW()))
+       ON CONFLICT (resend_id) DO NOTHING`,
+      [d.email_id || null, full.message_id || d.message_id || null, from.addr || 'unknown', from.name || null,
+       [].concat(full.to || d.to || []).join(', ').slice(0, 500), String(full.subject ?? d.subject ?? '').slice(0, 500),
+       full.text ? String(full.text).slice(0, 200000) : null,
+       full.html ? decodeMaybeDataUri(full.html).slice(0, 400000) : null,
+       JSON.stringify(attachments), full.created_at || d.created_at || null]
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[inbound]', e.message);
+    res.status(500).json({ error: 'Could not store the email.' });   // Resend retries on failure
+  }
+}
+
+// Branded reply email with the original quoted underneath
+function replyEmailHtml(body, original) {
+  const para = (t) => escHtml(t).replace(/\n/g, '<br>');
+  return `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#1f2937;max-width:600px">
+    <div>${para(body)}</div>
+    <p style="margin-top:22px;color:#6b7280">— CVMaster Support<br><a href="https://cvmaster.live" style="color:#4338CA">cvmaster.live</a></p>
+    ${original ? `<div style="margin-top:22px;padding-left:12px;border-left:3px solid #e5e7eb;color:#6b7280;font-size:13px">${para(original.slice(0, 3000))}</div>` : ''}
+  </div>`;
+}
+const snippet = (t) => String(t || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+
+app.get('/api/admin/inbox', adminAuthMiddleware, async (req, res) => {
+  try {
+    await ensureInboxTables();
+    const status = ['open', 'done'].includes(req.query.status) ? req.query.status : null;
+    const { rows } = await query(
+      `SELECT id, from_addr, from_name, subject, LEFT(COALESCE(text_body, ''), 400) AS preview, read, status, received_at,
+              jsonb_array_length(attachments) AS attachment_count,
+              (SELECT COUNT(*)::int FROM admin_replies r WHERE r.ref_id = m.id) AS reply_count
+       FROM inbox_messages m ${status ? 'WHERE status = $1' : ''} ORDER BY received_at DESC LIMIT 300`,
+      status ? [status] : []);
+    const unread = (await query('SELECT COUNT(*)::int AS n FROM inbox_messages WHERE NOT read')).rows[0].n;
+    res.json({ items: rows.map(r => ({ ...r, preview: snippet(r.preview) })), unread });
+  } catch (e) { res.status(500).json({ error: 'Failed to load the inbox.' }); }
+});
+
+app.get('/api/admin/inbox/:id', adminAuthMiddleware, async (req, res) => {
+  try {
+    await ensureInboxTables();
+    const { rows } = await query('UPDATE inbox_messages SET read = TRUE WHERE id = $1 RETURNING *', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Not found.' });
+    const replies = (await query(`SELECT body, sent_to, sent_at FROM admin_replies WHERE ref_id = $1 ORDER BY sent_at`, [req.params.id])).rows;
+    res.json({ ...rows[0], replies });
+  } catch (e) { res.status(500).json({ error: 'Failed to load the email.' }); }
+});
+
+app.patch('/api/admin/inbox/:id', adminAuthMiddleware, async (req, res) => {
+  try {
+    await ensureInboxTables();
+    const sets = [], vals = [req.params.id];
+    if (['open', 'done'].includes(req.body?.status)) { vals.push(req.body.status); sets.push(`status = $${vals.length}`); }
+    if (typeof req.body?.read === 'boolean') { vals.push(req.body.read); sets.push(`read = $${vals.length}`); }
+    if (sets.length) await query(`UPDATE inbox_messages SET ${sets.join(', ')} WHERE id = $1`, vals);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Update failed.' }); }
+});
+
+app.delete('/api/admin/inbox/:id', adminAuthMiddleware, async (req, res) => {
+  try {
+    await ensureInboxTables();
+    await query('DELETE FROM admin_replies WHERE ref_id = $1', [req.params.id]);
+    await query('DELETE FROM inbox_messages WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Delete failed.' }); }
+});
+
+// Reply to an email (kind 'email') or a site message (kind 'feedback')
+async function sendAdminReply(kind, id, body) {
+  await ensureInboxTables();
+  const text = String(body || '').trim().slice(0, 10000);
+  if (text.length < 2) throw Object.assign(new Error('Write a reply first.'), { status: 400 });
+  let to, subject, original, headers;
+  if (kind === 'email') {
+    const m = (await query('SELECT from_addr, subject, text_body, message_id FROM inbox_messages WHERE id = $1', [id])).rows[0];
+    if (!m) throw Object.assign(new Error('Not found.'), { status: 404 });
+    to = m.from_addr; original = m.text_body || '';
+    subject = /^re:/i.test(m.subject || '') ? m.subject : `Re: ${m.subject || 'your message'}`;
+    if (m.message_id) headers = { 'In-Reply-To': m.message_id, References: m.message_id };
+  } else {
+    await ensureFeedbackTable();
+    const f = (await query('SELECT email, kind, message FROM feedback WHERE id = $1', [id])).rows[0];
+    if (!f) throw Object.assign(new Error('Not found.'), { status: 404 });
+    if (!f.email) throw Object.assign(new Error('This message has no email address to reply to.'), { status: 400 });
+    to = f.email; original = f.message;
+    subject = `Re: your ${(FEEDBACK_KINDS[f.kind] || 'message').toLowerCase()} to CVMaster (#${id.slice(0, 8).toUpperCase()})`;
+  }
+  await sendMail({ to, subject, html: replyEmailHtml(text, original), from: SUPPORT_FROM, replyTo: SUPPORT_FROM.match(/<([^>]+)>/)?.[1], headers });
+  await query('INSERT INTO admin_replies (kind, ref_id, body, sent_to) VALUES ($1, $2, $3, $4)', [kind, id, text, to]);
+  if (kind === 'email') await query(`UPDATE inbox_messages SET status = 'done', read = TRUE WHERE id = $1`, [id]);
+  else await query(`UPDATE feedback SET status = 'resolved' WHERE id = $1`, [id]);
+  return to;
+}
+app.post('/api/admin/inbox/:id/reply', adminAuthMiddleware, async (req, res) => {
+  try { res.json({ ok: true, sentTo: await sendAdminReply('email', req.params.id, req.body?.body) }); }
+  catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : 'Could not send the reply: ' + e.message }); }
+});
+app.post('/api/admin/feedback/:id/reply', adminAuthMiddleware, async (req, res) => {
+  try { res.json({ ok: true, sentTo: await sendAdminReply('feedback', req.params.id, req.body?.body) }); }
+  catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : 'Could not send the reply: ' + e.message }); }
+});
+app.get('/api/admin/feedback/:id/replies', adminAuthMiddleware, async (req, res) => {
+  try {
+    await ensureInboxTables();
+    res.json({ replies: (await query('SELECT body, sent_to, sent_at FROM admin_replies WHERE ref_id = $1 ORDER BY sent_at', [req.params.id])).rows });
+  } catch (e) { res.status(500).json({ error: 'Failed to load replies.' }); }
+});
+
 // ── FEEDBACK & COMPLAINTS ─────────────────────────────────────────────────────
 // Anyone (signed in or not) can send feedback. Each message is stored and, when
 // FEEDBACK_EMAIL (or ADMIN_EMAIL) is set, emailed to the owner. Admins read them in admin.html.
