@@ -61,7 +61,7 @@ const openFeedback = inject('openFeedback', null)
 const scroller = ref(null)
 
 const UPDATED = '30 September 2026'
-const CONTACT = 'gabbyquaye2021@gmail.com'
+const CONTACT = 'support@cvmaster.live'
 const mail = `<a href="mailto:${CONTACT}">${CONTACT}</a>`
 
 const DOCS = [

@@ -1,5 +1,10 @@
 # Changes
 
+## 2026-09-30 (late night) — support@cvmaster.live everywhere
+
+- **Public contact address is now support@cvmaster.live** instead of a personal gmail: the homepage footer "Contact" link, and the Privacy & Terms page (contact, data rights and complaints).
+- **Replies land in the support inbox:** every email the site sends now has `Reply-To: support@cvmaster.live` (override with `SUPPORT_EMAIL`). Customers replying to a CV delivery or password email reach the inbox, not noreply@.
+
 ## 2026-09-30 (late night) — Support inbox and a new admin panel
 
 - **Receive support email in the admin panel.**

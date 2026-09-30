@@ -41,6 +41,7 @@ const FRONTEND_URL     = process.env.FRONTEND_URL || 'http://localhost:5173';
 // so Gmail SMTP only works locally. Resend only sends from a verified domain, so the
 // sender must be @cvmaster.live (RESEND_FROM), never a gmail.com address.
 const resend      = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+const SUPPORT_REPLY_TO = process.env.SUPPORT_EMAIL || 'support@cvmaster.live';
 const RESEND_FROM = process.env.RESEND_FROM || 'CVMaster <noreply@cvmaster.live>';
 
 const smtpTransport = (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
@@ -56,7 +57,8 @@ const smtpTransport = (process.env.SMTP_HOST && process.env.SMTP_USER && process
 
 async function sendViaResend({ to, subject, html, attachments, from, replyTo, headers }) {
   const payload = { from: from || RESEND_FROM, to, subject, html };
-  if (replyTo) payload.replyTo = replyTo;
+  // Replies to any email we send (CV delivery, password reset…) reach the support inbox, not noreply@
+  payload.replyTo = replyTo || SUPPORT_REPLY_TO;
   if (headers) payload.headers = headers;
   if (attachments?.length) {
     payload.attachments = attachments.map(a => ({
