@@ -139,14 +139,29 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<'
 const str = (v) => (typeof v === 'string' ? v.trim() : '')
 const SAFE_PHOTO = /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/
 
+// Tracking junk that makes pasted links very long (?utm_source=…, LinkedIn's ?originalSubdomain=…)
+const TRACKING = /^(utm_\w+|fbclid|gclid|dclid|msclkid|mc_\w+|igshid|si|ref|ref_src|trk|trkInfo|lipi|originalSubdomain|_hsenc|_hsmi|mkt_tok)$/i
+function cleanUrl(raw) {
+  const u = str(raw)
+  if (!u) return ''
+  try {
+    const url = new URL(/^[a-z][a-z0-9+.-]*:/i.test(u) ? u : 'https://' + u.replace(/^\/+/, ''))
+    if (!/^https?:$/.test(url.protocol)) return u
+    ;[...url.searchParams.keys()].forEach(k => { if (TRACKING.test(k)) url.searchParams.delete(k) })
+    // LinkedIn profiles: keep just /in/<name>
+    const li = url.hostname.endsWith('linkedin.com') && url.pathname.match(/^\/in\/[^/]+/)
+    if (li) { url.pathname = li[0]; url.search = ''; url.hash = '' }
+    return url.toString().replace(/\/$/, '')
+  } catch { return u }
+}
 // Link target for a user-typed URL: only http(s), never javascript:/data: etc.
 function hrefFor(raw) {
-  const u = str(raw)
+  const u = cleanUrl(raw)
   if (!u) return ''
   if (/^[a-z][a-z0-9+.-]*:/i.test(u)) return /^https?:/i.test(u) ? u : ''
   return 'https://' + u.replace(/^\/+/, '')
 }
-const displayUrl = (u) => str(u).replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/$/, '')
+const displayUrl = (u) => cleanUrl(u).replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/$/, '')
 // URL text that may wrap after "/" but never inside a segment — a URL split at a hyphen
 // reads as two broken pieces to an ATS.
 const urlHtml = (u) => displayUrl(u).split('/').map(part => `<span class="nw">${esc(part)}</span>`).join('/<wbr>')
@@ -157,9 +172,9 @@ const urlHtml = (u) => displayUrl(u).split('/').map(part => `<span class="nw">${
 const LINK_MAX = 30
 const LINK_LABELS = { en: { site: 'Website', project: 'View project' }, fr: { site: 'Site web', project: 'Voir le projet' } }
 const HOSTED = /\.(vercel\.app|netlify\.app|github\.io|herokuapp\.com|web\.app|pages\.dev|onrender\.com)$/i
-function linkText(raw, kind, lang) {
+function linkText(raw, kind, lang, full = false) {
   const d = displayUrl(raw)
-  if (d.length <= LINK_MAX) return urlHtml(raw)
+  if (full || d.length <= LINK_MAX) return urlHtml(raw)   // 'Full' link text: always the (cleaned) address
   const [host, ...rest] = d.split(/[/?#]/)
   const h = host.toLowerCase()
   if (h.endsWith('linkedin.com')) {
@@ -180,7 +195,7 @@ const toBullets = (desc) =>
 
 // Raw CV data → escaped view model. `preview` fills empty fields with muted placeholders;
 // exports never contain placeholders.
-function buildModel(raw, preview) {
+function buildModel(raw, preview, fullLinks = false) {
   const d    = raw || {}
   const lang = d.lang === 'fr' ? 'fr' : 'en'
   const P    = PLACEHOLDERS[lang]
@@ -199,7 +214,7 @@ function buildModel(raw, preview) {
   for (const u of [str(d.li), str(d.website)]) {
     if (!u) continue
     const h = hrefFor(u)
-    contacts.push(h ? `<a href="${esc(h)}">${linkText(u, 'site', lang)}</a>` : `<span>${esc(u)}</span>`)
+    contacts.push(h ? `<a href="${esc(h)}">${linkText(u, 'site', lang, fullLinks)}</a>` : `<span>${esc(u)}</span>`)
   }
   if (!contacts.length && preview) contacts.push(ph(P.email), ph(P.phone), ph(P.loc))
 
@@ -215,7 +230,7 @@ function buildModel(raw, preview) {
     .map(p => {
       const h = hrefFor(p.url)
       return { name: esc(str(p.name)), tech: esc(str(p.tech)), desc: esc(str(p.desc)),
-               url: h ? `<a href="${esc(h)}">${linkText(p.url, 'project', lang)}</a>` : '' }
+               url: h ? `<a href="${esc(h)}">${linkText(p.url, 'project', lang, fullLinks)}</a>` : '' }
     })
   const languages = (Array.isArray(d.languages) ? d.languages : [])
     .filter(l => l && str(l.name)).map(l => ({ name: esc(str(l.name)), level: esc(str(l.level)) }))
@@ -632,7 +647,7 @@ const HFONT_STACK = {
 export function render(tpl, rawData, fmt = {}, opts = {}) {
   const { layout, theme } = parseTemplate(tpl)
   const t = themeById[theme]
-  const m = buildModel(rawData, !!opts.preview)
+  const m = buildModel(rawData, !!opts.preview, fmt.linkText === 'full')
 
   const font  = FONTS.some(f => f.id === fmt.fontFamily) ? fmt.fontFamily : 'DM Sans'
   const scale = fmt.fontSize === 'small' ? 0.93 : fmt.fontSize === 'large' ? 1.07 : 1
