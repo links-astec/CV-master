@@ -104,6 +104,32 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_credits INT NOT NULL DEFAULT 0;
 -- Referral: set once the referred user's first purchase has rewarded their referrer
 ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_rewarded BOOLEAN NOT NULL DEFAULT FALSE;
 
+-- SUPPORT INBOX (also created on demand): emails to support@cvmaster.live received via Resend
+CREATE TABLE IF NOT EXISTS inbox_messages (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  resend_id   TEXT UNIQUE,
+  message_id  TEXT,
+  from_addr   TEXT NOT NULL,
+  from_name   TEXT,
+  to_addrs    TEXT,
+  subject     TEXT,
+  text_body   TEXT,
+  html_body   TEXT,
+  attachments JSONB NOT NULL DEFAULT '[]',
+  read        BOOLEAN NOT NULL DEFAULT FALSE,
+  status      TEXT NOT NULL DEFAULT 'open',
+  received_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS admin_replies (
+  id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  kind     TEXT NOT NULL,
+  ref_id   UUID NOT NULL,
+  body     TEXT NOT NULL,
+  sent_to  TEXT NOT NULL,
+  sent_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS admin_replies_ref ON admin_replies(ref_id);
+
 -- FEEDBACK & COMPLAINTS (also created on demand by the server)
 CREATE TABLE IF NOT EXISTS feedback (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),

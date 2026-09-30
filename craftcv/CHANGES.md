@@ -1,5 +1,24 @@
 # Changes
 
+## 2026-09-30 (late night) — Support inbox and a new admin panel
+
+- **Receive support email in the admin panel.**
+  - Mail to support@cvmaster.live is received by Resend, which calls `POST /api/webhooks/resend-inbound`.
+  - The request's Svix signature is checked with `RESEND_INBOUND_SECRET`, so forged requests are rejected.
+  - The full message is fetched from Resend's API and stored in `inbox_messages`.
+  - **Replying:** replies go out as `SUPPORT_FROM` (default `CVMaster Support <support@cvmaster.live>`) with threading headers, are logged in `admin_replies`, and mark the email done.
+  - Site messages (feedback and complaints) can be replied to by email the same way.
+- **Admin panel rebuilt** (`admin.html`, still served at api.cvmaster.live/admin), in the brand style with a dark sidebar:
+  - **Overview:** revenue, payments, users and today's AI requests; a 14-day sign-ups and payments chart; "Needs attention" (unread emails, open site messages, maintenance); recent payments with the product.
+  - **Inbox:** emails and site messages in one list, with tabs and Open/Done/All filters.
+    - The reading pane shows email HTML in a sandbox (scripts and remote images blocked), plus attachment names and the reply thread.
+    - Send a reply, mark done or delete.
+  - **Users:** search, sign-in method, CVs, paid, editable free-CV and AI credits, referred count, delete.
+  - **Newsletter:** the existing builder, restyled and rebranded.
+  - **Settings:** the maintenance switch, plus a setup checklist for AI, Stripe (mode and webhook), sending email, receiving email, site-message alerts and the PDF engine (`GET /api/admin/config`).
+  - Works on phones.
+- **Admin stats** now include daily numbers, unread and open counts, and today's AI requests. Admin users show AI credits, which can be edited.
+
 ## 2026-09-30 (night) — Fairer referrals, homepage access, new Settings
 
 - **Referrals can no longer be farmed.**
