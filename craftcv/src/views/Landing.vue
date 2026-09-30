@@ -115,7 +115,7 @@
       <div class="lp-wrap lp-foot-in">
         <BrandLogo small />
         <span>© {{ new Date().getFullYear() }} CVMaster</span>
-        <nav><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="#" @click.prevent="openFeedback?.()">Feedback</a><a href="mailto:gabbyquaye2021@gmail.com">Contact</a></nav>
+        <nav><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="#" @click.prevent="openFeedback?.()">Feedback</a><a href="mailto:support@cvmaster.live">Contact</a></nav>
       </div>
     </footer>
   </div>
