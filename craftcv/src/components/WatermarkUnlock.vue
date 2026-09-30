@@ -17,7 +17,7 @@
               <div class="wm-opt-ttl">Clean PDF</div>
               <div class="wm-opt-sub">No watermark · emailed and downloadable · re-send free, even after edits</div>
             </div>
-            <span class="wm-price">£0.99</span>
+            <span class="wm-price">€0.99</span>
           </button>
 
           <button class="wm-opt" :disabled="freeDownloading" @click="downloadFree">
@@ -68,7 +68,7 @@ async function downloadFree() {
     document.body.appendChild(a); a.click(); a.remove()
     setTimeout(() => URL.revokeObjectURL(url), 1000)
     emit('free-download-done')
-    emit('show-toast', 'Downloaded. Unlock the clean PDF any time for £0.99.')
+    emit('show-toast', 'Downloaded. Unlock the clean PDF any time for €0.99.')
   } catch (e) {
     emit('show-toast', e.message || 'Connection error. Please try again.')
   } finally {

@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS payments (
 );
 CREATE INDEX IF NOT EXISTS payments_draft_id ON payments(draft_id);
 ALTER TABLE payments ADD COLUMN IF NOT EXISTS content_hash TEXT;
--- product: 'email_export' (£1.99, unlocks one draft) | 'clean_download' (€0.50, one watermark-free PDF)
+-- product: 'email_export' (€0.99, unlocks one draft) | 'clean_download' (€0.50, one watermark-free PDF)
 -- source:  'stripe' | 'demo' | 'credit' (referral credit redemption)
 ALTER TABLE payments ADD COLUMN IF NOT EXISTS product TEXT NOT NULL DEFAULT 'email_export';
 ALTER TABLE payments ADD COLUMN IF NOT EXISTS source  TEXT NOT NULL DEFAULT 'stripe';

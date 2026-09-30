@@ -1370,8 +1370,9 @@ async function generateCvPdf(htmlContent) {
 
 
 // ── PAYMENT HELPERS ───────────────────────────────────────────────────────────
-// Products: 'email_export' (£0.99 — unlocks one draft: clean PDF by email and download, re-sends free)
-const CV_PRICE_PENCE = 99;
+// Products: 'email_export' (€0.99 — unlocks one draft: clean PDF by email and download, re-sends free)
+const CV_PRICE_CENTS = 99;
+const CV_CURRENCY    = 'eur';
 //           'clean_download' (€0.50 — one watermark-free PDF, keyed by clean token)
 // Without a Stripe key, exports are free ("demo mode") — but only in development, or
 // in production when explicitly allowed. Otherwise payments report as unavailable.
@@ -1405,7 +1406,7 @@ async function hasEmailExport(userId, draftId) {
   return rows.length > 0;
 }
 
-// Returns { userId, draftId } for a paid £0.99 Checkout Session, else null.
+// Returns { userId, draftId } for a paid €0.99 Checkout Session, else null.
 async function verifyEmailSession(sessionId) {
   const stripe = await getStripe();
   if (!stripe || !sessionId) return null;
@@ -1560,7 +1561,7 @@ app.delete('/api/drafts/:id', authMiddleware, async (req, res) => {
 // ── PAYMENTS ──────────────────────────────────────────────────────────────────
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// The £0.99 export unlocks one saved draft, so a real draft id owned by the user is required.
+// The €0.99 export unlocks one saved draft, so a real draft id owned by the user is required.
 async function assertOwnDraft(userId, draftId) {
   if (!UUID_RE.test(String(draftId || ''))) return false;
   const { rows } = await query('SELECT 1 FROM drafts WHERE id = $1 AND user_id = $2', [draftId, userId]);
@@ -1585,7 +1586,7 @@ app.post('/api/payment/create-session', authMiddleware, async (req, res) => {
     }
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      line_items: [{ price_data: { currency: 'gbp', product_data: { name: 'CVMaster — your CV as a clean PDF', description: 'Emailed and downloadable · re-send free, even after edits' }, unit_amount: CV_PRICE_PENCE }, quantity: 1 }],
+      line_items: [{ price_data: { currency: CV_CURRENCY, product_data: { name: 'CVMaster — your CV as a clean PDF', description: 'Emailed and downloadable · re-send free, even after edits' }, unit_amount: CV_PRICE_CENTS }, quantity: 1 }],
       mode: 'payment',
       success_url: `${FRONTEND_URL}/export-success?session={CHECKOUT_SESSION_ID}&draft=${draftId}`,
       cancel_url:  `${FRONTEND_URL}/`,
@@ -1847,7 +1848,7 @@ async function handleWatermarkWebhook(req, res) {
 }
 
 // ── DIRECT PDF DOWNLOAD (paid drafts) ────────────────────────────────────────
-// The £0.99 export covers that CV, so a direct download is allowed too — this is the
+// The €0.99 export covers that CV, so a direct download is allowed too — this is the
 // fallback when email delivery fails, so a paying user always gets their PDF.
 app.post('/api/cv/export-pdf', authMiddleware, async (req, res) => {
   try {
@@ -1867,7 +1868,7 @@ app.post('/api/cv/export-pdf', authMiddleware, async (req, res) => {
 });
 
 // ── CV RE-SEND (paid drafts) ─────────────────────────────────────────────────
-// £0.99 unlocks one draft — re-sending that same draft (even after edits) is free.
+// €0.99 unlocks one draft — re-sending that same draft (even after edits) is free.
 app.post('/api/cv/redownload', authMiddleware, async (req, res) => {
   try {
     const { draftId, htmlContent, fileName, overrideEmail } = req.body;
@@ -1997,8 +1998,8 @@ app.get('/api/admin/stats', adminAuthMiddleware, async (req, res) => {
       drafts:          { total: Number(drafts.rows[0].total) },
       referrals:       { total: Number(referrals.rows[0].total) },
       // Only real Stripe payments count as revenue (not demo or referral-credit rows)
-      revenue_pence:   Number(payments.rows[0].email_paid) * CV_PRICE_PENCE, // at today's price
-      revenue_eur_cents: Number(payments.rows[0].clean_paid) * 50,
+      // In euro cents, at today's prices (€0.99 per CV; the old clean download was €0.50)
+      revenue_eur_cents: Number(payments.rows[0].email_paid) * CV_PRICE_CENTS + Number(payments.rows[0].clean_paid) * 50,
       recent_payments: recentPayments.rows,
       maintenance:     maintenanceMode,
     });
@@ -2212,7 +2213,7 @@ app.post('/api/referral/apply', async (req, res) => {
 });
 
 // POST /api/referral/redeem — spend 1 credit on a product, at checkout
-//   { product: 'email_export',   draftId } → unlocks that draft (same as paying £0.99)
+//   { product: 'email_export',   draftId } → unlocks that draft (same as paying €0.99)
 //   { product: 'clean_download', token }   → unlocks that clean download (same as paying €0.50)
 app.post('/api/referral/redeem', authMiddleware, async (req, res) => {
   try {

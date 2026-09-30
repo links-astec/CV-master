@@ -204,7 +204,7 @@ function fileName(c) {
 }
 
 // Paid CVs download clean straight away. Otherwise: free watermarked copy, or unlock
-// the clean PDF (£0.99 per CV) through the paywall.
+// the clean PDF (€0.99 per CV) through the paywall.
 let pendingCard = null
 async function download(c) {
   if (!(await requireAccount('download'))) return

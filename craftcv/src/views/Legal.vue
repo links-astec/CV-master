@@ -108,7 +108,7 @@ const DOCS = [
     id: 'terms', tab: 'Terms of service', title: 'Terms of service',
     summary: [
       'Building and previewing your CV is free.',
-      'A clean PDF costs £0.99 per CV — once, no subscription.',
+      'A clean PDF costs €0.99 per CV — once, no subscription.',
       'You own what you write. Check AI suggestions before you send your CV.',
       'Something wrong? Tell us — we’ll resend or refund if your CV never arrived.',
     ],
@@ -120,7 +120,7 @@ const DOCS = [
         <li>Keep your password safe — you are responsible for activity on your account.</li>
       </ul>` },
       { id: 'payments', title: 'Payments', html: `<ul>
-        <li>The clean (watermark-free) PDF of a CV is a one-time payment of <strong>£0.99</strong>. It includes email delivery, direct download, and unlimited re-sends and downloads of that same CV, including after edits.</li>
+        <li>The clean (watermark-free) PDF of a CV is a one-time payment of <strong>€0.99</strong>. It includes email delivery, direct download, and unlimited re-sends and downloads of that same CV, including after edits.</li>
         <li>A preview PDF with a watermark is free.</li>
         <li>A referral credit can be used for the clean PDF of one CV. Credits have no cash value.</li>
         <li>Payments are processed by Stripe. Because the PDF is delivered straight away, payments are final once your CV has been delivered.</li>
