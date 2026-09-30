@@ -161,7 +161,7 @@ const SHOWCASE = [
 
 const PLANS = [
   { name: 'Free', price: '€0', per: '', cta: 'Start building',
-    items: ['All 50 templates', 'AI help — 30 requests a day', 'ATS job-match check', 'Preview PDF with watermark'] },
+    items: ['All 50 templates', 'AI help — 30 requests a day with a free account', 'ATS job-match check', 'Preview PDF with watermark'] },
   { name: 'Clean PDF', price: '€0.99', per: ' per CV', cta: 'Build my CV', featured: true,
     items: ['Watermark-free, one-page PDF', 'Emailed and downloadable', 'Free re-downloads after edits'] },
 ]

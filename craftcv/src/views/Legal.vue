@@ -122,7 +122,7 @@ const DOCS = [
       { id: 'payments', title: 'Payments', html: `<ul>
         <li>The clean (watermark-free) PDF of a CV is a one-time payment of <strong>€0.99</strong>. It includes email delivery, direct download, and unlimited re-sends and downloads of that same CV, including after edits.</li>
         <li>A preview PDF with a watermark is free.</li>
-        <li>AI features include <strong>30 free requests a day</strong>, reset daily at midnight (UTC). A pack of <strong>100 extra requests</strong> costs <strong>€0.50</strong>; extra requests don’t expire, are used only after the day’s free ones, and have no cash value.</li>
+        <li>AI features include <strong>30 free requests a day</strong> for accounts with a confirmed email (guests and unconfirmed accounts get 5), reset daily at midnight (UTC). A pack of <strong>100 extra requests</strong> costs <strong>€0.50</strong>; extra requests don’t expire, are used only after the day’s free ones, and have no cash value.</li>
         <li>Referrals: someone who signs up with your invite link gets 25 extra AI requests. When they buy their first clean PDF, you earn a referral credit, which unlocks the clean PDF of one CV. Credits have no cash value.</li>
         <li>Payments are processed by Stripe. Because the PDF is delivered straight away, payments are final once your CV has been delivered.</li>
         <li>If your CV never arrived, or something went wrong with a payment, contact us within 14 days and we will resend it or refund you.</li>

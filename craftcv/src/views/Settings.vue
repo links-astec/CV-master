@@ -9,7 +9,9 @@
           <span class="st-ava">{{ (auth.user?.name || auth.user?.email || '?')[0].toUpperCase() }}</span>
           <div class="st-acct-txt">
             <div class="st-acct-name">{{ auth.user?.name }}</div>
-            <div class="st-acct-mail">{{ auth.user?.email }}</div>
+            <div class="st-acct-mail">{{ auth.user?.email }}
+              <span v-if="auth.user?.emailVerified === false" class="st-unv">· not confirmed — <button class="st-link-btn" @click="resendVerification()">resend link</button></span>
+              <span v-else class="st-ver">· confirmed</span></div>
           </div>
           <button class="btn-secondary btn-sm" @click="logout">Sign out</button>
         </div>
@@ -84,7 +86,7 @@
         <div class="st-card-hd">
           <div>
             <div class="st-card-t">AI requests</div>
-            <p class="st-p">30 free every day, reset at midnight (UTC). Extra requests never expire.</p>
+            <p class="st-p">{{ aiQuota?.tier === 'verified' ? '30 free every day' : '5 free a day — 30 once your email is confirmed' }}, reset at midnight (UTC). Extra requests never expire.</p>
           </div>
           <button class="btn-secondary btn-sm" @click="openAiAllowance()">Get 100 more — €0.50</button>
         </div>
@@ -138,6 +140,7 @@ const showToast = inject('showToast')
 const openAuth  = inject('openAuth')
 const openFeedback    = inject('openFeedback')
 const openAiAllowance = inject('openAiAllowance')
+const resendVerification = inject('resendVerification')
 
 // ── AI allowance ──────────────────────────────────────────────────────────────
 const aiQuota = ref(null)
@@ -241,6 +244,9 @@ watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota() } }
 .st-acct-txt{flex:1;min-width:0}
 .st-acct-name{font-size:16px;font-weight:700;color:var(--c-text)}
 .st-acct-mail{font-size:13px;color:var(--c-text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-unv{color:var(--c-amber)}
+.st-ver{color:var(--c-green)}
+.st-link-btn{background:none;border:none;padding:0;font:inherit;color:var(--c-accent);font-weight:600;text-decoration:underline}
 .st-rows{display:flex;flex-direction:column;gap:12px}
 .st-row{display:grid;grid-template-columns:140px 1fr;align-items:center;gap:14px}
 .st-lbl{font-size:13px;font-weight:600;color:var(--c-text2)}

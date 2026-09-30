@@ -70,6 +70,12 @@
           <button v-if="!auth.isLoggedIn" class="btn-secondary btn-sm hide-mobile" @click="openAuth('signin')">Sign in</button>
         </div>
       </header>
+      <!-- Email accounts that haven't confirmed yet -->
+      <div v-if="auth.isLoggedIn && auth.user && auth.user.emailVerified === false && !verifyHidden" class="verify-bar">
+        <span>Confirm your email to unlock <strong>30 AI requests a day</strong> — we sent a link to {{ auth.user.email }}.</span>
+        <button class="btn-secondary btn-sm" :disabled="verifySending" @click="resendVerification">{{ verifySent ? 'Sent ✓' : verifySending ? 'Sending…' : 'Resend email' }}</button>
+        <button class="verify-x" aria-label="Hide" @click="verifyHidden = true">×</button>
+      </div>
       <main class="content" :class="{ full: route.meta.full }">
         <RouterView />
       </main>
@@ -173,6 +179,37 @@ provide('startTutorial', () => { showTutorial.value = true })
 const feedbackRef = ref(null)
 function openFeedback(kind) { feedbackRef.value?.show(kind) }
 provide('openFeedback', openFeedback)
+
+// ── Email confirmation ────────────────────────────────────────────────────────
+const verifyHidden  = ref(false)
+const verifySending = ref(false)
+const verifySent    = ref(false)
+async function resendVerification() {
+  verifySending.value = true
+  try {
+    const r = await fetch(apiUrl('/api/auth/resend-verification'), { method: 'POST', credentials: 'include' })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(j.error)
+    if (j.alreadyVerified) { await auth.fetchMe(); showToast('Your email is already confirmed.') }
+    else { verifySent.value = true; showToast('Sent — check your inbox (and spam).') }
+  } catch (e) { showToast(e.message || 'Could not send the email.') }
+  verifySending.value = false
+}
+provide('resendVerification', resendVerification)
+// The link in the email opens cvmaster.live/?verify=…
+async function confirmEmail(token) {
+  window.history.replaceState({}, '', '/')
+  try {
+    const r = await fetch(apiUrl('/api/auth/verify-email'), {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }),
+    })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(j.error)
+    if (auth.user) auth.user.emailVerified = true
+    showToast('Email confirmed — you now get 30 AI requests a day.')
+  } catch (e) { showToast(e.message || 'Could not confirm your email.') }
+}
 
 // The homepage (Landing) — reachable from the sidebar logo and after signing out
 function showHome() { showLanding.value = true }
@@ -352,6 +389,7 @@ onMounted(async () => {
   }
   ready.value = true
 
+  if (params.get('verify')) confirmEmail(params.get('verify'))
   if (params.get('token')) openAuth('reset')
   else if (!auth.isLoggedIn && (params.get('ref') || params.get('referral'))) openAuth('register')
   // Remember a friend's referral code even if they sign up later (AuthModal reads it back)
@@ -372,6 +410,9 @@ watch(() => route.path, () => { navOpen.value = false })
 
 /* Sidebar */
 .sb{width:var(--sb);flex-shrink:0;display:flex;flex-direction:column;gap:18px;padding:18px 14px;background:var(--c-surface);border-right:1px solid var(--c-border);overflow-y:auto}
+.verify-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:9px 20px;background:var(--c-accent-lt);border-bottom:1px solid var(--c-border);font-size:13px;color:var(--c-text)}
+.verify-bar span{flex:1;min-width:200px}
+.verify-x{background:none;border:none;font-size:18px;line-height:1;color:var(--c-text3);padding:0 4px}
 .sb-brand{padding:2px 6px;text-decoration:none;background:none;border:none;text-align:left;cursor:pointer}
 .sb-new svg{width:16px;height:16px}
 .sb-nav{display:flex;flex-direction:column;gap:2px}
