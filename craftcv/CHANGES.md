@@ -1,5 +1,18 @@
 # Changes
 
+## 2026-09-30 (later) — "Fix with AI" now actually clears the issue
+
+- **Why items stayed after a fix:**
+  - The "results" fix adds `[X%]`/`[N]` placeholders, which don't count as numbers (and raise a "Placeholders to fill in" item).
+  - The numbers check only knew a few patterns, so "Managed 7 engineers" didn't count.
+  - Blank experience entries kept "Some roles lack descriptions" and "missing dates" failing.
+- **Fill in the numbers in the pop-up:** each placeholder gets a field next to its sentence. Apply stays disabled ("Fill in the numbers first") until each one is filled or edited out.
+- **Any real number counts as a result**, except years and unfilled placeholders.
+- **Blank experience entries are ignored** by the description, dates and results checks.
+- **After applying, the item is re-checked.** The banner says "✓ Fixed", or plainly what still needs doing.
+- **Warnings can be ignored per CV**, with Undo. Stored in `checkIgnored` on the CV.
+- **Skills fix:** shows how many skills you'll end up with (6 or more recommended).
+
 ## 2026-09-30 — Prices in euros
 
 - **The clean PDF now costs €0.99 per CV** (was £0.99). Stripe Checkout charges in EUR (`CV_CURRENCY = 'eur'`, `CV_PRICE_CENTS = 99` in `server/index.js`). What €0.99 buys is unchanged.
