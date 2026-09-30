@@ -55,7 +55,11 @@
           <button :class="{ active: store.fmt.linkStyle !== 'underline' }" @click="store.fmt.linkStyle = 'plain'">Plain text</button>
           <button :class="{ active: store.fmt.linkStyle === 'underline' }" @click="store.fmt.linkStyle = 'underline'">Underlined</button>
         </div>
-        <p class="dp-hint">Email, phone, LinkedIn, website and project links are clickable in your PDF either way.</p>
+        <div class="seg dp-seg" style="margin-top:8px">
+          <button :class="{ active: store.fmt.linkText !== 'full' }" @click="store.fmt.linkText = 'short'">Short labels</button>
+          <button :class="{ active: store.fmt.linkText === 'full' }" @click="store.fmt.linkText = 'full'">Full addresses</button>
+        </div>
+        <p class="dp-hint">Long links show as “LinkedIn” or “Website” with short labels. Tracking junk (like ?utm_source=…) is always removed, and every link stays clickable in your PDF.</p>
       </div>
       <div>
         <div class="dp-hd">CV language</div>

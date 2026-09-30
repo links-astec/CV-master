@@ -32,6 +32,7 @@ const defaultFmt = () => ({
   lineSpacing:    'normal',
   sectionSpacing: 'normal',
   linkStyle:      'plain',   // 'plain' | 'underline' — links are clickable either way
+  linkText:       'short',   // 'short' (LinkedIn / Website for long links) | 'full' (the address)
 })
 
 // Safe localStorage helpers
@@ -91,6 +92,7 @@ function normaliseFmt(f) {
   const out = { ...defaultFmt(), ...(f && typeof f === 'object' ? f : {}) }
   if (!FONTS.some(x => x.id === out.fontFamily)) out.fontFamily = 'DM Sans'
   if (out.linkStyle !== 'underline') out.linkStyle = 'plain'
+  if (out.linkText !== 'full') out.linkText = 'short'
   delete out.skillStyle; delete out.showSkillPct
   return out
 }
