@@ -1,5 +1,5 @@
 <template>
-  <span class="brand" :class="[{ 'brand-sm': small, 'brand-lg': large }, { 'brand-dark': dark }]" aria-label="CVMaster">
+  <span class="brand" :class="[{ 'brand-sm': small, 'brand-lg': large }, { 'brand-dark': dark }]" role="img" aria-label="CVMaster">
     <!-- The mark: a CV page with a tick (same drawing as brand/cvmaster-mark.svg) -->
     <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
       <rect width="64" height="64" rx="15" fill="#4338CA"/>

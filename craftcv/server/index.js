@@ -1752,7 +1752,7 @@ app.post('/api/cv/email', async (req, res) => {
             ? 'Your CV is attached as a ready-to-send PDF.'
             : 'Your CV is attached as an HTML file. Open it in Chrome and press <strong>Ctrl+P → Save as PDF</strong> to get a PDF.'}
         </p>
-        <p style="color:#b0ada6;font-size:12px;margin:0;">CVMaster · <a href="https://cvmaster.live" style="color:#4338CA;">cvmaster.live</a></p>
+        <p style="color:#b0ada6;font-size:12px;margin:0;">CVMaster · <a href="https://www.cvmaster.live" style="color:#4338CA;">cvmaster.live</a></p>
       </div>`,
       attachments: [attachment],
     });
@@ -2570,7 +2570,7 @@ function replyEmailHtml(body, original) {
   const para = (t) => escHtml(t).replace(/\n/g, '<br>');
   return `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#1f2937;max-width:600px">
     <div>${para(body)}</div>
-    <p style="margin-top:22px;color:#6b7280">— CVMaster Support<br><a href="https://cvmaster.live" style="color:#4338CA">cvmaster.live</a></p>
+    <p style="margin-top:22px;color:#6b7280">— CVMaster Support<br><a href="https://www.cvmaster.live" style="color:#4338CA">cvmaster.live</a></p>
     ${original ? `<div style="margin-top:22px;padding-left:12px;border-left:3px solid #e5e7eb;color:#6b7280;font-size:13px">${para(original.slice(0, 3000))}</div>` : ''}
   </div>`;
 }

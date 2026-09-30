@@ -34,7 +34,7 @@
           </ul>
         </div>
 
-        <div class="lp-hero-art" aria-hidden="true">
+        <div class="lp-hero-art" aria-hidden="true" inert>
           <div class="lp-page"><CvThumb template="modern:indigo" :data="SAMPLE_CV" /></div>
           <div class="lp-check">
             <div class="lp-check-score"><span>86%</span>job match</div>
@@ -77,7 +77,7 @@
     <section v-if="rv.average" class="lp-sec" id="reviews">
       <div class="lp-wrap">
         <h2 class="lp-h2">Rated {{ rv.average.toFixed(1) }} out of 5</h2>
-        <p class="lp-sub"><span class="lp-stars" :aria-label="`${rv.average} out of 5 stars`">{{ '★'.repeat(Math.round(rv.average)) }}<span>{{ '★'.repeat(5 - Math.round(rv.average)) }}</span></span> from {{ rv.count }} reviews by people who built their CV here</p>
+        <p class="lp-sub"><span class="lp-stars" role="img" :aria-label="`${rv.average} out of 5 stars`">{{ '★'.repeat(Math.round(rv.average)) }}<span>{{ '★'.repeat(5 - Math.round(rv.average)) }}</span></span> from {{ rv.count }} reviews by people who built their CV here</p>
         <div v-if="rv.reviews.length" class="lp-reviews">
           <figure v-for="(r, i) in rv.reviews.slice(0, 3)" :key="i" class="lp-review">
             <div class="lp-stars">{{ '★'.repeat(r.rating) }}<span>{{ '★'.repeat(5 - r.rating) }}</span></div>

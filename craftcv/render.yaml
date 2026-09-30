@@ -12,7 +12,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: FRONTEND_URL
-        value: https://cvmaster.live
+        value: https://www.cvmaster.live
       # Postgres is hosted on Neon (Render's free Postgres expires after 30 days).
       # Paste the Neon connection string (with ?sslmode=require) in the Render dashboard.
       - key: DATABASE_URL
