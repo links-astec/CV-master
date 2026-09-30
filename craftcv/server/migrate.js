@@ -107,6 +107,19 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_welcomed BOOLEAN NOT NULL DE
 -- Email sign-ups confirm by link; Google accounts count as confirmed
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE;
 
+-- REVIEWS (also created on demand): one per user, admins approve comments for the homepage
+CREATE TABLE IF NOT EXISTS reviews (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      UUID UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  rating       INT  NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  comment      TEXT,
+  display_name TEXT,
+  role         TEXT,
+  status       TEXT NOT NULL DEFAULT 'pending',
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- SUPPORT INBOX (also created on demand): emails to support@cvmaster.live received via Resend
 CREATE TABLE IF NOT EXISTS inbox_messages (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),

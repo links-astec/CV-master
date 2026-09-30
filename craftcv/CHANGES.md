@@ -1,5 +1,28 @@
 # Changes
 
+## 2026-09-30 (late night) — Verification, legal, SEO, reviews
+
+- **Links:**
+  - Tracking junk is stripped from the link and its text (utm_*, fbclid, gclid, LinkedIn's originalSubdomain/trk…), and LinkedIn profiles become `linkedin.com/in/name`.
+  - New Design option: **Short labels / Full addresses**.
+- **Email verification:**
+  - Email sign-ups get a "Confirm your email" link (a signed token, valid 3 days). Google accounts count as confirmed, including email accounts later signed into with Google.
+  - The banner has "Resend email", and Settings shows the status.
+- **AI access:** guests and unconfirmed accounts get 5 requests a day; confirmed accounts get 30. The limit pop-up offers the right next step (sign up, confirm or buy). The referral welcome bonus is given once the email is confirmed.
+- **EU/French consumer law:**
+  - A required tick box before paying (CV and AI pack) waives the 14-day withdrawal right for immediate delivery. It's recorded in the Stripe payment metadata, and the server refuses a checkout without it.
+  - The Terms now use French law (consumers keep their home-country rights) and add a legal notice (publisher and hosts).
+  - The Privacy policy names the data controller and the CNIL, and covers transfers outside the EU.
+- **SEO:**
+  - Real `robots.txt` and `sitemap.xml` (they used to return the homepage HTML).
+  - Per-page title, description and canonical (`src/composables/seo.js`); the homepage keeps its own title; the editor and settings are marked noindex.
+  - Structured data: WebSite, Organization, WebApplication with offers, FAQPage.
+- **Reviews:**
+  - People who have made a CV can rate CVMaster (1–5, optional comment) after they get their PDF or from Settings. One review per person, shown as "First name + initial".
+  - The average counts every review that isn't hidden. Only approved comments are shown.
+  - The homepage section and the Google rating (AggregateRating) appear once there are 3 reviews.
+  - Admin panel: new Reviews page to approve or hide.
+
 ## 2026-09-30 (late night) — support@cvmaster.live everywhere
 
 - **Public contact address is now support@cvmaster.live** instead of a personal gmail: the homepage footer "Contact" link, and the Privacy & Terms page (contact, data rights and complaints).
