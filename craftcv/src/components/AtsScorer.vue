@@ -173,7 +173,7 @@ async function runScore({ fresh = true } = {}) {
     }
     result.value = await atsCache.get(key)
     checkedAt.value = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    emit('scored', result.value.score)
+    emit('scored', result.value.score, result.value)
   } catch (e) {
     error.value = 'Analysis failed. Please try again — make sure your CV has some content filled in.'
     console.error('ATS score error:', e)

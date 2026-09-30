@@ -57,6 +57,12 @@
         <p v-if="prevScore != null && score != null && prevScore !== score" class="jm-delta">
           {{ prevScore }}% → <strong>{{ score }}%</strong> after your changes
         </p>
+        <!-- Low score: let the AI work the missing keywords in, without growing the CV -->
+        <div v-if="score != null && score < LOW_SCORE && atsResult" class="jm-boost">
+          <div class="jm-boost-t">{{ score < 50 ? 'This score is unlikely to get past the screening' : 'This score may not get you shortlisted' }}</div>
+          <p>AI can work the missing keywords into what you’ve already written — without making your CV longer. You review every change, and anything you might not have is only suggested.</p>
+          <StepTailor embedded :ats="atsResult" @applied="onBoosted" />
+        </div>
         <AtsScorer ref="atsRef" embedded @scored="onScored" />
       </template>
     </section>
@@ -99,6 +105,9 @@ const tailorDone = computed(() => !!store.data.jobTailored)
 const score     = ref(null)
 const prevScore = ref(null)
 const atsRef    = ref(null)
+// Below this the CV is unlikely to be shortlisted, so the AI offers to improve it
+const LOW_SCORE = 70
+const atsResult = ref(null)   // { score, missing, gaps } from the last check
 
 const jobPreview = computed(() => {
   const t = (store.data.jobOffer || '').trim().replace(/\s+\n/g, '\n')
@@ -131,6 +140,7 @@ function removeJob() {
 function resetProgress() {
   store.data.jobTailored = ''
   score.value = prevScore.value = null
+  atsResult.value = null
 }
 
 // After tailoring, re-score straight away so the user sees the effect
@@ -141,7 +151,16 @@ function onApplied(n) {
     nextTick(() => atsRef.value?.runScore())
   }
 }
-function onScored(s) { score.value = s }
+function onScored(s, r) {
+  score.value = s
+  atsResult.value = r ? { score: s, missing: r.missing || [], gaps: r.gaps || [] } : null
+}
+// After the AI improvement is applied (or undone), check the score again
+function onBoosted(n) {
+  if (score.value == null) return
+  prevScore.value = score.value
+  nextTick(() => atsRef.value?.runScore())
+}
 
 onMounted(() => { if (!hasJob.value) draft.value = store.data.jobOffer || '' })
 </script>
@@ -177,6 +196,9 @@ onMounted(() => { if (!hasJob.value) draft.value = store.data.jobOffer || '' })
 .jm-skip{align-self:flex-start}
 .jm-delta{font-size:13px;color:var(--c-text2)}
 .jm-delta strong{color:var(--c-green)}
+.jm-boost{border-radius:10px;background:var(--c-amber-lt);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.jm-boost-t{font-size:13.5px;font-weight:700;color:var(--c-text)}
+.jm-boost p{font-size:12.5px;color:var(--c-text2);line-height:1.5}
 
 /* The embedded Tailor/ATS blocks sit inside the step card */
 .jm-step :deep(.step-wrap){margin:0}
