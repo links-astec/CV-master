@@ -795,8 +795,13 @@ app.post('/api/ai/translate', aiAccess, async (req, res) => {
 // what to apply. The model may rephrase and reorder, never invent facts.
 app.post('/api/ai/tailor', aiAccess, async (req, res) => {
   try {
-    const { cv = {}, jobOffer = '' } = req.body || {};
+    const { cv = {}, jobOffer = '', ats = null } = req.body || {};
     const job = String(jobOffer).trim().slice(0, 6000);
+    // Boost mode: the ATS check scored low — target what it found missing, without growing the CV
+    const list = (v, n) => (Array.isArray(v) ? v : []).map(x => String(x || '').trim().slice(0, 120)).filter(Boolean).slice(0, n);
+    const boost = ats && typeof ats === 'object'
+      ? { score: Math.max(0, Math.min(100, Number(ats.score) || 0)), missing: list(ats.missing, 10), gaps: list(ats.gaps, 5) }
+      : null;
     if (job.length < 40) return res.status(400).json({ error: 'Please paste the full job description (at least a few sentences).' });
 
     const str  = v => (typeof v === 'string' ? v.trim() : '');
@@ -854,7 +859,15 @@ Return JSON with exactly this shape:
   "suggestedSkills": ["keywords from the offer NOT evidenced in the CV, max 8"],
   "notes": ["max 3 short honest tips, e.g. which requirement the CV doesn't show"]
 }
-Only include experiences whose description you actually improved. Use the [index] numbers shown above.`;
+Only include experiences whose description you actually improved. Use the [index] numbers shown above.${boost ? `
+
+ATS CHECK RESULT — this CV scored ${boost.score}% against the offer, too low to pass the screening.
+Keywords the check found missing: ${boost.missing.join(', ') || 'none listed'}
+Gaps it found: ${boost.gaps.join(' | ') || 'none listed'}
+Your goal now is to raise the score honestly AND keep the CV the same size:
+- Work each missing keyword into the title, summary or an existing bullet ONLY where the CV already shows that activity or skill (the offer's wording for the same thing). If the CV doesn't show it, put it in "suggestedSkills" instead.
+- Do NOT make the CV longer: each rewritten description must be about the same length as the original or shorter. Never add bullets or roles — replace weak wording instead. Keep the summary under 70 words.
+- In "notes", say plainly which gaps the candidate can't fix by rewording (e.g. a missing qualification).` : ''}`;
 
     const raw = await callAi(userPrompt, AI_MODEL, systemPrompt, 3000, 'medium');
     const p   = parseJsonObject(raw);
@@ -874,6 +887,12 @@ Only include experiences whose description you actually improved. Use the [index
         .map(str).filter(s => s && s.length < 50 && !lower.has(s.toLowerCase())).slice(0, 8),
       notes: (Array.isArray(p.notes) ? p.notes : []).map(str).filter(Boolean).slice(0, 3),
     };
+    // Boost mode must not bulk the CV up: drop rewrites that grow noticeably
+    if (boost) {
+      const fits = (before, after) => after.length <= Math.max(before.length * 1.15 + 30, 120);
+      out.experiences = out.experiences.filter(e => fits(str(exps[e.index].desc), e.desc));
+      if (out.sum && !fits(str(cv.sum), out.sum) && out.sum.length > 480) out.sum = '';
+    }
     // Map proposal indices back to the client's experience ids
     out.experiences = out.experiences.map(e => ({ ...e, id: exps[e.index].id ?? null }));
     res.json(out);

@@ -20,12 +20,14 @@
 
     <button v-if="!proposal" class="btn-ai" @click="tailor" :disabled="loading || !hasOffer || tooShort">
       <svg viewBox="0 0 24 24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
-      {{ loading ? 'Tailoring your CV…' : applied ? 'Tailor again' : 'Tailor my CV to this job' }}
+      {{ ats
+        ? (loading ? 'Improving your match…' : applied ? 'Improve again' : 'Improve my score with AI')
+        : (loading ? 'Tailoring your CV…' : applied ? 'Tailor again' : 'Tailor my CV to this job') }}
     </button>
 
     <div v-if="loading" class="thinking">
       <div class="thinking-dots"><span></span><span></span><span></span></div>
-      <div class="thinking-txt">Matching your CV to the job offer…</div>
+      <div class="thinking-txt">{{ ats ? 'Working the missing keywords into what you’ve written…' : 'Matching your CV to the job offer…' }}</div>
     </div>
 
     <div v-if="error" class="tl-error">{{ error }}</div>
@@ -89,7 +91,8 @@ const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
 const MIN_CHARS = 40 // same minimum the /api/ai/tailor endpoint enforces
 
 const store = useCvStore()
-const props = defineProps({ embedded: Boolean })
+// ats = the ATS check result ({ score, missing, gaps }): "boost" mode that targets what it found missing
+const props = defineProps({ embedded: Boolean, ats: { type: Object, default: null } })
 const emit  = defineEmits(['next', 'ai-thinking', 'applied'])
 
 const loading     = ref(false)
@@ -123,7 +126,8 @@ async function tailor() {
     const r = await fetch(apiUrl('/api/ai/tailor'), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cv, jobOffer: store.data.jobOffer }),
+      body: JSON.stringify({ cv, jobOffer: store.data.jobOffer,
+        ...(props.ats ? { ats: { score: props.ats.score, missing: props.ats.missing, gaps: props.ats.gaps } } : {}) }),
     })
     const p = await r.json().catch(() => ({}))
     if (!r.ok) throw new Error(p.error || 'Tailoring failed — please try again.')

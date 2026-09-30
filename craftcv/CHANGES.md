@@ -1,5 +1,17 @@
 # Changes
 
+## 2026-09-30 (later) — Improve a low ATS score with AI
+
+- **"Improve my score with AI" under a low ATS score** (below 70%). The warning reads "may not get you shortlisted", or "unlikely to get past the screening" below 50%.
+- **Boost mode for tailoring:** `POST /api/ai/tailor` takes an optional `ats` result `{ score, missing, gaps }`.
+  - It works the missing keywords into the headline, summary or existing bullets, only where the CV already shows that activity.
+  - Keywords the CV doesn't show become unticked suggestions.
+  - Gaps that rewording can't fix (e.g. a missing qualification) are explained in the notes.
+- **The CV doesn't grow:**
+  - The prompt forbids new bullets or roles, requires similar-length rewrites and caps the summary at 70 words.
+  - The server drops any experience rewrite more than ~15% longer than the original.
+- **Before → after:** after applying (or undoing), the ATS score is checked again automatically.
+
 ## 2026-09-30 (later) — Links option
 
 - **Design tab → Links: Plain text / Underlined** (`fmt.linkStyle`, saved with the CV).
