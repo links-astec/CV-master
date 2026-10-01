@@ -90,6 +90,7 @@ const DOCS = [
         <li>To take payments through Stripe.</li>
         <li>To answer your feedback and complaints, and to improve CVMaster.</li>
       </ul>` },
+      { id: 'newsletter', title: 'Newsletter', html: `<p>We only send our newsletter (CV tips and CVMaster news) if you ask for it — on the homepage, with the optional box when you create an account, or in Settings. When you sign up on the homepage we first email you a link to confirm. The legal basis is your consent.</p><p>We keep your email address, when and where you agreed, and when you unsubscribed. Every newsletter has a one-click unsubscribe link, and you can also switch it off in Settings or email ${mail}. We stop sending straight away. Emails about your account and purchases are not affected.</p>` },
       { id: 'share', title: 'Who we share it with', html: `<p>We do not sell your data. We only share it with the services that make CVMaster work:</p><ul>
         <li><strong>Anthropic (Claude) and Groq</strong> — AI providers. The CV text and any job offer involved in an AI feature are sent to them to produce the result.</li>
         <li><strong>Stripe</strong> — payments.</li>

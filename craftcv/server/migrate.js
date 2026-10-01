@@ -120,6 +120,19 @@ CREATE TABLE IF NOT EXISTS reviews (
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- NEWSLETTER (also created on demand): only people who agreed; double opt-in from the homepage
+CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email           TEXT UNIQUE NOT NULL,
+  user_id         UUID REFERENCES users(id) ON DELETE CASCADE,
+  status          TEXT NOT NULL DEFAULT 'pending',
+  source          TEXT,
+  token           TEXT UNIQUE NOT NULL,
+  consent_at      TIMESTAMPTZ,
+  unsubscribed_at TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- SUPPORT INBOX (also created on demand): emails to support@cvmaster.live received via Resend
 CREATE TABLE IF NOT EXISTS inbox_messages (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
