@@ -393,6 +393,10 @@ onMounted(async () => {
   ready.value = true
 
   if (params.get('verify')) confirmEmail(params.get('verify'))
+  if (params.get('newsletter') === 'confirmed') {
+    showToast('You’re subscribed to the CVMaster newsletter — thanks!')
+    window.history.replaceState({}, '', window.location.pathname)
+  }
   if (params.get('token')) openAuth('reset')
   else if (!auth.isLoggedIn && (params.get('ref') || params.get('referral'))) openAuth('register')
   // Remember a friend's referral code even if they sign up later (AuthModal reads it back)

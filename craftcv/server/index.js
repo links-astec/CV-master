@@ -353,6 +353,7 @@ app.post('/api/auth/verify-email', async (req, res) => {
     const { rows } = await query('UPDATE users SET email_verified = TRUE WHERE id = $1 AND email = $2 RETURNING *', [p.sub, p.email]);
     if (!rows.length) return res.status(400).json({ error: 'This confirmation link no longer matches an account.' });
     await welcomeReferred(rows[0].id).catch(() => {});
+    await activatePendingForUser(rows[0]).catch(() => {});
     res.json({ ok: true, user: publicUser(rows[0]) });
   } catch (e) { res.status(500).json({ error: 'Could not confirm your email — please try again.' }); }
 });
@@ -381,6 +382,152 @@ async function rewardReferrer(userId) {
   await query(`INSERT INTO notifications (user_id, type, title, body) VALUES ($1, 'referral', 'You earned a free CV', $2)`,
     [referrerId, `${first} got their CV with your link — your next clean PDF is on us.`]).catch(() => {});
 }
+
+// ── NEWSLETTER ────────────────────────────────────────────────────────────────
+// Only people who said yes get product emails (GDPR / CNIL):
+//  - homepage form → 'pending' until they click the confirmation link (double opt-in)
+//  - optional box at sign-up → 'subscribed' for Google accounts; email accounts stay
+//    'pending' until they confirm their address
+//  - the switch in Settings
+// Every newsletter carries a one-click unsubscribe link (also as List-Unsubscribe headers),
+// and we keep when and where each person agreed.
+const API_PUBLIC_URL  = process.env.API_PUBLIC_URL || (IS_PROD ? 'https://api.cvmaster.live' : `http://localhost:${process.env.PORT || 3001}`);
+const NEWSLETTER_FROM = process.env.NEWSLETTER_FROM || 'CVMaster <news@cvmaster.live>';
+let _nlTable = null;
+function ensureNewsletterTable() {
+  if (!_nlTable) {
+    _nlTable = query(`CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+      id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      email           TEXT UNIQUE NOT NULL,
+      user_id         UUID REFERENCES users(id) ON DELETE CASCADE,
+      status          TEXT NOT NULL DEFAULT 'pending',
+      source          TEXT,
+      token           TEXT UNIQUE NOT NULL,
+      consent_at      TIMESTAMPTZ,
+      unsubscribed_at TIMESTAMPTZ,
+      created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW())`).catch(e => { _nlTable = null; throw e; });
+  }
+  return _nlTable;
+}
+// status: 'pending' | 'subscribed' | 'unsubscribed'. A pending request never downgrades
+// someone who is already subscribed.
+async function setSubscription(email, { userId = null, source, status }) {
+  await ensureNewsletterTable();
+  const { rows } = await query(
+    `INSERT INTO newsletter_subscribers (email, user_id, status, source, token, consent_at, unsubscribed_at)
+     VALUES ($1, $2, $3::text, $4, $5,
+             CASE WHEN $3::text = 'subscribed' THEN NOW() END,
+             CASE WHEN $3::text = 'unsubscribed' THEN NOW() END)
+     ON CONFLICT (email) DO UPDATE SET
+       user_id         = COALESCE(newsletter_subscribers.user_id, EXCLUDED.user_id),
+       status          = CASE WHEN EXCLUDED.status = 'pending' AND newsletter_subscribers.status = 'subscribed'
+                              THEN 'subscribed' ELSE EXCLUDED.status END,
+       source          = CASE WHEN newsletter_subscribers.status <> 'subscribed' AND EXCLUDED.status <> 'unsubscribed'
+                              THEN EXCLUDED.source ELSE newsletter_subscribers.source END,
+       consent_at      = CASE WHEN EXCLUDED.status = 'subscribed' AND newsletter_subscribers.status <> 'subscribed'
+                              THEN NOW() ELSE newsletter_subscribers.consent_at END,
+       unsubscribed_at = CASE WHEN EXCLUDED.status = 'unsubscribed' THEN NOW()
+                              WHEN EXCLUDED.status = 'subscribed' THEN NULL
+                              ELSE newsletter_subscribers.unsubscribed_at END
+     RETURNING *`,
+    [String(email).trim().toLowerCase(), userId, status, source, randomBytes(24).toString('hex')]);
+  return rows[0];
+}
+// An email account that asked for the newsletter at sign-up becomes subscribed once confirmed
+async function activatePendingForUser(user) {
+  await ensureNewsletterTable();
+  await query(`UPDATE newsletter_subscribers SET status = 'subscribed', consent_at = NOW()
+               WHERE email = $1 AND status = 'pending' AND source = 'signup'`, [user.email]);
+}
+async function sendNewsletterConfirm(sub) {
+  const link = `${API_PUBLIC_URL}/api/newsletter/confirm?t=${sub.token}`;
+  await sendMail({
+    to: sub.email,
+    from: NEWSLETTER_FROM,
+    subject: 'Confirm your CVMaster newsletter subscription',
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#fff;color:#14142B">
+        <div style="font-size:18px;font-weight:800;margin-bottom:24px">CV<span style="color:#4338CA">Master</span></div>
+        <h2 style="font-size:22px;margin:0 0 10px">One click to confirm</h2>
+        <p style="color:#55556F;line-height:1.65;margin:0 0 22px">Confirm that you’d like CV tips, job-hunting advice and CVMaster news by email — at most a couple of emails a month.</p>
+        <a href="${link}" style="display:inline-block;background:#4338CA;color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-weight:700;font-size:15px">Yes, subscribe me</a>
+        <p style="color:#8A8AA3;font-size:12px;line-height:1.6;margin-top:26px;border-top:1px solid #eee;padding-top:14px">
+          If you didn’t ask for this, ignore this email and you won’t hear from us. You can unsubscribe from any newsletter in one click.</p>
+      </div>`,
+  });
+}
+// Simple standalone page for the confirm / unsubscribe links (served by the API)
+function nlPage(title, body) {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<title>${title} — CVMaster</title><style>body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:#F5F5FA;color:#14142B;display:grid;place-items:center;min-height:100vh;padding:16px;box-sizing:border-box}
+.c{background:#fff;border:1px solid #E4E4EE;border-radius:16px;padding:32px 28px;max-width:420px;width:100%;box-sizing:border-box}
+.b{font-size:18px;font-weight:800;margin-bottom:20px}.b span{color:#4338CA}h1{font-size:21px;margin:0 0 10px}p{color:#4A4A63;line-height:1.6;margin:0 0 18px}
+button,a.btn{display:inline-block;background:#4338CA;color:#fff;border:0;border-radius:10px;padding:12px 22px;font-weight:700;font-size:15px;text-decoration:none;cursor:pointer}
+a.l{color:#4338CA}</style></head><body><div class="c"><div class="b">CV<span>Master</span></div>${body}</div></body></html>`;
+}
+
+// Homepage form
+app.post('/api/newsletter/subscribe', rateLimit({ windowMs: 10 * 60 * 1000, max: 6 }), async (req, res) => {
+  try {
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const check = await checkEmailAddress(email);
+    if (!check.ok) return res.status(400).json({ error: check.error });
+    await ensureNewsletterTable();
+    const existing = (await query('SELECT status FROM newsletter_subscribers WHERE email = $1', [email])).rows[0];
+    if (existing?.status === 'subscribed') return res.json({ ok: true, already: true });
+    const sub = await setSubscription(email, { source: 'homepage', status: 'pending' });
+    await sendNewsletterConfirm(sub);
+    res.json({ ok: true });
+  } catch (e) { console.error('[newsletter/subscribe]', e.message); res.status(500).json({ error: 'Could not subscribe you right now — please try again later.' }); }
+});
+
+app.get('/api/newsletter/confirm', async (req, res) => {
+  try {
+    await ensureNewsletterTable();
+    const { rows } = await query(
+      `UPDATE newsletter_subscribers SET status = 'subscribed', consent_at = NOW(), unsubscribed_at = NULL
+       WHERE token = $1 AND status <> 'unsubscribed' RETURNING email`, [String(req.query.t || '')]);
+    if (!rows.length) return res.status(400).type('html').send(nlPage('Link not valid', `<h1>This link isn’t valid any more</h1><p>You may have unsubscribed since. You can sign up again on <a class="l" href="${FRONTEND_URL}">cvmaster.live</a>.</p>`));
+    res.redirect(303, `${FRONTEND_URL}/?newsletter=confirmed`);
+  } catch (e) { res.status(500).type('html').send(nlPage('Error', '<h1>Something went wrong</h1><p>Please try the link again in a minute.</p>')); }
+});
+
+// GET shows a button (so link scanners in mail apps can't unsubscribe people by accident);
+// POST unsubscribes — it is also the RFC 8058 one-click target used by Gmail and Outlook.
+app.get('/api/newsletter/unsubscribe', async (req, res) => {
+  const t = String(req.query.t || '').replace(/[^a-f0-9]/g, '');
+  res.type('html').send(nlPage('Unsubscribe', `<h1>Unsubscribe from CVMaster emails?</h1><p>You’ll stop getting our newsletter. Emails about your account and purchases still arrive.</p>
+    <form method="post" action="/api/newsletter/unsubscribe?t=${t}"><button type="submit">Unsubscribe</button></form>`));
+});
+app.post('/api/newsletter/unsubscribe', express.urlencoded({ extended: false }), async (req, res) => {
+  try {
+    await ensureNewsletterTable();
+    await query(`UPDATE newsletter_subscribers SET status = 'unsubscribed', unsubscribed_at = NOW() WHERE token = $1`, [String(req.query.t || '')]);
+    res.type('html').send(nlPage('Unsubscribed', `<h1>You’re unsubscribed</h1><p>You won’t get our newsletter any more. Changed your mind? Turn it back on any time in Settings on <a class="l" href="${FRONTEND_URL}">cvmaster.live</a>.</p>`));
+  } catch (e) { res.status(500).type('html').send(nlPage('Error', '<h1>Something went wrong</h1><p>Please try again, or reply to any of our emails and we’ll remove you.</p>')); }
+});
+
+// Settings switch
+app.get('/api/newsletter/me', authMiddleware, async (req, res) => {
+  try {
+    await ensureNewsletterTable();
+    const u = (await query('SELECT email FROM users WHERE id = $1', [req.user.sub])).rows[0];
+    const r = u && (await query('SELECT status FROM newsletter_subscribers WHERE email = $1', [u.email])).rows[0];
+    res.json({ status: r?.status || 'none' });
+  } catch (e) { res.status(500).json({ error: 'Could not load your email preferences.' }); }
+});
+app.put('/api/newsletter/me', authMiddleware, async (req, res) => {
+  try {
+    await ensureReferralColumns();
+    const u = (await query('SELECT id, email, provider, email_verified FROM users WHERE id = $1', [req.user.sub])).rows[0];
+    if (!u) return res.status(404).json({ error: 'Account not found.' });
+    const want = !!req.body?.subscribed;
+    // Unconfirmed email accounts wait for their confirmation link, like at sign-up
+    const confirmed = u.provider === 'google' || u.email_verified;
+    const sub = await setSubscription(u.email, { userId: u.id, source: want ? (confirmed ? 'settings' : 'signup') : 'settings', status: want ? (confirmed ? 'subscribed' : 'pending') : 'unsubscribed' });
+    res.json({ status: sub.status });
+  } catch (e) { res.status(500).json({ error: 'Could not save your email preferences.' }); }
+});
 
 // ── EMAIL ADDRESS CHECK ───────────────────────────────────────────────────────
 // Nobody can reliably confirm a mailbox exists without emailing it (that's what the
@@ -419,6 +566,7 @@ app.get('/api/email-check', rateLimit({ windowMs: 10 * 60 * 1000, max: 40 }), as
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password, name } = req.body;
+    const wantsNewsletter = req.body.newsletter === true;
     const referredBy = req.body.referredBy || req.cookies?.pcv_ref || '';
     if (!email || !password || !name) return res.status(400).json({ error: 'All fields required.' });
     if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
@@ -449,6 +597,8 @@ app.post('/api/auth/register', async (req, res) => {
 
     // Confirmation email (the referral welcome bonus is given once they confirm)
     sendVerificationEmail(user).catch(e => console.warn('[verify] email failed:', e.message));
+    // Newsletter starts once they confirm their address
+    if (wantsNewsletter) await setSubscription(key, { userId: user.id, source: 'signup', status: 'pending' }).catch(e => console.warn('[newsletter] signup:', e.message));
 
     await seedNotifications(user.id);
     setAuthCookie(res, signToken(user.id));
@@ -475,6 +625,7 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/auth/google', async (req, res) => {
   try {
     const { credential } = req.body;
+    const wantsNewsletter = req.body.newsletter === true;
     const referredBy = req.body.referredBy || req.cookies?.pcv_ref || '';
     if (!credential) return res.status(400).json({ error: 'Google credential missing.' });
     if (!GOOGLE_CLIENT_ID) return res.status(503).json({ error: 'Google login is not configured on this server.' });
@@ -510,6 +661,8 @@ app.post('/api/auth/google', async (req, res) => {
 
     // Seed notifications only for brand-new users
     if (isNewUser) await seedNotifications(user.id);
+    // Google proves the address, so the newsletter box takes effect straight away
+    if (wantsNewsletter) await setSubscription(key, { userId: user.id, source: 'signup', status: 'subscribed' }).catch(e => console.warn('[newsletter] google:', e.message));
 
     setAuthCookie(res, signToken(user.id));
     res.json({ user: publicUser(user) });
@@ -2353,26 +2506,74 @@ app.delete('/api/admin/users/:id', adminAuthMiddleware, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/admin/email/send
+// Adds the unsubscribe footer to a newsletter and the one-click unsubscribe headers
+function newsletterMail(to, token, subject, body) {
+  const url = `${API_PUBLIC_URL}/api/newsletter/unsubscribe?t=${token}`;
+  const foot = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:18px 24px 28px;text-align:center;color:#8A8AA3;font-size:12px;line-height:1.6">
+    You’re getting this because you subscribed to CVMaster news.<br>
+    <a href="${url}" style="color:#8A8AA3;text-decoration:underline">Unsubscribe</a> · <a href="https://www.cvmaster.live/privacy" style="color:#8A8AA3;text-decoration:underline">Privacy</a></div>`;
+  const html = /<\/body>/i.test(body) ? body.replace(/<\/body>/i, foot + '</body>') : body + foot;
+  return { to, from: NEWSLETTER_FROM, subject, html,
+    headers: { 'List-Unsubscribe': `<${url}>, <mailto:${SUPPORT_REPLY_TO}?subject=unsubscribe>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } };
+}
+function subscriberRecipientsSql(plan) {
+  const p = [];
+  let sql = `SELECT s.email, s.token FROM newsletter_subscribers s LEFT JOIN users u ON u.id = s.user_id WHERE s.status = 'subscribed'`;
+  if (plan && plan !== 'all') { p.push(plan); sql += ` AND u.plan = $${p.length}`; }
+  return [sql, p];
+}
+
+// POST /api/admin/email/send — only to people who subscribed
 app.post('/api/admin/email/send', adminAuthMiddleware, async (req, res) => {
   try {
     const { subject, body, plan_filter, test_email } = req.body;
     if (!subject || !body) return res.status(400).json({ error: 'subject and body required.' });
     if (test_email) {
-      await sendMail({ to: test_email, subject: `[TEST] ${subject}`, html: body });
+      await sendMail(newsletterMail(test_email, 'test', `[TEST] ${subject}`, body));
       return res.json({ ok: true, sent: 1, test: true });
     }
-    let sql = 'SELECT email FROM users WHERE email IS NOT NULL';
-    const p = [];
-    if (plan_filter && plan_filter !== 'all') { p.push(plan_filter); sql += ` AND plan = $${p.length}`; }
-    const { rows } = await query(sql, p);
+    await ensureNewsletterTable();
+    const { rows } = await query(...subscriberRecipientsSql(plan_filter));
+    if (!rows.length) return res.status(400).json({ error: 'No subscribers to send to yet.' });
     let sent = 0;
     for (let i = 0; i < rows.length; i += 10) {
-      const results = await Promise.allSettled(rows.slice(i, i + 10).map(r => sendMail({ to: r.email, subject, html: body })));
+      const results = await Promise.allSettled(rows.slice(i, i + 10).map(r => sendMail(newsletterMail(r.email, r.token, subject, body))));
       sent += results.filter(r => r.status === 'fulfilled').length;
       if (i + 10 < rows.length) await new Promise(r => setTimeout(r, 300));
     }
     res.json({ ok: true, sent, failed: rows.length - sent });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Subscribers list for the admin page
+app.get('/api/admin/newsletter/subscribers', adminAuthMiddleware, async (req, res) => {
+  try {
+    await ensureNewsletterTable();
+    const { rows: items } = await query(
+      `SELECT s.id, s.email, s.status, s.source, s.consent_at, s.unsubscribed_at, s.created_at, u.name, u.plan
+       FROM newsletter_subscribers s LEFT JOIN users u ON u.id = s.user_id
+       ORDER BY s.created_at DESC LIMIT 5000`);
+    const counts = { subscribed: 0, pending: 0, unsubscribed: 0 };
+    for (const r of items) counts[r.status] = (counts[r.status] || 0) + 1;
+    const byPlan = (await query(`SELECT COALESCE(u.plan, 'none') AS plan, COUNT(*)::int AS n FROM newsletter_subscribers s
+      LEFT JOIN users u ON u.id = s.user_id WHERE s.status = 'subscribed' GROUP BY 1`)).rows;
+    res.json({ items, counts, byPlan: Object.fromEntries(byPlan.map(r => [r.plan, r.n])) });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.patch('/api/admin/newsletter/subscribers/:id', adminAuthMiddleware, async (req, res) => {
+  try {
+    // Admins can only unsubscribe someone (e.g. they asked by email) — never opt them in
+    if (req.body?.status !== 'unsubscribed') return res.status(400).json({ error: 'Only unsubscribing is allowed.' });
+    await ensureNewsletterTable();
+    await query(`UPDATE newsletter_subscribers SET status = 'unsubscribed', unsubscribed_at = NOW() WHERE id = $1`, [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.delete('/api/admin/newsletter/subscribers/:id', adminAuthMiddleware, async (req, res) => {
+  try {
+    await ensureNewsletterTable();
+    await query('DELETE FROM newsletter_subscribers WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

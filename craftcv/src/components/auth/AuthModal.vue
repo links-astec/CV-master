@@ -73,6 +73,10 @@
               <span>I agree to the <a href="/terms" target="_blank" rel="noopener">Terms</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</span>
             </label>
             <div v-if="errors.terms" class="field-err">{{ errors.terms }}</div>
+            <label v-if="view === 'register'" class="terms terms-opt">
+              <input type="checkbox" v-model="newsletter" />
+              <span>Email me CV tips and CVMaster news — at most a couple a month. <em>Optional, unsubscribe any time.</em></span>
+            </label>
 
             <div v-if="serverError" class="notice error auth-err">{{ serverError }}</div>
 
@@ -154,6 +158,7 @@ const view   = ref(props.initialView === 'signin' || props.initialView === 'forg
 const loading = ref(false)
 const showPw  = ref(false)
 const agreed  = ref(false)
+const newsletter = ref(false)   // optional, never pre-ticked (GDPR)
 const serverError = ref('')
 const forgotSent  = ref(false)
 const resetToken  = ref('')
@@ -209,7 +214,7 @@ const submitLogin = () => check(['email', 'password']) && run(async () => {
   emit('done')
 })
 const submitRegister = () => check(['name', 'email', 'newPassword', 'terms']) && run(async () => {
-  await auth.register(form.value.email.trim(), form.value.password, form.value.name.trim(), refCode.value)
+  await auth.register(form.value.email.trim(), form.value.password, form.value.name.trim(), refCode.value, newsletter.value)
   try { localStorage.removeItem('cvmaster_ref') } catch {}
   emit('done')
 })
@@ -251,7 +256,7 @@ async function onGoogleCredential(response) {
     return
   }
   await run(async () => {
-    await auth.loginWithGoogle(response.credential, refCode.value)
+    await auth.loginWithGoogle(response.credential, refCode.value, view.value === 'register' && newsletter.value)
     try { localStorage.removeItem('cvmaster_ref') } catch {}
     emit('done')
   })
@@ -335,6 +340,8 @@ onMounted(async () => {
 .field-hint{font-size:12.5px;color:var(--c-text2);margin-top:5px}
 .link-fix{background:none;border:none;padding:0;font:inherit;font-weight:700;color:var(--c-accent);text-decoration:underline;cursor:pointer}
 .terms{display:flex;gap:9px;align-items:flex-start;font-size:13px;color:var(--c-text2);margin:4px 0 14px;line-height:1.5;cursor:pointer}
+.terms-opt{margin-top:-6px}
+.terms em{font-style:normal;color:var(--c-text3)}
 .terms input{margin-top:3px;accent-color:var(--c-accent);width:15px;height:15px;flex-shrink:0}
 .auth-err{margin-bottom:14px}
 .auth-back{display:block;margin:16px auto 0;font-size:13px}

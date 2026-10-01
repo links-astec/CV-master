@@ -118,6 +118,31 @@
       </div>
     </section>
 
+    <!-- Newsletter (double opt-in: we email a confirmation link) -->
+    <section class="lp-sec lp-alt lp-news-sec" id="newsletter">
+      <div class="lp-wrap">
+        <div class="lp-news">
+          <div class="lp-news-txt">
+            <h2>CV tips in your inbox</h2>
+            <p>Short, practical advice on CVs, ATS and applications, plus new templates when they land. A couple of emails a month at most.</p>
+          </div>
+          <div v-if="nl.state === 'done'" class="lp-news-done" role="status">
+            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>{{ nl.already ? 'You’re already subscribed — thanks!' : 'Almost done — click the link we just emailed you to confirm.' }}</span>
+          </div>
+          <form v-else class="lp-news-form" novalidate @submit.prevent="subscribe">
+            <div class="lp-news-row">
+              <input v-model="nl.email" class="f-inp" type="email" autocomplete="email" placeholder="you@example.com" aria-label="Email address" @input="nl.error = ''" />
+              <button class="btn-primary accent" :disabled="nl.state === 'sending'">{{ nl.state === 'sending' ? 'Subscribing…' : 'Subscribe' }}</button>
+            </div>
+            <p v-if="nl.error" class="lp-news-err" role="alert">{{ nl.error }}</p>
+            <p v-else-if="nlSuggest" class="lp-news-fine">Did you mean <button type="button" class="lp-news-fix" @click="nl.email = nlSuggest">{{ nlSuggest }}</button>?</p>
+            <p class="lp-news-fine">No spam, and you can unsubscribe in one click. See our <a href="/privacy">Privacy Policy</a>.</p>
+          </form>
+        </div>
+      </div>
+    </section>
+
     <!-- Final CTA -->
     <section class="lp-final">
       <div class="lp-wrap lp-final-in">
@@ -137,12 +162,30 @@
 </template>
 
 <script setup>
-import { ref, inject, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, inject, onMounted, onUnmounted } from 'vue'
 import BrandLogo from '../components/BrandLogo.vue'
 import CvThumb from '../components/CvThumb.vue'
 import { SAMPLE_CV } from '../composables/sampleCv.js'
+import { suggestEmail } from '../composables/emailTypos.js'
 
 const openFeedback = inject('openFeedback', null)
+
+// Newsletter
+const nl = reactive({ email: '', state: 'idle', error: '', already: false })
+const nlSuggest = computed(() => suggestEmail(nl.email))
+async function subscribe() {
+  const email = nl.email.trim()
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { nl.error = 'Please enter a valid email address.'; return }
+  nl.state = 'sending'; nl.error = ''
+  try {
+    const r = await fetch((import.meta.env.VITE_API_URL || '') + '/api/newsletter/subscribe', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }),
+    })
+    const d = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(d.error || 'Could not subscribe you — please try again.')
+    nl.already = !!d.already; nl.state = 'done'
+  } catch (e) { nl.error = e.message; nl.state = 'idle' }
+}
 
 // Real reviews; the rating is also given to search engines (structured data) once shown
 const rv = ref({ count: 0, average: null, reviews: [] })
@@ -287,6 +330,19 @@ const FAQ = [
 .lp-faq[open] summary svg{transform:rotate(180deg)}
 .lp-faq p{color:var(--c-text2);line-height:1.7;padding:0 0 20px;font-size:15.5px}
 
+.lp-news-sec{padding:64px 0}
+.lp-news{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;background:var(--c-surface);border:1px solid var(--c-border);border-radius:20px;padding:36px 40px}
+.lp-news h2{font-size:clamp(23px,2.6vw,29px);letter-spacing:-.03em;font-weight:800;line-height:1.15}
+.lp-news-txt p{color:var(--c-text2);margin-top:8px;line-height:1.6;font-size:15.5px}
+.lp-news-row{display:flex;gap:8px}
+.lp-news-row .f-inp{height:46px;font-size:15px;flex:1;min-width:0}
+.lp-news-row .btn-primary{height:46px;padding:0 22px;white-space:nowrap}
+.lp-news-fine{font-size:12.5px;color:var(--c-text3);margin-top:10px;line-height:1.5}
+.lp-news-fine a{color:var(--c-text2)}
+.lp-news-err{font-size:13px;color:var(--c-danger,#DC2626);margin-top:8px}
+.lp-news-fix{background:none;border:0;padding:0;color:var(--c-accent);font:inherit;font-weight:600;text-decoration:underline;cursor:pointer}
+.lp-news-done{display:flex;gap:10px;align-items:center;background:var(--c-accent-lt);color:var(--c-text);border-radius:12px;padding:16px 18px;font-size:14.5px;font-weight:500}
+.lp-news-done svg{width:20px;height:20px;flex-shrink:0;fill:none;stroke:var(--c-accent);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
 .lp-final{padding:72px 0;background:var(--c-accent-lt)}
 .lp-final-in{display:flex;flex-direction:column;align-items:center;gap:20px;text-align:center}
 .lp-final h2{font-size:clamp(26px,3.2vw,36px);letter-spacing:-.035em;font-weight:800}
@@ -303,6 +359,7 @@ const FAQ = [
   .lp-hero-art{margin:0 auto;max-width:360px}
   .lp-check{left:-18px}
   .lp-steps,.lp-prices,.lp-reviews{grid-template-columns:1fr}
+  .lp-news{grid-template-columns:1fr;gap:22px;padding:28px 24px}
   .lp-tpls{grid-template-columns:1fr 1fr}
   .lp-step{padding:8px 4px}
 }
@@ -313,5 +370,7 @@ const FAQ = [
   .lp-sec{padding:60px 0}
   .lp-foot-in{flex-direction:column;gap:10px;text-align:center}
   .lp-foot nav{margin-left:0}
+  .lp-news-row{flex-direction:column}
+  .lp-news-sec{padding:44px 0}
 }
 </style>

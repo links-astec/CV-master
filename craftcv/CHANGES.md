@@ -1,5 +1,20 @@
 # Changes
 
+## 2026-10-01 — Newsletter with consent
+
+- **Homepage newsletter form**, with a typo suggestion. It uses double opt-in: we email a confirmation link, and nobody is emailed until they click it.
+- **Optional, unticked box at sign-up:** "Email me CV tips and CVMaster news".
+  - Google accounts are subscribed straight away.
+  - Email accounts are subscribed once they confirm their address.
+- **"Email newsletter" switch in Settings.**
+- **Every newsletter has an unsubscribe footer and one-click `List-Unsubscribe` headers**, as Gmail and Yahoo require for bulk senders. The unsubscribe link shows a button, so link scanners in mail apps can't unsubscribe people by accident.
+- **Admin:**
+  - **Newsletter now sends only to subscribers.** Before, it sent to every user.
+  - **New Subscribers page:** status, where each person agreed, date, and Export CSV. It can unsubscribe or delete someone, but can't opt anyone in.
+- **Consent records:** we store the source and date of each consent and the date of each unsubscribe. Deleting an account removes its subscription.
+- **Privacy policy** has a new Newsletter section.
+- New table `newsletter_subscribers`, also in `migrate.js`. Newsletters are sent from `news@cvmaster.live` (`NEWSLETTER_FROM`).
+
 ## 2026-10-01 — Faster mobile load, accessibility, one canonical domain
 
 - **Smaller render-blocking CSS:** only the Latin and Latin Extended font subsets are loaded (the CSS is about 22 KB gzipped instead of about 53 KB). The PDF server already used Latin only.

@@ -106,6 +106,16 @@
             <div class="toggle-track"><div class="toggle-thumb"></div></div>
           </label>
         </div>
+        <div v-if="auth.isLoggedIn" class="st-pref">
+          <div>
+            <div class="st-pref-t">Email newsletter</div>
+            <div class="st-pref-s">{{ nlStatus === 'pending' ? 'Starts once you confirm your email address' : 'CV tips and CVMaster news — a couple of emails a month at most' }}</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" :checked="nlStatus === 'subscribed' || nlStatus === 'pending'" :disabled="nlStatus === null || nlSaving" @change="setNewsletter($event.target.checked)" />
+            <div class="toggle-track"><div class="toggle-thumb"></div></div>
+          </label>
+        </div>
         <div class="st-pref">
           <div><div class="st-pref-t">Quick tour</div><div class="st-pref-s">A one-minute walkthrough of building, tailoring and exporting</div></div>
           <button class="btn-secondary btn-sm" @click="restartTour">Start tour</button>
@@ -145,6 +155,28 @@ const openAuth  = inject('openAuth')
 const openFeedback    = inject('openFeedback')
 const openAiAllowance = inject('openAiAllowance')
 const resendVerification = inject('resendVerification')
+
+// ── Newsletter ────────────────────────────────────────────────────────────────
+const nlStatus = ref(null)     // null (loading) | none | pending | subscribed | unsubscribed
+const nlSaving = ref(false)
+async function loadNewsletter() {
+  try { const r = await fetch(apiUrl('/api/newsletter/me'), { credentials: 'include' }); if (r.ok) nlStatus.value = (await r.json()).status } catch {}
+}
+async function setNewsletter(on) {
+  nlSaving.value = true
+  try {
+    const r = await fetch(apiUrl('/api/newsletter/me'), {
+      method: 'PUT', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscribed: on }),
+    })
+    const d = await r.json()
+    if (!r.ok) throw new Error(d.error)
+    nlStatus.value = d.status
+    showToast(d.status === 'subscribed' ? 'Subscribed to the newsletter' : d.status === 'pending' ? 'Confirm your email to start the newsletter' : 'Unsubscribed')
+  } catch (e) { showToast(e.message || 'Could not save — please try again.') }
+  nlSaving.value = false
+}
 
 // ── AI allowance ──────────────────────────────────────────────────────────────
 const aiQuota = ref(null)
@@ -226,7 +258,7 @@ function shareTwitter()  { window.open(`https://twitter.com/intent/tweet?text=${
 function shareLinkedIn() { window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(referralInfo.value?.link || '')}`, '_blank') }
 function shareEmail()    { window.location.href = `mailto:?subject=${encodeURIComponent('Try CVMaster for your CV')}&body=${encodeURIComponent(shareMsg())}` }
 
-onMounted(() => { loadAiQuota(); if (auth.isLoggedIn) loadReferral() })
+onMounted(() => { loadAiQuota(); if (auth.isLoggedIn) { loadReferral(); loadNewsletter() } })
 watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota() } })
 </script>
 

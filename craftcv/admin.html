@@ -316,6 +316,7 @@ const ICON = {
   overview: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
   inbox: '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/>',
   users: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>',
+  subscribers: '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>',
   newsletter: '<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/>',
   reviews: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
   settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/>',
@@ -357,7 +358,8 @@ const PAGES = {
   inbox:      ['Inbox', 'Emails to support@cvmaster.live and messages from the site'],
   users:      ['Users', 'Accounts, credits and referrals'],
   reviews:    ['Reviews', 'Ratings from people who made a CV — approve comments for the homepage'],
-  newsletter: ['Newsletter', 'Write and send an email to your users'],
+  newsletter: ['Newsletter', 'Write and send an email to your subscribers'],
+  subscribers:['Subscribers', 'People who agreed to get the newsletter'],
   settings:   ['Settings', 'Maintenance mode and setup status'],
 }
 async function go(p) {
@@ -369,6 +371,7 @@ async function go(p) {
   if (p === 'inbox') await loadInbox()
   if (p === 'users' && !S.users.length) await loadUsers(1)
   if (p === 'reviews') await loadReviews()
+  if (p === 'subscribers' || p === 'newsletter') await loadSubs()
   if (p === 'settings') await Promise.all([loadConfig(), S.stats ? null : loadStats()])
   if (p === 'overview' || !S.stats) loadCounts()
 }
@@ -607,6 +610,67 @@ function renderUsers() {
       ${Array.from({ length: Math.min(7, pages) }, (_, i) => start + i).map(p => `<button class="btn btn-sm ${p === S.userPage ? 'btn-primary' : ''}" data-page="${p}">${p}</button>`).join('')}
       ${S.userPage < pages ? `<button class="btn btn-sm" data-page="${S.userPage + 1}">›</button>` : ''}</div></div>`}
   </div>`
+}
+
+// ── Subscribers ───────────────────────────────────────────────────────────────
+async function loadSubs() {
+  S.subsLoading = !S.subs; render()
+  try { S.subs = await api('GET', '/newsletter/subscribers') } catch (e) { toast(e.message) }
+  S.subsLoading = false; render()
+}
+async function subAction(id, act, email) {
+  try {
+    if (act === 'unsub') {
+      if (!confirm('Unsubscribe ' + email + '?')) return
+      await api('PATCH', '/newsletter/subscribers/' + id, { status: 'unsubscribed' }); toast('Unsubscribed')
+    }
+    if (act === 'del') {
+      if (!confirm('Delete ' + email + ' from the list completely? Use this when someone asks for their data to be erased.')) return
+      await api('DELETE', '/newsletter/subscribers/' + id); toast('Deleted')
+    }
+    await loadSubs()
+  } catch (e) { toast(e.message) }
+}
+function exportSubs() {
+  const rows = (S.subs?.items || []).filter(x => x.status === 'subscribed')
+  const cell = (v) => '"' + String(v ?? '').replace(/"/g, '""') + '"'
+  const csv = 'email,name,source,consent_at\n' + rows.map(x => [x.email, x.name, x.source, x.consent_at].map(cell).join(',')).join('\n')
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'cvmaster-subscribers.csv'; a.click()
+}
+function renderSubs() {
+  if (S.subsLoading || !S.subs) return `<div class="loading"><div class="spinner"></div></div>`
+  const d = S.subs, f = S.subFilter || 'subscribed', q = (S.subQ || '').toLowerCase()
+  const STATUS = { subscribed: ['Subscribed', 'b-green'], pending: ['Waiting for confirmation', 'b-amber'], unsubscribed: ['Unsubscribed', 'b-gray'] }
+  const SOURCE = { homepage: 'Homepage form', signup: 'Sign-up box', settings: 'Settings' }
+  const LABEL  = { subscribed: 'subscribed', pending: 'waiting for confirmation', unsubscribed: 'unsubscribed', all: 'people' }
+  const items = d.items.filter(x => (f === 'all' || x.status === f) && (!q || x.email.includes(q) || (x.name || '').toLowerCase().includes(q)))
+  return `
+  <div class="kpis" style="grid-template-columns:repeat(3,1fr)">
+    <div class="card kpi"><div class="kpi-l">Subscribed</div><div class="kpi-v">${fmt(d.counts.subscribed)}</div><div class="kpi-s">Receive the newsletter</div></div>
+    <div class="card kpi"><div class="kpi-l">Waiting for confirmation</div><div class="kpi-v">${fmt(d.counts.pending)}</div><div class="kpi-s">Haven’t clicked the link yet — not emailed</div></div>
+    <div class="card kpi"><div class="kpi-l">Unsubscribed</div><div class="kpi-v">${fmt(d.counts.unsubscribed)}</div><div class="kpi-s">Never emailed again</div></div>
+  </div>
+  <div class="card">
+    <div class="card-hd"><h3>${fmt(items.length)} ${LABEL[f]}</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <select class="inp" id="sub-f" style="width:auto">${[['subscribed', 'Subscribed'], ['pending', 'Waiting'], ['unsubscribed', 'Unsubscribed'], ['all', 'Everyone']].map(([v, l]) => `<option value="${v}"${v === f ? ' selected' : ''}>${l}</option>`).join('')}</select>
+        <input class="inp" id="sub-q" placeholder="Search name or email…" value="${esc(S.subQ || '')}" style="width:210px">
+        <button class="btn" data-act="sub-export">Export CSV</button>
+      </div></div>
+    <table class="tbl"><thead><tr><th>Person</th><th>Status</th><th>Where they agreed</th><th>Plan</th><th>Agreed on</th><th></th></tr></thead>
+    <tbody>${!items.length ? `<tr><td colspan="6"><div class="empty"><strong>Nobody here yet</strong>People join from the homepage form, the box at sign-up, or Settings.</div></td></tr>` : items.map(x => {
+      const st = STATUS[x.status] || STATUS.pending
+      return `<tr>
+        <td><div class="u-who"><div class="av">${esc(initials(x.name || x.email))}</div><div><b>${esc(x.name || x.email.split('@')[0])}</b><span>${esc(x.email)}</span></div></div></td>
+        <td><span class="badge ${st[1]}">${st[0]}</span></td>
+        <td>${esc(SOURCE[x.source] || x.source || '—')}</td>
+        <td>${x.plan ? esc(x.plan) : '<span class="muted">No account</span>'}</td>
+        <td>${x.status === 'unsubscribed' ? '<span class="muted">Left ' + fmtDate(x.unsubscribed_at) + '</span>' : x.consent_at ? fmtDate(x.consent_at) : '<span class="muted">—</span>'}</td>
+        <td style="white-space:nowrap;text-align:right">${x.status !== 'unsubscribed' ? `<button class="btn btn-sm" data-sub="${x.id}" data-sact="unsub" data-email="${esc(x.email)}">Unsubscribe</button> ` : ''}<button class="btn btn-sm btn-danger" data-sub="${x.id}" data-sact="del" data-email="${esc(x.email)}">Delete</button></td></tr>`
+    }).join('')}</tbody></table>
+  </div>
+  <p class="muted" style="font-size:12.5px;margin-top:12px">Only people who agreed are listed. You can unsubscribe or delete someone (for example if they ask by email), but you can’t add people — they have to sign up themselves.</p>`
 }
 
 // ── Reviews ───────────────────────────────────────────────────────────────────
@@ -1006,10 +1070,11 @@ function renderEmail() {
         <div class="form-group"><label class="form-label">Subject line</label><input class="inp" id="e-subject" placeholder="e.g. New templates just dropped! 🎨" value="${esc(S.email.subject)}" /></div>
         <div class="form-group"><label class="form-label">Send to</label>
           <select class="inp" id="e-plan-sel">
-            <option value="all"${S.email.plan==='all'?' selected':''}>All users</option>
-            <option value="free"${S.email.plan==='free'?' selected':''}>Free users only</option>
-            <option value="pro"${S.email.plan==='pro'?' selected':''}>Pro users only</option>
+            <option value="all"${S.email.plan==='all'?' selected':''}>All subscribers${S.subs ? ' (' + fmt(S.subs.counts.subscribed) + ')' : ''}</option>
+            <option value="free"${S.email.plan==='free'?' selected':''}>Subscribers on the free plan${S.subs ? ' (' + fmt(S.subs.byPlan.free || 0) + ')' : ''}</option>
+            <option value="pro"${S.email.plan==='pro'?' selected':''}>Subscribers on Pro${S.subs ? ' (' + fmt(S.subs.byPlan.pro || 0) + ')' : ''}</option>
           </select>
+          <div class="muted" style="font-size:12px;margin-top:6px">Only people who agreed to get emails. An unsubscribe link is added to the bottom of every email.</div>
         </div>
       </div>
     </div>
@@ -1058,7 +1123,7 @@ function renderEmail() {
         <button class="btn btn-default" id="e-test-btn" ${S.email.sending?'disabled':''} style="white-space:nowrap">Send test</button>
       </div>
       <button class="btn btn-primary" id="e-send-btn" ${S.email.sending?'disabled':''} style="width:100%;justify-content:center;padding:10px">
-        ${S.email.sending?'<span class="spinner"></span>&nbsp;Sending…':'Send to all recipients'}
+        ${S.email.sending?'<span class="spinner"></span>&nbsp;Sending…':'Send to subscribers'}
       </button>
     </div>
   </div>
@@ -1106,8 +1171,8 @@ function renderLogin() {
 function renderApp() {
   const [title, sub] = PAGES[S.page]
   const inboxCount = (S.stats?.inbox_unread || 0) + (S.stats?.feedback_open || 0)
-  const nav = [['overview', 'Overview'], ['inbox', 'Inbox', inboxCount], ['users', 'Users'], ['reviews', 'Reviews', S.rv?.pending], ['newsletter', 'Newsletter'], ['settings', 'Settings']]
-  const body = { overview: renderOverview, inbox: renderInbox, users: renderUsers, reviews: renderReviews, newsletter: renderEmail, settings: renderSettings }[S.page]()
+  const nav = [['overview', 'Overview'], ['inbox', 'Inbox', inboxCount], ['users', 'Users'], ['reviews', 'Reviews', S.rv?.pending], ['newsletter', 'Newsletter'], ['subscribers', 'Subscribers'], ['settings', 'Settings']]
+  const body = { overview: renderOverview, inbox: renderInbox, users: renderUsers, reviews: renderReviews, newsletter: renderEmail, subscribers: renderSubs, settings: renderSettings }[S.page]()
   return `<div class="app">
     <aside class="sb">
       <div class="sb-head"><span class="sb-mark">${MARK}</span><span class="sb-name">CV<span>Master</span></span><span class="sb-tag">Admin</span></div>
@@ -1129,17 +1194,21 @@ function bind() {
   $('e-subject')?.addEventListener('input', e => { S.email.subject = e.target.value })
   $('e-plan-sel')?.addEventListener('change', e => { S.email.plan = e.target.value })
   $('e-test')?.addEventListener('input', e => { S.email.testTo = e.target.value })
+  $('sub-f')?.addEventListener('change', (e) => { S.subFilter = e.target.value; render() })
+  $('sub-q')?.addEventListener('change', (e) => { S.subQ = e.target.value.trim(); render() })
   $('e-test-btn')?.addEventListener('click', () => sendEmail(true))
-  $('e-send-btn')?.addEventListener('click', () => { if (!confirm('Send this email to all selected users now?')) return; S.email.sent = false; sendEmail(false) })
+  $('e-send-btn')?.addEventListener('click', () => { const plan = $('e-plan-sel')?.value || 'all'; const n = S.subs ? (plan === 'all' ? S.subs.counts.subscribed : (S.subs.byPlan[plan] || 0)) : null; if (n === 0) { toast('No subscribers to send to yet.'); return } if (!confirm('Send this email to ' + (n == null ? 'your subscribers' : n + ' subscriber' + (n === 1 ? '' : 's')) + ' now?')) return; S.email.sent = false; sendEmail(false) })
   $('ib-reply')?.addEventListener('input', e => { S.inbox.reply = e.target.value })
   document.querySelectorAll('.block-body input,.block-body textarea,.block-body select').forEach(el => {
     el.addEventListener('input', refreshPreview); el.addEventListener('change', refreshPreview)
   })
 }
 document.addEventListener('click', (e) => {
-  const t = e.target.closest('[data-go],[data-act],[data-open],[data-ibtab],[data-ibstatus],[data-edit],[data-del],[data-page],[data-review]')
+  const t = e.target.closest('[data-go],[data-act],[data-open],[data-ibtab],[data-ibstatus],[data-edit],[data-del],[data-page],[data-review],[data-sub]')
   if (!t) return
   if (t.dataset.review) { setReview(t.dataset.review, t.dataset.st); return }
+  if (t.dataset.sub) { subAction(t.dataset.sub, t.dataset.sact, t.dataset.email); return }
+  if (t.dataset.act === 'sub-export') { exportSubs(); return }
   if (t.dataset.go) { if (t.dataset.tab) S.inbox.tab = t.dataset.tab; go(t.dataset.go); return }
   if (t.dataset.open) { const [k, id] = t.dataset.open.split(':'); openItem(k, id); return }
   if (t.dataset.ibtab) { S.inbox.tab = t.dataset.ibtab; render(); return }
