@@ -52,6 +52,9 @@ const files = {
   'brand/cvmaster-logo.svg': lockupSvg({ textWidth }),
   'brand/cvmaster-logo-white.svg': lockupSvg({ textWidth, dark: true }),
   'public/favicon.svg': markSvg({ rx: 14 }),
+  // BIMI logo (the brand picture mail apps show next to our emails): SVG Tiny PS, square,
+  // solid background, no rounded corners (mail apps crop it to a circle themselves)
+  'public/bimi-logo.svg': `<svg xmlns="http://www.w3.org/2000/svg" version="1.2" baseProfile="tiny-ps" viewBox="0 0 64 64"><title>CVMaster</title><rect width="64" height="64" fill="${BRAND.indigo}"/>${markInner().replace(/\n\s*/g, '')}</svg>\n`,
 }
 for (const [f, svg] of Object.entries(files)) fs.writeFileSync(out(f), svg)
 
@@ -70,6 +73,13 @@ await png('brand/stripe-logo.png', scaled(files['brand/cvmaster-logo.svg'], lw, 
 await png('brand/cvmaster-logo-white.png', `<div style="background:${BRAND.night};width:${lw + 96}px;height:352px;display:flex;align-items:center;justify-content:center">${scaled(files['brand/cvmaster-logo-white.svg'], lw, 256)}</div>`, lw + 96, 352, false)
 // iOS rounds the corners itself, so the touch icon is a full square tile
 await png('public/apple-touch-icon.png', scaled(markSvg({ rx: 0 }), 180, 180), 180, 180, false)
+
+// Logo at the top of every email we send: white background (stays readable in dark mode),
+// drawn at 3× so it's sharp on phones. Shown at EMAIL_LOGO_H px high — keep server/index.js in step.
+const EMAIL_LOGO_H = 32
+const emailLogoW = Math.ceil((64 + 18 + textWidth + 2) * EMAIL_LOGO_H / 64)
+await png('public/email-logo.png', scaled(files['brand/cvmaster-logo.svg'], emailLogoW * 3, EMAIL_LOGO_H * 3), emailLogoW * 3, EMAIL_LOGO_H * 3, false)
+console.log(`email logo: show at ${emailLogoW}×${EMAIL_LOGO_H}`)
 
 // Social share image (link previews on LinkedIn, WhatsApp, X…)
 await png('public/og-image.png', `

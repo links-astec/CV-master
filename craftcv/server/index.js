@@ -45,6 +45,8 @@ const FRONTEND_URL     = process.env.FRONTEND_URL || 'http://localhost:5173';
 const resend      = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const SUPPORT_REPLY_TO = process.env.SUPPORT_EMAIL || 'support@cvmaster.live';
 const RESEND_FROM = process.env.RESEND_FROM || 'CVMaster <noreply@cvmaster.live>';
+// Logo at the top of every email (public/email-logo.png, built by scripts/build-brand.mjs)
+const EMAIL_LOGO = '<img src="https://www.cvmaster.live/email-logo.png" width="145" height="32" alt="CVMaster" style="display:block;border:0;outline:none;text-decoration:none;width:145px;height:32px">';
 
 const smtpTransport = (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
   ? nodemailer.createTransport({
@@ -361,7 +363,7 @@ async function sendVerificationEmail(user) {
     subject: 'Confirm your email for CVMaster',
     html: `
       <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#fff;color:#14142B">
-        <div style="font-size:18px;font-weight:800;margin-bottom:24px">CV<span style="color:#4338CA">Master</span></div>
+        <div style="margin-bottom:26px">${EMAIL_LOGO}</div>
         <h2 style="font-size:22px;margin:0 0 10px">Confirm your email</h2>
         <p style="color:#55556F;line-height:1.65;margin:0 0 22px">Hi ${escHtml(String(user.name || '').split(' ')[0] || 'there')},<br><br>
           Tap the button to confirm this is your email. It unlocks <strong>${AI_FREE_PER_DAY} AI requests a day</strong> and keeps your account secure.</p>
@@ -476,7 +478,7 @@ async function sendNewsletterConfirm(sub) {
     subject: 'Confirm your CVMaster newsletter subscription',
     html: `
       <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#fff;color:#14142B">
-        <div style="font-size:18px;font-weight:800;margin-bottom:24px">CV<span style="color:#4338CA">Master</span></div>
+        <div style="margin-bottom:26px">${EMAIL_LOGO}</div>
         <h2 style="font-size:22px;margin:0 0 10px">One click to confirm</h2>
         <p style="color:#55556F;line-height:1.65;margin:0 0 22px">Confirm that you’d like CV tips, job-hunting advice and CVMaster news by email — at most a couple of emails a month.</p>
         <a href="${link}" style="display:inline-block;background:#4338CA;color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-weight:700;font-size:15px">Yes, subscribe me</a>
@@ -734,12 +736,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       subject: 'Reset your CVMaster password',
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#fff;">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:28px;">
-            <div style="width:36px;height:36px;background:#4338CA;border-radius:9px;display:flex;align-items:center;justify-content:center;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            </div>
-            <span style="font-size:18px;font-weight:700;color:#1a1916;">CVMaster</span>
-          </div>
+          <div style="margin-bottom:28px;">${EMAIL_LOGO}</div>
           <h2 style="font-size:22px;color:#1a1916;margin-bottom:8px;">Reset your password</h2>
           <p style="color:#6b6860;line-height:1.65;margin-bottom:24px;">
             Hi ${escHtml(user.name)},<br/><br/>
@@ -2367,7 +2364,7 @@ app.post('/api/cv/email', pdfLimiter, async (req, res) => {
       to: toEmail,
       subject: 'Your CV from CVMaster',
       html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:36px 24px;">
-        <div style="font-size:18px;font-weight:800;margin-bottom:24px;color:#14142B">CV<span style="color:#4338CA">Master</span></div>
+        <div style="margin-bottom:26px">${EMAIL_LOGO}</div>
         <h2 style="font-size:22px;color:#1a1916;margin:0 0 10px;">Your CV is attached, ${escHtml(String(user.name || '').split(' ')[0] || 'there')}!</h2>
         <p style="color:#6b6860;font-size:14px;line-height:1.7;margin:0 0 20px;">Your CV is attached as a ready-to-send PDF. You can send it again for free from My CVs, even after edits.</p>
         <p style="color:#b0ada6;font-size:12px;margin:0;">CVMaster · <a href="https://www.cvmaster.live" style="color:#4338CA;">cvmaster.live</a></p>
@@ -2642,7 +2639,7 @@ app.post('/api/cv/redownload', authMiddleware, pdfLimiter, async (req, res) => {
       to: toEmail,
       subject: 'Your CV from CVMaster',
       html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:36px 24px;">
-        <div style="font-size:18px;font-weight:800;margin-bottom:24px;color:#14142B">CV<span style="color:#4338CA">Master</span></div>
+        <div style="margin-bottom:26px">${EMAIL_LOGO}</div>
         <p style="color:#6b6860;font-size:14px;line-height:1.7;margin:0 0 20px;">Here’s your CV again, as a ready-to-send PDF.</p>
         <p style="color:#b0ada6;font-size:12px;margin:0;">CVMaster · <a href="https://www.cvmaster.live" style="color:#4338CA;">cvmaster.live</a></p>
       </div>`,
@@ -3099,6 +3096,7 @@ function replyEmailHtml(body, original) {
   return `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#1f2937;max-width:600px">
     <div>${para(body)}</div>
     <p style="margin-top:22px;color:#6b7280">— CVMaster Support<br><a href="https://www.cvmaster.live" style="color:#4338CA">cvmaster.live</a></p>
+    <div style="margin-top:10px">${EMAIL_LOGO}</div>
     ${original ? `<div style="margin-top:22px;padding-left:12px;border-left:3px solid #e5e7eb;color:#6b7280;font-size:13px">${para(original.slice(0, 3000))}</div>` : ''}
   </div>`;
 }

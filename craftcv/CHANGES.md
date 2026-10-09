@@ -1,5 +1,14 @@
 # Changes
 
+## 2026-10-09 — Logo in emails
+
+- **The CVMaster logo** (`public/email-logo.png`, 145×32, drawn at 3× on white so it stays sharp and readable in dark mode) is now at the top of every email:
+  - account confirmation, password reset and newsletter confirmation;
+  - the CV delivery email and re-sends.
+  - It is also in the signature of admin support replies.
+- **Newsletter builder:** has a **Logo** block, and both starter templates begin with it.
+- **`public/bimi-logo.svg`:** a BIMI-ready (SVG Tiny PS) version of the mark, for showing the logo as the sender picture in mail apps once DMARC is enforced. Both files are built by `scripts/build-brand.mjs`.
+
 ## 2026-10-09 — "Is this role a good fit?" and personalised AI (aware of CVs made for others)
 
 - **Job fit check:** once a job offer is added and the CV has some content, Job match gives an honest verdict.
