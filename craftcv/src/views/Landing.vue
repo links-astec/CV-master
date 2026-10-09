@@ -22,7 +22,7 @@
       <div class="lp-wrap lp-hero-in">
         <div class="lp-hero-copy">
           <p class="lp-eyebrow">{{ $t('Free AI CV builder') }}</p>
-          <h1>{{ $t('A CV that gets you') }} <span class="lp-hl">{{ $t('the interview.') }}</span></h1>
+          <h1>{{ $t('A CV that gets you') }}{{ wordSpace }}<span class="lp-hl">{{ $t('the interview.') }}</span></h1>
           <p class="lp-lead">{{ $t('Build it in minutes, tailor it to the job, and see how well it matches, before you apply.') }}</p>
           <div class="lp-cta">
             <button class="btn-primary accent btn-lg" @click="$emit('start')">
@@ -170,9 +170,11 @@ import CvThumb from '../components/CvThumb.vue'
 import { sampleCv } from '../composables/sampleCv.js'
 import { suggestEmail } from '../composables/emailTypos.js'
 import LangSwitch from '../components/LangSwitch.vue'
-import { locale } from '../i18n/index.js'
+import { locale, lang } from '../i18n/index.js'
 
 const openFeedback = inject('openFeedback', null)
+// Chinese doesn't put spaces between words
+const wordSpace = computed(() => (lang.value === 'zh' ? '' : ' '))
 
 // Newsletter
 const nl = reactive({ email: '', state: 'idle', error: '', already: false })
@@ -224,7 +226,7 @@ function go(sel) {
 onMounted(() => rootEl.value?.addEventListener('scroll', onScroll, { passive: true }))
 onUnmounted(() => rootEl.value?.removeEventListener('scroll', onScroll))
 
-const TRUST  = ['No account needed to start', 'English & Français']
+const TRUST  = ['No account needed to start', 'Available in 7 languages']
 const CHECKS = ['Keywords from the job', 'One A4 page', 'Readable by ATS']
 
 const STEPS = [

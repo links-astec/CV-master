@@ -1,8 +1,9 @@
 # Changes
 
-## 2026-10-10: Portuguese
+## 2026-10-10: Portuguese and Chinese
 
-- **Portuguese** is now complete (1,185 strings plus server messages) and in the language menu. Portuguese devices open the site in Portuguese. Chinese stays hidden until its dictionary is complete.
+- **Portuguese and Chinese** are complete (1,185 strings each, plus server messages) and in the language menu, so the site now has all 7 languages. Devices set to either language open the site in it.
+- The homepage badge now reads "Available in 7 languages" (it said "English & Français"). The Chinese headline has no space between its two halves.
 - `scripts/translate-i18n.mjs <lang> --import file.json` merges translations made with an outside tool. They get the same checks as AI translations (placeholders, `**`, line breaks, no em dashes). The script also waits and retries when the connection drops, and `I18N_BATCH` / `I18N_MAX_TOKENS` make it usable with models that have small per-minute limits.
 
 ## 2026-10-09: Seven languages, reminders, phone layouts, professional emails, security updates

@@ -20,8 +20,8 @@ const ALL_LANGS = [
   { code: 'zh', label: '中文',       short: '中文', locale: 'zh-CN', google: 'zh-CN' },
 ]
 // Languages whose dictionary is still being generated stay out of the menu (and of device
-// detection) until it's complete. Remove a code from here once its file is filled in.
-const NOT_READY = ['zh']
+// detection) until it's complete. Add a code here while its file is being filled in.
+const NOT_READY = []
 export const LANGS = ALL_LANGS.filter(l => !NOT_READY.includes(l.code))
 const CODES = LANGS.map(l => l.code)
 const LOADERS = {

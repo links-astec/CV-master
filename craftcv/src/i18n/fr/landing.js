@@ -10,7 +10,7 @@ export default {
   'Build my CV for free': 'Créer mon CV gratuitement',
   'See templates': 'Voir les modèles',
   'No account needed to start': 'Pas besoin de compte pour commencer',
-  'English & Français': 'Français et anglais',
+  'Available in 7 languages': 'Disponible en 7 langues',
   'job match': 'de correspondance',
   'Keywords from the job': 'Mots-clés de l’offre',
   'One A4 page': 'Une seule page A4',
