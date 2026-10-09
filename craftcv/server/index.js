@@ -109,7 +109,7 @@ app.use(helmet({
       scriptSrc:  ["'self'", "'unsafe-inline'", "https://js.stripe.com", "https://accounts.google.com"],
       styleSrc:   ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc:    ["'self'", "https://fonts.gstatic.com"],
-      imgSrc:     ["'self'", "data:", "blob:", "https://lh3.googleusercontent.com"],
+      imgSrc:     ["'self'", "data:", "blob:", "https:"],   // https: so the admin email preview shows the logo and image blocks
       connectSrc: ["'self'", "https://api.groq.com", "https://api.stripe.com", "https://oauth2.googleapis.com"],
       frameSrc:   ["https://js.stripe.com", "https://accounts.google.com"],
     }
@@ -2737,6 +2737,7 @@ app.get('/api/admin/config', adminAuthMiddleware, (req, res) => {
     stripe: !!STRIPE_KEY, stripeWebhook: !!process.env.STRIPE_WEBHOOK_SECRET, stripeMode: STRIPE_KEY.startsWith('sk_live') ? 'live' : STRIPE_KEY ? 'test' : null,
     email: !!(resend || smtpTransport), sendingFrom: RESEND_FROM, supportFrom: SUPPORT_FROM,
     inbound: !!process.env.RESEND_INBOUND_SECRET, inboundUrl: 'https://api.cvmaster.live/api/webhooks/resend-inbound',
+    inboundReadKey: !!process.env.RESEND_INBOUND_API_KEY,
     feedbackEmail: FEEDBACK_TO || null,
     pdf: pdfEngine.status,
   });
@@ -2847,26 +2848,108 @@ function subscriberRecipientsSql(plan) {
   return [sql, p];
 }
 
-// POST /api/admin/email/send — only to people who subscribed
+// Important notices go to every account holder (no consent needed for service messages:
+// changes to the Terms or prices, security, problems with accounts or payments — never marketing)
+function noticeMail(to, subject, body) {
+  const foot = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:18px 24px 28px;text-align:center;color:#8A8AA3;font-size:12px;line-height:1.6">
+    You’re receiving this important message because you have a CVMaster account. It isn’t marketing — we only send these when something affects your account.<br>
+    Questions? Just reply, or write to <a href="mailto:${SUPPORT_REPLY_TO}" style="color:#8A8AA3">${SUPPORT_REPLY_TO}</a> · <a href="https://www.cvmaster.live/privacy" style="color:#8A8AA3;text-decoration:underline">Privacy</a></div>`;
+  const html = /<\/body>/i.test(body) ? body.replace(/<\/body>/i, foot + '</body>') : body + foot;
+  return { to, from: SUPPORT_FROM, subject, html };
+}
+
+// Many emails at once. Resend allows about 2 requests a second, so send in batches of 100
+// (one request each) with a pause between them; SMTP sends one by one.
+async function sendBulk(messages) {
+  let sent = 0, failed = 0;
+  if (resend) {
+    for (let i = 0; i < messages.length; i += 100) {
+      const chunk = messages.slice(i, i + 100).map(m => ({
+        from: m.from || RESEND_FROM, to: m.to, subject: m.subject, html: m.html,
+        replyTo: m.replyTo || SUPPORT_REPLY_TO, ...(m.headers ? { headers: m.headers } : {}),
+      }));
+      try {
+        const { error } = await resend.batch.send(chunk);
+        if (error) throw new Error(error.message);
+        sent += chunk.length;
+      } catch (e) { failed += chunk.length; console.error('[bulk] batch failed:', e.message); }
+      if (i + 100 < messages.length) await new Promise(r => setTimeout(r, 700));
+    }
+    return { sent, failed };
+  }
+  for (const m of messages) {
+    try { await sendMail(m); sent++; } catch { failed++; }
+    await new Promise(r => setTimeout(r, 200));
+  }
+  return { sent, failed };
+}
+
+let _broadcastTable = null;
+function ensureBroadcastTable() {
+  if (!_broadcastTable) {
+    _broadcastTable = query(`CREATE TABLE IF NOT EXISTS email_broadcasts (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(), subject TEXT NOT NULL, audience TEXT NOT NULL, plan TEXT,
+      recipients INT NOT NULL DEFAULT 0, sent INT NOT NULL DEFAULT 0, failed INT NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'sending', admin_email TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`)
+      .catch(e => { _broadcastTable = null; throw e; });
+  }
+  return _broadcastTable;
+}
+
+// POST /api/admin/email/send
+//   audience 'subscribers' (default): newsletter, only people who agreed, with unsubscribe link
+//   audience 'all_users': an important service notice to every account (needs important: true)
+// Big sends carry on in the background; their progress shows in the send history.
 app.post('/api/admin/email/send', adminAuthMiddleware, async (req, res) => {
   try {
-    const { subject, body, plan_filter, test_email } = req.body;
+    const { subject, body, plan_filter, test_email } = req.body || {};
+    const audience = req.body?.audience === 'all_users' ? 'all_users' : 'subscribers';
     if (!subject || !body) return res.status(400).json({ error: 'subject and body required.' });
+    if (String(subject).length > 200) return res.status(400).json({ error: 'The subject is too long.' });
+    if (audience === 'all_users' && req.body?.important !== true) {
+      return res.status(400).json({ error: 'Emails to every user must be important service messages — tick the box to confirm.' });
+    }
+    const make = (to, token) => audience === 'all_users' ? noticeMail(to, subject, body) : newsletterMail(to, token, subject, body);
     if (test_email) {
-      await sendMail(newsletterMail(test_email, 'test', `[TEST] ${subject}`, body));
+      if (!isEmail(test_email)) return res.status(400).json({ error: 'Enter a valid test address.' });
+      const m = make(test_email.trim(), 'test');
+      await sendMail({ ...m, subject: `[TEST] ${m.subject}` });
       return res.json({ ok: true, sent: 1, test: true });
     }
-    await ensureNewsletterTable();
-    const { rows } = await query(...subscriberRecipientsSql(plan_filter));
-    if (!rows.length) return res.status(400).json({ error: 'No subscribers to send to yet.' });
-    let sent = 0;
-    for (let i = 0; i < rows.length; i += 10) {
-      const results = await Promise.allSettled(rows.slice(i, i + 10).map(r => sendMail(newsletterMail(r.email, r.token, subject, body))));
-      sent += results.filter(r => r.status === 'fulfilled').length;
-      if (i + 10 < rows.length) await new Promise(r => setTimeout(r, 300));
+
+    let rows;
+    if (audience === 'all_users') {
+      const p = [];
+      let sql = `SELECT DISTINCT LOWER(email) AS email FROM users WHERE email IS NOT NULL AND email <> ''`;
+      if (plan_filter && plan_filter !== 'all') { p.push(plan_filter); sql += ` AND plan = $1`; }
+      rows = (await query(sql, p)).rows;
+    } else {
+      await ensureNewsletterTable();
+      rows = (await query(...subscriberRecipientsSql(plan_filter))).rows;
     }
-    res.json({ ok: true, sent, failed: rows.length - sent });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+    if (!rows.length) return res.status(400).json({ error: audience === 'all_users' ? 'No users to send to.' : 'No subscribers to send to yet.' });
+
+    await ensureBroadcastTable();
+    const log = (await query(
+      `INSERT INTO email_broadcasts (subject, audience, plan, recipients, admin_email) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      [String(subject).slice(0, 200), audience, plan_filter || 'all', rows.length, req.admin?.email || null])).rows[0];
+    res.json({ ok: true, queued: rows.length, id: log.id });
+
+    sendBulk(rows.map(r => make(r.email, r.token)))
+      .then(({ sent, failed }) => query(`UPDATE email_broadcasts SET sent = $1, failed = $2, status = 'done' WHERE id = $3`, [sent, failed, log.id]))
+      .catch(e => { console.error('[broadcast]', e.message); return query(`UPDATE email_broadcasts SET status = 'failed' WHERE id = $1`, [log.id]); })
+      .catch(() => {});
+  } catch (e) {
+    console.error('[admin/email/send]', e.message);
+    res.status(500).json({ error: 'Could not send: ' + e.message });
+  }
+});
+
+app.get('/api/admin/email/history', adminAuthMiddleware, async (req, res) => {
+  try {
+    await ensureBroadcastTable();
+    res.json({ items: (await query('SELECT * FROM email_broadcasts ORDER BY created_at DESC LIMIT 20')).rows });
+  } catch (e) { res.status(500).json({ error: 'Could not load the send history.' }); }
 });
 
 // Subscribers list for the admin page
@@ -2881,7 +2964,8 @@ app.get('/api/admin/newsletter/subscribers', adminAuthMiddleware, async (req, re
     for (const r of items) counts[r.status] = (counts[r.status] || 0) + 1;
     const byPlan = (await query(`SELECT COALESCE(u.plan, 'none') AS plan, COUNT(*)::int AS n FROM newsletter_subscribers s
       LEFT JOIN users u ON u.id = s.user_id WHERE s.status = 'subscribed' GROUP BY 1`)).rows;
-    res.json({ items, counts, byPlan: Object.fromEntries(byPlan.map(r => [r.plan, r.n])) });
+    const allUsers = (await query(`SELECT COUNT(DISTINCT LOWER(email))::int AS n FROM users WHERE email IS NOT NULL AND email <> ''`)).rows[0].n;
+    res.json({ items, counts, byPlan: Object.fromEntries(byPlan.map(r => [r.plan, r.n])), allUsers });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 app.patch('/api/admin/newsletter/subscribers/:id', adminAuthMiddleware, async (req, res) => {
@@ -3052,6 +3136,20 @@ function decodeMaybeDataUri(html) {
   try { return m[1] ? Buffer.from(m[2], 'base64').toString('utf8') : decodeURIComponent(m[2]); } catch { return h; }
 }
 
+// Reading received emails needs a Resend key with full access — a "sending access" key gets
+// 401 restricted_api_key. RESEND_INBOUND_API_KEY can hold that key; RESEND_API_KEY is the fallback.
+const RESEND_READ_KEY = process.env.RESEND_INBOUND_API_KEY || process.env.RESEND_API_KEY || '';
+async function fetchReceivedEmail(emailId) {
+  if (!emailId || !RESEND_READ_KEY) return { error: 'no_key' };
+  try {
+    const r = await fetch(`https://api.resend.com/emails/receiving/${encodeURIComponent(emailId)}`,
+      { headers: { Authorization: `Bearer ${RESEND_READ_KEY}` }, signal: AbortSignal.timeout(15000) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return { error: j.name || `http_${r.status}` };
+    return { full: j };
+  } catch (e) { return { error: 'network' }; }
+}
+
 async function handleInboundEmail(req, res) {
   const secret = process.env.RESEND_INBOUND_SECRET;
   const raw = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : '';
@@ -3064,13 +3162,9 @@ async function handleInboundEmail(req, res) {
   try {
     await ensureInboxTables();
     // The webhook only has metadata — fetch the body from Resend
-    let full = {};
-    if (d.email_id && process.env.RESEND_API_KEY) {
-      const r = await fetch(`https://api.resend.com/emails/receiving/${encodeURIComponent(d.email_id)}`,
-        { headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` } });
-      if (r.ok) full = await r.json();
-      else console.warn('[inbound] could not fetch email body:', r.status);
-    }
+    const got = await fetchReceivedEmail(d.email_id);
+    const full = got.full || {};
+    if (got.error) console.warn('[inbound] could not fetch email body:', got.error);
     const from = parseAddress(full.headers?.from || full.from || d.from);
     const attachments = (full.attachments || d.attachments || []).map(a => ({ filename: a.filename, type: a.content_type, size: a.size || null }));
     await query(
@@ -3122,8 +3216,17 @@ app.get('/api/admin/inbox/:id', adminAuthMiddleware, async (req, res) => {
     await ensureInboxTables();
     const { rows } = await query('UPDATE inbox_messages SET read = TRUE WHERE id = $1 RETURNING *', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Not found.' });
+    let msg = rows[0], bodyError = null;
+    // Came in without its content (e.g. the key couldn't read it then)? Try again now.
+    if (!msg.text_body && !msg.html_body && msg.resend_id) {
+      const got = await fetchReceivedEmail(msg.resend_id);
+      if (got.full && (got.full.text || got.full.html)) {
+        msg = (await query('UPDATE inbox_messages SET text_body = $1, html_body = $2 WHERE id = $3 RETURNING *',
+          [got.full.text ? String(got.full.text).slice(0, 200000) : null, got.full.html ? decodeMaybeDataUri(got.full.html).slice(0, 400000) : null, msg.id])).rows[0];
+      } else bodyError = got.error || 'empty';
+    }
     const replies = (await query(`SELECT body, sent_to, sent_at FROM admin_replies WHERE ref_id = $1 ORDER BY sent_at`, [req.params.id])).rows;
-    res.json({ ...rows[0], replies });
+    res.json({ ...msg, replies, bodyError });
   } catch (e) { res.status(500).json({ error: 'Failed to load the email.' }); }
 });
 

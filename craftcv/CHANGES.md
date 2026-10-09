@@ -1,5 +1,16 @@
 # Changes
 
+## 2026-10-09 — Admin email fixed, important notices to every user, inbox bodies
+
+- **The newsletter builder works again.** All 50 of its inline `on…=""` handlers were blocked by the admin page's security policy (`script-src-attr 'none'`), so nothing in it did anything. It now uses delegated event listeners, and the policy is unchanged.
+- **Sending works at volume.** Emails go out through Resend's batch API (100 per request, paced), not 10 at a time, which Resend's ~2 requests/second limit was rejecting. Big sends run in the background.
+- **Every user:** a new audience on the renamed **Email** page. Important service notices (Terms or price changes, security, outages, account or payment problems) go to every account.
+  - It needs an "important, not marketing" confirmation, both in the page and on the server.
+  - It carries its own footer explaining why the user got it.
+- **Send history:** shows each send, with recipients, sent and failed counts.
+- **Newsletters:** no longer include a broken `%UNSUBSCRIBE%` link; the server's working footer is the only one. The live preview now shows images, including the logo.
+- **Admin Inbox:** received emails were stored without their content because the Resend key can only send. The server now reads them with `RESEND_INBOUND_API_KEY` (a full-access key, falling back to `RESEND_API_KEY`). An email that arrived empty is fetched again when opened, and the Inbox explains the problem if it still can't be loaded.
+
 ## 2026-10-09 — Logo in emails
 
 - **The CVMaster logo** (`public/email-logo.png`, 145×32, drawn at 3× on white so it stays sharp and readable in dark mode) is now at the top of every email:

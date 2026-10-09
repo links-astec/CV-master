@@ -134,6 +134,20 @@ CREATE TABLE IF NOT EXISTS job_briefs (
 );
 -- Password reset links are now stored as SHA-256 hashes (old plain ones simply stop matching)
 
+-- EMAIL SENDS FROM THE ADMIN (newsletters and important notices), for the send history
+CREATE TABLE IF NOT EXISTS email_broadcasts (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  subject     TEXT NOT NULL,
+  audience    TEXT NOT NULL,
+  plan        TEXT,
+  recipients  INT NOT NULL DEFAULT 0,
+  sent        INT NOT NULL DEFAULT 0,
+  failed      INT NOT NULL DEFAULT 0,
+  status      TEXT NOT NULL DEFAULT 'sending',
+  admin_email TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- NEWSLETTER (also created on demand): only people who agreed; double opt-in from the homepage
 CREATE TABLE IF NOT EXISTS newsletter_subscribers (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
