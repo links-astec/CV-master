@@ -2945,6 +2945,14 @@ app.post('/api/admin/email/send', adminAuthMiddleware, async (req, res) => {
   }
 });
 
+// POST /api/admin/email/preview — the exact email recipients get, footer and sender included
+app.post('/api/admin/email/preview', adminAuthMiddleware, (req, res) => {
+  const body = String(req.body?.body || '');
+  const subject = String(req.body?.subject || '').slice(0, 200) || '(no subject)';
+  const m = req.body?.audience === 'all_users' ? noticeMail('someone@example.com', subject, body) : newsletterMail('someone@example.com', 'preview', subject, body);
+  res.json({ html: m.html, from: m.from, subject: m.subject, replyTo: SUPPORT_REPLY_TO });
+});
+
 app.get('/api/admin/email/history', adminAuthMiddleware, async (req, res) => {
   try {
     await ensureBroadcastTable();
@@ -3150,6 +3158,11 @@ async function fetchReceivedEmail(emailId) {
   } catch (e) { return { error: 'network' }; }
 }
 
+const attachmentList = (list) => (Array.isArray(list) ? list : []).map(a => ({
+  id: a.id || null, filename: a.filename, type: a.content_type, size: a.size || null,
+  cid: a.content_id ? String(a.content_id).replace(/^<|>$/g, '') : null, inline: a.content_disposition === 'inline',
+}));
+
 async function handleInboundEmail(req, res) {
   const secret = process.env.RESEND_INBOUND_SECRET;
   const raw = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : '';
@@ -3166,7 +3179,7 @@ async function handleInboundEmail(req, res) {
     const full = got.full || {};
     if (got.error) console.warn('[inbound] could not fetch email body:', got.error);
     const from = parseAddress(full.headers?.from || full.from || d.from);
-    const attachments = (full.attachments || d.attachments || []).map(a => ({ filename: a.filename, type: a.content_type, size: a.size || null }));
+    const attachments = attachmentList(full.attachments || d.attachments);
     await query(
       `INSERT INTO inbox_messages (resend_id, message_id, from_addr, from_name, to_addrs, subject, text_body, html_body, attachments, received_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE($10::timestamptz, NOW()))
@@ -3217,17 +3230,51 @@ app.get('/api/admin/inbox/:id', adminAuthMiddleware, async (req, res) => {
     const { rows } = await query('UPDATE inbox_messages SET read = TRUE WHERE id = $1 RETURNING *', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Not found.' });
     let msg = rows[0], bodyError = null;
-    // Came in without its content (e.g. the key couldn't read it then)? Try again now.
-    if (!msg.text_body && !msg.html_body && msg.resend_id) {
+    // Came in without its content or attachment ids (e.g. the key couldn't read it then)? Try again now.
+    const atts = Array.isArray(msg.attachments) ? msg.attachments : [];
+    if (msg.resend_id && ((!msg.text_body && !msg.html_body) || atts.some(a => !a.id))) {
       const got = await fetchReceivedEmail(msg.resend_id);
-      if (got.full && (got.full.text || got.full.html)) {
-        msg = (await query('UPDATE inbox_messages SET text_body = $1, html_body = $2 WHERE id = $3 RETURNING *',
-          [got.full.text ? String(got.full.text).slice(0, 200000) : null, got.full.html ? decodeMaybeDataUri(got.full.html).slice(0, 400000) : null, msg.id])).rows[0];
-      } else bodyError = got.error || 'empty';
+      if (got.full) {
+        msg = (await query('UPDATE inbox_messages SET text_body = COALESCE(text_body, $1), html_body = COALESCE(html_body, $2), attachments = $3 WHERE id = $4 RETURNING *',
+          [got.full.text ? String(got.full.text).slice(0, 200000) : null, got.full.html ? decodeMaybeDataUri(got.full.html).slice(0, 400000) : null,
+           JSON.stringify(attachmentList(got.full.attachments)), msg.id])).rows[0];
+        if (!msg.text_body && !msg.html_body) bodyError = 'empty';
+      } else bodyError = got.error;
     }
     const replies = (await query(`SELECT body, sent_to, sent_at FROM admin_replies WHERE ref_id = $1 ORDER BY sent_at`, [req.params.id])).rows;
     res.json({ ...msg, replies, bodyError });
   } catch (e) { res.status(500).json({ error: 'Failed to load the email.' }); }
+});
+
+// An attachment of a received email, downloaded from Resend through the server.
+// Images and PDFs can open in the browser; everything else downloads. A sandbox CSP
+// stops an HTML or SVG file from running anything on this site.
+const INLINE_TYPES = /^(image\/(png|jpe?g|gif|webp)|application\/pdf)$/i;
+app.get('/api/admin/inbox/:id/attachments/:attId', adminAuthMiddleware, async (req, res) => {
+  try {
+    await ensureInboxTables();
+    const m = (await query('SELECT resend_id, attachments FROM inbox_messages WHERE id = $1', [req.params.id])).rows[0];
+    const att = (Array.isArray(m?.attachments) ? m.attachments : []).find(a => a.id === req.params.attId);
+    if (!m?.resend_id || !att) return res.status(404).json({ error: 'Not found.' });
+    const meta = await fetch(`https://api.resend.com/emails/receiving/${encodeURIComponent(m.resend_id)}/attachments/${encodeURIComponent(att.id)}`,
+      { headers: { Authorization: `Bearer ${RESEND_READ_KEY}` }, signal: AbortSignal.timeout(15000) });
+    const j = await meta.json().catch(() => ({}));
+    if (!meta.ok || !j.download_url) return res.status(502).json({ error: j.name === 'restricted_api_key' ? 'The Resend key can only send — add a full-access key as RESEND_INBOUND_API_KEY.' : 'Could not get this attachment from Resend.' });
+    const file = await fetch(j.download_url, { signal: AbortSignal.timeout(30000) });
+    if (!file.ok) return res.status(502).json({ error: 'Could not download this attachment.' });
+    const buf = Buffer.from(await file.arrayBuffer());
+    const type = String(j.content_type || att.type || 'application/octet-stream');
+    const name = String(j.filename || att.filename || 'attachment').replace(/[^\w.\- ]/g, '_');
+    res.setHeader('Content-Type', INLINE_TYPES.test(type) ? type : 'application/octet-stream');
+    res.setHeader('Content-Disposition', `${INLINE_TYPES.test(type) && req.query.inline === '1' ? 'inline' : 'attachment'}; filename="${name}"`);
+    res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline'");
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'private, max-age=600');
+    res.send(buf);
+  } catch (e) {
+    console.error('[inbox/attachment]', e.message);
+    res.status(500).json({ error: 'Could not download this attachment.' });
+  }
 });
 
 app.patch('/api/admin/inbox/:id', adminAuthMiddleware, async (req, res) => {

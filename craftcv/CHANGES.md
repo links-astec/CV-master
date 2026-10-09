@@ -1,5 +1,15 @@
 # Changes
 
+## 2026-10-09 — Admin inbox shows every kind of email; exact email preview
+
+- **Admin Inbox:**
+  - **HTML emails** render with their styling, in a sandbox where scripts never run. Links open in a new tab, and the frame grows to fit the email.
+  - **Images from the web** are hidden until you click **Show images** (stops tracking pixels).
+  - **Inline images** (`cid:`) are loaded from the attachments and shown.
+  - **Plain-text emails:** web addresses are clickable.
+  - **Attachments** download through `/api/admin/inbox/:id/attachments/:attId`. Images and PDFs can open in the browser; everything else downloads, under a sandbox CSP. This needs `RESEND_INBOUND_API_KEY`. Emails that arrived before that key was set are filled in when opened.
+- **Email page:** the preview is now **exactly the email recipients get**. The server builds it with the footer for the chosen audience (unsubscribe for newsletters, the account notice for important emails), and it shows the From, Reply-to and Subject lines. There's a **Desktop / Phone** toggle.
+
 ## 2026-10-09 — Admin email fixed, important notices to every user, inbox bodies
 
 - **The newsletter builder works again.** All 50 of its inline `on…=""` handlers were blocked by the admin page's security policy (`script-src-attr 'none'`), so nothing in it did anything. It now uses delegated event listeners, and the policy is unchanged.

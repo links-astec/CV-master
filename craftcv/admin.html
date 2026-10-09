@@ -152,6 +152,12 @@ textarea.inp{height:auto;padding:10px 12px;line-height:1.55;resize:vertical}
 .ib-actions{display:flex;gap:6px;flex-wrap:wrap}
 .ib-content{background:var(--s1);border:1px solid var(--b1);border-radius:14px;padding:18px 20px;font-size:14px;line-height:1.65;white-space:pre-wrap;word-break:break-word}
 .ib-frame{width:100%;min-height:360px;border:1px solid var(--b1);border-radius:14px;background:#fff}
+.ib-imgbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:8px 12px;margin-bottom:8px;border-radius:10px;background:var(--s2);font-size:12.5px;color:var(--t2)}
+.ib-content a{color:var(--ac);word-break:break-all}
+.ib-att{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--b1);border-radius:9px;font-size:12.5px;color:var(--t1);text-decoration:none;margin:0 6px 6px 0;background:var(--s1)}
+.ib-att:hover{border-color:var(--ac)}
+.ib-att span{color:var(--t3);font-size:11.5px}
+.ib-att.off{opacity:.6}
 .ib-note{font-size:12px;color:var(--t3);margin:8px 2px 0}
 .ib-atts{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .thread{margin-top:18px;display:flex;flex-direction:column;gap:10px}
@@ -200,6 +206,13 @@ textarea.inp{height:auto;padding:10px 12px;line-height:1.55;resize:vertical}
 .email-right{display:flex;flex-direction:column;min-height:0}
 .email-right .card{flex:1;display:flex;flex-direction:column;min-height:0}
 .preview-iframe{width:100%;flex:1;border:none;background:#f0f2f5;border-radius:0 0 16px 16px}
+.preview-iframe.phone{width:390px;max-width:100%;margin:12px auto;display:block;border:1px solid var(--b1);border-radius:24px;min-height:720px}
+.pv-stage{display:flex;flex-direction:column;background:#f0f2f5;border-radius:0 0 16px 16px}
+.pv-head{padding:10px 18px;border-bottom:1px solid var(--b1);font-size:12.5px;color:var(--t2);display:flex;flex-direction:column;gap:2px}
+.pv-head b{display:inline-block;width:64px;color:var(--t3);font-weight:600}
+.seg-sm{display:inline-flex;border:1px solid var(--b1);border-radius:8px;overflow:hidden;margin-right:6px}
+.seg-sm button{border:none;background:none;padding:5px 10px;font-size:12px;font-weight:600;color:var(--t2);cursor:pointer}
+.seg-sm button.on{background:var(--ac-lt);color:var(--ac)}
 .email-toolbar{display:flex;flex-wrap:wrap;gap:6px;padding:12px;background:var(--s1);border:1px solid var(--b1);border-radius:14px}
 .tb-label{width:100%;font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em}
 .tb-btn{height:28px;padding:0 10px;border-radius:8px;border:1px solid var(--b1);background:var(--s1);color:var(--t2);font-size:12px;font-weight:600}
@@ -284,7 +297,35 @@ input[type=range]{flex:1;accent-color:var(--ac)}
 <div id="app"></div>
 <script>
 // ── State ─────────────────────────────────────────────────────────────────────
-const SAFE_EMAIL_CSP = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: cid:; style-src 'unsafe-inline'; font-src data:">`
+const emailCsp = (remote) => `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: cid:${remote ? ' https: http:' : ''}; style-src 'unsafe-inline'${remote ? ' https:' : ''}; font-src data:${remote ? ' https:' : ''}"><base target="_blank">`
+// The received email in its sandboxed frame: inline (cid:) images swapped for the files we
+// downloaded, remote images only when "Show images" is on (they can tell the sender you opened it)
+function setEmailFrame() {
+  const d = S.inbox.detail, f = $('ib-frame')
+  if (!f || !d?.html_body) return
+  let html = d.html_body
+  for (const [cid, url] of Object.entries(S.inbox.cidData || {})) html = html.split('cid:' + cid).join(url)
+  f.srcdoc = emailCsp(!!S.inbox.showImages) + html
+  f.onload = () => { try { f.style.height = Math.min(2400, Math.max(360, f.contentDocument?.body?.scrollHeight + 40 || 360)) + 'px' } catch {} }
+}
+// Inline images (logos, screenshots pasted into the email) are attachments; load them as data: URLs
+async function loadInlineImages(d) {
+  S.inbox.cidData = {}
+  const imgs = (d.attachments || []).filter(a => a.id && a.cid && /^image\//.test(a.type || ''))
+  for (const a of imgs) {
+    try {
+      const r = await fetch(`/api/admin/inbox/${d.id}/attachments/${a.id}?inline=1`, { credentials: 'include' })
+      if (!r.ok) continue
+      const blob = await r.blob()
+      S.inbox.cidData[a.cid] = await new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(blob) })
+    } catch {}
+  }
+  if (S.inbox.detail === d && imgs.length) setEmailFrame()
+}
+const hasRemoteImages = (html) => /<img[^>]+src=["']?https?:/i.test(html || '') || /url\(["']?https?:/i.test(html || '')
+const fmtSize = (n) => !n ? '' : n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'
+// Plain-text emails: escape, then make web addresses clickable
+const linkify = (t) => esc(t).replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"])/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
 const S = {
   auth: null, page: 'overview',
   stats: null, statsLoading: false, maintenance: false, maintLoading: false,
@@ -476,8 +517,10 @@ async function openItem(kind, id) {
       I.detail = { ...m, replies: r.replies, _k: 'site' }
     }
   } catch (e) { I.err = e.message }
+  I.showImages = false; I.cidData = {}
   I.detailLoading = false; render()
-  const f = $('ib-frame'); if (f && I.detail?.html_body) f.srcdoc = SAFE_EMAIL_CSP + I.detail.html_body
+  setEmailFrame()
+  if (I.detail?._k === 'email') loadInlineImages(I.detail)
 }
 async function sendReply() {
   const I = S.inbox, d = I.detail
@@ -563,13 +606,17 @@ function renderDetail() {
     <div class="ib-subject">${esc(d.subject || '(no subject)')}</div>
     <div class="ib-meta"><div class="av">${esc(initials(d.from_name || d.from_addr))}</div>
       <div class="who"><b>${esc(d.from_name || d.from_addr)}</b><span>${esc(d.from_addr)} · to ${esc(d.to_addrs || 'support')} · ${fmtDate(d.received_at)} ${new Date(d.received_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span></div>${actions}</div>
-    ${d.html_body ? `<iframe id="ib-frame" class="ib-frame" sandbox="" title="Email"></iframe><p class="ib-note">Shown safely: scripts and remote images are blocked.</p>`
+    ${d.html_body ? `${hasRemoteImages(d.html_body) && !S.inbox.showImages ? `<div class="ib-imgbar">Images from the web are hidden — they can tell the sender you opened the email. <button class="btn btn-sm" data-act="ib-images">Show images</button></div>` : ''}
+      <iframe id="ib-frame" class="ib-frame" sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin" title="Email"></iframe><p class="ib-note">Shown safely: scripts never run${S.inbox.showImages ? '' : ', and images from the web stay hidden until you show them'}. Links open in a new tab.</p>`
       : d.bodyError === 'restricted_api_key' ? `<div class="alert alert-error">This email’s content couldn’t be loaded: the Resend API key on the server can only send emails.
           In Resend → API Keys, create a key with <b>Full access</b> and add it on Render as <code>RESEND_INBOUND_API_KEY</code>. Then open this email again — it loads automatically.
           Meanwhile you can read it in Resend → Emails → Receiving.</div>`
       : d.bodyError && d.bodyError !== 'empty' ? `<div class="alert alert-error">This email’s content couldn’t be loaded from Resend (${esc(d.bodyError)}). Open it in Resend → Emails → Receiving, or try again in a minute.</div>`
-      : `<div class="ib-content">${esc(d.text_body || '(This email has no text content.)')}</div>`}
-    ${(d.attachments || []).length ? `<div class="ib-atts">${d.attachments.map(a => `<span class="badge b-gray">📎 ${esc(a.filename || 'attachment')}</span>`).join('')}</div><p class="ib-note">Attachments are kept in Resend (Emails → Receiving).</p>` : ''}
+      : `<div class="ib-content">${d.text_body ? linkify(d.text_body) : esc('(This email has no text content.)')}</div>`}
+    ${(d.attachments || []).length ? `<div class="ib-atts">${d.attachments.map(a => a.id
+        ? `<a class="ib-att" href="/api/admin/inbox/${d.id}/attachments/${a.id}" download="${esc(a.filename || 'attachment')}">📎 ${esc(a.filename || 'attachment')}<span>${fmtSize(a.size)}</span></a>`
+        : `<span class="ib-att off">📎 ${esc(a.filename || 'attachment')}<span>${fmtSize(a.size)}</span></span>`).join('')}</div>
+      ${d.attachments.some(a => !a.id) ? '<p class="ib-note">Some attachments can’t be downloaded here yet — add a full-access Resend key as RESEND_INBOUND_API_KEY, or open them in Resend → Emails → Receiving.</p>' : ''}` : ''}
     <div class="thread">${replies}</div>${composer}</div>`
 
   const k = KIND[d.kind] || KIND.suggestion
@@ -907,9 +954,24 @@ function buildEmailHtml() {
 </body></html>`;
 }
 
+// The preview shows exactly what recipients get — the server adds the footer for the chosen
+// audience — refreshed shortly after each change
+let _pvTimer = null, _pvSeq = 0
 function refreshPreview() {
-  const f=$('e-preview'); if(f) f.srcdoc=buildEmailHtml();
+  clearTimeout(_pvTimer)
+  _pvTimer = setTimeout(async () => {
+    const mine = ++_pvSeq
+    const plan = $('e-plan-sel')?.value || S.email.plan
+    try {
+      const p = await api('POST', '/email/preview', { subject: $('e-subject')?.value || S.email.subject, body: buildEmailHtml(), audience: plan === 'users' ? 'all_users' : 'subscribers' })
+      if (mine !== _pvSeq) return
+      S.pv = p
+      const f = $('e-preview'); if (f) f.srcdoc = p.html
+      const h = $('pv-head'); if (h) h.innerHTML = pvHead()
+    } catch {}
+  }, 350)
 }
+const pvHead = () => S.pv ? `<div><b>From</b> ${esc(S.pv.from)}</div><div><b>Reply to</b> ${esc(S.pv.replyTo)}</div><div><b>Subject</b> ${esc(S.pv.subject)}</div>` : ''
 
 async function copyHtml() {
   try { await navigator.clipboard.writeText(buildEmailHtml()); alert('Email HTML copied to clipboard!'); }
@@ -1191,13 +1253,15 @@ function renderEmail() {
   <div class="email-right">
     <div class="card">
       <div class="card-head">
-        <h3>Live Preview</h3>
+        <h3>Preview — exactly as it’s sent</h3>
         <div class="flex">
+          <div class="seg-sm"><button class="${S.pvWidth !== 'phone' ? 'on' : ''}" data-act="pv-width" data-w="desktop">Desktop</button><button class="${S.pvWidth === 'phone' ? 'on' : ''}" data-act="pv-width" data-w="phone">Phone</button></div>
           <button class="btn btn-default btn-sm" data-nl="copy">Copy HTML</button>
         </div>
       </div>
-      <div class="card-body" style="padding:0;flex:1">
-        <iframe id="e-preview" class="preview-iframe" srcdoc="${esc(buildEmailHtml())}"></iframe>
+      <div id="pv-head" class="pv-head">${pvHead()}</div>
+      <div class="card-body pv-stage" style="padding:0;flex:1">
+        <iframe id="e-preview" class="preview-iframe${S.pvWidth === 'phone' ? ' phone' : ''}" srcdoc="${esc(S.pv?.html || buildEmailHtml())}"></iframe>
       </div>
     </div>
   </div>
@@ -1211,8 +1275,8 @@ function render() {
   const keepScroll = document.querySelector('.ib-items')?.scrollTop
   $('app').innerHTML = (!S.auth ? renderLogin() : renderApp()) + (S.toast ? `<div class="toast">${esc(S.toast)}</div>` : '')
   if (keepScroll) { const l = document.querySelector('.ib-items'); if (l) l.scrollTop = keepScroll }
-  // Emails are shown with no scripts and no remote content (tracking pixels can't tell the sender it was opened)
-  const f = $('ib-frame'); if (f && S.inbox.detail?.html_body) f.srcdoc = SAFE_EMAIL_CSP + S.inbox.detail.html_body
+  // Emails are shown with no scripts, and remote images only on request (tracking pixels)
+  setEmailFrame()
   bind()
 }
 
@@ -1251,7 +1315,8 @@ function renderApp() {
 // ── Events ────────────────────────────────────────────────────────────────────
 function bind() {
   $('maint-toggle')?.addEventListener('change', toggleMaintenance)
-  $('e-subject')?.addEventListener('input', e => { S.email.subject = e.target.value })
+  $('e-subject')?.addEventListener('input', e => { S.email.subject = e.target.value; refreshPreview() })
+  if ($('e-preview')) refreshPreview()   // also picks up a change of audience (newsletter vs important notice)
   $('e-plan-sel')?.addEventListener('change', e => { S.email.plan = e.target.value; S.email.important = false; render() })
   $('e-important')?.addEventListener('change', e => { S.email.important = e.target.checked })
   $('e-test')?.addEventListener('input', e => { S.email.testTo = e.target.value })
@@ -1283,6 +1348,8 @@ document.addEventListener('click', (e) => {
   if (t.dataset.sub) { subAction(t.dataset.sub, t.dataset.sact, t.dataset.email); return }
   if (t.dataset.act === 'sub-export') { exportSubs(); return }
   if (t.dataset.act === 'email-history') { loadHistory(); return }
+  if (t.dataset.act === 'ib-images') { S.inbox.showImages = true; render(); return }
+  if (t.dataset.act === 'pv-width') { S.pvWidth = t.dataset.w; render(); return }
   if (t.dataset.go) { if (t.dataset.tab) S.inbox.tab = t.dataset.tab; go(t.dataset.go); return }
   if (t.dataset.open) { const [k, id] = t.dataset.open.split(':'); openItem(k, id); return }
   if (t.dataset.ibtab) { S.inbox.tab = t.dataset.ibtab; render(); return }
