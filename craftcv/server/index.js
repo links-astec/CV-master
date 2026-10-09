@@ -302,6 +302,7 @@ function publicUser(row) {
     industry:   row.industry   || null,
     goal:       row.goal       || null,
     experience: row.experience || null,
+    aiPersonalize: row.ai_personalize !== false,
     // Google accounts are verified by Google; email accounts confirm by link
     emailVerified: row.provider === 'google' || !!row.email_verified,
   };
@@ -328,6 +329,7 @@ function ensureReferralColumns() {
       .then(() => query('ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_welcomed BOOLEAN NOT NULL DEFAULT FALSE'))
       .then(() => query('ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE'))
       .then(() => query('ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT NOT NULL DEFAULT 0'))
+      .then(() => query('ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_personalize BOOLEAN NOT NULL DEFAULT TRUE'))
       .then(() => ensureAiTables())
       .catch(e => { _refCols = null; throw e; });
   }
@@ -831,6 +833,14 @@ app.patch('/api/auth/settings', authMiddleware, async (req, res) => {
       params.push(name, name[0].toUpperCase());
       updates.push(`name = $${params.length - 1}`, `avatar = $${params.length}`);
     }
+    if (typeof req.body.aiPersonalize === 'boolean') { await ensureReferralColumns(); params.push(req.body.aiPersonalize); updates.push(`ai_personalize = $${params.length}`); }
+    const pick = (v, allowed) => (typeof v === 'string' && allowed.includes(v) ? v : undefined);
+    const prof = {
+      industry:   pick(req.body.industry, ['', 'tech', 'finance', 'marketing', 'design', 'healthcare', 'education', 'legal', 'engineering', 'sales', 'hr', 'creative', 'other']),
+      goal:       pick(req.body.goal, ['', 'new-job', 'promotion', 'switch', 'grad', 'freelance', 'update']),
+      experience: pick(req.body.experience, ['', 'student', 'junior', 'mid', 'senior', 'exec']),
+    };
+    for (const [k, v] of Object.entries(prof)) if (v !== undefined) { params.push(v || null); updates.push(`${k} = $${params.length}`); }
     const newPassword = typeof req.body.password === 'string' ? req.body.password : '';
     if (newPassword) {
       if (newPassword.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
@@ -1255,6 +1265,103 @@ app.post('/api/ai/ats', rateLimit({ windowMs: 60 * 1000, max: 30 }), async (req,
   }
 });
 
+// ── PERSONALISATION ───────────────────────────────────────────────────────────
+// The AI knows the account holder from their onboarding answers (field, goal, level) and
+// from their other CVs (past roles, skills, education, languages) — but only uses that
+// when the CV is theirs. People also make CVs for friends or family, so:
+//   cv.cvFor === 'self' | 'other' is the user's own choice in the editor; otherwise
+//   a CV whose name differs from the account name is treated as someone else's.
+// Users can switch personalisation off in Settings.
+async function personalContext(req, cv) {
+  if (!req.user) return { forSelf: null, text: '' };
+  await ensureReferralColumns();
+  const u = (await query('SELECT name, industry, goal, experience, ai_personalize FROM users WHERE id = $1', [req.user.sub])).rows[0];
+  if (!u) return { forSelf: null, text: '' };
+  const cvName = normName([cv?.fn, cv?.ln].filter(Boolean).join(' '));
+  const accName = normName(u.name);
+  const forSelf = cv?.cvFor === 'self' ? true : cv?.cvFor === 'other' ? false : (!cvName || samePerson(accName, cvName));
+  if (!forSelf) {
+    return { forSelf: false, text: '\n\nWHOSE CV: this CV is for someone other than the account holder (for example a friend or relative). Use ONLY the facts in this CV, never anything about the account holder, and refer to the candidate in the third person or by name.' };
+  }
+  if (u.ai_personalize === false) return { forSelf: true, text: '' };
+
+  const lines = [];
+  const onboarding = [u.industry && u.industry !== 'other' && `field: ${u.industry}`, u.goal && `aiming for: ${u.goal}`, u.experience && `career level: ${u.experience}`].filter(Boolean);
+  if (onboarding.length) lines.push(`From sign-up — ${onboarding.join(', ')}.`);
+
+  // What their other CVs say about them (only CVs in their own name)
+  const drafts = (await query('SELECT cv_data FROM drafts WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 15', [req.user.sub])).rows;
+  const roles = new Set(), skills = new Map(), edu = new Set(), langs = new Set();
+  const here = normText(JSON.stringify({ e: cv?.experiences, s: cv?.skills, d: cv?.education }));
+  for (const { cv_data: d } of drafts) {
+    if (!d || typeof d !== 'object') continue;
+    const n = normName([d.fn, d.ln].filter(Boolean).join(' '));
+    if (n && !samePerson(accName, n)) continue;   // a CV they made for someone else
+    for (const e of Array.isArray(d.experiences) ? d.experiences : []) {
+      const r = [e?.title, e?.company].filter(x => typeof x === 'string' && x.trim()).join(' at ');
+      if (r && !here.includes(normText(e.title || '').trim())) roles.add(`${r}${e?.period ? ` (${e.period})` : ''}`);
+    }
+    for (const s of Array.isArray(d.skills) ? d.skills : []) if (typeof s === 'string' && s.trim()) skills.set(s.trim(), (skills.get(s.trim()) || 0) + 1);
+    for (const e of Array.isArray(d.education) ? d.education : []) { const x = [e?.degree, e?.school].filter(Boolean).join(', '); if (x) edu.add(x); }
+    for (const l of Array.isArray(d.languages) ? d.languages : []) if (l?.name) langs.add([l.name, l.level].filter(Boolean).join(' — '));
+  }
+  const have = new Set((Array.isArray(cv?.skills) ? cv.skills : []).map(s => String(s).toLowerCase()));
+  const otherSkills = [...skills.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s).filter(s => !have.has(s.toLowerCase())).slice(0, 20);
+  if (roles.size) lines.push(`Roles on their other CVs: ${[...roles].slice(0, 6).join('; ')}.`);
+  if (otherSkills.length) lines.push(`Skills on their other CVs: ${otherSkills.join(', ')}.`);
+  if (edu.size) lines.push(`Education on their other CVs: ${[...edu].slice(0, 4).join('; ')}.`);
+  if (langs.size) lines.push(`Languages: ${[...langs].slice(0, 5).join('; ')}.`);
+  if (!lines.length) return { forSelf: true, text: '' };
+  return { forSelf: true, text: `\n\nABOUT THE ACCOUNT HOLDER (this CV is theirs). Use this to personalise tone, focus and suggestions. You may SUGGEST items from it, but only write on the CV what this CV already says:\n${lines.join('\n').slice(0, 1500)}` };
+}
+
+// ── IS THIS ROLE A GOOD FIT? ──────────────────────────────────────────────────
+// After a job offer is added: an honest heads-up when the role looks like a poor match
+// for the person on the CV, with the reasons and what would help.
+app.post('/api/ai/fit', aiAccess, async (req, res) => {
+  try {
+    const cv = cvFromBody(req.body);
+    if (!cv) return res.status(413).json({ error: 'This CV is too long to check in one go.' });
+    const brief = await jobBrief(req.body?.jobOffer, req);
+    if (!brief) return res.status(400).json({ error: 'Please paste the full job description (at least a few sentences).' });
+    const fr = req.body?.uiLang === 'fr';
+    const ats = atsScore(cv, brief, fr ? 'fr' : 'en');
+    const personal = await personalContext(req, cv);
+    const str = (v) => (typeof v === 'string' ? v.trim() : '');
+    const arr = (v) => (Array.isArray(v) ? v : []);
+    const exps = arr(cv.experiences).filter(e => e && (str(e.title) || str(e.company) || str(e.desc))).slice(0, 10);
+    const facts = [
+      `Headline: ${str(cv.title) || 'none'}`, `Location: ${str(cv.loc) || 'not given'}`, `Summary: ${str(cv.sum) || 'none'}`,
+      `Experience:\n${exps.map(e => `- ${str(e.title)} at ${str(e.company)} (${str(e.period)}): ${str(e.desc).slice(0, 400)}`).join('\n') || 'none'}`,
+      `Skills: ${arr(cv.skills).map(str).filter(Boolean).join(', ') || 'none'}`,
+      `Education: ${arr(cv.education).map(e => [str(e?.degree), str(e?.school), str(e?.year)].filter(Boolean).join(', ')).filter(Boolean).join('; ') || 'none'}`,
+      `Certifications: ${arr(cv.certifications).map(str).filter(Boolean).join(', ') || 'none'}`,
+      `Languages: ${arr(cv.languages).map(l => [str(l?.name), str(l?.level)].filter(Boolean).join(' ')).filter(Boolean).join(', ') || 'none'}`,
+    ].join('\n');
+    const who = personal.forSelf === false ? 'this candidate (the CV is for someone else — call them "this candidate")' : 'the user (speak to them as "you")';
+    const system = `You are a frank, kind career adviser. Judge whether the person on this CV is a realistic candidate for the job, from the CV's facts only.
+Weigh: hard requirements (qualifications, certifications, licences, years of experience, seniority), the field and type of work, required languages, and location or work rights if the advert states them.
+Be honest — if it's a long shot, say so clearly — but constructive. Never judge on age, gender, nationality, origin or any other protected trait. A missing CV section is not a reason the role is unsuitable.
+Reply with ONLY JSON: {"fit":"good|stretch|poor","headline":"one short sentence","reasons":["2-4 specific reasons that name the requirement and what the CV shows"],"advice":"one sentence: what would make them a stronger candidate for this job, or a better-matched role to look at"}
+"good" = meets the main requirements; "stretch" = some important gaps but a credible application; "poor" = misses several hard requirements or is a different field or level.
+Write in ${fr ? 'French' : 'English'} and address ${who}.`;
+    const reqMissing = brief.keywords.filter(k => k.required && !ats.matched.includes(k.term)).map(k => k.term);
+    const out = parseJsonObject(await callAi(
+      `JOB:\n${briefForPrompt(brief)}\n\nCV:\n${facts}\n\nAUTOMATIC CHECK: ATS match ${ats.score}%. Required keywords not found on the CV: ${reqMissing.join(', ') || 'none'}.${personal.text}`,
+      AI_MODEL, system, 900, 'medium'));
+    const fit = ['good', 'stretch', 'poor'].includes(out.fit) ? out.fit : 'stretch';
+    res.json({
+      fit, headline: str(out.headline).slice(0, 200),
+      reasons: arr(out.reasons).map(str).filter(Boolean).slice(0, 4).map(r => r.slice(0, 300)),
+      advice: str(out.advice).slice(0, 300), score: ats.score, forSelf: personal.forSelf,
+      job: { title: brief.title, company: brief.company },
+    });
+  } catch (e) {
+    console.error('[ai/fit]', e.message);
+    res.status(500).json({ error: 'AI is unavailable right now — please try again in a moment.' });
+  }
+});
+
 // POST /api/ai/write — the editor's AI helpers, with the job offer as context.
 //   summary { tone } · skills · bullets { index }
 app.post('/api/ai/write', aiAccess, async (req, res) => {
@@ -1274,27 +1381,26 @@ app.post('/api/ai/write', aiAccess, async (req, res) => {
       `Skills: ${arr(cv.skills).map(str).filter(Boolean).join(', ') || 'none'}`,
       `Education: ${arr(cv.education).map(e => [str(e?.degree), str(e?.school)].filter(Boolean).join(', ')).filter(Boolean).join('; ') || 'none'}`,
     ].join('\n');
-    const u = req.user ? (await query('SELECT industry, goal, experience FROM users WHERE id = $1', [req.user.sub])).rows[0] : null;
-    const profile = u ? [u.industry && `industry ${u.industry}`, u.goal && `goal ${u.goal}`, u.experience && `level ${u.experience}`].filter(Boolean).join(', ') : '';
+    const personal = (await personalContext(req, cv).catch(() => null))?.text || '';
     const RULES = `Never invent employers, dates, numbers, qualifications, tools or achievements — use only what the CV says. Write in ${language}.`;
 
     if (task === 'summary') {
       const tone = ['professional', 'confident', 'creative', 'academic'].includes(req.body?.tone) ? req.body.tone : 'professional';
-      const out = await callAi(`CV:\n${facts}${job}${profile ? `\nAbout the person: ${profile}` : ''}`, AI_MODEL,
+      const out = await callAi(`CV:\n${facts}${job}${personal}`, AI_MODEL,
         `You write CV summaries. Write one ${tone} professional summary: 2-3 sentences, under 60 words, no "I", no clichés. ${brief ? 'Aim it at the job: lead with what matters most for it and use its keywords where the CV shows that skill. ' : ''}${RULES} Return only the summary text, no quotes.`, 600);
       return res.json({ result: str(out).replace(/^["“]|["”]$/g, '') });
     }
     if (task === 'skills') {
       const have = new Set(arr(cv.skills).map(s => str(s).toLowerCase()));
-      const out = await callAi(`CV:\n${facts}${job}`, AI_MODEL,
-        `Suggest 10 skills for this CV: concrete tools, methods and domain knowledge (at most 2 soft skills), short names. ${brief ? 'Prefer the job’s keywords (exact wording) that the experience supports. ' : ''}Do not repeat skills already listed. Skill names in ${language} (keep technical terms normally left in English). Return ONLY a JSON array of strings.`, 600);
+      const out = await callAi(`CV:\n${facts}${job}${personal}`, AI_MODEL,
+        `Suggest 10 skills for this CV: concrete tools, methods and domain knowledge (at most 2 soft skills), short names. ${brief ? 'Prefer the job’s keywords (exact wording) that the experience supports. ' : ''}${personal.includes('ABOUT THE ACCOUNT HOLDER') ? 'Skills from their other CVs that fit this CV are good suggestions. ' : ''}Do not repeat skills already listed, and never suggest spoken languages (they belong under Languages). Skill names in ${language} (keep technical terms normally left in English). Return ONLY a JSON array of strings.`, 600);
       const list = JSON.parse(String(out).slice(String(out).indexOf('['), String(out).lastIndexOf(']') + 1));
       return res.json({ skills: arr(list).map(str).filter(s => s && s.length <= 50 && !have.has(s.toLowerCase())).slice(0, 12) });
     }
     if (task === 'bullets') {
       const e = arr(cv.experiences)[Number(req.body?.index)];
       if (!e) return res.status(400).json({ error: 'This item can’t be fixed automatically.' });
-      const out = await callAi(`ROLE: ${str(e.title)} at ${str(e.company)} (${str(e.period)})\nCURRENT DESCRIPTION:\n${str(e.desc) || 'none'}${job}`, AI_MODEL,
+      const out = await callAi(`ROLE: ${str(e.title)} at ${str(e.company)} (${str(e.period)})\nCURRENT DESCRIPTION:\n${str(e.desc) || 'none'}${job}${personal}`, AI_MODEL,
         `You are a CV writer. Rewrite the description as 3-4 concise bullet points, each starting with "• " and a strong action verb, one per line. Keep every number exactly as written. Never invent numbers or achievements: where a figure would help, insert a placeholder such as [X%], [N] or [£X] for the person to fill in. ${brief ? 'Use the job’s wording for the same activities where it fits. ' : ''}${RULES} Return only the bullet points.`, 700);
       const text = str(out).split('\n').map(l => l.trim()).filter(l => l.startsWith('•')).join('\n') || str(out);
       return res.json({ result: text });
@@ -1322,7 +1428,6 @@ app.post('/api/ai/story', aiAccess, async (req, res) => {
     const round = Math.max(0, Math.min(STORY_MAX_ROUNDS, Number(req.body?.round) || 0));
     const force = !!req.body?.force || round >= STORY_MAX_ROUNDS;
     const lang  = req.body?.lang === 'fr' ? 'fr' : 'en';
-    const ctx   = req.body?.context && typeof req.body.context === 'object' ? req.body.context : {};
 
     // Too short to be worth an AI call
     if (words(story) < 12) {
@@ -1357,10 +1462,10 @@ Reply with ONLY a JSON object, no markdown:
 {"verdict":"unusable|needs_more|ready","reason":"","questions":[{"q":"","hint":""}],"cv":{"title":"","sum":"","loc":"","skills":[],"experiences":[{"title":"","company":"","period":"","desc":""}],"education":[{"degree":"","school":"","year":""}],"projects":[{"name":"","desc":"","tech":""}],"languages":[{"name":"","level":""}],"certifications":[]}}
 Only include "questions" for needs_more and "cv" for ready. Questions and reason are in ${language}.`;
 
-    const context = [ctx.industry && `Industry: ${ctx.industry}`, ctx.goal && `Goal: ${ctx.goal}`, ctx.experience && `Level: ${ctx.experience}`]
-      .filter(Boolean).map(String).join(' | ').slice(0, 200);
+    // A story for a friend gets nothing from the account holder's profile
+    const personal = (await personalContext(req, { cvFor: req.body?.cvFor === 'other' ? 'other' : req.body?.cvFor === 'self' ? 'self' : '' }).catch(() => null))?.text || '';
     const brief = await jobBrief(req.body?.jobOffer, req).catch(() => null);
-    const userPrompt = `${context ? `About the person (from sign-up): ${context}\n\n` : ''}${brief ? `THE JOB THEY ARE APPLYING FOR (shape the headline, summary and skill order around it, and ask about anything it requires that the story doesn't cover — never invent):\n${briefForPrompt(brief)}\n\n` : ''}THEIR STORY:\n${story}\n\n${
+    const userPrompt = `${personal ? `${personal.trim()}\n\n` : ''}${brief ? `THE JOB THEY ARE APPLYING FOR (shape the headline, summary and skill order around it, and ask about anything it requires that the story doesn't cover — never invent):\n${briefForPrompt(brief)}\n\n` : ''}THEIR STORY:\n${story}\n\n${
       answers.length ? `THEIR ANSWERS TO FOLLOW-UP QUESTIONS:\n${answers.map(a => `Q: ${a.q}\nA: ${a.a}`).join('\n\n')}\n\n` : ''}Question rounds so far: ${round} of ${STORY_MAX_ROUNDS}.`;
 
     const out = parseJsonObject(await callAi(userPrompt, AI_MODEL, systemPrompt, 4000, 'medium'));
@@ -1418,7 +1523,8 @@ Reply with ONLY a JSON object, no markdown:
 
     const brief = await jobBrief(req.body?.jobOffer, req).catch(() => null);
     const jobCtx = brief ? `\n\nTHE JOB THEY ARE APPLYING FOR (aim the wording at it, using its keywords only where the CV supports them):\n${briefForPrompt(brief)}` : '';
-    const out = parseJsonObject(await callAi(`TASK: ${task}\n\nCV:\n${payload}${jobCtx}`, AI_MODEL, systemPrompt, 3000, 'medium'));
+    const personal = (await personalContext(req, cv).catch(() => null))?.text || '';
+    const out = parseJsonObject(await callAi(`TASK: ${task}\n\nCV:\n${payload}${jobCtx}${personal}`, AI_MODEL, systemPrompt, 3000, 'medium'));
     const exps = src.experiences;
     const changes = (Array.isArray(out.changes) ? out.changes : []).map(c => {
       const key = String(c?.key || ''), after = str(c?.after);

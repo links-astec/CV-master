@@ -89,7 +89,8 @@ const DOCS = [
       </ul>` },
       { id: 'use', title: 'How we use it', html: `<ul>
         <li>To run your account and save your CVs.</li>
-        <li>To power the AI features you choose to use (writing help, tailoring, the ATS check, translation).</li>
+        <li>To power the AI features you choose to use (writing help, tailoring, the ATS check, the job-fit check, translation).</li>
+        <li>To personalise AI suggestions on CVs in your own name, using your sign-up answers and your other CVs. CVs you make for someone else don’t use them, and you can switch this off in Settings.</li>
         <li>To email you your CV and account messages such as password resets.</li>
         <li>To take payments through Stripe.</li>
         <li>To answer your feedback and complaints, and to improve CVMaster.</li>
@@ -181,7 +182,8 @@ const DOCS_FR = [
       </ul>` },
       { id: 'use', title: 'Comment nous les utilisons', html: `<ul>
         <li>Pour gérer votre compte et enregistrer vos CV.</li>
-        <li>Pour faire fonctionner les fonctionnalités d’IA que vous choisissez d’utiliser (aide à la rédaction, adaptation à une offre, vérification ATS, traduction).</li>
+        <li>Pour faire fonctionner les fonctionnalités d’IA que vous choisissez d’utiliser (aide à la rédaction, adaptation à une offre, vérification ATS, avis sur l’adéquation au poste, traduction).</li>
+        <li>Pour personnaliser les suggestions de l’IA sur les CV à votre nom, à partir de vos réponses à l’inscription et de vos autres CV. Les CV que vous créez pour quelqu’un d’autre ne les utilisent pas, et vous pouvez désactiver cette option dans les Paramètres.</li>
         <li>Pour vous envoyer votre CV et les messages liés à votre compte, comme la réinitialisation du mot de passe.</li>
         <li>Pour encaisser les paiements via Stripe.</li>
         <li>Pour répondre à vos avis et réclamations, et pour améliorer CVMaster.</li>

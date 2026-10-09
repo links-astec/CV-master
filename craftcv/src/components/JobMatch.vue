@@ -20,6 +20,25 @@
         <div class="jm-job-txt">{{ jobPreview }}</div>
         <div class="jm-job-note">{{ $t('Every AI suggestion in your CV uses this job offer.') }}</div>
       </div>
+
+      <!-- Is this role a good fit for the person on the CV? -->
+      <div v-if="hasJob && !editingJob && fitLoading" class="jm-fit loading">
+        <div class="thinking-dots"><span></span><span></span><span></span></div>{{ $t('Checking whether this role is a good fit…') }}
+      </div>
+      <div v-else-if="hasJob && !editingJob && fit && !fit.dismissed" class="jm-fit" :class="fit.fit">
+        <div class="jm-fit-hd">
+          <span class="jm-fit-badge">{{ $t(FIT_LABEL[fit.fit]) }}</span>
+          <span class="jm-fit-ttl">{{ fit.headline }}</span>
+        </div>
+        <ul v-if="fit.reasons?.length" class="jm-fit-list"><li v-for="(r, i) in fit.reasons" :key="i">{{ r }}</li></ul>
+        <p v-if="fit.advice" class="jm-fit-advice">💡 {{ fit.advice }}</p>
+        <p v-if="fit.fit !== 'good'" class="jm-fit-note">{{ $t('It’s your call — you can still tailor your CV and apply.') }}</p>
+        <div class="jm-fit-acts">
+          <button class="btn-ghost btn-sm" :disabled="fitLoading" @click="checkFit(true)">{{ $t('Check again') }}</button>
+          <button class="btn-ghost btn-sm" @click="fit.dismissed = true">{{ $t('Hide') }}</button>
+        </div>
+      </div>
+      <div v-else-if="hasJob && !editingJob && fitError" class="jm-hint warn">{{ $t(fitError) }}</div>
       <template v-else>
         <textarea ref="jobRef" v-model="draft" class="f-ta" rows="7"
           :placeholder="$t('Paste the full job description — title, responsibilities and requirements…')"></textarea>
@@ -85,12 +104,17 @@
   </div>
 </template>
 
+<script>
+const fitInFlight = new Set()   // shared by every Job match panel
+</script>
+
 <script setup>
-import { ref, computed, nextTick, onMounted } from 'vue'
-import { useCvStore } from '../stores/cv.js'
+import { ref, computed, nextTick, onMounted, watch } from 'vue'
+import { useCvStore, hasDraftableContent } from '../stores/cv.js'
 import StepTailor from './wizard/StepTailor.vue'
 import StepReview from './wizard/StepReview.vue'
 import AtsScorer from './AtsScorer.vue'
+import { lang } from '../i18n/index.js'
 
 defineEmits(['pay', 'next'])
 const store = useCvStore()
@@ -165,7 +189,46 @@ function onBoosted(n) {
   nextTick(() => atsRef.value?.runScore())
 }
 
-onMounted(() => { if (!hasJob.value) draft.value = store.data.jobOffer || '' })
+// ── Fit check ─────────────────────────────────────────────────────────────────
+// Runs once per job offer (and per person the CV is for) as soon as the CV has some content
+const FIT_LABEL = { good: 'Good fit', stretch: 'A stretch', poor: 'Heads-up: may not be a good fit' }
+const fit = computed(() => (store.data.jobFit && store.data.jobFit.key === fitKey()) ? store.data.jobFit : null)
+const fitLoading = ref(false)
+const fitError = ref('')
+function fitKey() {
+  const s = `${store.data.jobOffer || ''}|${store.data.cvFor || ''}|${store.data.fn || ''} ${store.data.ln || ''}`
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0
+  return String(h)
+}
+const enoughCv = () => hasDraftableContent(store.data) &&
+  ((store.data.experiences || []).some(e => e.title || e.desc) || (store.data.skills || []).length >= 3 || (store.data.education || []).some(e => e.degree))
+async function checkFit(force = false) {
+  if (!hasJob.value || fitLoading.value || !enoughCv() || (fit.value && !force)) return
+  // The wizard and the editor can both show this panel — only one check per job at a time
+  const key = fitKey()
+  if (fitInFlight.has(key)) return
+  fitInFlight.add(key)
+  fitLoading.value = true; fitError.value = ''
+  try {
+    const { photo, ...cv } = JSON.parse(JSON.stringify(store.data))
+    const r = await fetch((import.meta.env.VITE_API_URL || '') + '/api/ai/fit', {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cv, jobOffer: store.data.jobOffer, uiLang: lang.value }),
+    })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) throw Object.assign(new Error(j.error || 'AI is unavailable right now — please try again in a moment.'), { status: r.status })
+    store.data.jobFit = { key: fitKey(), fit: j.fit, headline: j.headline, reasons: j.reasons, advice: j.advice, dismissed: false }
+    if (j.job?.title) store.data.jobTarget = { title: j.job.title, company: j.job.company || '' }
+  } catch (e) {
+    fitError.value = e.status === 429 ? '' : e.message   // the AI-limit pop-up explains a 429
+  }
+  fitInFlight.delete(key)
+  fitLoading.value = false
+}
+watch(() => [store.data.jobOffer, editingJob.value], () => { if (!editingJob.value) checkFit() })
+
+onMounted(() => { if (!hasJob.value) draft.value = store.data.jobOffer || ''; checkFit() })
 </script>
 
 <style scoped>
@@ -190,6 +253,20 @@ onMounted(() => { if (!hasJob.value) draft.value = store.data.jobOffer || '' })
 
 .jm-job{background:var(--c-bg);border-radius:8px;padding:10px 12px}
 .jm-target{font-size:13px;color:var(--c-text);margin-bottom:6px}
+.jm-fit{margin-top:12px;border:1px solid var(--c-border);border-radius:10px;padding:12px 14px;background:var(--c-surface);font-size:13px;line-height:1.5}
+.jm-fit.loading{display:flex;align-items:center;gap:10px;color:var(--c-text2)}
+.jm-fit.good{border-color:color-mix(in srgb,var(--c-green) 40%,transparent);background:color-mix(in srgb,var(--c-green) 6%,var(--c-surface))}
+.jm-fit.stretch{border-color:color-mix(in srgb,var(--c-amber) 45%,transparent);background:color-mix(in srgb,var(--c-amber) 7%,var(--c-surface))}
+.jm-fit.poor{border-color:color-mix(in srgb,var(--c-rose) 45%,transparent);background:color-mix(in srgb,var(--c-rose) 7%,var(--c-surface))}
+.jm-fit-hd{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}
+.jm-fit-badge{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.jm-fit.good .jm-fit-badge{color:var(--c-green)}.jm-fit.stretch .jm-fit-badge{color:var(--c-amber)}.jm-fit.poor .jm-fit-badge{color:var(--c-rose)}
+.jm-fit-ttl{font-weight:600;color:var(--c-text)}
+.jm-fit-list{margin:8px 0 0 18px;color:var(--c-text2)}
+.jm-fit-list li{margin-bottom:3px}
+.jm-fit-advice{margin-top:8px;color:var(--c-text)}
+.jm-fit-note{margin-top:6px;font-size:12px;color:var(--c-text3)}
+.jm-fit-acts{display:flex;gap:6px;margin-top:6px;margin-left:-8px}
 .jm-job-note{font-size:11.5px;color:var(--c-text3);margin-top:6px}
 .jm-job-txt{font-size:12.5px;color:var(--c-text2);line-height:1.5;white-space:pre-line;overflow-wrap:anywhere;
   display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}

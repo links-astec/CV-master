@@ -2,6 +2,7 @@
   <div class="step-wrap">
     <h3 class="step-title">{{ $t('Tell your story') }}</h3>
     <p class="step-sub">{{ $t('Speak or type your career story — AI builds your whole CV from it.') }}</p>
+    <CvForSwitch v-if="!started" />
 
     <div v-if="!started">
       <!-- Mode toggle -->
@@ -161,6 +162,7 @@
 import { ref, computed, nextTick, onUnmounted, inject } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
 import { useAuthStore } from '../../stores/auth.js'
+import CvForSwitch from '../CvForSwitch.vue'
 
 const store = useCvStore()
 const showToast = inject('showToast', null)
@@ -347,7 +349,7 @@ async function askServer(force) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       story: story.value, answers: answers.value, round: round.value, force,
-      lang: store.data.lang, jobOffer: store.data.jobOffer || '',
+      lang: store.data.lang, jobOffer: store.data.jobOffer || '', cvFor: store.data.cvFor || '',
       context: { industry: u?.industry || '', goal: u?.goal || '', experience: u?.experience || '' },
     }),
   })

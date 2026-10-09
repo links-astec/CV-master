@@ -122,6 +122,8 @@ CREATE TABLE IF NOT EXISTS reviews (
 
 -- SESSIONS: bumped when the password changes, which signs out every other session
 ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT NOT NULL DEFAULT 0;
+-- AI personalisation from onboarding answers and the user's other CVs (switchable in Settings)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_personalize BOOLEAN NOT NULL DEFAULT TRUE;
 -- A paid CV is tied to the name on it at its first export (one payment = one person's CV)
 ALTER TABLE payments ADD COLUMN IF NOT EXISTS locked_name TEXT;
 -- Analysed job offers (keywords, requirements), shared by the ATS check and the AI helpers

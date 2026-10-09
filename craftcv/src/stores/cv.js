@@ -24,6 +24,8 @@ const emptyData = () => ({
   jobOffer: '',        // job description the CV is being tailored to (optional)
   jobTailored: '',     // Job match step 2 for this offer: '' | 'applied' | 'skipped'
   jobTarget: null,     // { title, company } read from the job offer (shown in Job match)
+  jobFit: null,        // the AI's "is this role a good fit?" for this offer: { key, fit, headline, reasons, advice, dismissed }
+  cvFor: '',           // '' (guess from the name) | 'self' | 'other' — the AI only personalises your own CVs
   checkIgnored: [],    // checklist warnings the user chose to ignore for this CV
   shrinkToFit: false,  // user accepted shrinking an over-long CV onto one page
 })

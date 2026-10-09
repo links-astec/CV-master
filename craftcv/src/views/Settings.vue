@@ -99,6 +99,43 @@
         </template>
       </section>
 
+      <!-- AI personalisation (own CVs only) -->
+      <section v-if="auth.isLoggedIn" class="st-card">
+        <div class="st-card-hd">
+          <div>
+            <div class="st-card-t">{{ $t('AI personalisation') }}</div>
+            <p class="st-p">{{ $t('For CVs in your own name, the AI uses these answers and your other CVs to tailor its suggestions. CVs you make for someone else never use them.') }}</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" :checked="auth.user?.aiPersonalize !== false" :disabled="profileSaving" @change="saveAiProfile({ aiPersonalize: $event.target.checked })" />
+            <div class="toggle-track"><div class="toggle-thumb"></div></div>
+          </label>
+        </div>
+        <div v-if="auth.user?.aiPersonalize !== false" class="st-rows">
+          <div class="st-row">
+            <label class="st-lbl" for="st-ind">{{ $t('Your field') }}</label>
+            <select id="st-ind" class="f-inp" :value="auth.user?.industry || ''" @change="saveAiProfile({ industry: $event.target.value })">
+              <option value="">—</option>
+              <option v-for="o in INDUSTRIES" :key="o.id" :value="o.id">{{ $t(o.label) }}</option>
+            </select>
+          </div>
+          <div class="st-row">
+            <label class="st-lbl" for="st-goal">{{ $t('What are you aiming for?') }}</label>
+            <select id="st-goal" class="f-inp" :value="auth.user?.goal || ''" @change="saveAiProfile({ goal: $event.target.value })">
+              <option value="">—</option>
+              <option v-for="o in GOALS" :key="o.id" :value="o.id">{{ $t(o.label) }}</option>
+            </select>
+          </div>
+          <div class="st-row">
+            <label class="st-lbl" for="st-lvl">{{ $t('Experience') }}</label>
+            <select id="st-lvl" class="f-inp" :value="auth.user?.experience || ''" @change="saveAiProfile({ experience: $event.target.value })">
+              <option value="">—</option>
+              <option v-for="o in LEVELS" :key="o.id" :value="o.id">{{ $t(o.label) }} ({{ $t(o.years) }})</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
       <!-- Preferences -->
       <section class="st-card">
         <div class="st-card-t">{{ $t('Preferences') }}</div>
@@ -153,6 +190,7 @@ import { useAuthStore } from '../stores/auth.js'
 import { useCvStore } from '../stores/cv.js'
 import ReviewPrompt from '../components/ReviewPrompt.vue'
 import LangSwitch from '../components/LangSwitch.vue'
+import { INDUSTRIES, GOALS, LEVELS } from '../composables/profileOptions.js'
 import { t } from '../i18n/index.js'
 
 const apiUrl    = (p) => (import.meta.env.VITE_API_URL || '') + p
@@ -228,6 +266,24 @@ async function saveProfile() {
     showToast('Saved')
   } catch (e) { saveError.value = e.message }
   saving.value = false
+}
+
+// Personalisation switch and onboarding answers — saved as soon as they change
+const profileSaving = ref(false)
+async function saveAiProfile(change) {
+  profileSaving.value = true
+  try {
+    const r = await fetch(apiUrl('/api/auth/settings'), {
+      method: 'PATCH', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(change),
+    })
+    const data = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(data.error)
+    if (auth.user && data.user) Object.assign(auth.user, { aiPersonalize: data.user.aiPersonalize, industry: data.user.industry, goal: data.user.goal, experience: data.user.experience })
+    showToast('Saved')
+  } catch (e) { showToast(e.message || 'Could not save — please try again.') }
+  profileSaving.value = false
 }
 
 // Signing out clears this browser's copy of the CV; App then shows the homepage

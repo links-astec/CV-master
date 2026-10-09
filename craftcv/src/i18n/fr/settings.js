@@ -8,6 +8,8 @@ export default {
   'Password': 'Mot de passe',
   'Change password': 'Changer le mot de passe',
   'Current password': 'Mot de passe actuel',
+  'AI personalisation': 'Personnalisation de l’IA',
+  'For CVs in your own name, the AI uses these answers and your other CVs to tailor its suggestions. CVs you make for someone else never use them.': 'Pour les CV à votre nom, l’IA utilise ces réponses et vos autres CV pour adapter ses suggestions. Les CV que vous créez pour quelqu’un d’autre ne les utilisent jamais.',
   'New password (8+ characters)': 'Nouveau mot de passe (8 caractères min.)',
   'Hide password': 'Masquer le mot de passe',
   'Show password': 'Afficher le mot de passe',

@@ -2,6 +2,7 @@
   <div class="step-wrap">
     <h3 class="step-title">{{ $t('Personal Information') }}</h3>
     <p class="step-sub">{{ $t('Your contact details appear at the top of every CV.') }}</p>
+    <CvForSwitch />
 
     <!-- Photo — shown by the layouts tagged "Photo" (photo: true in the layout list) -->
     <div v-if="showsPhoto" class="photo-section">
@@ -73,6 +74,7 @@
 import { ref, computed } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
 import { parseTemplate } from '../../composables/cvRenderer.js'
+import CvForSwitch from '../CvForSwitch.vue'
 const store = useCvStore()
 const fileInput = ref(null)
 const dragging  = ref(false)

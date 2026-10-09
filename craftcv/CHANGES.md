@@ -1,5 +1,22 @@
 # Changes
 
+## 2026-10-09 — "Is this role a good fit?" and personalised AI (aware of CVs made for others)
+
+- **Job fit check:** once a job offer is added and the CV has some content, Job match gives an honest verdict.
+  - The verdict is **Good fit**, **A stretch** or **Heads-up: may not be a good fit**, with 2–4 specific reasons and one piece of advice.
+  - It weighs hard requirements (years, qualifications, certifications), the field, languages and location, and never protected traits.
+  - It runs once per job and per person, can be re-checked or hidden, and is in the app's language.
+  - It speaks to "you", or about "this candidate" when the CV is someone else's.
+- **Personalisation:** for CVs in the user's own name, the AI uses their onboarding answers (field, goal, level) and what their other CVs say (past roles, skills, education, languages). This covers the summary, skill suggestions, bullet points, AI fixes, story mode and the fit check. Suggestions can draw on that history, but only facts already on this CV are written onto it.
+- **CVs for someone else:**
+  - A CV whose name doesn't match the account is treated as someone else's, and the AI uses none of the account holder's information.
+  - New **"Who is this CV for? Me / Someone else"** switch in Personal details and in Tell your story.
+  - Other CVs in someone else's name are never used as "memory" either.
+- **Settings → AI personalisation:** an on/off switch, and editable field, goal and level.
+- **Privacy policy** (EN/FR) explains personalisation.
+- Skill suggestions no longer list spoken languages.
+- New `users.ai_personalize` column (in `migrate.js`).
+
 ## 2026-10-09 — Security fixes, server-side PDFs, a reliable ATS score, and job context everywhere
 
 **Security**
