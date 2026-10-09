@@ -3,7 +3,7 @@
     <div v-if="!embedded" class="step-intro">
       <div class="step-icon">🎯</div>
       <h3>{{ $t('Tailor to the job') }}</h3>
-      <p>{{ $t('AI rewrites your CV in the language of the job offer so it ranks well in applicant tracking systems. It only rephrases what you’ve written — it never invents experience. You approve every change.') }}</p>
+      <p>{{ $t('AI rewrites your CV in the language of the job offer so it ranks well in applicant tracking systems. It only rephrases what you’ve written. It never invents experience. You approve every change.') }}</p>
     </div>
 
     <!-- Job offer (the Job match panel has its own box for it) -->
@@ -13,7 +13,7 @@
         :placeholder="$t('Paste the full job description here…')"></textarea>
       <div class="f-hint" :class="{ warn: tooShort }">
         {{ $t(!hasOffer ? 'No job offer yet? You can skip this and come back any time.'
-          : tooShort ? 'Paste the full description — a few sentences at least.'
+          : tooShort ? 'Paste the full description. A few sentences at least.'
           : 'Your job offer is saved with this CV.') }}
       </div>
     </div>
@@ -46,7 +46,7 @@
       </div>
 
       <div v-if="!changes.length && !suggested.length" class="tl-empty">
-        {{ $t('Your CV already matches this job well — there’s nothing worth changing.') }}
+        {{ $t('Your CV already matches this job well. There’s nothing worth changing.') }}
       </div>
 
       <label v-for="c in changes" :key="c.key" class="tl-change" :class="{ off: !c.checked }">
@@ -60,7 +60,7 @@
 
       <div v-if="suggested.length" class="tl-skills">
         <div class="tl-change-lbl">{{ $t('Keywords from the job you could add') }}</div>
-        <div class="tl-skills-note">{{ $t('Only tick the ones you genuinely have — recruiters will ask about them.') }}</div>
+        <div class="tl-skills-note">{{ $t('Only tick the ones you genuinely have. Recruiters will ask about them.') }}</div>
         <div class="tl-chips">
           <label v-for="s in suggested" :key="s.name" class="tl-chip" :class="{ on: s.checked }">
             <input type="checkbox" v-model="s.checked" /> {{ s.name }}
@@ -131,7 +131,7 @@ async function tailor() {
         ...(props.ats ? { ats: { score: props.ats.score, missing: props.ats.missing, gaps: props.ats.gaps } } : {}) }),
     })
     const p = await r.json().catch(() => ({}))
-    if (!r.ok) throw new Error(p.error || 'Tailoring failed — please try again.')
+    if (!r.ok) throw new Error(p.error || 'Tailoring failed, please try again.')
     buildChanges(p)
     proposal.value = p
   } catch (e) {

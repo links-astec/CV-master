@@ -14,7 +14,7 @@
 
     <div v-if="!todo.length" class="ck-good">
       <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-      {{ $t('Every check passed — contact details, summary, experience, skills and education are all in place.') }}
+      {{ $t('Every check passed. Contact details, summary, experience, skills and education are all in place.') }}
     </div>
 
     <div v-for="r in todo" :key="r.id" class="ck-item" :class="r.severity">
@@ -95,7 +95,7 @@ const rules = computed(() => {
       id: 'phone', cat: 'Basics', points: 5,
       severity: d.phone ? 'pass' : 'warn',
       title: d.phone ? 'Phone number present' : 'Phone number missing',
-      text: d.phone ? 'Good — some recruiters prefer calling.' : 'Adding a phone number increases response rate.',
+      text: d.phone ? 'Good. Some recruiters prefer calling.' : 'Adding a phone number increases response rate.',
       stepIndex: 0,
     },
     {
@@ -119,14 +119,14 @@ const rules = computed(() => {
       id: 'summary-exists', cat: 'Summary', points: 10,
       severity: d.sum?.length > 20 ? 'pass' : 'error',
       title: d.sum?.length > 20 ? 'Summary present' : 'Summary missing',
-      text: d.sum?.length > 20 ? 'Good opening — recruiters read this first.' : 'Add a 2–3 sentence professional summary. It’s the first thing read.',
+      text: d.sum?.length > 20 ? 'Good opening. Recruiters read this first.' : 'Add a 2–3 sentence professional summary. It’s the first thing read.',
       stepIndex: 1,
     },
     {
       id: 'summary-length', cat: 'Summary', points: 5,
       severity: !d.sum?.length ? 'error' : d.sum.length >= 100 && d.sum.length <= 600 ? 'pass' : 'warn',
       title: !d.sum?.length ? 'No summary' : d.sum.length < 100 ? 'Summary too short' : d.sum.length > 600 ? 'Summary too long' : 'Summary length is ideal',
-      text: !d.sum?.length ? 'Write a summary to improve your score.' : d.sum.length < 100 ? 'Aim for 2–3 sentences (100–400 characters).' : d.sum.length > 600 ? 'Keep your summary concise — under 4 sentences. Recruiters skim.' : 'Your summary is the right length.',
+      text: !d.sum?.length ? 'Write a summary to improve your score.' : d.sum.length < 100 ? 'Aim for 2–3 sentences (100–400 characters).' : d.sum.length > 600 ? 'Keep your summary concise, under 4 sentences. Recruiters skim.' : 'Your summary is the right length.',
       stepIndex: 1,
     },
 
@@ -142,7 +142,7 @@ const rules = computed(() => {
       id: 'exp-descriptions', cat: 'Experience', points: 10,
       severity: roles.length === 0 ? 'error' : roles.every(e => e.desc && e.desc.length > 30) ? 'pass' : 'warn',
       title: roles.length === 0 ? 'No experience' : roles.every(e => e.desc?.length > 30) ? 'All roles have descriptions' : 'Some roles lack descriptions',
-      text: roles.length === 0 ? 'Add experience entries.' : roles.every(e => e.desc?.length > 30) ? 'Good — descriptions help ATS and recruiters.' : 'Add bullet-point descriptions to every role. Describe responsibilities and achievements.',
+      text: roles.length === 0 ? 'Add experience entries.' : roles.every(e => e.desc?.length > 30) ? 'Good. Descriptions help ATS and recruiters.' : 'Add bullet-point descriptions to every role. Describe responsibilities and achievements.',
       tip: 'Use the format: [Action verb] + [task] + [result/metric]',
       stepIndex: 2,
     },
@@ -162,19 +162,19 @@ const rules = computed(() => {
       stepIndex: 2,
     },
 
-    // Most recent first — read from the dates the user typed
+    // Most recent first. Read from the dates the user typed
     (() => {
       const bad = [isOutOfOrder(roles, 'period') && 'experience', isOutOfOrder(edu, 'year') && 'education'].filter(Boolean)
       return {
         id: 'date-order', cat: 'Experience', points: 5,
         severity: bad.length ? 'warn' : 'pass',
         title: bad.length ? (bad.length === 2 ? 'Experience and education aren’t in date order' : bad[0] === 'experience' ? 'Experience isn’t in date order' : 'Education isn’t in date order') : 'Entries are in date order',
-        text: bad.length ? 'Put the most recent first — recruiters and ATS expect reverse-chronological order. Sort it here, or drag entries in the editor.' : 'Most recent first, as recruiters expect.',
+        text: bad.length ? 'Put the most recent first. Recruiters and ATS expect reverse-chronological order. Sort it here, or drag entries in the editor.' : 'Most recent first, as recruiters expect.',
         stepIndex: bad[0] === 'education' ? 4 : 2,
       }
     })(),
 
-    // AI "quantify" leaves [X%] / [N] placeholders instead of inventing numbers — they
+    // AI "quantify" leaves [X%] / [N] placeholders instead of inventing numbers, they
     // must be filled in (or removed) before the CV is sent anywhere
     (() => {
       const texts = [d.sum, ...exp.map(e => e.desc)].filter(Boolean).join(' ')
@@ -183,7 +183,7 @@ const rules = computed(() => {
         id: 'placeholders', cat: 'Experience', points: 10,
         severity: found.length ? 'error' : 'pass',
         title: found.length ? t('Placeholders to fill in: {list}', { list: found.slice(0, 4).join(' ') }) : 'No placeholders left',
-        text: found.length ? 'Replace these with your real numbers, or delete them — they will print on your CV as they are.' : 'Every figure on your CV is filled in.',
+        text: found.length ? 'Replace these with your real numbers, or delete them. They will print on your CV as they are.' : 'Every figure on your CV is filled in.',
         stepIndex: 2,
       }
     })(),
@@ -212,7 +212,7 @@ const rules = computed(() => {
       id: 'linkedin', cat: 'ATS & Links', points: 5,
       severity: d.li ? 'pass' : 'warn',
       title: d.li ? 'LinkedIn URL present' : 'No LinkedIn URL',
-      text: d.li ? 'Great — recruiters will check your profile.' : 'Adding a LinkedIn URL increases recruiter confidence significantly.',
+      text: d.li ? 'Great. Recruiters will check your profile.' : 'Adding a LinkedIn URL increases recruiter confidence significantly.',
       stepIndex: 0,
     },
     {

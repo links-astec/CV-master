@@ -24,12 +24,12 @@ const app          = express();
 const upload       = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 const IS_PROD          = process.env.NODE_ENV === 'production';
-// Never fall back to a secret that's committed to the repo in production — anyone
+// Never fall back to a secret that's committed to the repo in production, anyone
 // could forge sessions with it. A random per-boot secret just logs everyone out on restart.
 function secretFromEnv(name, devFallback) {
   if (process.env[name]) return process.env[name];
   if (!IS_PROD) return devFallback;
-  console.error(`[config] ${name} is not set — using a random secret (sessions reset on every restart). Set it in the environment.`);
+  console.error(`[config] ${name} is not set. Using a random secret (sessions reset on every restart). Set it in the environment.`);
   return randomBytes(48).toString('hex');
 }
 const JWT_SECRET       = secretFromEnv('JWT_SECRET', 'cvmaster-dev-secret-change-in-prod');
@@ -45,8 +45,10 @@ const FRONTEND_URL     = process.env.FRONTEND_URL || 'http://localhost:5173';
 const resend      = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const SUPPORT_REPLY_TO = process.env.SUPPORT_EMAIL || 'support@cvmaster.live';
 const RESEND_FROM = process.env.RESEND_FROM || 'CVMaster <noreply@cvmaster.live>';
-// Logo at the top of every email (public/email-logo.png, built by scripts/build-brand.mjs)
-const EMAIL_LOGO = '<img src="https://www.cvmaster.live/email-logo.png" width="145" height="32" alt="CVMaster" style="display:block;border:0;outline:none;text-decoration:none;width:145px;height:32px">';
+// Logo at the top of every email (public/email-logo-tile.png: public/email-logo.png on a white tile)
+// The logo sits on its own white rounded tile: invisible on a white email, and still readable when a
+// mail app's dark mode turns the email dark (Gmail's apps darken the colours but never the images)
+const EMAIL_LOGO = '<img src="https://www.cvmaster.live/email-logo-tile.png" width="169" height="50" alt="CVMaster" style="display:block;border:0;outline:none;text-decoration:none;width:169px;height:50px">';
 
 const smtpTransport = (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
   ? nodemailer.createTransport({
@@ -95,7 +97,7 @@ async function sendMail(opts) {
     catch (e) { errors.push('SMTP: ' + e.message); console.warn('[mailer] SMTP failed:', e.message); }
   }
   if (!errors.length) {
-    console.log('[mailer] No mail provider configured — email skipped. To:', opts.to);
+    console.log('[mailer] No mail provider configured, email skipped. To:', opts.to);
     throw new Error('Email is not configured on the server.');
   }
   throw new Error(errors.join(' | '));
@@ -120,6 +122,12 @@ app.use(helmet({
 app.use(compression());
 app.use(cookieParser());
 
+// api.cvmaster.live is not a website: keep it out of search results, and send anyone who
+// lands on its root to the real site (Google had found it and reported a 404)
+app.use((req, res, next) => { res.setHeader('X-Robots-Tag', 'noindex, nofollow'); next(); });
+app.get('/robots.txt', (req, res) => res.type('text/plain').send(['User-agent: *', 'Disallow: /', ''].join('\n')));
+app.get('/', (req, res) => res.redirect(301, 'https://www.cvmaster.live/'));
+
 // ── MAINTENANCE MODE ──────────────────────────────────────────────────────────
 let maintenanceMode = process.env.MAINTENANCE_MODE === 'true';
 
@@ -138,7 +146,7 @@ app.use((req, res, next) => {
     });
   }
   res.status(503).send(`<!DOCTYPE html><html><head><meta charset="UTF-8">
-<title>CVMaster — Maintenance</title>
+<title>CVMaster | Maintenance</title>
 <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,sans-serif;background:#0d1117;color:#e6edf3;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:24px}.box{max-width:420px}.logo{font-size:24px;font-weight:700;margin-bottom:24px}.logo b{color:#2f81f7}h1{font-size:28px;font-weight:700;margin-bottom:12px}p{color:#8b949e;font-size:15px;line-height:1.6}</style>
 </head><body><div class="box">
 <div class="logo">CV<b>Master</b></div>
@@ -147,7 +155,7 @@ app.use((req, res, next) => {
 </div></body></html>`);
 });
 
-// Stripe webhook for watermark unlock — raw body required, must be BEFORE express.json
+// Stripe webhook for watermark unlock. Raw body required, must be BEFORE express.json
 app.post('/api/webhooks/stripe', express.raw({type:'application/json'}), handleWatermarkWebhook);
 app.post('/api/webhooks/resend-inbound', express.raw({ type: 'application/json', limit: '2mb' }), handleInboundEmail);
 
@@ -166,6 +174,84 @@ app.use(cors({
 
 // Trust Render/Vercel proxy so rate-limit sees real client IPs
 app.set('trust proxy', 1);
+
+
+// ── IN-APP NOTIFICATIONS ──────────────────────────────────────────────────────
+// The bell in the app. Titles and bodies are written in English and translated in the
+// browser (they're keys in the i18n dictionaries); `link` is where clicking takes you.
+let _notifCols = null;
+function ensureNotifCols() {
+  if (!_notifCols) _notifCols = query('ALTER TABLE notifications ADD COLUMN IF NOT EXISTS link TEXT').catch(e => { _notifCols = null; throw e; });
+  return _notifCols;
+}
+async function notify(userId, type, title, body, link = null) {
+  try {
+    await ensureNotifCols();
+    await query('INSERT INTO notifications (user_id, type, title, body, link) VALUES ($1, $2, $3, $4, $5)', [userId, type, title, body, link]);
+  } catch (e) { console.warn('[notify]', e.message); }
+}
+
+// ── GENTLE REMINDERS ──────────────────────────────────────────────────────────
+// Render's free server sleeps when idle, so instead of a timer these run when requests come
+// in, at most every 6 hours:
+//  • once, a few days after someone made a CV they haven't bought: "your CV is ready" (bell)
+//  • a review request in the bell, at most 3 times, 45+ days apart, until they leave a review
+//  • one review-request email. Only to paying customers who subscribed to emails
+let _jobsAt = 0, _jobsRunning = false;
+async function ensureReminderCols() {
+  await ensureReferralColumns();
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS unpaid_nudged_at TIMESTAMPTZ`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS review_nudged_at TIMESTAMPTZ`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS review_nudge_count INT NOT NULL DEFAULT 0`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS review_emailed_at TIMESTAMPTZ`);
+}
+async function runReminders() {
+  await ensureReminderCols();
+  await ensureReviewsTable();
+  await ensureNotifCols();
+  const PAID = `EXISTS (SELECT 1 FROM payments p WHERE p.user_id = u.id AND p.paid AND p.product = 'email_export')`;
+  // 1. CV made 2+ days ago, never bought
+  const unpaid = (await query(`SELECT u.id FROM users u WHERE u.unpaid_nudged_at IS NULL AND NOT ${PAID}
+      AND EXISTS (SELECT 1 FROM drafts d WHERE d.user_id = u.id AND d.created_at < NOW() - INTERVAL '2 days') LIMIT 300`)).rows;
+  for (const { id } of unpaid) {
+    await notify(id, 'tip', 'Your CV is ready when you are', 'Open it from My CVs, check your ATS score against a job, and get the clean PDF whenever you like.', '/');
+    await query('UPDATE users SET unpaid_nudged_at = NOW() WHERE id = $1', [id]);
+  }
+  // 2. Review request in the bell
+  const toAsk = (await query(`SELECT u.id FROM users u
+      WHERE NOT EXISTS (SELECT 1 FROM reviews r WHERE r.user_id = u.id)
+        AND u.review_nudge_count < 3 AND (u.review_nudged_at IS NULL OR u.review_nudged_at < NOW() - INTERVAL '45 days')
+        AND EXISTS (SELECT 1 FROM drafts d WHERE d.user_id = u.id AND d.created_at < NOW() - INTERVAL '5 days') LIMIT 300`)).rows;
+  for (const { id } of toAsk) {
+    await notify(id, 'review', 'How is CVMaster working for you?', 'A quick rating helps other job seekers find us. It takes 10 seconds.', '/settings#review');
+    await query('UPDATE users SET review_nudged_at = NOW(), review_nudge_count = review_nudge_count + 1 WHERE id = $1', [id]);
+  }
+  // 3. One review email: paying customers who subscribed, a week after their purchase
+  await linkSubscribers();
+  const toEmail = (await query(`SELECT u.id, u.name, s.email, s.token FROM users u JOIN newsletter_subscribers s ON s.user_id = u.id AND s.status = 'subscribed'
+      WHERE u.review_emailed_at IS NULL AND NOT EXISTS (SELECT 1 FROM reviews r WHERE r.user_id = u.id)
+        AND EXISTS (SELECT 1 FROM payments p WHERE p.user_id = u.id AND p.paid AND p.product = 'email_export' AND p.created_at < NOW() - INTERVAL '7 days')
+      LIMIT 100`)).rows;
+  if (toEmail.length) {
+    const body = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#14142B">
+      <div style="margin-bottom:24px">${EMAIL_LOGO}</div>
+      <h2 style="font-size:22px;margin:0 0 10px">How did CVMaster do, {{first_name}}?</h2>
+      <p style="color:#4A4A63;line-height:1.65;margin:0 0 22px">If CVMaster helped with your applications, a quick rating helps other job seekers find us. It takes 10 seconds. And if something annoyed you, we really want to know.</p>
+      <a href="https://www.cvmaster.live/settings#review" style="display:inline-block;background:#4338CA;color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-weight:700;font-size:15px">Leave a rating</a>
+      <p style="color:#888;font-size:13px;margin-top:22px">The CVMaster team</p></div>`;
+    const res = await sendBulk(toEmail.map(r => newsletterMail(r.email, r.token, 'How did CVMaster do, {{first_name}}?', body, r.name)));
+    for (const r of toEmail) await query('UPDATE users SET review_emailed_at = NOW() WHERE id = $1', [r.id]);
+    console.log(`[reminders] review emails: ${res.sent} sent, ${res.failed} failed`);
+  }
+  console.log(`[reminders] unpaid nudges ${unpaid.length}, review nudges ${toAsk.length}, review emails ${toEmail.length}`);
+}
+app.use((req, res, next) => {
+  if (!_jobsRunning && Date.now() - _jobsAt > 6 * 60 * 60 * 1000 && process.env.DISABLE_REMINDERS !== 'true') {
+    _jobsAt = Date.now(); _jobsRunning = true;
+    setTimeout(() => runReminders().catch(e => console.warn('[reminders]', e.message)).finally(() => { _jobsRunning = false; }), 5000);
+  }
+  next();
+});
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
 app.use('/api/',      rateLimit({ windowMs: 15*60*1000, max: 200, standardHeaders: true, legacyHeaders: false }));
@@ -197,8 +283,12 @@ function generateReferralCode(name, email) {
   return `${prefix}-${suffix}`
 }
 
+// Interface languages (keep in step with src/i18n/index.js) and their names for AI prompts
+const UI_LANGS = ['en', 'fr', 'es', 'de', 'it', 'pt', 'zh'];
+const UI_LANG_NAME = { en: 'English', fr: 'French', es: 'Spanish', de: 'German', it: 'Italian', pt: 'Portuguese', zh: 'Simplified Chinese' };
+const uiLangName = (code) => UI_LANG_NAME[code] || 'English';
 const tokenOf = (req) => req.cookies?.token || req.headers.authorization?.replace('Bearer ', '') || '';
-const _tokenVersions = new Map();   // userId → { v, at } — cached for 30s
+const _tokenVersions = new Map();   // userId → { v, at }, cached for 30s
 async function tokenVersionOf(userId) {
   const hit = _tokenVersions.get(userId);
   if (hit && Date.now() - hit.at < 30000) return hit.v;
@@ -235,8 +325,8 @@ async function authMiddleware(req, res, next) {
   next();
 }
 // AI + CV import work for guests too (attach the user when there is a valid session).
-// Every AI request uses the daily allowance — AI_FREE_PER_DAY per account, or per IP for
-// guests — and after that one of the account's paid extra credits (AI_PACK_SIZE for €0.50).
+// Every AI request uses the daily allowance. AI_FREE_PER_DAY per account, or per IP for
+// guests. And after that one of the account's paid extra credits (AI_PACK_SIZE for €0.50).
 const AI_FREE_PER_DAY = 30;   // confirmed accounts (Google, or email confirmed)
 const AI_GUEST_PER_DAY = 5;   // guests and accounts that haven't confirmed their email
 const AI_PACK_SIZE    = 100;
@@ -263,7 +353,7 @@ async function aiTier(req) {
 }
 const aiLimitFor = (tier) => tier === 'verified' ? AI_FREE_PER_DAY : AI_GUEST_PER_DAY;
 
-// { ok, freeLeft, credits, tier } — counts this request
+// { ok, freeLeft, credits, tier }, counts this request
 async function useAiAllowance(req) {
   await ensureAiTables();
   const tier = await aiTier(req), limit = aiLimitFor(tier);
@@ -305,6 +395,7 @@ function publicUser(row) {
     goal:       row.goal       || null,
     experience: row.experience || null,
     aiPersonalize: row.ai_personalize !== false,
+    uiLang: row.ui_lang || null,
     // Google accounts are verified by Google; email accounts confirm by link
     emailVerified: row.provider === 'google' || !!row.email_verified,
   };
@@ -314,15 +405,15 @@ async function seedNotifications(userId) {
   await query(`
     INSERT INTO notifications (user_id, type, title, body, created_at) VALUES
     ($1, 'welcome', 'Welcome to CVMaster',  'Your account is ready. Start building your CV now.',                                   NOW()),
-    ($1, 'tip',     'AI tip',               'Try “Tell your story” — describe your career and AI builds your CV, asking about anything missing.', NOW() - INTERVAL '1 minute'),
-    ($1, 'feature', '50 templates',         'ATS-friendly layouts for online applications and creative ones for print — switch any time.',     NOW() - INTERVAL '2 minutes')
+    ($1, 'tip',     'AI tip',               'Try “Tell your story”. Describe your career and AI builds your CV, asking about anything missing.', NOW() - INTERVAL '1 minute'),
+    ($1, 'feature', '50 templates',         'ATS-friendly layouts for online applications and creative ones for print, switch any time.',     NOW() - INTERVAL '2 minutes')
   `, [userId]);
 }
 
 // ── REFERRALS ─────────────────────────────────────────────────────────────────
 // Signing up with a friend's link gives the new user REFERRAL_WELCOME_AI extra AI requests.
 // The friend who shared the link earns one free CV (a referral credit) only when the new
-// user buys their first clean PDF — so fake sign-ups can't be farmed for free CVs.
+// user buys their first clean PDF. So fake sign-ups can't be farmed for free CVs.
 const REFERRAL_WELCOME_AI = 25;
 let _refCols = null;
 function ensureReferralColumns() {
@@ -332,6 +423,7 @@ function ensureReferralColumns() {
       .then(() => query('ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE'))
       .then(() => query('ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT NOT NULL DEFAULT 0'))
       .then(() => query('ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_personalize BOOLEAN NOT NULL DEFAULT TRUE'))
+      .then(() => query('ALTER TABLE users ADD COLUMN IF NOT EXISTS ui_lang TEXT'))
       .then(() => ensureAiTables())
       .catch(e => { _refCols = null; throw e; });
   }
@@ -346,10 +438,11 @@ async function findReferrer(code, newEmail) {
 }
 async function welcomeReferred(userId) {
   await ensureReferralColumns();
-  await query(
+  const r = await query(
     `UPDATE users SET ai_credits = ai_credits + $1, referral_welcomed = TRUE
      WHERE id = $2 AND referred_by IS NOT NULL AND NOT referral_welcomed
-       AND (provider = 'google' OR email_verified)`, [REFERRAL_WELCOME_AI, userId]);
+       AND (provider = 'google' OR email_verified) RETURNING id`, [REFERRAL_WELCOME_AI, userId]);
+  if (r.rows.length) await notify(userId, 'feature', '25 extra AI requests', 'A welcome gift from the friend who invited you.', '/settings');
 }
 
 // ── EMAIL VERIFICATION ────────────────────────────────────────────────────────
@@ -384,9 +477,10 @@ app.post('/api/auth/verify-email', async (req, res) => {
     const { rows } = await query('UPDATE users SET email_verified = TRUE WHERE id = $1 AND email = $2 RETURNING *', [p.sub, p.email]);
     if (!rows.length) return res.status(400).json({ error: 'This confirmation link no longer matches an account.' });
     await welcomeReferred(rows[0].id).catch(() => {});
+    await notify(rows[0].id, 'system', 'Email confirmed', 'You now get 30 AI requests a day.');
     await activatePendingForUser(rows[0]).catch(() => {});
     res.json({ ok: true, user: publicUser(rows[0]) });
-  } catch (e) { res.status(500).json({ error: 'Could not confirm your email — please try again.' }); }
+  } catch (e) { res.status(500).json({ error: 'Could not confirm your email, please try again.' }); }
 });
 
 app.post('/api/auth/resend-verification', authMiddleware, async (req, res) => {
@@ -397,7 +491,7 @@ app.post('/api/auth/resend-verification', authMiddleware, async (req, res) => {
     if (u.provider === 'google' || u.email_verified) return res.json({ ok: true, alreadyVerified: true });
     await sendVerificationEmail(u);
     res.json({ ok: true });
-  } catch (e) { console.error('[verify/resend]', e.message); res.status(500).json({ error: 'Could not send the email — please try again in a minute.' }); }
+  } catch (e) { console.error('[verify/resend]', e.message); res.status(500).json({ error: 'Could not send the email. Please try again in a minute.' }); }
 });
 // Called whenever a paid CV is recorded; rewards the referrer once per referred user
 async function rewardReferrer(userId) {
@@ -411,7 +505,7 @@ async function rewardReferrer(userId) {
   await query('UPDATE users SET referral_credits = referral_credits + 1 WHERE id = $1', [referrerId]);
   const first = String(name || 'A friend').split(' ')[0];
   await query(`INSERT INTO notifications (user_id, type, title, body) VALUES ($1, 'referral', 'You earned a free CV', $2)`,
-    [referrerId, `${first} got their CV with your link — your next clean PDF is on us.`]).catch(() => {});
+    [referrerId, `${first} got their CV with your link. Your next clean PDF is on us.`]).catch(() => {});
 }
 
 // ── NEWSLETTER ────────────────────────────────────────────────────────────────
@@ -440,13 +534,20 @@ function ensureNewsletterTable() {
   }
   return _nlTable;
 }
+// Someone can subscribe on the homepage before (or without) signing in, so the row has no
+// account yet. Link it by email whenever we need names or plans (personalised sends, filters).
+async function linkSubscribers() {
+  await ensureNewsletterTable();
+  await query(`UPDATE newsletter_subscribers s SET user_id = u.id FROM users u
+               WHERE s.user_id IS NULL AND LOWER(u.email) = LOWER(s.email)`);
+}
 // status: 'pending' | 'subscribed' | 'unsubscribed'. A pending request never downgrades
 // someone who is already subscribed.
 async function setSubscription(email, { userId = null, source, status }) {
   await ensureNewsletterTable();
   const { rows } = await query(
     `INSERT INTO newsletter_subscribers (email, user_id, status, source, token, consent_at, unsubscribed_at)
-     VALUES ($1, $2, $3::text, $4, $5,
+     VALUES ($1, COALESCE($2::uuid, (SELECT id FROM users WHERE LOWER(email) = $1 LIMIT 1)), $3::text, $4, $5,
              CASE WHEN $3::text = 'subscribed' THEN NOW() END,
              CASE WHEN $3::text = 'unsubscribed' THEN NOW() END)
      ON CONFLICT (email) DO UPDATE SET
@@ -480,7 +581,7 @@ async function sendNewsletterConfirm(sub) {
       <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#fff;color:#14142B">
         <div style="margin-bottom:26px">${EMAIL_LOGO}</div>
         <h2 style="font-size:22px;margin:0 0 10px">One click to confirm</h2>
-        <p style="color:#55556F;line-height:1.65;margin:0 0 22px">Confirm that you’d like CV tips, job-hunting advice and CVMaster news by email — at most a couple of emails a month.</p>
+        <p style="color:#55556F;line-height:1.65;margin:0 0 22px">Confirm that you’d like CV tips, job-hunting advice and CVMaster news by email. At most a couple of emails a month.</p>
         <a href="${link}" style="display:inline-block;background:#4338CA;color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-weight:700;font-size:15px">Yes, subscribe me</a>
         <p style="color:#8A8AA3;font-size:12px;line-height:1.6;margin-top:26px;border-top:1px solid #eee;padding-top:14px">
           If you didn’t ask for this, ignore this email and you won’t hear from us. You can unsubscribe from any newsletter in one click.</p>
@@ -490,7 +591,7 @@ async function sendNewsletterConfirm(sub) {
 // Simple standalone page for the confirm / unsubscribe links (served by the API)
 function nlPage(title, body) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
-<title>${title} — CVMaster</title><style>body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:#F5F5FA;color:#14142B;display:grid;place-items:center;min-height:100vh;padding:16px;box-sizing:border-box}
+<title>${title} | CVMaster</title><style>body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:#F5F5FA;color:#14142B;display:grid;place-items:center;min-height:100vh;padding:16px;box-sizing:border-box}
 .c{background:#fff;border:1px solid #E4E4EE;border-radius:16px;padding:32px 28px;max-width:420px;width:100%;box-sizing:border-box}
 .b{font-size:18px;font-weight:800;margin-bottom:20px}.b span{color:#4338CA}h1{font-size:21px;margin:0 0 10px}p{color:#4A4A63;line-height:1.6;margin:0 0 18px}
 button,a.btn{display:inline-block;background:#4338CA;color:#fff;border:0;border-radius:10px;padding:12px 22px;font-weight:700;font-size:15px;text-decoration:none;cursor:pointer}
@@ -509,7 +610,7 @@ app.post('/api/newsletter/subscribe', rateLimit({ windowMs: 10 * 60 * 1000, max:
     const sub = await setSubscription(email, { source: 'homepage', status: 'pending' });
     await sendNewsletterConfirm(sub);
     res.json({ ok: true });
-  } catch (e) { console.error('[newsletter/subscribe]', e.message); res.status(500).json({ error: 'Could not subscribe you right now — please try again later.' }); }
+  } catch (e) { console.error('[newsletter/subscribe]', e.message); res.status(500).json({ error: 'Could not subscribe you right now. Please try again later.' }); }
 });
 
 app.get('/api/newsletter/confirm', async (req, res) => {
@@ -524,7 +625,7 @@ app.get('/api/newsletter/confirm', async (req, res) => {
 });
 
 // GET shows a button (so link scanners in mail apps can't unsubscribe people by accident);
-// POST unsubscribes — it is also the RFC 8058 one-click target used by Gmail and Outlook.
+// POST unsubscribes. It is also the RFC 8058 one-click target used by Gmail and Outlook.
 app.get('/api/newsletter/unsubscribe', async (req, res) => {
   const t = String(req.query.t || '').replace(/[^a-f0-9]/g, '');
   res.type('html').send(nlPage('Unsubscribe', `<h1>Unsubscribe from CVMaster emails?</h1><p>You’ll stop getting our newsletter. Emails about your account and purchases still arrive.</p>
@@ -580,13 +681,13 @@ async function domainAcceptsMail(domain) {
   _mxCache.set(domain, { ok, at: Date.now() });
   return ok;
 }
-// { ok, error? } — error is a message to show the user
+// { ok, error? }. Error is a message to show the user
 async function checkEmailAddress(email) {
   const e = String(email || '').trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) return { ok: false, error: 'That doesn’t look like an email address.' };
   const domain = e.split('@')[1];
-  if (DISPOSABLE.has(domain)) return { ok: false, error: 'Temporary / throwaway email addresses can’t be used — please use your real email.' };
-  if (!(await domainAcceptsMail(domain))) return { ok: false, error: `“${domain}” can’t receive email — check for a typo.` };
+  if (DISPOSABLE.has(domain)) return { ok: false, error: 'Temporary / throwaway email addresses can’t be used. Please use your real email.' };
+  if (!(await domainAcceptsMail(domain))) return { ok: false, error: `“${domain}” can’t receive email. Check for a typo.` };
   return { ok: true };
 }
 app.get('/api/email-check', rateLimit({ windowMs: 10 * 60 * 1000, max: 40 }), async (req, res) => {
@@ -603,7 +704,7 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ error: 'All fields required.' });
     }
     if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
-    if (password.length > 200 || email.length > 254 || name.trim().length > 100) return res.status(400).json({ error: 'That’s too long — please shorten it.' });
+    if (password.length > 200 || email.length > 254 || name.trim().length > 100) return res.status(400).json({ error: 'That’s too long, please shorten it.' });
     const key = email.toLowerCase().trim();
     const emailCheck = await checkEmailAddress(key);
     if (!emailCheck.ok) return res.status(400).json({ error: emailCheck.error });
@@ -705,7 +806,7 @@ app.post('/api/auth/google', async (req, res) => {
     res.json({ user: publicUser(user) });
   } catch (e) {
     console.error('Google auth error:', e.message);
-    res.status(401).json({ error: 'Google sign-in failed — please try again.' });
+    res.status(401).json({ error: 'Google sign-in failed, please try again.' });
   }
 });
 
@@ -717,7 +818,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     if (!email) return res.status(400).json({ error: 'Email required.' });
     const { rows } = await query('SELECT * FROM users WHERE email = $1', [email.toLowerCase().trim()]);
     const user = rows[0];
-    // Always return 200 — never reveal whether an email exists
+    // Always return 200. Never reveal whether an email exists
     if (!user || user.provider === 'google') return res.json({ ok: true });
 
     const token    = randomBytes(32).toString('hex');
@@ -740,13 +841,13 @@ app.post('/api/auth/forgot-password', async (req, res) => {
           <h2 style="font-size:22px;color:#1a1916;margin-bottom:8px;">Reset your password</h2>
           <p style="color:#6b6860;line-height:1.65;margin-bottom:24px;">
             Hi ${escHtml(user.name)},<br/><br/>
-            We received a request to reset your password. Click the button below — this link expires in <strong>1 hour</strong>.
+            We received a request to reset your password. Click the button below. This link expires in <strong>1 hour</strong>.
           </p>
           <a href="${resetUrl}" style="display:inline-block;background:#4338CA;color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-weight:600;font-size:15px;margin-bottom:24px;">
             Reset Password
           </a>
           <p style="color:#b0ada6;font-size:12px;line-height:1.6;border-top:1px solid #f0ede8;padding-top:16px;">
-            If you didn't request this, you can safely ignore this email — your password won't change.<br/>
+            If you didn't request this, you can safely ignore this email, your password won't change.<br/>
             Or copy this link: ${resetUrl}
           </p>
         </div>`,
@@ -761,7 +862,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
     const { token, password } = req.body;
     if (typeof token !== 'string' || typeof password !== 'string' || !token || !password) return res.status(400).json({ error: 'Token and password required.' });
     if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
-    if (password.length > 200) return res.status(400).json({ error: 'That’s too long — please shorten it.' });
+    if (password.length > 200) return res.status(400).json({ error: 'That’s too long, please shorten it.' });
 
     const { rows } = await query(
       'DELETE FROM reset_tokens WHERE token = $1 AND expires_at > NOW() RETURNING user_id',
@@ -826,10 +927,11 @@ app.patch('/api/auth/settings', authMiddleware, async (req, res) => {
     const params  = [];
     const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
     if (name) {
-      if (name.length > 100) return res.status(400).json({ error: 'That’s too long — please shorten it.' });
+      if (name.length > 100) return res.status(400).json({ error: 'That’s too long, please shorten it.' });
       params.push(name, name[0].toUpperCase());
       updates.push(`name = $${params.length - 1}`, `avatar = $${params.length}`);
     }
+    if (UI_LANGS.includes(req.body.uiLang)) { await ensureReferralColumns(); params.push(req.body.uiLang); updates.push(`ui_lang = $${params.length}`); }
     if (typeof req.body.aiPersonalize === 'boolean') { await ensureReferralColumns(); params.push(req.body.aiPersonalize); updates.push(`ai_personalize = $${params.length}`); }
     const pick = (v, allowed) => (typeof v === 'string' && allowed.includes(v) ? v : undefined);
     const prof = {
@@ -841,7 +943,7 @@ app.patch('/api/auth/settings', authMiddleware, async (req, res) => {
     const newPassword = typeof req.body.password === 'string' ? req.body.password : '';
     if (newPassword) {
       if (newPassword.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
-      if (newPassword.length > 200) return res.status(400).json({ error: 'That’s too long — please shorten it.' });
+      if (newPassword.length > 200) return res.status(400).json({ error: 'That’s too long, please shorten it.' });
       const me = (await query('SELECT hash FROM users WHERE id = $1', [req.user.sub])).rows[0];
       // Accounts with a password must confirm the current one (Google-only accounts are setting their first)
       if (me?.hash && !(await bcrypt.compare(String(req.body.currentPassword || '').slice(0, 200), me.hash))) {
@@ -870,7 +972,7 @@ app.get('/api/notifications', authMiddleware, async (req, res) => {
       [req.user.sub]
     );
     res.json(rows.map(n => ({
-      id: n.id, type: n.type, title: n.title,
+      id: n.id, type: n.type, title: n.title, link: n.link || null,
       body: n.body, read: n.read, time: new Date(n.created_at).getTime(),
     })));
   } catch (e) { res.status(500).json({ error: 'Failed to fetch notifications.' }); }
@@ -914,7 +1016,10 @@ async function creditAiPack(userId, sessionId, source) {
      VALUES ($1, 'ai_pack', $2, TRUE, 'ai_pack', $3) ON CONFLICT (session_id) DO NOTHING RETURNING id`,
     [userId, sessionId, source]
   );
-  if (ins.rows.length) await query('UPDATE users SET ai_credits = ai_credits + $1 WHERE id = $2', [AI_PACK_SIZE, userId]);
+  if (ins.rows.length) {
+    await query('UPDATE users SET ai_credits = ai_credits + $1 WHERE id = $2', [AI_PACK_SIZE, userId]);
+    await notify(userId, 'payment', '100 AI requests added', 'They never expire and are used after your free ones each day.', '/settings');
+  }
   return (await query('SELECT ai_credits FROM users WHERE id = $1', [userId])).rows[0]?.ai_credits || 0;
 }
 
@@ -929,7 +1034,7 @@ app.post('/api/payment/ai-pack', authMiddleware, async (req, res) => {
     }
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      line_items: [{ price_data: { currency: CV_CURRENCY, product_data: { name: `CVMaster — ${AI_PACK_SIZE} extra AI requests`, description: 'Never expire · use them for writing help, tailoring, ATS checks and fixes' }, unit_amount: AI_PACK_CENTS }, quantity: 1 }],
+      line_items: [{ price_data: { currency: CV_CURRENCY, product_data: { name: `CVMaster | ${AI_PACK_SIZE} extra AI requests`, description: 'Never expire · use them for writing help, tailoring, ATS checks and fixes' }, unit_amount: AI_PACK_CENTS }, quantity: 1 }],
       mode: 'payment',
       success_url: `${FRONTEND_URL}/?ai_pack={CHECKOUT_SESSION_ID}`,
       cancel_url:  `${FRONTEND_URL}/`,
@@ -950,7 +1055,7 @@ app.post('/api/payment/ai-pack/verify', authMiddleware, async (req, res) => {
       return res.status(402).json({ error: 'This payment has not completed.' });
     }
     res.json({ credits: await creditAiPack(req.user.sub, sessionId, 'stripe') });
-  } catch (e) { console.error('[ai-pack/verify]', e.message); res.status(500).json({ error: 'Could not confirm your payment — contact us if you were charged.' }); }
+  } catch (e) { console.error('[ai-pack/verify]', e.message); res.status(500).json({ error: 'Could not confirm your payment. Contact us if you were charged.' }); }
 });
 
 // ── AI PROXY ──────────────────────────────────────────────────────────────────
@@ -986,7 +1091,15 @@ async function callClaude(prompt, systemPrompt, maxTokens) {
 // Claude → Groq fallback is visible
 const aiLast = { provider: null, claudeError: null, at: null };
 
+// Em dashes make text read as machine-written: the AI is told not to use them, and any that
+// slip through become commas (an en dash in a date range, "2021 – 2023", is untouched).
+const NO_DASH_RULE = 'Never use the em dash character (—). Use commas, colons or full stops instead.';
+const noEmDash = (s) => String(s || '').replace(/\s*—\s*/g, ', ');
 async function callAi(prompt, model = AI_MODEL, systemPrompt = null, maxTokens = 800, reasoningEffort = 'low') {
+  return noEmDash(await callAiRaw(prompt, model, systemPrompt ? `${systemPrompt}
+${NO_DASH_RULE}` : NO_DASH_RULE, maxTokens, reasoningEffort));
+}
+async function callAiRaw(prompt, model, systemPrompt, maxTokens, reasoningEffort) {
   if (ANTHROPIC_KEY) {
     try {
       const out = await callClaude(prompt, systemPrompt, maxTokens);
@@ -1051,9 +1164,9 @@ const JOB_BRIEF_PROMPT = `You read a job advert the way an applicant tracking sy
  "education":"","languages":[],"summary":"one sentence on what the role is","duties":["3-6 short main responsibilities"],
  "keywords":[{"term":"","alts":[],"type":"hard|tool|cert|domain|soft","required":true}]}
 Rules:
-- "keywords": 12-30 terms an ATS would match — skills, tools, technologies, methods, certifications, domain knowledge, and at most 4 soft skills. Use the advert's own wording, 1-4 words each. No generic words ("team", "work", "experience").
+- "keywords": 12-30 terms an ATS would match. Skills, tools, technologies, methods, certifications, domain knowledge, and at most 4 soft skills. Use the advert's own wording, 1-4 words each. No generic words ("team", "work", "experience").
 - "required": true when the advert says it is required, essential, a must, or lists it under requirements; false for nice-to-haves.
-- "alts": up to 5 other ways a CV might say the same thing — acronym and full form (CRM / Customer Relationship Management), singular/plural, common spellings, and the equivalent in French and in English.
+- "alts": up to 5 other ways a CV might say the same thing. Acronym and full form (CRM / Customer Relationship Management), singular/plural, common spellings, and the equivalent in French and in English.
 - "years": the minimum years of experience asked for, as a number, or null if not stated.
 - "education": the degree level or field asked for, or "" if none. "languages": spoken languages required (e.g. "English", "French").`;
 
@@ -1138,8 +1251,10 @@ function cvYears(exps) {
   return Math.round(total * 10) / 10;
 }
 
-function atsScore(cv, brief, uiLang) {
-  const fr = uiLang === 'fr', L = (en, frT) => (fr ? frT : en);
+// Explanations come back as message keys + values ({ key, params }); the app translates them
+// into whichever interface language is in use. Array values are translated item by item.
+function atsScore(cv, brief) {
+  const M = (key, params) => ({ key, params });
   const str = (v) => (typeof v === 'string' ? v : '');
   const arr = (v) => (Array.isArray(v) ? v : []);
   const exps = arr(cv.experiences).filter(e => e && (str(e.title) || str(e.company) || str(e.desc)));
@@ -1170,12 +1285,12 @@ function atsScore(cv, brief, uiLang) {
 
   // Sections an ATS parses
   const sections = [
-    ['email', !!str(cv.email).trim(), L('email address', 'adresse e-mail')],
-    ['phone', !!str(cv.phone).trim(), L('phone number', 'numéro de téléphone')],
-    ['summary', str(cv.sum).trim().length >= 80, L('a professional summary', 'un résumé professionnel')],
-    ['experience', exps.length > 0 && exps.some(e => str(e.period).trim()), L('dated work experience', 'une expérience datée')],
-    ['education', edu.length > 0, L('education', 'une formation')],
-    ['skills', arr(cv.skills).length >= 5, L('at least 5 skills', 'au moins 5 compétences')],
+    ['email', !!str(cv.email).trim(), 'an email address'],
+    ['phone', !!str(cv.phone).trim(), 'a phone number'],
+    ['summary', str(cv.sum).trim().length >= 80, 'a professional summary'],
+    ['experience', exps.length > 0 && exps.some(e => str(e.period).trim()), 'dated work experience'],
+    ['education', edu.length > 0, 'an education section'],
+    ['skills', arr(cv.skills).length >= 5, 'at least 5 skills'],
   ];
   const secScore = sections.filter(s => s[1]).length / sections.length;
 
@@ -1196,18 +1311,18 @@ function atsScore(cv, brief, uiLang) {
   // What to do about it, most useful first
   const reqMissing = missing.filter(k => k.required).map(k => k.term), niceMissing = missing.filter(k => !k.required).map(k => k.term);
   const gaps = [], suggestions = [];
-  if (reqMissing.length) gaps.push(L(`Required by the job but not on your CV: ${reqMissing.slice(0, 8).join(', ')}.`, `Exigé par l’offre mais absent de votre CV : ${reqMissing.slice(0, 8).join(', ')}.`));
-  if (brief.years && years < brief.years) gaps.push(L(`The job asks for ${brief.years}+ years of experience; your CV shows about ${years}.`, `L’offre demande ${brief.years} ans d’expérience ou plus ; votre CV en montre environ ${years}.`));
-  if (langsMissing.length) gaps.push(L(`The job asks for ${langsMissing.join(', ')} — add it under Languages if you speak it.`, `L’offre demande : ${langsMissing.join(', ')} — ajoutez-la dans Langues si vous la parlez.`));
-  if (brief.education && !edu.length) gaps.push(L(`The job mentions ${brief.education} — your CV has no education section.`, `L’offre mentionne : ${brief.education} — votre CV n’a pas de section formation.`));
+  if (reqMissing.length) gaps.push(M('Required by the job but not on your CV: {list}.', { list: reqMissing.slice(0, 8).join(', ') }));
+  if (brief.years && years < brief.years) gaps.push(M('The job asks for {need}+ years of experience; your CV shows about {have}.', { need: brief.years, have: years }));
+  if (langsMissing.length) gaps.push(M('The job asks for {langs}. Add it under Languages if you speak it.', { langs: langsMissing.join(', ') }));
+  if (brief.education && !edu.length) gaps.push(M('The job mentions {edu}. Your CV has no education section.', { edu: brief.education }));
   const missingSections = sections.filter(s => !s[1]).map(s => s[2]);
-  if (missingSections.length) gaps.push(L(`ATS systems look for ${missingSections.join(', ')}.`, `Les ATS recherchent ${missingSections.join(', ')}.`));
+  if (missingSections.length) gaps.push(M('ATS systems look for: {items}.', { items: missingSections }));
 
-  if (reqMissing.length || niceMissing.length) suggestions.push(L('Use “Improve my score with AI” to work the missing keywords into what you’ve already written — only where they’re true for you.', 'Utilisez « Améliorer mon score avec l’IA » pour intégrer les mots-clés manquants à ce que vous avez déjà écrit — seulement là où c’est vrai.'));
-  if (missing.length) suggestions.push(L('Tap a missing keyword below to add it to your skills if you have it.', 'Touchez un mot-clé manquant ci-dessous pour l’ajouter à vos compétences si vous l’avez.'));
-  if (titleScore < 1 && brief.title) suggestions.push(L(`Use the job title “${brief.title}” in your headline if it matches what you do.`, `Utilisez l’intitulé « ${brief.title} » dans votre titre s’il correspond à ce que vous faites.`));
-  if (!reqMissing.length && niceMissing.length) suggestions.push(L(`Nice-to-haves you could mention: ${niceMissing.slice(0, 6).join(', ')}.`, `Atouts que vous pourriez mentionner : ${niceMissing.slice(0, 6).join(', ')}.`));
-  if (str(cv.sum).trim().length < 80) suggestions.push(L('Write a 2–3 sentence summary aimed at this job.', 'Rédigez un résumé de 2 à 3 phrases ciblé sur cette offre.'));
+  if (reqMissing.length || niceMissing.length) suggestions.push(M('Use “Improve my score with AI” to work the missing keywords into what you’ve already written. Only where they’re true for you.'));
+  if (missing.length) suggestions.push(M('Tap a missing keyword below to add it to your skills if you have it.'));
+  if (titleScore < 1 && brief.title) suggestions.push(M('Use the job title “{title}” in your headline if it matches what you do.', { title: brief.title }));
+  if (!reqMissing.length && niceMissing.length) suggestions.push(M('Nice-to-haves you could mention: {list}.', { list: niceMissing.slice(0, 6).join(', ') }));
+  if (str(cv.sum).trim().length < 80) suggestions.push(M('Write a 2–3 sentence summary aimed at this job.'));
 
   return {
     score, matched, missing: [...reqMissing, ...niceMissing].slice(0, 14), gaps: gaps.slice(0, 4), suggestions: suggestions.slice(0, 4),
@@ -1231,7 +1346,7 @@ function cvFromBody(body) {
   return JSON.stringify(cv).length > 60000 ? null : cv;
 }
 
-// POST /api/ai/job-brief — the analysed job (free once cached)
+// POST /api/ai/job-brief. The analysed job (free once cached)
 app.post('/api/ai/job-brief', async (req, res) => {
   req.user = await userFromToken(tokenOf(req)).catch(() => null);
   try {
@@ -1241,11 +1356,11 @@ app.post('/api/ai/job-brief', async (req, res) => {
   } catch (e) {
     if (e.aiLimit) return res.status(429).json({ code: 'AI_LIMIT', tier: e.aiLimit.tier, signedIn: !!req.user, error: aiLimitError(e.aiLimit) });
     console.error('[job-brief]', e.message);
-    res.status(500).json({ error: 'AI is unavailable right now — please try again in a moment.' });
+    res.status(500).json({ error: 'AI is unavailable right now. Please try again in a moment.' });
   }
 });
 
-// POST /api/ai/ats — score a CV against a job offer (only the first analysis of a job uses AI)
+// POST /api/ai/ats. Score a CV against a job offer (only the first analysis of a job uses AI)
 app.post('/api/ai/ats', rateLimit({ windowMs: 60 * 1000, max: 30 }), async (req, res) => {
   req.user = await userFromToken(tokenOf(req)).catch(() => null);
   try {
@@ -1253,18 +1368,18 @@ app.post('/api/ai/ats', rateLimit({ windowMs: 60 * 1000, max: 30 }), async (req,
     if (!cv) return res.status(413).json({ error: 'This CV is too long to check in one go.' });
     const brief = await jobBrief(req.body?.jobOffer, req, { charge: true });
     if (!brief) return res.status(400).json({ error: 'Please paste the full job description (at least a few sentences).' });
-    if (!brief.keywords.length) return res.status(500).json({ error: 'Analysis failed. Please try again — make sure your CV has some content filled in.' });
-    res.json(atsScore(cv, brief, req.body?.uiLang === 'fr' ? 'fr' : 'en'));
+    if (!brief.keywords.length) return res.status(500).json({ error: 'Analysis failed. Please try again. Make sure your CV has some content filled in.' });
+    res.json(atsScore(cv, brief));
   } catch (e) {
     if (e.aiLimit) return res.status(429).json({ code: 'AI_LIMIT', tier: e.aiLimit.tier, signedIn: !!req.user, error: aiLimitError(e.aiLimit) });
     console.error('[ats]', e.message);
-    res.status(500).json({ error: 'Analysis failed. Please try again — make sure your CV has some content filled in.' });
+    res.status(500).json({ error: 'Analysis failed. Please try again. Make sure your CV has some content filled in.' });
   }
 });
 
 // ── PERSONALISATION ───────────────────────────────────────────────────────────
 // The AI knows the account holder from their onboarding answers (field, goal, level) and
-// from their other CVs (past roles, skills, education, languages) — but only uses that
+// from their other CVs (past roles, skills, education, languages). But only uses that
 // when the CV is theirs. People also make CVs for friends or family, so:
 //   cv.cvFor === 'self' | 'other' is the user's own choice in the editor; otherwise
 //   a CV whose name differs from the account name is treated as someone else's.
@@ -1284,7 +1399,7 @@ async function personalContext(req, cv) {
 
   const lines = [];
   const onboarding = [u.industry && u.industry !== 'other' && `field: ${u.industry}`, u.goal && `aiming for: ${u.goal}`, u.experience && `career level: ${u.experience}`].filter(Boolean);
-  if (onboarding.length) lines.push(`From sign-up — ${onboarding.join(', ')}.`);
+  if (onboarding.length) lines.push(`From sign-up, ${onboarding.join(', ')}.`);
 
   // What their other CVs say about them (only CVs in their own name)
   const drafts = (await query('SELECT cv_data FROM drafts WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 15', [req.user.sub])).rows;
@@ -1300,7 +1415,7 @@ async function personalContext(req, cv) {
     }
     for (const s of Array.isArray(d.skills) ? d.skills : []) if (typeof s === 'string' && s.trim()) skills.set(s.trim(), (skills.get(s.trim()) || 0) + 1);
     for (const e of Array.isArray(d.education) ? d.education : []) { const x = [e?.degree, e?.school].filter(Boolean).join(', '); if (x) edu.add(x); }
-    for (const l of Array.isArray(d.languages) ? d.languages : []) if (l?.name) langs.add([l.name, l.level].filter(Boolean).join(' — '));
+    for (const l of Array.isArray(d.languages) ? d.languages : []) if (l?.name) langs.add([l.name, l.level].filter(Boolean).join(': '));
   }
   const have = new Set((Array.isArray(cv?.skills) ? cv.skills : []).map(s => String(s).toLowerCase()));
   const otherSkills = [...skills.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s).filter(s => !have.has(s.toLowerCase())).slice(0, 20);
@@ -1321,8 +1436,8 @@ app.post('/api/ai/fit', aiAccess, async (req, res) => {
     if (!cv) return res.status(413).json({ error: 'This CV is too long to check in one go.' });
     const brief = await jobBrief(req.body?.jobOffer, req);
     if (!brief) return res.status(400).json({ error: 'Please paste the full job description (at least a few sentences).' });
-    const fr = req.body?.uiLang === 'fr';
-    const ats = atsScore(cv, brief, fr ? 'fr' : 'en');
+    const outLang = uiLangName(req.body?.uiLang);
+    const ats = atsScore(cv, brief);
     const personal = await personalContext(req, cv);
     const str = (v) => (typeof v === 'string' ? v.trim() : '');
     const arr = (v) => (Array.isArray(v) ? v : []);
@@ -1335,13 +1450,13 @@ app.post('/api/ai/fit', aiAccess, async (req, res) => {
       `Certifications: ${arr(cv.certifications).map(str).filter(Boolean).join(', ') || 'none'}`,
       `Languages: ${arr(cv.languages).map(l => [str(l?.name), str(l?.level)].filter(Boolean).join(' ')).filter(Boolean).join(', ') || 'none'}`,
     ].join('\n');
-    const who = personal.forSelf === false ? 'this candidate (the CV is for someone else — call them "this candidate")' : 'the user (speak to them as "you")';
+    const who = personal.forSelf === false ? 'this candidate (the CV is for someone else, call them "this candidate")' : 'the user (speak to them as "you")';
     const system = `You are a frank, kind career adviser. Judge whether the person on this CV is a realistic candidate for the job, from the CV's facts only.
 Weigh: hard requirements (qualifications, certifications, licences, years of experience, seniority), the field and type of work, required languages, and location or work rights if the advert states them.
-Be honest — if it's a long shot, say so clearly — but constructive. Never judge on age, gender, nationality, origin or any other protected trait. A missing CV section is not a reason the role is unsuitable.
+Be honest, if it's a long shot, say so clearly, but constructive. Never judge on age, gender, nationality, origin or any other protected trait. A missing CV section is not a reason the role is unsuitable.
 Reply with ONLY JSON: {"fit":"good|stretch|poor","headline":"one short sentence","reasons":["2-4 specific reasons that name the requirement and what the CV shows"],"advice":"one sentence: what would make them a stronger candidate for this job, or a better-matched role to look at"}
 "good" = meets the main requirements; "stretch" = some important gaps but a credible application; "poor" = misses several hard requirements or is a different field or level.
-Write in ${fr ? 'French' : 'English'} and address ${who}.`;
+Write in ${outLang} and address ${who}.`;
     const reqMissing = brief.keywords.filter(k => k.required && !ats.matched.includes(k.term)).map(k => k.term);
     const out = parseJsonObject(await callAi(
       `JOB:\n${briefForPrompt(brief)}\n\nCV:\n${facts}\n\nAUTOMATIC CHECK: ATS match ${ats.score}%. Required keywords not found on the CV: ${reqMissing.join(', ') || 'none'}.${personal.text}`,
@@ -1355,11 +1470,11 @@ Write in ${fr ? 'French' : 'English'} and address ${who}.`;
     });
   } catch (e) {
     console.error('[ai/fit]', e.message);
-    res.status(500).json({ error: 'AI is unavailable right now — please try again in a moment.' });
+    res.status(500).json({ error: 'AI is unavailable right now. Please try again in a moment.' });
   }
 });
 
-// POST /api/ai/write — the editor's AI helpers, with the job offer as context.
+// POST /api/ai/write, the editor's AI helpers, with the job offer as context.
 //   summary { tone } · skills · bullets { index }
 app.post('/api/ai/write', aiAccess, async (req, res) => {
   try {
@@ -1379,7 +1494,7 @@ app.post('/api/ai/write', aiAccess, async (req, res) => {
       `Education: ${arr(cv.education).map(e => [str(e?.degree), str(e?.school)].filter(Boolean).join(', ')).filter(Boolean).join('; ') || 'none'}`,
     ].join('\n');
     const personal = (await personalContext(req, cv).catch(() => null))?.text || '';
-    const RULES = `Never invent employers, dates, numbers, qualifications, tools or achievements — use only what the CV says. Write in ${language}.`;
+    const RULES = `Never invent employers, dates, numbers, qualifications, tools or achievements. Use only what the CV says. Write in ${language}.`;
 
     if (task === 'summary') {
       const tone = ['professional', 'confident', 'creative', 'academic'].includes(req.body?.tone) ? req.body.tone : 'professional';
@@ -1405,7 +1520,7 @@ app.post('/api/ai/write', aiAccess, async (req, res) => {
     res.status(400).json({ error: 'Unknown task.' });
   } catch (e) {
     console.error('[ai/write]', e.message);
-    res.status(500).json({ error: 'AI is unavailable right now — please try again in a moment.' });
+    res.status(500).json({ error: 'AI is unavailable right now. Please try again in a moment.' });
   }
 });
 
@@ -1420,7 +1535,7 @@ app.post('/api/ai/story', aiAccess, async (req, res) => {
   try {
     const story = String(req.body?.story || '').trim().slice(0, 6000);
     const answers = (Array.isArray(req.body?.answers) ? req.body.answers : []).slice(0, 12)
-      .map(a => ({ q: String(a?.q || '').slice(0, 300), a: String(a?.a || '').trim().slice(0, 1500) || '(skipped — do not ask again)' }))
+      .map(a => ({ q: String(a?.q || '').slice(0, 300), a: String(a?.a || '').trim().slice(0, 1500) || '(skipped. Do not ask again)' }))
       .filter(a => a.q);
     const round = Math.max(0, Math.min(STORY_MAX_ROUNDS, Number(req.body?.round) || 0));
     const force = !!req.body?.force || round >= STORY_MAX_ROUNDS;
@@ -1428,7 +1543,7 @@ app.post('/api/ai/story', aiAccess, async (req, res) => {
 
     // Too short to be worth an AI call
     if (words(story) < 12) {
-      return res.json({ verdict: 'unusable', reason: 'That is too short for us to build a CV from. Tell us about your jobs, studies and what you did in them — a few sentences is enough to start.' });
+      return res.json({ verdict: 'unusable', reason: 'That is too short for us to build a CV from. Tell us about your jobs, studies and what you did in them. A few sentences is enough to start.' });
     }
 
     const language = lang === 'fr' ? 'French' : 'British English';
@@ -1437,9 +1552,9 @@ app.post('/api/ai/story', aiAccess, async (req, res) => {
 Decide ONE verdict:
 - "unusable": the text is not a real account of someone's work or studies (gibberish, off-topic, a question to you, test text, or so vague there is nothing to build on). Give a short, kind "reason" saying what is missing.
 - "needs_more": it is a genuine career story, but a recruiter-ready CV needs important details it does not have. Ask 2 to 4 follow-up questions.
-- "ready": there is enough to write a solid CV${force ? '. You MUST choose "ready" now (or "unusable" if truly nothing usable) — do not ask more questions' : ''}.
+- "ready": there is enough to write a solid CV${force ? '. You MUST choose "ready" now (or "unusable" if truly nothing usable). Do not ask more questions' : ''}.
 
-Enough for "ready" means: at least one job, internship, volunteer role or course of study with what the person actually did in it; roughly when (years are fine); and a sense of the kind of role they want or have. Contact details are NOT needed (they fill those in separately) — never ask for name, email, phone or address.
+Enough for "ready" means: at least one job, internship, volunteer role or course of study with what the person actually did in it; roughly when (years are fine); and a sense of the kind of role they want or have. Contact details are NOT needed (they fill those in separately). Never ask for name, email, phone or address.
 
 Good follow-up questions:
 - are specific to THIS story, and name the employer / role / project they refer to ("At Deliveroo, how many riders did your team support?"), never generic;
@@ -1462,7 +1577,7 @@ Only include "questions" for needs_more and "cv" for ready. Questions and reason
     // A story for a friend gets nothing from the account holder's profile
     const personal = (await personalContext(req, { cvFor: req.body?.cvFor === 'other' ? 'other' : req.body?.cvFor === 'self' ? 'self' : '' }).catch(() => null))?.text || '';
     const brief = await jobBrief(req.body?.jobOffer, req).catch(() => null);
-    const userPrompt = `${personal ? `${personal.trim()}\n\n` : ''}${brief ? `THE JOB THEY ARE APPLYING FOR (shape the headline, summary and skill order around it, and ask about anything it requires that the story doesn't cover — never invent):\n${briefForPrompt(brief)}\n\n` : ''}THEIR STORY:\n${story}\n\n${
+    const userPrompt = `${personal ? `${personal.trim()}\n\n` : ''}${brief ? `THE JOB THEY ARE APPLYING FOR (shape the headline, summary and skill order around it, and ask about anything it requires that the story doesn't cover, never invent):\n${briefForPrompt(brief)}\n\n` : ''}THEIR STORY:\n${story}\n\n${
       answers.length ? `THEIR ANSWERS TO FOLLOW-UP QUESTIONS:\n${answers.map(a => `Q: ${a.q}\nA: ${a.a}`).join('\n\n')}\n\n` : ''}Question rounds so far: ${round} of ${STORY_MAX_ROUNDS}.`;
 
     const out = parseJsonObject(await callAi(userPrompt, AI_MODEL, systemPrompt, 4000, 'medium'));
@@ -1476,7 +1591,7 @@ Only include "questions" for needs_more and "cv" for ready. Questions and reason
     res.json({ verdict: 'ready', cv: out.cv });
   } catch (e) {
     console.error('[story]', e.message);
-    res.status(500).json({ error: "We couldn't read your story just now — please try again." });
+    res.status(500).json({ error: "We couldn't read your story just now, please try again." });
   }
 });
 
@@ -1486,7 +1601,7 @@ const FIX_TASKS = {
   title:        'The CV has no headline. Propose one professional headline (the job title they are, or are aiming for), based on their experience and summary. Return it as change key "title".',
   summary:      'Write a professional summary of 2-3 sentences (between 250 and 450 characters) based only on the facts in the CV. No "I", no clichés like "hard-working" or "passionate". Return it as change key "sum".',
   descriptions: 'Some experience entries have no description or a very short one. For EACH such entry (desc under 30 characters), write 2-3 bullet lines of what someone in that exact role at that company typically does, using any clues elsewhere in the CV. No numbers or achievements that are not in the CV. Return one change per entry, key "exp:<i>". Leave entries that already have a real description alone.',
-  metrics:      'No experience shows measurable results. For the 1-3 most relevant experience entries, rewrite the bullets so each starts with a strong verb, and add a number placeholder where a figure would make the biggest difference: [X%], [N] or [£X]. The user replaces each placeholder with their real figure. STRICT: at most 2 placeholders per entry; keep every fact and number already there; do NOT add any new claim, outcome, frequency, team size, scope or benefit that the CV does not state (no "weekly", "leading to adoption", "boosting", "across the network" and so on) — only reword what is there and add placeholders. Return one change per entry, key "exp:<i>".',
+  metrics:      'No experience shows measurable results. For the 1-3 most relevant experience entries, rewrite the bullets so each starts with a strong verb, and add a number placeholder where a figure would make the biggest difference: [X%], [N] or [£X]. The user replaces each placeholder with their real figure. STRICT: at most 2 placeholders per entry; keep every fact and number already there; do NOT add any new claim, outcome, frequency, team size, scope or benefit that the CV does not state (no "weekly", "leading to adoption", "boosting", "across the network" and so on). Only reword what is there and add placeholders. Return one change per entry, key "exp:<i>".',
   placeholders: 'The CV contains unfilled placeholders such as [X%] or [N]. For EACH text that contains one, rewrite only the affected sentences so they read naturally WITHOUT the number (keep the meaning, do not invent a figure). Return one change per text: key "sum" for the summary, "exp:<i>" for an experience.',
   skills:       'The CV lists too few skills. Suggest 6-10 concrete skills (tools, methods, domain knowledge, and at most 2 soft skills) that the CV clearly shows the person has or used. Do not repeat skills already listed. Return them in "skills".',
 };
@@ -1508,7 +1623,7 @@ app.post('/api/ai/fix', aiAccess, async (req, res) => {
     const payload = JSON.stringify(src);
     if (payload.length > 14000) return res.status(413).json({ error: 'This CV is too long to fix in one go.' });
     const language = cv.lang === 'fr' ? 'French' : 'British English';
-    const noteLanguage = req.body?.uiLang === 'fr' ? 'French' : 'English';   // the app's language, for the note
+    const noteLanguage = uiLangName(req.body?.uiLang);   // the app's language, for the note
 
     const systemPrompt = `You improve one part of a CV. The user reviews every change before it is applied.
 Rules:
@@ -1537,7 +1652,7 @@ Reply with ONLY a JSON object, no markdown:
     res.json({ changes, skills, note: str(out.note).slice(0, 300) });
   } catch (e) {
     console.error('[fix]', e.message);
-    res.status(500).json({ error: 'The AI couldn’t fix this just now — please try again.' });
+    res.status(500).json({ error: 'The AI couldn’t fix this just now, please try again.' });
   }
 });
 
@@ -1593,18 +1708,18 @@ app.post('/api/ai/translate', aiAccess, async (req, res) => {
     });
   } catch (e) {
     console.error('[translate]', e.message);
-    res.status(500).json({ error: 'Translation failed — please try again.' });
+    res.status(500).json({ error: 'Translation failed, please try again.' });
   }
 });
 
 // ── TAILOR CV TO A JOB OFFER ──────────────────────────────────────────────────
-// Returns *proposals* only — the client shows a before/after and the user picks
+// Returns *proposals* only. The client shows a before/after and the user picks
 // what to apply. The model may rephrase and reorder, never invent facts.
 app.post('/api/ai/tailor', aiAccess, async (req, res) => {
   try {
     const { cv = {}, jobOffer = '', ats = null } = req.body || {};
     const job = normJob(jobOffer).slice(0, 12000);
-    // Boost mode: the ATS check scored low — target what it found missing, without growing the CV
+    // Boost mode: the ATS check scored low. Target what it found missing, without growing the CV
     const list = (v, n) => (Array.isArray(v) ? v : []).map(x => String(x || '').trim().slice(0, 120)).filter(Boolean).slice(0, n);
     const boost = ats && typeof ats === 'object'
       ? { score: Math.max(0, Math.min(100, Number(ats.score) || 0)), missing: list(ats.missing, 10), gaps: list(ats.gaps, 5) }
@@ -1629,7 +1744,7 @@ app.post('/api/ai/tailor', aiAccess, async (req, res) => {
     ].join('\n').slice(0, 8000);
 
     const systemPrompt = `You are an expert CV writer who tailors CVs to a specific job offer so they pass Applicant Tracking Systems (ATS).
-Strict honesty rules — breaking them is a failure:
+Strict honesty rules. Breaking them is a failure:
 - NEVER invent employers, job titles, dates, degrees, certifications, tools, tasks, numbers, outcomes or achievements.
 - Every bullet you write for a role must restate something already written in THAT role's description. The skills list is NOT evidence that a tool or task was used in a particular role.
 - Do not add results or impact the CV does not state (e.g. "improving efficiency", "boosting loyalty").
@@ -1640,11 +1755,11 @@ Strict honesty rules — breaking them is a failure:
 - Fewer, accurate bullets are better than more, padded ones.
 - A skill or requirement from the job offer that the CV does not evidence goes ONLY in "suggestedSkills" (the user will confirm whether they have it).
 
-Example — original: "Served customers at the till and handled returns."
+Example, original: "Served customers at the till and handled returns."
   GOOD: "• Delivered front-line customer service at the till, processing returns and refunds"
-  BAD:  "• Served customers at the till and handled returns." (unchanged — no value added)
+  BAD:  "• Served customers at the till and handled returns." (unchanged, no value added)
   BAD:  "• Reconciled daily sales data and reduced discrepancies" (invented task and outcome)
-Example — original: "Resolved billing issues." for a job offer that says "resolve tickets":
+Example, original: "Resolved billing issues." for a job offer that says "resolve tickets":
   GOOD: "• Resolved customer billing tickets"
   BAD:  "• Resolved billing tickets in Zendesk, cutting resolution time" (tool and outcome not stated for this role)
 - Write in ${isFrench ? 'FRENCH' : 'the same language as the CV'}.
@@ -1663,18 +1778,18 @@ Return JSON with exactly this shape:
   "title": "CV headline aligned to the offer (must be truthful for this candidate)",
   "sum": "rewritten 2-4 sentence summary targeted at this offer, under 80 words, third person without pronouns, using only facts from the CV (name languages without describing a level unless the CV gives one)",
   "experiences": [ { "index": 0, "desc": "rewritten description, one line per original point, each starting with '• '" } ],
-  "skillsOrder": ["existing CV skills, most relevant to the offer first — only skills already in the CV"],
+  "skillsOrder": ["existing CV skills, most relevant to the offer first. Only skills already in the CV"],
   "suggestedSkills": ["keywords from the offer NOT evidenced in the CV, max 8"],
-  "notes": ["max 3 short honest tips, e.g. which requirement the CV doesn't show — written in ${req.body?.uiLang === 'fr' ? 'French' : 'English'} (the language the user reads the app in)"]
+  "notes": ["max 3 short honest tips, e.g. which requirement the CV doesn't show, written in ${uiLangName(req.body?.uiLang)} (the language the user reads the app in)"]
 }
 Only include experiences whose description you actually improved. Use the [index] numbers shown above.${boost ? `
 
-ATS CHECK RESULT — this CV scored ${boost.score}% against the offer, too low to pass the screening.
+ATS CHECK RESULT. This CV scored ${boost.score}% against the offer, too low to pass the screening.
 Keywords the check found missing: ${boost.missing.join(', ') || 'none listed'}
 Gaps it found: ${boost.gaps.join(' | ') || 'none listed'}
 Your goal now is to raise the score honestly AND keep the CV the same size:
 - Work each missing keyword into the title, summary or an existing bullet ONLY where the CV already shows that activity or skill (the offer's wording for the same thing). If the CV doesn't show it, put it in "suggestedSkills" instead.
-- Do NOT make the CV longer: each rewritten description must be about the same length as the original or shorter. Never add bullets or roles — replace weak wording instead. Keep the summary under 70 words.
+- Do NOT make the CV longer: each rewritten description must be about the same length as the original or shorter. Never add bullets or roles. Replace weak wording instead. Keep the summary under 70 words.
 - In "notes", say plainly which gaps the candidate can't fix by rewording (e.g. a missing qualification).` : ''}`;
 
     const raw = await callAi(userPrompt, AI_MODEL, systemPrompt, 3000, 'medium');
@@ -1706,7 +1821,7 @@ Your goal now is to raise the score honestly AND keep the CV the same size:
     res.json(out);
   } catch (e) {
     console.error('[tailor]', e.message);
-    res.status(500).json({ error: 'Tailoring failed — please try again.' });
+    res.status(500).json({ error: 'Tailoring failed, please try again.' });
   }
 });
 
@@ -1765,7 +1880,7 @@ app.post('/api/cv/upload', aiAccess, upload.single('cv'), async (req, res) => {
       return res.json({ extracted, message: uploadMessage(req.file.originalname, extracted, 'Parsed') });
     }
 
-    // Use up to 12000 chars — covers most CVs fully
+    // Use up to 12000 chars. Covers most CVs fully
     const textFull = cleaned.slice(0, 12000);
 
     const systemPrompt = `You are an expert CV/resume parser. Your job is to extract structured data from CV text with high accuracy.
@@ -1780,7 +1895,7 @@ Rules:
 - For period: use the format found in the CV (e.g. "Jan 2020 – Mar 2023" or "2020–2023")
 - For certifications: extract full certification names
 - For languages: use levels like Native, Fluent, Advanced, Intermediate, Basic
-- NEVER invent data — only extract what is actually in the CV
+- NEVER invent data. Only extract what is actually in the CV
 - Return ONLY valid JSON, no markdown fences, no explanation`;
 
     const userPrompt = `Extract all information from this CV and return a JSON object with exactly these fields:
@@ -1837,7 +1952,7 @@ ${textFull}`;
     }
     let clean = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
     
-    // Sometimes the model adds text before/after JSON — find the JSON object
+    // Sometimes the model adds text before/after JSON. Find the JSON object
     const jsonStart = clean.indexOf('{');
     const jsonEnd   = clean.lastIndexOf('}');
     if (jsonStart !== -1 && jsonEnd !== -1) {
@@ -2008,7 +2123,7 @@ html,body{margin:0!important;padding:0!important;background:#fff!important;width
 
 // ── SHARED PUPPETEER BROWSER ──────────────────────────────────────────────────
 // One browser instance shared across all PDF requests.
-// Avoids 3-8s cold-start per request — pages open in ~200ms instead.
+// Avoids 3-8s cold-start per request. Pages open in ~200ms instead.
 let _browser = null;
 let _browserReady = null;
 
@@ -2044,7 +2159,7 @@ async function loadFontFaces() {
     const { join: pjoin } = await import('path');
     const { fileURLToPath } = await import('url');
     const root = pjoin(fileURLToPath(import.meta.url), '..', '..');
-    // [package, family, weights, italic weights] — keep in step with src/main.js and HFONT_STACK
+    // [package, family, weights, italic weights]. Keep in step with src/main.js and HFONT_STACK
     const FAMILIES = [
       ['dm-sans', 'DM Sans', [300, 400, 500, 600, 700], [400]],
       ['dm-serif-display', 'DM Serif Display', [400], [400]],
@@ -2068,7 +2183,7 @@ async function loadFontFaces() {
       if (faces) _fontFaces[family] = faces;
     }
     if (n) console.log(`[pdf] Loaded ${n} local font files for PDF rendering`);
-    else console.warn('[pdf] Local fonts not found — run npm install');
+    else console.warn('[pdf] Local fonts not found, run npm install');
   } catch (e) {
     console.warn('[pdf] Could not load fonts:', e.message);
   }
@@ -2191,11 +2306,11 @@ async function generateCvPdfNow(htmlContent) {
 
 
 // ── PAYMENT HELPERS ───────────────────────────────────────────────────────────
-// Products: 'email_export' (€0.99 — unlocks one draft: clean PDF by email and download, re-sends free)
+// Products: 'email_export' (€0.99, unlocks one draft: clean PDF by email and download, re-sends free)
 const CV_PRICE_CENTS = 99;
 const CV_CURRENCY    = 'eur';
-//           'clean_download' (€0.50 — one watermark-free PDF, keyed by clean token)
-// Without a Stripe key, exports are free ("demo mode") — but only in development, or
+//           'clean_download' (€0.50. One watermark-free PDF, keyed by clean token)
+// Without a Stripe key, exports are free ("demo mode"). But only in development, or
 // in production when explicitly allowed. Otherwise payments report as unavailable.
 const FREE_EXPORTS = !STRIPE_KEY && (!IS_PROD || process.env.ALLOW_FREE_EXPORTS === 'true');
 const PAYMENTS_DOWN = 'Payments are temporarily unavailable. Please try again later.';
@@ -2208,12 +2323,15 @@ async function getStripe() {
 }
 
 async function recordPayment({ userId, draftId, sessionId, product, source }) {
-  await query(
+  const ins = await query(
     `INSERT INTO payments (user_id, draft_id, session_id, paid, product, source)
      VALUES ($1, $2, $3, TRUE, $4, $5)
-     ON CONFLICT (session_id) DO UPDATE SET paid = TRUE`,
+     ON CONFLICT (session_id) DO UPDATE SET paid = TRUE RETURNING (xmax = 0) AS inserted`,
     [userId, draftId, sessionId, product, source]
   );
+  if (ins.rows[0]?.inserted && product === 'email_export') {
+    await notify(userId, 'payment', 'Your CV is unlocked', 'Download it or email it again any time from My CVs. Free, even after edits.', '/');
+  }
   // A real purchase (not a credit or demo) completes a referral
   if (source === 'stripe' && product === 'email_export') {
     await rewardReferrer(userId).catch(e => console.warn('[referral] reward failed:', e.message));
@@ -2297,7 +2415,7 @@ function samePerson(locked, now) {
   if (a.some(w => b.has(w))) return true;
   return editDistance(locked, now) <= 2;
 }
-const IDENTITY_MSG = 'This CV was paid for under another person’s name. A CV for someone else needs its own payment — start a new CV for them.';
+const IDENTITY_MSG = 'This CV was paid for under another person’s name. A CV for someone else needs its own payment. Start a new CV for them.';
 async function checkPaidIdentity(userId, draft) {
   await ensurePaymentCols();
   const d = draft.cv_data || {};
@@ -2316,7 +2434,7 @@ async function checkPaidIdentity(userId, draft) {
 }
 
 // PDFs are heavy: a per-IP limit, and at most two renders at a time
-const pdfLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, message: { error: 'Too many downloads — please wait a few minutes.' } });
+const pdfLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, message: { error: 'Too many downloads. Please wait a few minutes.' } });
 
 // The paid PDF of a saved draft, after the payment and identity checks.
 // Returns { pdf, fileName, draft } or { status, error }.
@@ -2374,7 +2492,7 @@ app.post('/api/cv/email', pdfLimiter, async (req, res) => {
     res.json({ ok: true, sentTo: toEmail, draftId: out.draft.id, format: 'pdf' });
   } catch (e) {
     console.error('[email] FAILED:', e.message);
-    res.status(500).json({ error: 'We couldn’t email your CV just now — please try again.' });
+    res.status(500).json({ error: 'We couldn’t email your CV just now, please try again.' });
   }
 });
 
@@ -2396,9 +2514,9 @@ const draftTooBig = (data) => data && JSON.stringify(data).length > MAX_DRAFT_BY
 app.post('/api/drafts', authMiddleware, async (req, res) => {
   try {
     const { title, data, template } = req.body;
-    if (draftTooBig(data)) return res.status(413).json({ error: 'This CV is too large to save — try a smaller photo.' });
+    if (draftTooBig(data)) return res.status(413).json({ error: 'This CV is too large to save. Try a smaller photo.' });
     const n = (await query('SELECT COUNT(*)::int AS n FROM drafts WHERE user_id = $1', [req.user.sub])).rows[0].n;
-    if (n >= MAX_DRAFTS) return res.status(400).json({ error: 'You have a lot of CVs saved — delete some old ones first.' });
+    if (n >= MAX_DRAFTS) return res.status(400).json({ error: 'You have a lot of CVs saved. Delete some old ones first.' });
     const { rows } = await query(
       `INSERT INTO drafts (user_id, title, cv_data, template)
        VALUES ($1, $2, $3, $4) RETURNING *`,
@@ -2413,7 +2531,7 @@ app.put('/api/drafts/:id', authMiddleware, async (req, res) => {
   try {
     const { title, data, template } = req.body;
     if (!UUID_RE.test(req.params.id)) return res.status(404).json({ error: 'Draft not found.' });
-    if (draftTooBig(data)) return res.status(413).json({ error: 'This CV is too large to save — try a smaller photo.' });
+    if (draftTooBig(data)) return res.status(413).json({ error: 'This CV is too large to save. Try a smaller photo.' });
     const { rows } = await query(
       `UPDATE drafts SET title = COALESCE($1, title), cv_data = COALESCE($2, cv_data),
        template = COALESCE($3, template), updated_at = NOW()
@@ -2448,7 +2566,7 @@ app.post('/api/payment/create-session', authMiddleware, async (req, res) => {
   try {
     const { draftId, withdrawalConsent } = req.body;
     if (!(await assertOwnDraft(req.user.sub, draftId))) {
-      return res.status(400).json({ error: 'Your CV hasn\'t been saved yet — please try again in a moment.' });
+      return res.status(400).json({ error: 'Your CV hasn\'t been saved yet. Please try again in a moment.' });
     }
     if (await hasEmailExport(req.user.sub, draftId)) {
       return res.json({ alreadyPaid: true });
@@ -2456,20 +2574,20 @@ app.post('/api/payment/create-session', authMiddleware, async (req, res) => {
     const stripe = await getStripe();
     if (!stripe) {
       if (!FREE_EXPORTS) return res.status(503).json({ error: PAYMENTS_DOWN });
-      // Demo mode — no Stripe key configured on the server
+      // Demo mode. No Stripe key configured on the server
       await recordPayment({ userId: req.user.sub, draftId, sessionId: `demo_${uuid()}`, product: 'email_export', source: 'demo' });
       return res.json({ url: null, demo: true });
     }
     if (withdrawalConsent !== true) return res.status(400).json({ error: 'Please tick the box to confirm you want your PDF straight away.' });
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      line_items: [{ price_data: { currency: CV_CURRENCY, product_data: { name: 'CVMaster — your CV as a clean PDF', description: 'Emailed and downloadable · re-send free, even after edits' }, unit_amount: CV_PRICE_CENTS }, quantity: 1 }],
+      line_items: [{ price_data: { currency: CV_CURRENCY, product_data: { name: 'CVMaster | your CV as a clean PDF', description: 'Emailed and downloadable · re-send free, even after edits' }, unit_amount: CV_PRICE_CENTS }, quantity: 1 }],
       mode: 'payment',
       success_url: `${FRONTEND_URL}/export-success?session={CHECKOUT_SESSION_ID}&draft=${draftId}`,
       cancel_url:  `${FRONTEND_URL}/`,
       client_reference_id: req.user.sub,
       metadata: { product: 'email_export', draftId, userId: req.user.sub, withdrawal_waiver: `accepted ${new Date().toISOString()}` },
-      payment_intent_data: { description: 'CVMaster clean PDF — immediate delivery, withdrawal right waived by the customer' },
+      payment_intent_data: { description: 'CVMaster clean PDF. Immediate delivery, withdrawal right waived by the customer' },
     });
     res.json({ url: session.url, sessionId: session.id });
   } catch (e) { console.error('[create-session]', e.message); res.status(500).json({ error: 'Could not start payment. Please try again.' }); }
@@ -2493,7 +2611,7 @@ app.post('/api/payment/verify', authMiddleware, async (req, res) => {
   }
 });
 
-// GET /api/payment/paid-drafts — draft ids this user can re-send for free
+// GET /api/payment/paid-drafts. Draft ids this user can re-send for free
 app.get('/api/payment/paid-drafts', authMiddleware, async (req, res) => {
   try {
     const { rows } = await query(
@@ -2520,9 +2638,9 @@ const cleanStore = new Map();   // token → { userId, draftId, fileName, waterm
 const makeToken = () => randomBytes(24).toString('hex');
 
 function addHtmlWatermark(html) {
-  const row  = '<div style="width:320px;padding:18px 0;font-family:sans-serif;font-size:13px;font-weight:700;color:#111;letter-spacing:.06em;white-space:nowrap;">CVMaster — upgrade at cvmaster.live</div>';
+  const row  = '<div style="width:320px;padding:18px 0;font-family:sans-serif;font-size:13px;font-weight:700;color:#111;letter-spacing:.06em;white-space:nowrap;">CVMaster | upgrade at cvmaster.live</div>';
   const rows = Array(120).fill(row).join('');
-  // position:absolute (not fixed) — Puppeteer's PDF ignores fixed positioning
+  // position:absolute (not fixed), Puppeteer's PDF ignores fixed positioning
   const wm   = `<div style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;"><div style="position:absolute;top:-50%;left:-50%;width:200%;height:200%;display:flex;flex-wrap:wrap;align-content:flex-start;transform:rotate(-28deg);opacity:0.18;">${rows}</div></div>`;
   const bodyStyle = '<style>body{position:relative!important;}</style>';
   const out = html.includes('</head>') ? html.replace('</head>', bodyStyle + '</head>') : bodyStyle + html;
@@ -2550,7 +2668,7 @@ app.post('/api/cv/store-for-unlock', authMiddleware, pdfLimiter, async (req, res
       .finally(() => { entry.ready = true; });
   } catch (e) {
     console.error('[store-for-unlock]', e.message);
-    res.status(500).json({ error: 'Could not prepare the download — please try again.' });
+    res.status(500).json({ error: 'Could not prepare the download, please try again.' });
   }
 });
 
@@ -2572,7 +2690,7 @@ function sendPdf(res, pdf, fileName) {
 app.post('/api/cv/download-watermarked', authMiddleware, pdfLimiter, async (req, res) => {
   try {
     const entry = getOwnEntry(req.body?.token, req.user.sub);
-    if (!entry) return res.status(404).json({ error: 'This download expired — click Download again.' });
+    if (!entry) return res.status(404).json({ error: 'This download expired, click Download again.' });
     await waitForRender(entry);
     let pdf = entry.watermarkedPdf;
     if (!pdf) {
@@ -2587,7 +2705,7 @@ app.post('/api/cv/download-watermarked', authMiddleware, pdfLimiter, async (req,
   }
 });
 
-// Stripe webhook — records paid exports and AI packs
+// Stripe webhook. Records paid exports and AI packs
 async function handleWatermarkWebhook(req, res) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   const stripe        = await getStripe();
@@ -2613,7 +2731,7 @@ async function handleWatermarkWebhook(req, res) {
 }
 
 // ── DIRECT PDF DOWNLOAD (paid drafts) ────────────────────────────────────────
-// The €0.99 export covers that CV, so a direct download is allowed too — also the
+// The €0.99 export covers that CV, so a direct download is allowed too, also the
 // fallback when email delivery fails, so a paying user always gets their PDF.
 app.post('/api/cv/export-pdf', authMiddleware, pdfLimiter, async (req, res) => {
   try {
@@ -2648,12 +2766,12 @@ app.post('/api/cv/redownload', authMiddleware, pdfLimiter, async (req, res) => {
     res.json({ ok: true, sentTo: toEmail, format: 'pdf' });
   } catch (e) {
     console.error('[cv/redownload]', e.message);
-    res.status(500).json({ error: 'We couldn’t email your CV just now — please try again.' });
+    res.status(500).json({ error: 'We couldn’t email your CV just now, please try again.' });
   }
 });
 
 // ── ADMIN PANEL ───────────────────────────────────────────────────────────────
-// Serve admin.html at /admin — protected by its own JWT (no user auth crossover)
+// Serve admin.html at /admin. Protected by its own JWT (no user auth crossover)
 import { readFileSync as _readFileSync } from 'fs';
 import { join as _join } from 'path';
 import { fileURLToPath as _fileURLToPath } from 'url';
@@ -2730,7 +2848,7 @@ app.get('/api/admin/me', adminAuthMiddleware, (req, res) => {
 });
 
 // GET /api/admin/stats
-// What's configured on the server (no secrets — just yes/no and public addresses)
+// What's configured on the server (no secrets. Just yes/no and public addresses)
 app.get('/api/admin/config', adminAuthMiddleware, (req, res) => {
   res.json({
     ai: AI_PROVIDER, aiLast,
@@ -2835,7 +2953,7 @@ app.delete('/api/admin/users/:id', adminAuthMiddleware, async (req, res) => {
 function newsletterMail(to, token, subject, body, name = '') {
   subject = personalize(subject, name, false); body = personalize(body, name);
   const url = `${API_PUBLIC_URL}/api/newsletter/unsubscribe?t=${token}`;
-  const foot = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:18px 24px 28px;text-align:center;color:#8A8AA3;font-size:12px;line-height:1.6">
+  const foot = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;padding:18px 24px 28px;text-align:center;color:#8A8AA3;font-size:12px;line-height:1.6">
     You’re getting this because you subscribed to CVMaster news.<br>
     <a href="${url}" style="color:#8A8AA3;text-decoration:underline">Unsubscribe</a> · <a href="https://www.cvmaster.live/privacy" style="color:#8A8AA3;text-decoration:underline">Privacy</a></div>`;
   const html = /<\/body>/i.test(body) ? body.replace(/<\/body>/i, foot + '</body>') : body + foot;
@@ -2859,11 +2977,11 @@ function personalize(text, name, html = true) {
 }
 
 // Important notices go to every account holder (no consent needed for service messages:
-// changes to the Terms or prices, security, problems with accounts or payments — never marketing)
+// changes to the Terms or prices, security, problems with accounts or payments, never marketing)
 function noticeMail(to, subject, body, name = '') {
   subject = personalize(subject, name, false); body = personalize(body, name);
-  const foot = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:18px 24px 28px;text-align:center;color:#8A8AA3;font-size:12px;line-height:1.6">
-    You’re receiving this important message because you have a CVMaster account. It isn’t marketing — we only send these when something affects your account.<br>
+  const foot = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;padding:18px 24px 28px;text-align:center;color:#8A8AA3;font-size:12px;line-height:1.6">
+    You’re receiving this important message because you have a CVMaster account. It isn’t marketing. We only send these when something affects your account.<br>
     Questions? Just reply, or write to <a href="mailto:${SUPPORT_REPLY_TO}" style="color:#8A8AA3">${SUPPORT_REPLY_TO}</a> · <a href="https://www.cvmaster.live/privacy" style="color:#8A8AA3;text-decoration:underline">Privacy</a></div>`;
   const html = /<\/body>/i.test(body) ? body.replace(/<\/body>/i, foot + '</body>') : body + foot;
   return { to, from: SUPPORT_FROM, subject, html };
@@ -2918,7 +3036,7 @@ app.post('/api/admin/email/send', adminAuthMiddleware, async (req, res) => {
     if (!subject || !body) return res.status(400).json({ error: 'subject and body required.' });
     if (String(subject).length > 200) return res.status(400).json({ error: 'The subject is too long.' });
     if (audience === 'all_users' && req.body?.important !== true) {
-      return res.status(400).json({ error: 'Emails to every user must be important service messages — tick the box to confirm.' });
+      return res.status(400).json({ error: 'Emails to every user must be important service messages. Tick the box to confirm.' });
     }
     const make = (to, token, name) => audience === 'all_users' ? noticeMail(to, subject, body, name) : newsletterMail(to, token, subject, body, name);
     if (test_email) {
@@ -2936,7 +3054,7 @@ app.post('/api/admin/email/send', adminAuthMiddleware, async (req, res) => {
       sql += ' ORDER BY LOWER(email)';
       rows = (await query(sql, p)).rows;
     } else {
-      await ensureNewsletterTable();
+      await linkSubscribers();   // so {{first_name}} works for people who subscribed before signing in
       rows = (await query(...subscriberRecipientsSql(plan_filter))).rows;
     }
     if (!rows.length) return res.status(400).json({ error: audience === 'all_users' ? 'No users to send to.' : 'No subscribers to send to yet.' });
@@ -2957,7 +3075,7 @@ app.post('/api/admin/email/send', adminAuthMiddleware, async (req, res) => {
   }
 });
 
-// POST /api/admin/email/preview — the exact email recipients get, footer and sender included
+// POST /api/admin/email/preview. The exact email recipients get, footer and sender included
 app.post('/api/admin/email/preview', adminAuthMiddleware, (req, res) => {
   const body = String(req.body?.body || '');
   const subject = String(req.body?.subject || '').slice(0, 200) || '(no subject)';
@@ -3022,7 +3140,7 @@ app.get('/api/admin/email/history', adminAuthMiddleware, async (req, res) => {
 // Subscribers list for the admin page
 app.get('/api/admin/newsletter/subscribers', adminAuthMiddleware, async (req, res) => {
   try {
-    await ensureNewsletterTable();
+    await linkSubscribers();
     const { rows: items } = await query(
       `SELECT s.id, s.email, s.status, s.source, s.consent_at, s.unsubscribed_at, s.created_at, u.name, u.plan
        FROM newsletter_subscribers s LEFT JOIN users u ON u.id = s.user_id
@@ -3038,7 +3156,7 @@ app.get('/api/admin/newsletter/subscribers', adminAuthMiddleware, async (req, re
 });
 app.patch('/api/admin/newsletter/subscribers/:id', adminAuthMiddleware, async (req, res) => {
   try {
-    // Admins can only unsubscribe someone (e.g. they asked by email) — never opt them in
+    // Admins can only unsubscribe someone (e.g. they asked by email). Never opt them in
     if (req.body?.status !== 'unsubscribed') return res.status(400).json({ error: 'Only unsubscribing is allowed.' });
     await ensureNewsletterTable();
     await query(`UPDATE newsletter_subscribers SET status = 'unsubscribed', unsubscribed_at = NOW() WHERE id = $1`, [req.params.id]);
@@ -3053,7 +3171,7 @@ app.delete('/api/admin/newsletter/subscribers/:id', adminAuthMiddleware, async (
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/admin/maintenance — toggle maintenance mode
+// POST /api/admin/maintenance, toggle maintenance mode
 // ── REVIEWS ───────────────────────────────────────────────────────────────────
 // Real users who have made a CV can rate CVMaster (1–5) once, with an optional comment.
 // Admins approve comments to show on the homepage; "hidden" is only for spam/abuse.
@@ -3204,7 +3322,7 @@ function decodeMaybeDataUri(html) {
   try { return m[1] ? Buffer.from(m[2], 'base64').toString('utf8') : decodeURIComponent(m[2]); } catch { return h; }
 }
 
-// Reading received emails needs a Resend key with full access — a "sending access" key gets
+// Reading received emails needs a Resend key with full access, a "sending access" key gets
 // 401 restricted_api_key. RESEND_INBOUND_API_KEY can hold that key; RESEND_API_KEY is the fallback.
 const RESEND_READ_KEY = process.env.RESEND_INBOUND_API_KEY || process.env.RESEND_API_KEY || '';
 async function fetchReceivedEmail(emailId) {
@@ -3234,7 +3352,7 @@ async function handleInboundEmail(req, res) {
   const d = evt.data || {};
   try {
     await ensureInboxTables();
-    // The webhook only has metadata — fetch the body from Resend
+    // The webhook only has metadata. Fetch the body from Resend
     const got = await fetchReceivedEmail(d.email_id);
     const full = got.full || {};
     if (got.error) console.warn('[inbound] could not fetch email body:', got.error);
@@ -3262,7 +3380,7 @@ function replyEmailHtml(body, original) {
   const para = (t) => escHtml(t).replace(/\n/g, '<br>');
   return `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#1f2937;max-width:600px">
     <div>${para(body)}</div>
-    <p style="margin-top:22px;color:#6b7280">— CVMaster Support<br><a href="https://www.cvmaster.live" style="color:#4338CA">cvmaster.live</a></p>
+    <p style="margin-top:22px;color:#6b7280">CVMaster Support<br><a href="https://www.cvmaster.live" style="color:#4338CA">cvmaster.live</a></p>
     <div style="margin-top:10px">${EMAIL_LOGO}</div>
     ${original ? `<div style="margin-top:22px;padding-left:12px;border-left:3px solid #e5e7eb;color:#6b7280;font-size:13px">${para(original.slice(0, 3000))}</div>` : ''}
   </div>`;
@@ -3319,7 +3437,7 @@ app.get('/api/admin/inbox/:id/attachments/:attId', adminAuthMiddleware, async (r
     const meta = await fetch(`https://api.resend.com/emails/receiving/${encodeURIComponent(m.resend_id)}/attachments/${encodeURIComponent(att.id)}`,
       { headers: { Authorization: `Bearer ${RESEND_READ_KEY}` }, signal: AbortSignal.timeout(15000) });
     const j = await meta.json().catch(() => ({}));
-    if (!meta.ok || !j.download_url) return res.status(502).json({ error: j.name === 'restricted_api_key' ? 'The Resend key can only send — add a full-access key as RESEND_INBOUND_API_KEY.' : 'Could not get this attachment from Resend.' });
+    if (!meta.ok || !j.download_url) return res.status(502).json({ error: j.name === 'restricted_api_key' ? 'The Resend key can only send. Add a full-access key as RESEND_INBOUND_API_KEY.' : 'Could not get this attachment from Resend.' });
     const file = await fetch(j.download_url, { signal: AbortSignal.timeout(30000) });
     if (!file.ok) return res.status(502).json({ error: 'Could not download this attachment.' });
     const buf = Buffer.from(await file.arrayBuffer());
@@ -3419,7 +3537,7 @@ function ensureFeedbackTable() {
   }
   return _feedbackTable;
 }
-const feedbackLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 8, message: { error: 'Too many messages — please try again a little later.' } });
+const feedbackLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 8, message: { error: 'Too many messages. Please try again a little later.' } });
 
 app.post('/api/feedback', feedbackLimiter, async (req, res) => {
   try {
@@ -3454,7 +3572,7 @@ app.post('/api/feedback', feedbackLimiter, async (req, res) => {
     res.json({ ok: true, ref });
   } catch (e) {
     console.error('[feedback]', e.message);
-    res.status(500).json({ error: 'We couldn’t send your message just now — please try again.' });
+    res.status(500).json({ error: 'We couldn’t send your message just now, please try again.' });
   }
 });
 
@@ -3488,7 +3606,7 @@ app.post('/api/admin/maintenance', adminAuthMiddleware, (req, res) => {
 });
 
 // ── REFERRAL ROUTES ───────────────────────────────────────────────────────────
-// GET /api/referral/lookup?code=XXX — public, returns referrer name for banner
+// GET /api/referral/lookup?code=XXX. Public, returns referrer name for banner
 app.get('/api/referral/lookup', async (req, res) => {
   try {
     const code = (req.query.code || '').trim().toUpperCase();
@@ -3524,7 +3642,7 @@ app.get('/api/referral/info', authMiddleware, async (req, res) => {
 });
 
 
-// POST /api/referral/redeem — spend 1 credit on a product, at checkout
+// POST /api/referral/redeem. Spend 1 credit on a product, at checkout
 //   { product: 'email_export',   draftId } → unlocks that draft (same as paying €0.99)
 //   { product: 'clean_download', token }   → unlocks that clean download (same as paying €0.50)
 app.post('/api/referral/redeem', authMiddleware, async (req, res) => {
@@ -3565,7 +3683,7 @@ app.get('/api/health', async (req, res) => {
   res.json({ ok: true, maintenance: false, db, ai: !!AI_READY, pdf: pdfEngine.status, time: new Date().toISOString() });
 });
 
-// Frontend is served by Vercel — no static file serving needed here.
+// Frontend is served by Vercel. No static file serving needed here.
 
 export default app;
 
@@ -3582,11 +3700,11 @@ if (process.env.VERCEL !== '1') {
 
   app.listen(PORT, () => {
     console.log(`\nCVMaster API → http://localhost:${PORT}`);
-    console.log(`  DB:     ${process.env.DATABASE_URL ? 'connected' : 'NOT SET — add DATABASE_URL'}`);
+    console.log(`  DB:     ${process.env.DATABASE_URL ? 'connected' : 'NOT SET, add DATABASE_URL'}`);
     console.log(`  AI:     ${AI_PROVIDER || "NOT SET"}`);
     console.log(`  Stripe: ${STRIPE_KEY ? 'configured' : 'NOT SET (demo mode)'}`);
     console.log(`  Google: ${GOOGLE_CLIENT_ID ? 'configured' : 'NOT SET'}`);
     const mail = [smtpTransport && 'SMTP (primary)', resend && 'Resend (fallback)'].filter(Boolean).join(' + ');
-    console.log(`  Email:  ${mail || 'NOT SET — emails will fail'}\n`);
+    console.log(`  Email:  ${mail || 'NOT SET, emails will fail'}\n`);
   });
 }

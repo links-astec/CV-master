@@ -122,8 +122,16 @@ CREATE TABLE IF NOT EXISTS reviews (
 
 -- SESSIONS: bumped when the password changes, which signs out every other session
 ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT NOT NULL DEFAULT 0;
+-- Notifications can link somewhere in the app; reminder bookkeeping on users
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS link TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS unpaid_nudged_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS review_nudged_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS review_nudge_count INT NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS review_emailed_at TIMESTAMPTZ;
 -- AI personalisation from onboarding answers and the user's other CVs (switchable in Settings)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_personalize BOOLEAN NOT NULL DEFAULT TRUE;
+-- The interface language the user picked (follows them across devices)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ui_lang TEXT;
 -- A paid CV is tied to the name on it at its first export (one payment = one person's CV)
 ALTER TABLE payments ADD COLUMN IF NOT EXISTS locked_name TEXT;
 -- Analysed job offers (keywords, requirements), shared by the ATS check and the AI helpers

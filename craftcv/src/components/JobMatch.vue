@@ -32,7 +32,7 @@
         </div>
         <ul v-if="fit.reasons?.length" class="jm-fit-list"><li v-for="(r, i) in fit.reasons" :key="i">{{ r }}</li></ul>
         <p v-if="fit.advice" class="jm-fit-advice">💡 {{ fit.advice }}</p>
-        <p v-if="fit.fit !== 'good'" class="jm-fit-note">{{ $t('It’s your call — you can still tailor your CV and apply.') }}</p>
+        <p v-if="fit.fit !== 'good'" class="jm-fit-note">{{ $t('It’s your call. You can still tailor your CV and apply.') }}</p>
         <div class="jm-fit-acts">
           <button class="btn-ghost btn-sm" :disabled="fitLoading" @click="checkFit(true)">{{ $t('Check again') }}</button>
           <button class="btn-ghost btn-sm" @click="fit.dismissed = true">{{ $t('Hide') }}</button>
@@ -41,14 +41,14 @@
       <div v-else-if="hasJob && !editingJob && fitError" class="jm-hint warn">{{ $t(fitError) }}</div>
       <template v-else>
         <textarea ref="jobRef" v-model="draft" class="f-ta" rows="7"
-          :placeholder="$t('Paste the full job description — title, responsibilities and requirements…')"></textarea>
-        <div v-if="draftTooShort" class="jm-hint warn">{{ $t('Paste the full description — a few sentences at least.') }}</div>
+          :placeholder="$t('Paste the full job description. Title, responsibilities and requirements…')"></textarea>
+        <div v-if="draftTooShort" class="jm-hint warn">{{ $t('Paste the full description. A few sentences at least.') }}</div>
         <div class="jm-row">
           <button class="btn-primary accent" :disabled="draft.trim().length < MIN_CHARS" @click="saveJob">{{ $t('Use this job') }}</button>
           <button v-if="hasJob" class="btn-ghost" @click="editingJob = false">{{ $t('Cancel') }}</button>
           <button v-if="hasJob" class="btn-ghost jm-remove" @click="removeJob">{{ $t('Remove job') }}</button>
         </div>
-        <div v-if="!hasJob" class="jm-hint">{{ $t('No specific job yet? Skip this — the checklist below still works.') }}</div>
+        <div v-if="!hasJob" class="jm-hint">{{ $t('No specific job yet? Skip this. The checklist below still works.') }}</div>
       </template>
     </section>
 
@@ -60,9 +60,9 @@
         <span v-if="store.data.jobTailored === 'skipped'" class="jm-tag">{{ $t('Skipped') }}</span>
       </div>
       <template v-if="hasJob && !editingJob">
-        <p v-if="!tailorDone" class="jm-txt">{{ $t('AI rephrases your summary, experience and skills using the job’s keywords. It never invents experience — you tick the changes you want.') }}</p>
+        <p v-if="!tailorDone" class="jm-txt">{{ $t('AI rephrases your summary, experience and skills using the job’s keywords. It never invents experience. You tick the changes you want.') }}</p>
         <StepTailor embedded @applied="onApplied" />
-        <button v-if="!tailorDone" class="btn-ghost jm-skip" @click="store.data.jobTailored = 'skipped'">{{ $t('Skip — keep my wording') }}</button>
+        <button v-if="!tailorDone" class="btn-ghost jm-skip" @click="store.data.jobTailored = 'skipped'">{{ $t('Skip and keep my wording') }}</button>
       </template>
     </section>
 
@@ -81,7 +81,7 @@
         <!-- Low score: let the AI work the missing keywords in, without growing the CV -->
         <div v-if="score != null && score < LOW_SCORE && atsResult" class="jm-boost">
           <div class="jm-boost-t">{{ $t(score < 50 ? 'This score is unlikely to get past the screening' : 'This score may not get you shortlisted') }}</div>
-          <p>{{ $t('AI can work the missing keywords into what you’ve already written — without making your CV longer. You review every change, and anything you might not have is only suggested.') }}</p>
+          <p>{{ $t('AI can work the missing keywords into what you’ve already written. Without making your CV longer. You review every change, and anything you might not have is only suggested.') }}</p>
           <StepTailor embedded :ats="atsResult" @applied="onBoosted" />
         </div>
         <AtsScorer ref="atsRef" embedded @scored="onScored" />
@@ -97,7 +97,7 @@
     <div class="jm-cta">
       <div>
         <div class="jm-cta-ttl">{{ $t('Happy with it?') }}</div>
-        <div class="jm-cta-sub">{{ $t('Get the clean PDF — emailed and downloadable.') }}</div>
+        <div class="jm-cta-sub">{{ $t('Get the clean PDF, emailed and downloadable.') }}</div>
       </div>
       <button class="btn-primary accent" @click="$emit('pay')">{{ $t('Export PDF') }}</button>
     </div>
@@ -205,7 +205,7 @@ const enoughCv = () => hasDraftableContent(store.data) &&
   ((store.data.experiences || []).some(e => e.title || e.desc) || (store.data.skills || []).length >= 3 || (store.data.education || []).some(e => e.degree))
 async function checkFit(force = false) {
   if (!hasJob.value || fitLoading.value || !enoughCv() || (fit.value && !force)) return
-  // The wizard and the editor can both show this panel — only one check per job at a time
+  // The wizard and the editor can both show this panel. Only one check per job at a time
   const key = fitKey()
   if (fitInFlight.has(key)) return
   fitInFlight.add(key)
@@ -217,7 +217,7 @@ async function checkFit(force = false) {
       body: JSON.stringify({ cv, jobOffer: store.data.jobOffer, uiLang: lang.value }),
     })
     const j = await r.json().catch(() => ({}))
-    if (!r.ok) throw Object.assign(new Error(j.error || 'AI is unavailable right now — please try again in a moment.'), { status: r.status })
+    if (!r.ok) throw Object.assign(new Error(j.error || 'AI is unavailable right now. Please try again in a moment.'), { status: r.status })
     store.data.jobFit = { key: fitKey(), fit: j.fit, headline: j.headline, reasons: j.reasons, advice: j.advice, dismissed: false }
     if (j.job?.title) store.data.jobTarget = { title: j.job.title, company: j.job.company || '' }
   } catch (e) {

@@ -117,7 +117,7 @@ const steps = [
     icon:  '<rect x="4" y="3" width="16" height="18" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/>',
     iconBg:'var(--c-teal-lt)',
     target: '[data-tour="nav-templates"]',
-    tip:   'Switch layout or colour at any time — your content moves with you.',
+    tip:   'Switch layout or colour at any time. Your content moves with you.',
   },
   {
     title: 'The editor',
@@ -125,7 +125,7 @@ const steps = [
     icon:  '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/>',
     iconBg:'var(--c-amber-lt)',
     target: '[data-tour="nav-editor"]',
-    tip:   'A red line shows where page one ends — you can trim, or shrink the CV to fit.',
+    tip:   'A red line shows where page one ends. You can trim, or shrink the CV to fit.',
   },
   {
     title: 'Export',

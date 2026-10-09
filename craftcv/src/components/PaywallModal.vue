@@ -41,7 +41,7 @@
           <div v-else-if="state === 'tooLong'" class="pw-body">
             <div class="pw-hd">
               <h2>{{ $t('Your CV is longer than one page') }}</h2>
-              <p>{{ $t(page.zoom < 0.82 ? 'It’s about {over}% over. We’ll shrink it to fit one A4 page — text will be at {zoom}% of its normal size, which is quite small.' : 'It’s about {over}% over. We’ll shrink it to fit one A4 page — text will be at {zoom}% of its normal size.', { over: overPct, zoom: zoomPct }) }}</p>
+              <p>{{ $t(page.zoom < 0.82 ? 'It’s about {over}% over. We’ll shrink it to fit one A4 page. Text will be at {zoom}% of its normal size, which is quite small.' : 'It’s about {over}% over. We’ll shrink it to fit one A4 page. Text will be at {zoom}% of its normal size.', { over: overPct, zoom: zoomPct }) }}</p>
             </div>
             <div class="pw-row">
               <button class="btn-secondary" @click="close">{{ $t('Edit it first') }}</button>
@@ -53,7 +53,7 @@
           <div v-else-if="state === 'ready'" class="pw-body">
             <div class="pw-hd">
               <h2>{{ $t(paidForDraft ? 'Send your CV' : 'Get your CV as a PDF') }}</h2>
-              <p v-if="paidForDraft">{{ $t('This CV is already paid for — send it as often as you like, even after edits.') }}</p>
+              <p v-if="paidForDraft">{{ $t('This CV is already paid for. Send it as often as you like, even after edits.') }}</p>
               <p v-else-if="demoMode">{{ $t('Payments aren’t switched on yet, so this is free for now.') }}</p>
               <p v-else>{{ $t('A clean, one-page PDF, emailed to you.') }}</p>
             </div>
@@ -82,10 +82,10 @@
             <div v-if="error" class="notice error pw-err">{{ $t(error) }}</div>
 
             <button class="btn-primary accent btn-lg btn-block" :disabled="loading || !deliveryOk || (!paidForDraft && !demoMode && !withdrawalOk)" @click="primary">
-              {{ $t(loading ? 'Please wait…' : paidForDraft || demoMode ? 'Email my CV' : 'Pay €0.99 — get my CV') }}
+              {{ $t(loading ? 'Please wait…' : paidForDraft || demoMode ? 'Email my CV' : 'Pay €0.99 and get my CV') }}
             </button>
             <button v-if="!paidForDraft && !demoMode && credits > 0" class="btn-secondary btn-block pw-credit" :disabled="loading || !deliveryOk" @click="useCredit">
-              {{ $t('Use a referral credit instead — free ({n} left)', { n: credits }) }}
+              {{ $t('Use a referral credit instead, free ({n} left)', { n: credits }) }}
             </button>
             <p v-if="!paidForDraft && !demoMode" class="pw-secure">
               <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
@@ -127,7 +127,7 @@ const notifStore = useNotifStore()
 const showToast      = inject('showToast', null)
 const requireAccount = inject('requireAccount')
 
-const FEATURES = ['Clean, watermark-free PDF — emailed to you', 'Download it straight away too', 'Re-send or download again free, even after edits']
+const FEATURES = ['Clean, watermark-free PDF, emailed to you', 'Download it straight away too', 'Re-send or download again free, even after edits']
 
 // checking | tooLong | ready | sending | sent | emailFailed | error
 const state         = ref('checking')
@@ -169,7 +169,7 @@ async function api(path, body) {
 
 function close() { if (state.value !== 'sending' && !loading.value) emit('close') }
 
-// Stripe returns are handled by handleStripeReturn — don't run prepare over the top of them
+// Stripe returns are handled by handleStripeReturn, don't run prepare over the top of them
 let handlingReturn = false
 watch(() => props.show, async (v) => {
   if (!v || handlingReturn) return
@@ -259,7 +259,7 @@ async function sendEmail(sessionId = null) {
     })
     sentTo.value = data.sentTo
     paidForDraft.value = true
-    // My CVs may already be on screen (Stripe returns to it) — tell it this CV is paid
+    // My CVs may already be on screen (Stripe returns to it). Tell it this CV is paid
     window.dispatchEvent(new CustomEvent('cv-paid', { detail: { draftId: draftId.value || store.currentDraftId } }))
     state.value = 'sent'
     notifStore.fetch()
@@ -267,7 +267,7 @@ async function sendEmail(sessionId = null) {
     if (e.status === 403 || e.status === 401) { error.value = e.message; state.value = 'ready' }
     else {
       state.value = 'emailFailed'
-      // The payment may still have gone through — let My CVs re-check with the server
+      // The payment may still have gone through. Let My CVs re-check with the server
       if (sessionId) window.dispatchEvent(new CustomEvent('cv-paid', { detail: {} }))
     }
   }

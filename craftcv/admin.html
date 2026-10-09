@@ -253,6 +253,15 @@ input[type=range]{flex:1;accent-color:var(--ac)}
 .alert-success{background:var(--green-lt);color:var(--green)}
 .tpl-sel{width:100%;margin:2px 0 8px}
 .tpl-acts{display:flex;flex-wrap:wrap;gap:6px}
+.dlg-back{position:fixed;inset:0;z-index:9999;background:rgba(15,15,30,.45);display:flex;align-items:center;justify-content:center;padding:16px;animation:dlgIn .12s ease}
+.dlg{width:100%;max-width:420px;background:var(--s1);border:1px solid var(--b1);border-radius:16px;padding:22px 22px 18px;box-shadow:0 24px 64px rgba(15,15,30,.28)}
+.dlg-t{font-size:17px;font-weight:700;color:var(--t1);margin-bottom:6px}
+.dlg-m{font-size:14px;line-height:1.55;color:var(--t2)}
+.dlg-in{width:100%;margin-top:12px}
+.dlg-f{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+.btn-danger-solid{background:var(--red);border-color:var(--red);color:#fff}
+.btn-danger-solid:hover{filter:brightness(.95)}
+@keyframes dlgIn{from{opacity:0}to{opacity:1}}
 .notice-box{margin-top:8px;padding:10px 12px;border-radius:9px;background:var(--amber-lt);color:var(--t1);font-size:12.5px;line-height:1.55}
 .notice-check{display:flex;gap:8px;align-items:flex-start;margin-top:8px;font-weight:600;cursor:pointer}
 .notice-check input{margin-top:3px}
@@ -270,7 +279,8 @@ input[type=range]{flex:1;accent-color:var(--ac)}
 
 @media (max-width:1100px){ .kpis{grid-template-columns:1fr 1fr} .ov-grid,.set-grid{grid-template-columns:1fr} }
 @media (max-width:900px){
-  .email-layout{grid-template-columns:1fr;height:auto}
+  .email-layout{grid-template-columns:minmax(0,1fr);height:auto}
+  .email-left{overflow:visible;padding-right:0}
   .email-right{height:520px}
   .ib{grid-template-columns:1fr}
   .ib.has-sel .ib-list{display:none}
@@ -281,7 +291,8 @@ input[type=range]{flex:1;accent-color:var(--ac)}
   .app{flex-direction:column;height:auto;min-height:100vh}
   .sb{width:100%;flex-direction:row;flex-wrap:wrap;align-items:center}
   .sb-head{padding:12px 14px}
-  .sb-nav{flex:0 0 100%;flex-direction:row;overflow-x:auto;padding:0 8px 10px;order:3}
+  .sb-nav{flex:0 0 100%;flex-direction:row;overflow-x:auto;padding:0 8px 10px;order:3;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
+  .sb-nav::-webkit-scrollbar{display:none}
   .nav{width:auto;white-space:nowrap}
   .sb-foot{border:none;margin-left:auto;padding:8px 12px}
   .sb-mail{display:none}
@@ -291,6 +302,12 @@ input[type=range]{flex:1;accent-color:var(--ac)}
   .kpis{grid-template-columns:1fr 1fr;gap:10px}
   .kpi-v{font-size:22px}
   .tbl{display:block;overflow-x:auto}
+  .kpis[style]{grid-template-columns:1fr 1fr!important}
+  .kpis[style] > :last-child:nth-child(odd){grid-column:1 / -1}
+  .card-hd{flex-wrap:wrap}
+  .card-hd > form,.card-hd > div{flex:1 1 100%;flex-wrap:wrap}
+  .card-hd .inp[style]{width:auto!important;flex:1 1 140px;min-width:0}
+  .card-head{flex-wrap:wrap}
   .ib-msg{padding:16px}
 }
 </style>
@@ -405,7 +422,7 @@ const PAGES = {
   overview:   ['Overview', 'How CVMaster is doing'],
   inbox:      ['Inbox', 'Emails to support@cvmaster.live and messages from the site'],
   users:      ['Users', 'Accounts, credits and referrals'],
-  reviews:    ['Reviews', 'Ratings from people who made a CV — approve comments for the homepage'],
+  reviews:    ['Reviews', 'Ratings from people who made a CV. Approve comments for the homepage'],
   newsletter: ['Email', 'Newsletters to subscribers, and important notices to every user'],
   subscribers:['Subscribers', 'People who agreed to get the newsletter'],
   settings:   ['Settings', 'Maintenance mode and setup status'],
@@ -438,7 +455,7 @@ async function loadStats() {
 }
 async function toggleMaintenance() {
   const on = !S.maintenance
-  if (on && !confirm('Turn on maintenance mode? The site will show a “back soon” page to everyone.')) { render(); return }
+  if (on && !(await ask({ title: 'Turn on maintenance mode?', message: 'Everyone visiting the site will see a “back soon” page until you turn it off.', ok: 'Turn on', danger: true }))) { render(); return }
   S.maintLoading = true; render()
   try { const d = await api('POST', '/maintenance', { enabled: on }); S.maintenance = !!d.maintenance; toast(S.maintenance ? 'Maintenance mode is ON' : 'Site is live again') } catch (e) { toast(e.message) }
   S.maintLoading = false; render()
@@ -463,7 +480,7 @@ function renderOverview() {
     <div class="card">
       <div class="card-hd"><h3>Last 14 days</h3><div class="legend"><span><i style="background:#C7D2FE"></i>Sign-ups</span><span><i style="background:var(--ac)"></i>Payments</span></div></div>
       <div class="card-bd"><div class="chart">
-        ${daily.map(d => `<div class="bar-col" title="${fmtDate(d.day)} — ${d.signups} sign-ups, ${d.payments} payments">
+        ${daily.map(d => `<div class="bar-col" title="${fmtDate(d.day)}, ${d.signups} sign-ups, ${d.payments} payments">
           <div class="bars"><div class="bar s" style="height:${d.signups / max * 100}%"></div><div class="bar p" style="height:${d.payments / max * 100}%"></div></div>
           <div class="bar-x">${new Date(d.day).getDate()}</div></div>`).join('')}
       </div></div>
@@ -548,7 +565,7 @@ async function setItemStatus(done) {
 }
 async function deleteItem() {
   const d = S.inbox.detail
-  if (!confirm('Delete this email permanently?')) return
+  if (!(await ask({ title: 'Delete this email?', message: 'It will be removed from the inbox permanently.', ok: 'Delete', danger: true }))) return
   try { await api('DELETE', '/inbox/' + d.id); S.inbox.sel = null; S.inbox.detail = null; toast('Deleted'); await loadInbox() } catch (e) { toast(e.message) }
 }
 
@@ -608,24 +625,24 @@ function renderDetail() {
     <div class="ib-subject">${esc(d.subject || '(no subject)')}</div>
     <div class="ib-meta"><div class="av">${esc(initials(d.from_name || d.from_addr))}</div>
       <div class="who"><b>${esc(d.from_name || d.from_addr)}</b><span>${esc(d.from_addr)} · to ${esc(d.to_addrs || 'support')} · ${fmtDate(d.received_at)} ${new Date(d.received_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span></div>${actions}</div>
-    ${d.html_body ? `${hasRemoteImages(d.html_body) && !S.inbox.showImages ? `<div class="ib-imgbar">Images from the web are hidden — they can tell the sender you opened the email. <button class="btn btn-sm" data-act="ib-images">Show images</button></div>` : ''}
+    ${d.html_body ? `${hasRemoteImages(d.html_body) && !S.inbox.showImages ? `<div class="ib-imgbar">Images from the web are hidden. They can tell the sender you opened the email. <button class="btn btn-sm" data-act="ib-images">Show images</button></div>` : ''}
       <iframe id="ib-frame" class="ib-frame" sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin" title="Email"></iframe><p class="ib-note">Shown safely: scripts never run${S.inbox.showImages ? '' : ', and images from the web stay hidden until you show them'}. Links open in a new tab.</p>`
       : d.bodyError === 'restricted_api_key' ? `<div class="alert alert-error">This email’s content couldn’t be loaded: the Resend API key on the server can only send emails.
-          In Resend → API Keys, create a key with <b>Full access</b> and add it on Render as <code>RESEND_INBOUND_API_KEY</code>. Then open this email again — it loads automatically.
+          In Resend → API Keys, create a key with <b>Full access</b> and add it on Render as <code>RESEND_INBOUND_API_KEY</code>. Then open this email again, it loads automatically.
           Meanwhile you can read it in Resend → Emails → Receiving.</div>`
       : d.bodyError && d.bodyError !== 'empty' ? `<div class="alert alert-error">This email’s content couldn’t be loaded from Resend (${esc(d.bodyError)}). Open it in Resend → Emails → Receiving, or try again in a minute.</div>`
       : `<div class="ib-content">${d.text_body ? linkify(d.text_body) : esc('(This email has no text content.)')}</div>`}
     ${(d.attachments || []).length ? `<div class="ib-atts">${d.attachments.map(a => a.id
         ? `<a class="ib-att" href="/api/admin/inbox/${d.id}/attachments/${a.id}" download="${esc(a.filename || 'attachment')}">📎 ${esc(a.filename || 'attachment')}<span>${fmtSize(a.size)}</span></a>`
         : `<span class="ib-att off">📎 ${esc(a.filename || 'attachment')}<span>${fmtSize(a.size)}</span></span>`).join('')}</div>
-      ${d.attachments.some(a => !a.id) ? '<p class="ib-note">Some attachments can’t be downloaded here yet — add a full-access Resend key as RESEND_INBOUND_API_KEY, or open them in Resend → Emails → Receiving.</p>' : ''}` : ''}
+      ${d.attachments.some(a => !a.id) ? '<p class="ib-note">Some attachments can’t be downloaded here yet. Add a full-access Resend key as RESEND_INBOUND_API_KEY, or open them in Resend → Emails → Receiving.</p>' : ''}` : ''}
     <div class="thread">${replies}</div>${composer}</div>`
 
   const k = KIND[d.kind] || KIND.suggestion
   return `<div class="ib-msg">${back}
     <div class="ib-subject">${esc(k[0])} <span class="muted" style="font-weight:600;font-size:15px">#${d.id.slice(0, 8).toUpperCase()}</span></div>
     <div class="ib-meta"><div class="av" style="background:var(--s2);color:var(--t2)">${esc(initials(d.email || 'G'))}</div>
-      <div class="who"><b>${esc(d.email || 'Guest — no email')}</b><span>${d.signed_in ? 'Signed-in user' : 'Guest'} · ${fmtDate(d.created_at)}${d.page ? ' · sent from ' + esc(d.page) : ''}</span></div>${actions}</div>
+      <div class="who"><b>${esc(d.email || 'Guest, no email')}</b><span>${d.signed_in ? 'Signed-in user' : 'Guest'} · ${fmtDate(d.created_at)}${d.page ? ' · sent from ' + esc(d.page) : ''}</span></div>${actions}</div>
     <div class="ib-content">${esc(d.message)}</div>
     <div class="thread">${replies}</div>${composer}</div>`
 }
@@ -637,14 +654,14 @@ async function loadUsers(page = 1) {
   S.usersLoading = false; render()
 }
 async function editCount(id, field, label, cur) {
-  const v = prompt(`${label}\nCurrent: ${cur}\nNew amount:`, cur)
+  const v = await askText({ title: label, message: `Currently ${cur}. Enter the new amount.`, value: String(cur) })
   if (v === null) return
   const n = parseInt(v, 10)
-  if (isNaN(n) || n < 0) { alert('Enter a whole number (0 or more).'); return }
+  if (isNaN(n) || n < 0) { toast('Enter a whole number (0 or more).'); return }
   try { await api('PATCH', `/users/${id}`, { [field]: n }); toast('Updated'); await loadUsers(S.userPage) } catch (e) { toast(e.message) }
 }
 async function deleteUser(id, email) {
-  if (!confirm(`Delete ${email} and all their CVs permanently? This can’t be undone.`)) return
+  if (!(await ask({ title: 'Delete this account?', message: `${email} and all their CVs will be deleted permanently. This can’t be undone.`, ok: 'Delete account', danger: true }))) return
   try { await api('DELETE', `/users/${id}`); toast('User deleted'); await loadUsers(S.userPage) } catch (e) { toast(e.message) }
 }
 function renderUsers() {
@@ -680,11 +697,11 @@ async function loadSubs() {
 async function subAction(id, act, email) {
   try {
     if (act === 'unsub') {
-      if (!confirm('Unsubscribe ' + email + '?')) return
+      if (!(await ask({ title: 'Unsubscribe this person?', message: `${email} will stop receiving the newsletter.`, ok: 'Unsubscribe' }))) return
       await api('PATCH', '/newsletter/subscribers/' + id, { status: 'unsubscribed' }); toast('Unsubscribed')
     }
     if (act === 'del') {
-      if (!confirm('Delete ' + email + ' from the list completely? Use this when someone asks for their data to be erased.')) return
+      if (!(await ask({ title: 'Delete from the list?', message: `${email} will be removed completely. Use this when someone asks for their data to be erased.`, ok: 'Delete', danger: true }))) return
       await api('DELETE', '/newsletter/subscribers/' + id); toast('Deleted')
     }
     await loadSubs()
@@ -707,7 +724,7 @@ function renderSubs() {
   return `
   <div class="kpis" style="grid-template-columns:repeat(3,1fr)">
     <div class="card kpi"><div class="kpi-l">Subscribed</div><div class="kpi-v">${fmt(d.counts.subscribed)}</div><div class="kpi-s">Receive the newsletter</div></div>
-    <div class="card kpi"><div class="kpi-l">Waiting for confirmation</div><div class="kpi-v">${fmt(d.counts.pending)}</div><div class="kpi-s">Haven’t clicked the link yet — not emailed</div></div>
+    <div class="card kpi"><div class="kpi-l">Waiting for confirmation</div><div class="kpi-v">${fmt(d.counts.pending)}</div><div class="kpi-s">Haven’t clicked the link yet, not emailed</div></div>
     <div class="card kpi"><div class="kpi-l">Unsubscribed</div><div class="kpi-v">${fmt(d.counts.unsubscribed)}</div><div class="kpi-s">Never emailed again</div></div>
   </div>
   <div class="card">
@@ -729,7 +746,7 @@ function renderSubs() {
         <td style="white-space:nowrap;text-align:right">${x.status !== 'unsubscribed' ? `<button class="btn btn-sm" data-sub="${x.id}" data-sact="unsub" data-email="${esc(x.email)}">Unsubscribe</button> ` : ''}<button class="btn btn-sm btn-danger" data-sub="${x.id}" data-sact="del" data-email="${esc(x.email)}">Delete</button></td></tr>`
     }).join('')}</tbody></table>
   </div>
-  <p class="muted" style="font-size:12.5px;margin-top:12px">Only people who agreed are listed. You can unsubscribe or delete someone (for example if they ask by email), but you can’t add people — they have to sign up themselves.</p>`
+  <p class="muted" style="font-size:12.5px;margin-top:12px">Only people who agreed are listed. You can unsubscribe or delete someone (for example if they ask by email), but you can’t add people. They have to sign up themselves.</p>`
 }
 
 // ── Reviews ───────────────────────────────────────────────────────────────────
@@ -739,7 +756,7 @@ async function loadReviews() {
   S.rvLoading = false; render()
 }
 async function setReview(id, status) {
-  try { await api('PATCH', '/reviews/' + id, { status }); toast(status === 'approved' ? 'Approved — shown on the homepage' : status === 'hidden' ? 'Hidden' : 'Moved back to pending'); await loadReviews() } catch (e) { toast(e.message) }
+  try { await api('PATCH', '/reviews/' + id, { status }); toast(status === 'approved' ? 'Approved. Shown on the homepage' : status === 'hidden' ? 'Hidden' : 'Moved back to pending'); await loadReviews() } catch (e) { toast(e.message) }
 }
 function renderReviews() {
   if (S.rvLoading || !S.rv) return `<div class="loading"><div class="spinner"></div></div>`
@@ -753,7 +770,7 @@ function renderReviews() {
     <div class="card kpi"><div class="kpi-l">Comments to check</div><div class="kpi-v">${fmt(r.pending)}</div><div class="kpi-s">Approve to show on the homepage</div></div>
   </div>
   <div class="card">
-    <div class="card-hd"><h3>All reviews</h3><span class="muted" style="font-size:12.5px">Hide only spam or abuse — the average must include bad reviews too.</span></div>
+    <div class="card-hd"><h3>All reviews</h3><span class="muted" style="font-size:12.5px">Hide only spam or abuse. The average must include bad reviews too.</span></div>
     ${!r.items.length ? `<div class="empty"><strong>No reviews yet</strong>People are asked for one after they get their CV.</div>` : r.items.map(x => {
       const st = STATUS[x.status] || STATUS.pending
       return `<div class="pay-row" style="align-items:flex-start">
@@ -798,21 +815,21 @@ function renderSettings() {
 
 // ── EMAIL BUILDER ─────────────────────────────────────────────────────────────
 const BLOCK_DEFS = {
-  heading:   { label:'Heading',      icon:'H',   defaults:{ text:'Your heading here', align:'left', size:28, color:'#1a1a1a', bold:true, italic:false } },
-  subheading:{ label:'Subheading',   icon:'h2',  defaults:{ text:'Subheading text', align:'left', size:18, color:'#444444', bold:true } },
-  text:      { label:'Text',         icon:'¶',   defaults:{ text:'Your paragraph text here.', align:'left', size:15, color:'#333333', lineHeight:1.7 } },
-  button:    { label:'Button',       icon:'▶',   defaults:{ text:'Click here', url:'https://', align:'center', bgColor:'#1a1a1a', textColor:'#ffffff', radius:8, size:'md' } },
-  logo:      { label:'Logo',         icon:'◆',   defaults:{ align:'center' } },
+  heading:   { label:'Heading',      icon:'H',   defaults:{ text:'Your heading here', align:'left', size:24, color:'#14142B', bold:true, italic:false } },
+  subheading:{ label:'Subheading',   icon:'h2',  defaults:{ text:'Subheading text', align:'left', size:17, color:'#14142B', bold:true } },
+  text:      { label:'Text',         icon:'¶',   defaults:{ text:'Your paragraph text here.', align:'left', size:15, color:'#3F3F55', lineHeight:1.65 } },
+  button:    { label:'Button',       icon:'▶',   defaults:{ text:'Click here', url:'https://', align:'left', bgColor:'#4338CA', textColor:'#ffffff', radius:8, size:'md' } },
+  logo:      { label:'Logo',         icon:'◆',   defaults:{ align:'left' } },
   image:     { label:'Image',        icon:'IMG', defaults:{ url:'', alt:'', align:'center', width:100, radius:0, link:'' } },
-  hero:      { label:'Hero Banner',  icon:'★',   defaults:{ title:'Big headline here', subtitle:'Supporting text goes here', bgColor:'#1a1a2e', textColor:'#ffffff', btnText:'Get started', btnUrl:'https://', btnColor:'#4338CA' } },
-  divider:   { label:'Divider',      icon:'—',   defaults:{ color:'#e5e5e5', thickness:1, style:'solid' } },
+  hero:      { label:'Hero Banner',  icon:'★',   defaults:{ title:'Big headline here', subtitle:'Supporting text goes here', bgColor:'#14142B', textColor:'#ffffff', btnText:'Get started', btnUrl:'https://', btnColor:'#4338CA' } },
+  divider:   { label:'Divider',      icon:'―',   defaults:{ color:'#E7E7EF', thickness:1, style:'solid' } },
   spacer:    { label:'Spacer',       icon:'↕',   defaults:{ height:32 } },
   columns:   { label:'2 Columns',    icon:'⊞',  defaults:{ col1:'**Left column**\n\nYour left content here.', col2:'**Right column**\n\nYour right content here.' } },
-  quote:     { label:'Quote',        icon:'"',   defaults:{ text:'Inspiring quote goes here.', author:'', color:'#4338CA', bgColor:'#f0f4ff' } },
+  quote:     { label:'Quote',        icon:'"',   defaults:{ text:'What a customer said about CVMaster.', author:'', color:'#4338CA', bgColor:'#F6F6FB' } },
   list:      { label:'Feature List', icon:'≡',   defaults:{ items:['First key point or feature','Second key point or feature','Third key point or feature'], color:'#4338CA' } },
-  callout:   { label:'Callout Box',  icon:'!',   defaults:{ text:'Important message or highlight here.', bgColor:'#fff8e1', borderColor:'#f59e0b', icon:'⚡' } },
+  callout:   { label:'Callout Box',  icon:'!',   defaults:{ text:'Important message or highlight here.', bgColor:'#F6F6FB', borderColor:'#4338CA', icon:'' } },
   social:    { label:'Social Links', icon:'@',   defaults:{ links:[{name:'Twitter',url:'https://twitter.com/',emoji:'𝕏'},{name:'LinkedIn',url:'https://linkedin.com/',emoji:'in'},{name:'Instagram',url:'https://instagram.com/',emoji:'IG'}] } },
-  footer:    { label:'Footer Text',  icon:'ft',  defaults:{ text:'© CVMaster · cvmaster.live', color:'#999999', size:12 } },
+  footer:    { label:'Footer Text',  icon:'ft',  defaults:{ text:'© CVMaster · cvmaster.live', color:'#8A8AA3', size:12 } },
   html:      { label:'Raw HTML',     icon:'</>',  defaults:{ code:'<p style="color:#333;font-family:Arial,sans-serif">Custom HTML here</p>' } },
 };
 
@@ -845,27 +862,31 @@ function simpleMarkdown(text) {
     .replace(/\n/g,'<br>');
 }
 
+// System fonts: they look sharp in every mail app and need nothing loaded
+const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
+const INK = '#14142B', BODY = '#3F3F55', MUTED = '#6B6B80', ACCENT = '#4338CA'
+
 function blockToHtml(b) {
   if(b.type==='heading'){
     const fw=b.bold!==false?'700':'400';
     const fs=b.italic?'italic':'normal';
-    return `<h1 style="font-family:Georgia,serif;font-size:${b.size||28}px;font-weight:${fw};font-style:${fs};color:${b.color||'#1a1a1a'};margin:0 0 16px;text-align:${b.align||'left'};line-height:1.25;letter-spacing:-0.01em">${esc(b.text||'')}</h1>`;
+    return `<h1 style="font-family:${FONT};font-size:${b.size||28}px;font-weight:${fw};font-style:${fs};color:${b.color||'#1a1a1a'};margin:0 0 14px;text-align:${b.align||'left'};line-height:1.3;letter-spacing:-0.015em">${esc(b.text||'')}</h1>`;
   }
   if(b.type==='subheading'){
-    return `<h2 style="font-family:Arial,sans-serif;font-size:${b.size||18}px;font-weight:${b.bold?'700':'500'};color:${b.color||'#444'};margin:0 0 12px;text-align:${b.align||'left'};line-height:1.35">${esc(b.text||'')}</h2>`;
+    return `<h2 style="font-family:${FONT};font-size:${b.size||18}px;font-weight:${b.bold?'700':'500'};color:${b.color||INK};margin:18px 0 8px;text-align:${b.align||'left'};line-height:1.35">${esc(b.text||'')}</h2>`;
   }
   if(b.type==='text'){
-    return `<p style="font-family:Arial,sans-serif;font-size:${b.size||15}px;color:${b.color||'#333'};line-height:${b.lineHeight||1.7};margin:0 0 14px;text-align:${b.align||'left'}">${simpleMarkdown(b.text)}</p>`;
+    return `<p style="font-family:${FONT};font-size:${b.size||15}px;color:${b.color||BODY};line-height:${b.lineHeight||1.65};margin:0 0 16px;text-align:${b.align||'left'}">${simpleMarkdown(b.text)}</p>`;
   }
   if(b.type==='button'){
-    const pad=b.size==='lg'?'15px 36px':b.size==='sm'?'8px 18px':'12px 28px';
-    const fsize=b.size==='lg'?'17px':b.size==='sm'?'13px':'15px';
-    return `<table width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0"><tr><td align="${b.align||'center'}" style="padding:12px 0">
-<a href="${esc(b.url||'#')}" style="display:inline-block;background:${b.bgColor||'#1a1a1a'};color:${b.textColor||'#fff'};font-family:Arial,sans-serif;font-size:${fsize};font-weight:700;padding:${pad};border-radius:${b.radius||8}px;text-decoration:none;letter-spacing:.01em">${esc(b.text||'Click here')}</a>
+    const pad=b.size==='lg'?'14px 28px':b.size==='sm'?'8px 16px':'12px 22px';
+    const fsize=b.size==='lg'?'16px':b.size==='sm'?'13px':'15px';
+    return `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:6px 0 10px"><tr><td align="${b.align||'left'}" style="padding:8px 0">
+<a href="${esc(b.url||'#')}" style="display:inline-block;background:${b.bgColor||'#1a1a1a'};color:${b.textColor||'#fff'};font-family:${FONT};font-size:${fsize};font-weight:600;padding:${pad};border-radius:${b.radius||8}px;text-decoration:none">${esc(b.text||'Click here')}</a>
 </td></tr></table>`;
   }
   if(b.type==='logo'){
-    return `<div style="text-align:${b.align||'center'};margin:8px 0 20px"><a href="https://www.cvmaster.live" style="display:inline-block"><img src="https://www.cvmaster.live/email-logo.png" width="145" height="32" alt="CVMaster" style="display:inline-block;border:0;width:145px;height:32px" /></a></div>`;
+    return `<div style="text-align:${b.align||'left'};margin:0 0 22px"><a href="https://www.cvmaster.live" style="display:inline-block"><img src="https://www.cvmaster.live/email-logo-tile.png" width="169" height="50" alt="CVMaster" style="display:inline-block;border:0;width:169px;height:50px" /></a></div>`;
   }
   if(b.type==='image'){
     const w=b.width&&b.width<100?`width="${b.width}%" `:'style="max-width:100%;" ';
@@ -874,56 +895,56 @@ function blockToHtml(b) {
     return `<div style="text-align:${b.align||'center'};margin:16px 0">${wrapped}</div>`;
   }
   if(b.type==='hero'){
-    return `<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 -40px;width:calc(100% + 80px)">
-<tr><td style="background:${b.bgColor||'#1a1a2e'};padding:48px 40px;text-align:center">
-<h1 style="font-family:Georgia,serif;font-size:32px;font-weight:700;color:${b.textColor||'#fff'};margin:0 0 14px;line-height:1.2">${esc(b.title||'')}</h1>
-<p style="font-family:Arial,sans-serif;font-size:16px;color:${b.textColor||'#fff'};opacity:.75;margin:0 0 28px;line-height:1.6">${esc(b.subtitle||'')}</p>
-<a href="${esc(b.btnUrl||'#')}" style="display:inline-block;background:${b.btnColor||'#4338CA'};color:#fff;font-family:Arial,sans-serif;font-size:15px;font-weight:700;padding:13px 32px;border-radius:8px;text-decoration:none">${esc(b.btnText||'Get started')}</a>
+    return `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:4px 0 22px">
+<tr><td style="background:${b.bgColor||INK};padding:36px 32px;text-align:left;border-radius:10px">
+<h1 style="font-family:${FONT};font-size:26px;font-weight:700;color:${b.textColor||'#fff'};margin:0 0 10px;line-height:1.25;letter-spacing:-0.015em">${esc(b.title||'')}</h1>
+<p style="font-family:${FONT};font-size:15px;color:${b.textColor||'#fff'};opacity:.8;margin:0 0 22px;line-height:1.6">${esc(b.subtitle||'')}</p>
+<a href="${esc(b.btnUrl||'#')}" style="display:inline-block;background:${b.btnColor||'#4338CA'};color:#fff;font-family:${FONT};font-size:15px;font-weight:600;padding:12px 22px;border-radius:8px;text-decoration:none">${esc(b.btnText||'Get started')}</a>
 </td></tr></table>`;
   }
   if(b.type==='divider'){
     const s=b.style||'solid';
-    return `<hr style="border:none;border-top:${b.thickness||1}px ${s} ${b.color||'#e5e5e5'};margin:24px 0" />`;
+    return `<hr style="border:none;border-top:${b.thickness||1}px ${s} ${b.color||'#E7E7EF'};margin:26px 0" />`;
   }
   if(b.type==='spacer'){
     return `<div style="height:${b.height||32}px;line-height:${b.height||32}px;font-size:1px">&nbsp;</div>`;
   }
   if(b.type==='columns'){
     return `<table width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0"><tr>
-<td width="50%" style="vertical-align:top;padding-right:14px;font-family:Arial,sans-serif;font-size:14px;color:#333;line-height:1.65">${simpleMarkdown(b.col1)}</td>
-<td width="50%" style="vertical-align:top;padding-left:14px;font-family:Arial,sans-serif;font-size:14px;color:#333;line-height:1.65">${simpleMarkdown(b.col2)}</td>
+<td width="50%" style="vertical-align:top;padding-right:14px;font-family:${FONT};font-size:14px;color:${BODY};line-height:1.65">${simpleMarkdown(b.col1)}</td>
+<td width="50%" style="vertical-align:top;padding-left:14px;font-family:${FONT};font-size:14px;color:${BODY};line-height:1.65">${simpleMarkdown(b.col2)}</td>
 </tr></table>`;
   }
   if(b.type==='quote'){
     return `<table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0"><tr>
-<td style="background:${b.bgColor||'#f0f4ff'};border-left:4px solid ${b.color||'#4338CA'};padding:18px 22px;border-radius:0 8px 8px 0">
-<p style="font-family:Georgia,serif;font-size:17px;font-style:italic;color:#333;margin:0 0 ${b.author?'10px':'0'};line-height:1.6">&ldquo;${esc(b.text||'')}&rdquo;</p>
-${b.author?`<cite style="font-family:Arial,sans-serif;font-size:13px;color:#888;font-style:normal;font-weight:600">&#8212; ${esc(b.author)}</cite>`:''}
+<td style="background:${b.bgColor||'#F6F6FB'};border-left:3px solid ${b.color||ACCENT};padding:16px 20px">
+<p style="font-family:${FONT};font-size:16px;color:${INK};margin:0 0 ${b.author?'8px':'0'};line-height:1.6">&ldquo;${esc(b.text||'')}&rdquo;</p>
+${b.author?`<cite style="font-family:${FONT};font-size:13px;color:${MUTED};font-style:normal;font-weight:600">${esc(b.author)}</cite>`:''}
 </td></tr></table>`;
   }
   if(b.type==='list'){
     const items=(b.items||[]).map(item=>`
-<tr><td style="padding:6px 0;vertical-align:top">
+<tr><td style="padding:4px 0;vertical-align:top">
 <table cellpadding="0" cellspacing="0"><tr>
-<td style="width:24px;padding-right:10px;color:${b.color||'#4338CA'};font-weight:700;font-size:16px;vertical-align:top;line-height:1.5">✓</td>
-<td style="font-family:Arial,sans-serif;font-size:15px;color:#333;line-height:1.6">${simpleMarkdown(item)}</td>
+<td style="width:14px;padding-right:8px;vertical-align:top;font-family:${FONT};font-size:15px;line-height:1.6;color:${b.color||ACCENT};font-weight:700">&bull;</td>
+<td style="font-family:${FONT};font-size:15px;color:${BODY};line-height:1.6">${simpleMarkdown(item)}</td>
 </tr></table>
 </td></tr>`).join('');
-    return `<table width="100%" cellpadding="0" cellspacing="0" style="margin:12px 0">${items}</table>`;
+    return `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:4px 0 18px">${items}</table>`;
   }
   if(b.type==='callout'){
     return `<table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0"><tr>
-<td style="background:${b.bgColor||'#fff8e1'};border:2px solid ${b.borderColor||'#f59e0b'};border-radius:10px;padding:16px 20px">
-<p style="font-family:Arial,sans-serif;font-size:15px;color:#333;margin:0;line-height:1.65">
-<span style="font-size:18px;margin-right:8px">${b.icon||'⚡'}</span>${simpleMarkdown(b.text)}
+<td style="background:${b.bgColor||'#F6F6FB'};border-left:3px solid ${b.borderColor||ACCENT};padding:14px 18px">
+<p style="font-family:${FONT};font-size:14.5px;color:${BODY};margin:0;line-height:1.6">
+${b.icon?`<span style="margin-right:6px">${esc(b.icon)}</span>`:''}${simpleMarkdown(b.text)}
 </p></td></tr></table>`;
   }
   if(b.type==='social'){
-    const links=(b.links||[]).map(l=>`<a href="${esc(l.url||'#')}" style="display:inline-block;margin:0 6px;background:#f4f4f5;border-radius:6px;padding:8px 14px;text-decoration:none;font-family:Arial,sans-serif;font-size:13px;font-weight:600;color:#333">${esc(l.emoji||'')} ${esc(l.name||'')}</a>`).join('');
-    return `<div style="text-align:center;padding:16px 0">${links}</div>`;
+    const links=(b.links||[]).map(l=>`<a href="${esc(l.url||'#')}" style="display:inline-block;margin:0 14px 0 0;padding:4px 0;text-decoration:none;font-family:${FONT};font-size:13px;font-weight:600;color:${INK}">${esc(l.name||'')}</a>`).join('');
+    return `<div style="text-align:left;padding:12px 0">${links}</div>`;
   }
   if(b.type==='footer'){
-    return `<p style="font-family:Arial,sans-serif;font-size:${b.size||12}px;color:${b.color||'#999'};text-align:center;margin:8px 0;line-height:1.6">${simpleMarkdown(b.text)}</p>`;
+    return `<p style="font-family:${FONT};font-size:${b.size||12}px;color:${b.color||'#8A8AA3'};text-align:left;margin:8px 0;line-height:1.6">${simpleMarkdown(b.text)}</p>`;
   }
   if(b.type==='html'){
     return b.code||'';
@@ -942,12 +963,12 @@ function buildEmailHtml() {
 <title>${esc(subject)}</title>
 <!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
 </head>
-<body style="margin:0;padding:0;background:#f0f2f5;font-family:Arial,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%">
+<body style="margin:0;padding:0;background:#F5F5F8;font-family:${FONT};-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%">
 <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
 <tr><td align="center" style="padding:32px 16px">
 <!--[if mso]><table width="600" cellpadding="0" cellspacing="0"><tr><td><![endif]-->
-<table width="600" cellpadding="0" cellspacing="0" role="presentation" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.08)">
-<tr><td style="padding:36px 44px">${body}</td></tr>
+<table width="600" cellpadding="0" cellspacing="0" role="presentation" style="max-width:600px;width:100%;background:#ffffff;border:1px solid #E7E7EF;border-radius:12px;overflow:hidden">
+<tr><td style="padding:36px 40px 30px">${body}</td></tr>
 </table>
 <!-- The server adds the footer: an unsubscribe link for newsletters, an "important notice" note for every-user emails -->
 <!--[if mso]></td></tr></table><![endif]-->
@@ -956,8 +977,8 @@ function buildEmailHtml() {
 </body></html>`;
 }
 
-// The preview shows exactly what recipients get — the server adds the footer for the chosen
-// audience — refreshed shortly after each change
+// The preview shows exactly what recipients get. The server adds the footer for the chosen
+// audience. Refreshed shortly after each change
 let _pvTimer = null, _pvSeq = 0
 function refreshPreview() {
   clearTimeout(_pvTimer)
@@ -968,119 +989,155 @@ function refreshPreview() {
       const p = await api('POST', '/email/preview', { subject: $('e-subject')?.value || S.email.subject, body: buildEmailHtml(), audience: plan === 'users' ? 'all_users' : 'subscribers' })
       if (mine !== _pvSeq) return
       S.pv = p
-      const f = $('e-preview'); if (f) f.srcdoc = p.html
+      const f = $('e-preview'); if (f) f.srcdoc = pvDoc(p.html)
       const h = $('pv-head'); if (h) h.innerHTML = pvHead()
     } catch {}
   }, 350)
 }
+// Dark mode preview: the Gmail and Outlook phone apps flip an email's light colours to dark ones
+// and leave images as they are. Inverting the page and then inverting images back again is
+// close to what they do.
+const PV_DARK = '<style>html{filter:invert(1) hue-rotate(180deg);background:#fff}img,video,picture,[style*="background-image"]{filter:invert(1) hue-rotate(180deg)}</style>'
+const pvDoc = (html) => S.pvDark ? html.replace(/<head[^>]*>/i, m => m + PV_DARK).replace(/^(?![\s\S]*<head)/, PV_DARK) : html
 const pvHead = () => S.pv ? `<div><b>From</b> ${esc(S.pv.from)}</div><div><b>Reply to</b> ${esc(S.pv.replyTo)}</div><div><b>Subject</b> ${esc(S.pv.subject)}</div>` : ''
 
 async function copyHtml() {
-  try { await navigator.clipboard.writeText(buildEmailHtml()); alert('Email HTML copied to clipboard!'); }
-  catch { alert('Could not copy — try again.'); }
+  try { await navigator.clipboard.writeText(buildEmailHtml()); toast('Email HTML copied'); }
+  catch { toast('Could not copy, try again.'); }
 }
 
-function clearBlocks() {
-  if(S.blocks.length&&!confirm('Clear all blocks?')) return;
+async function clearBlocks() {
+  if (S.blocks.length && !(await ask({ title: 'Clear this email?', message: 'All blocks will be removed.', ok: 'Clear', danger: true }))) return;
   S.blocks=[]; render(); refreshPreview();
 }
+
+
+// ── Dialogs ───────────────────────────────────────────────────────────────────
+// Our own confirm / text-input dialog (never the browser's confirm, prompt or alert).
+// ask({ title, message, ok, danger }) → true/false; askText({ title, message, value, ok }) → string or null
+function dialog({ title, message = '', ok = 'Confirm', cancel = 'Cancel', danger = false, input = null }) {
+  return new Promise(resolve => {
+    const wrap = document.createElement('div')
+    wrap.className = 'dlg-back'
+    wrap.innerHTML = `<div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-t">
+      <div class="dlg-t" id="dlg-t">${esc(title)}</div>
+      ${message ? `<div class="dlg-m">${esc(message)}</div>` : ''}
+      ${input !== null ? `<input class="inp dlg-in" value="${esc(input)}">` : ''}
+      <div class="dlg-f"><button class="btn" data-x="0">${esc(cancel)}</button><button class="btn ${danger ? 'btn-danger-solid' : 'btn-primary'}" data-x="1">${esc(ok)}</button></div></div>`
+    const field = wrap.querySelector('.dlg-in')
+    const done = (yes) => {
+      document.removeEventListener('keydown', onKey, true)
+      wrap.remove()
+      resolve(input !== null ? (yes ? field.value.trim() || null : null) : !!yes)
+    }
+    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); done(false) } if (e.key === 'Enter') { e.preventDefault(); done(true) } }
+    wrap.addEventListener('click', (e) => { if (e.target === wrap) done(false); const b = e.target.closest('[data-x]'); if (b) done(b.dataset.x === '1') })
+    document.addEventListener('keydown', onKey, true)
+    document.body.appendChild(wrap)
+    ;(field || wrap.querySelector('[data-x="1"]')).focus()
+    field?.select()
+  })
+}
+const ask = (o) => dialog(o)
+const askText = (o) => dialog({ ok: 'Save', ...o, input: o.value ?? '' })
 
 // ── TEMPLATES ─────────────────────────────────────────────────────────────────
 // Built-in emails (newsletter ones go to subscribers; "important" ones to every user), plus
 // templates saved from this page. {{first_name}} becomes each recipient's first name.
 const SITE = 'https://www.cvmaster.live'
 const mk = (type, props = {}) => ({ id: uid(), type, ...JSON.parse(JSON.stringify(BLOCK_DEFS[type].defaults)), ...props })
-const H = (text, props = {}) => mk('heading', { text, size: 26, color: '#14142B', ...props })
-const T = (text, props = {}) => mk('text', { text, color: '#333333', ...props })
-const BTN = (text, url = SITE) => mk('button', { text, url, bgColor: '#4338CA', textColor: '#ffffff', radius: 10, align: 'center' })
+const H = (text, props = {}) => mk('heading', { text, size: 24, color: '#14142B', ...props })
+const T = (text, props = {}) => mk('text', { text, color: '#3F3F55', ...props })
+const BTN = (text, url = SITE) => mk('button', { text, url, bgColor: '#4338CA', textColor: '#ffffff', radius: 8, align: 'left' })
 const LIST = (items) => mk('list', { items, color: '#4338CA' })
-const SIGN = () => T('— The CVMaster team', { size: 14, color: '#666666' })
+const SIGN = () => T('The CVMaster team', { size: 14, color: '#6B6B80' })
 const BUILTIN = {
-  welcome: { group: 'Newsletter', name: 'Welcome', audience: 'all', subject: 'Welcome to CVMaster, {{first_name}} 👋', blocks: () => [
-    mk('logo'), H('Welcome to CVMaster, {{first_name}}!', { align: 'center' }),
-    T('Thanks for joining. CVMaster helps you build a clean, one-page CV, tailor it to each job and check how well it matches — in English or French.', { align: 'center' }),
-    LIST(['**50 layouts** — ATS-friendly for online applications, creative for print', '**Tailor to any job** — paste the offer and AI rewords your CV, you approve every change', '**ATS check** — see your match score and exactly which keywords are missing']),
-    BTN('Build my CV'), T('Questions? Just reply to this email — a real person reads it.', { align: 'center', size: 13, color: '#888888' }) ] },
+  welcome: { group: 'Newsletter', name: 'Welcome', audience: 'all', subject: 'Welcome to CVMaster, {{first_name}}', blocks: () => [
+    mk('logo'), H('Welcome to CVMaster, {{first_name}}'),
+    T('Thanks for joining. CVMaster helps you build a clean, one-page CV, tailor it to each job and check how well it matches.'),
+    LIST(['**50 layouts**: ATS-friendly for online applications, creative for print', '**Tailor to any job**: paste the offer and AI rewords your CV, you approve every change', '**ATS check**: see your match score and exactly which keywords are missing']),
+    BTN('Build my CV'), T('Questions? Just reply to this email. A real person reads it.', { size: 13, color: '#6B6B80' }) ] },
   finish: { group: 'Newsletter', name: 'Finish your CV (not bought yet)', audience: 'unpaid', subject: '{{first_name}}, your CV is almost ready', blocks: () => [
-    mk('logo', { align: 'left' }), H('Your CV is almost ready, {{first_name}}'),
-    T('You’ve already done the hard part — your CV is saved in your account. When you’re happy with it, get the clean PDF and start applying.'),
-    LIST(['A **clean, one-page PDF** with no watermark', '**Emailed to you and downloadable** straight away', '**Free re-sends**, even after you edit it — all for **€0.99**, no subscription']),
+    mk('logo'), H('Your CV is almost ready, {{first_name}}'),
+    T('You’ve already done the hard part. Your CV is saved in your account. When you’re happy with it, get the clean PDF and start applying.'),
+    LIST(['A **clean, one-page PDF** with no watermark', '**Emailed to you and downloadable** straight away', '**Free re-sends**, even after you edit it, all for **€0.99**, no subscription']),
     BTN('Finish my CV'),
-    mk('callout', { text: 'Applying for a specific job? Open **Job match**, paste the offer, and check your ATS score before you export.', icon: '💡', bgColor: '#eef2ff', borderColor: '#4338CA' }),
+    mk('callout', { text: 'Applying for a specific job? Open **Job match**, paste the offer, and check your ATS score before you export.', bgColor: '#F6F6FB', borderColor: '#4338CA' }),
     SIGN() ] },
-  tailor: { group: 'Newsletter', name: 'Tailor before you send (not bought yet)', audience: 'unpaid', subject: 'Before you send your CV, {{first_name}} — one quick check', blocks: () => [
-    mk('logo', { align: 'left' }), H('One quick check before you apply'),
+  tailor: { group: 'Newsletter', name: 'Tailor before you send (not bought yet)', audience: 'unpaid', subject: 'Before you send your CV, {{first_name}}, one quick check', blocks: () => [
+    mk('logo'), H('One quick check before you apply'),
     T('Hi {{first_name}}, most companies run CVs through an applicant tracking system (ATS) before a person reads them. Two minutes in CVMaster can make a real difference:'),
-    LIST(['Paste the job offer in **Job match**', 'Let AI reword your CV using the job’s own keywords — nothing invented, you approve every change', 'Check your **ATS score** and add any skills you really have']),
+    LIST(['Paste the job offer in **Job match**', 'Let AI reword your CV using the job’s own keywords. Nothing invented, you approve every change', 'Check your **ATS score** and add any skills you really have']),
     BTN('Check my CV against a job'), SIGN() ] },
   update: { group: 'Newsletter', name: 'Product update', audience: 'all', subject: 'What’s new in CVMaster', blocks: () => [
-    mk('logo', { align: 'left' }), H('What’s new in CVMaster'),
+    mk('logo'), H('What’s new in CVMaster'),
     T('Hi {{first_name}}, here’s what we’ve been working on:'),
-    LIST(['**New feature** — describe it in one line', '**Improvement** — what got better for you', '**Fix** — something that works properly now']),
+    LIST(['**New feature**: describe it in one line', '**Improvement**: what got better for you', '**Fix**: something that works properly now']),
     BTN('Try it now'), SIGN() ] },
   layouts: { group: 'Newsletter', name: 'New templates', audience: 'all', subject: 'Fresh CV layouts to try', blocks: () => [
-    mk('logo'), H('New layouts are here 🎨', { align: 'center' }),
-    T('Pick a plain ATS-friendly layout for online applications, or a creative one for print and in person. Switching keeps all your content.', { align: 'center' }),
+    mk('logo'), H('New layouts are here'),
+    T('Pick a plain ATS-friendly layout for online applications, or a creative one for print and in person. Switching keeps all your content.'),
     BTN('See the templates', SITE + '/templates'), SIGN() ] },
   ats: { group: 'Newsletter', name: 'Tips: get past the ATS', audience: 'all', subject: '5 ways to get your CV past the robots', blocks: () => [
-    mk('logo', { align: 'left' }), H('5 ways to get your CV past the ATS'),
+    mk('logo'), H('5 ways to get your CV past the ATS'),
     T('Hi {{first_name}}, applicant tracking systems filter CVs before anyone reads them. These help:'),
-    LIST(['**Use the job’s own words** — if it says “stakeholder management”, say that', '**Standard headings** — Experience, Education, Skills', '**No text in images or tables** for key information', '**Put the job title in your headline** if it’s true for you', '**One clean PDF** — no columns of tiny text']),
+    LIST(['**Use the job’s own words**: if it says “stakeholder management”, say that', '**Standard headings**: Experience, Education, Skills', '**No text in images or tables** for key information', '**Put the job title in your headline** if it’s true for you', '**One clean PDF**: no columns of tiny text']),
     BTN('Check my ATS score'), SIGN() ] },
-  interview: { group: 'Newsletter', name: 'Tips: the interview', audience: 'all', subject: 'Your CV got you the interview — now what?', blocks: () => [
-    mk('logo', { align: 'left' }), H('Your CV got you the interview — now what?'),
+  interview: { group: 'Newsletter', name: 'Tips: the interview', audience: 'all', subject: 'Your CV got you the interview, now what?', blocks: () => [
+    mk('logo'), H('Your CV got you the interview, now what?'),
     T('Congratulations, {{first_name}}! A few things that help on the day:'),
-    LIST(['Re-read the job offer and your CV — every line on it is fair game', 'Prepare one short story for each key skill: the situation, what you did, the result', 'Have two questions ready about the team and the role']),
-    T('Good luck — you’ve got this.'), SIGN() ] },
+    LIST(['Re-read the job offer and your CV. Every line on it is fair game', 'Prepare one short story for each key skill: the situation, what you did, the result', 'Have two questions ready about the team and the role']),
+    T('Good luck, you’ve got this.'), SIGN() ] },
   referral: { group: 'Newsletter', name: 'Invite friends', audience: 'all', subject: 'Help a friend with their CV (and get one free)', blocks: () => [
-    mk('logo'), H('Know someone job hunting?', { align: 'center' }),
-    T('Share your invite link: your friend gets **25 extra AI requests**, and when they get their first clean CV, **you get a free one**.', { align: 'center' }),
+    mk('logo'), H('Know someone job hunting?'),
+    T('Share your invite link: your friend gets **25 extra AI requests**, and when they get their first clean CV, **you get a free one**.'),
     BTN('Get my invite link', SITE + '/settings'), SIGN() ] },
   review: { group: 'Newsletter', name: 'Ask for a review', audience: 'all', subject: 'How did CVMaster do, {{first_name}}?', blocks: () => [
-    mk('logo', { align: 'left' }), H('How did we do?'),
-    T('Hi {{first_name}}, if CVMaster helped with your applications, a quick rating helps other job seekers find us — and if something annoyed you, we really want to know.'),
+    mk('logo'), H('How did we do?'),
+    T('Hi {{first_name}}, if CVMaster helped with your applications, a quick rating helps other job seekers find us. And if something annoyed you, we really want to know.'),
     BTN('Leave a rating', SITE + '/settings'), SIGN() ] },
   comeback: { group: 'Newsletter', name: 'We miss you', audience: 'all', subject: 'Still job hunting, {{first_name}}?', blocks: () => [
-    mk('logo', { align: 'left' }), H('Still job hunting?'),
+    mk('logo'), H('Still job hunting?'),
     T('Hi {{first_name}}, your CVs are still saved in your account. Paste a new job offer and tailor your CV to it in a couple of minutes.'),
     BTN('Open my CVs'), SIGN() ] },
-  french: { group: 'Newsletter', name: 'CVMaster in French', audience: 'all', subject: 'CVMaster now speaks French 🇫🇷', blocks: () => [
-    mk('logo'), H('CVMaster parle français 🇫🇷', { align: 'center' }),
-    T('The whole site is now available in French — switch with **EN | FR** at the top. Your CV’s own language is set separately in Design.', { align: 'center' }),
-    BTN('Try it in French', SITE + '/?lang=fr'), SIGN() ] },
+  languages: { group: 'Newsletter', name: 'CVMaster in your language', audience: 'all', subject: 'CVMaster now speaks your language', blocks: () => [
+    mk('logo'), H('CVMaster now speaks your language'),
+    T('Hi {{first_name}}, the whole site is now available in English, French, Spanish, German, Italian, Portuguese and Chinese. It follows your device’s language, and you can change it any time from the globe menu at the top.'),
+    T('Your CV’s own language is set separately in Design, so you can use the site in one language and write your CV in another.'),
+    BTN('Open CVMaster'), SIGN() ] },
 
   terms: { group: 'Important notice', name: 'Terms update', audience: 'users', subject: 'An update to our Terms of Service', blocks: () => [
-    mk('logo', { align: 'left' }), H('We’re updating our Terms of Service', { size: 22 }),
+    mk('logo'), H('We’re updating our Terms of Service', { size: 22 }),
     T('Hi {{first_name}}, we’re making changes to our Terms of Service, which apply from **[date]**.'),
     LIST(['**What’s changing:** [one line]', '**Why:** [one line]']),
     T('You don’t need to do anything. If you keep using CVMaster after [date], the new terms apply. You can read them in full here:'),
     BTN('Read the Terms', SITE + '/terms'), SIGN() ] },
   privacy: { group: 'Important notice', name: 'Privacy policy update', audience: 'users', subject: 'An update to our Privacy Policy', blocks: () => [
-    mk('logo', { align: 'left' }), H('We’ve updated our Privacy Policy', { size: 22 }),
+    mk('logo'), H('We’ve updated our Privacy Policy', { size: 22 }),
     T('Hi {{first_name}}, we’ve updated how we describe what data we collect and why. The main change: **[one line]**. It applies from **[date]**.'),
-    BTN('Read the Privacy Policy', SITE + '/privacy'), T('Questions about your data? Just reply to this email.', { size: 13, color: '#888888' }), SIGN() ] },
+    BTN('Read the Privacy Policy', SITE + '/privacy'), T('Questions about your data? Just reply to this email.', { size: 13, color: '#6B6B80' }), SIGN() ] },
   maintenance: { group: 'Important notice', name: 'Planned maintenance', audience: 'users', subject: 'CVMaster will be briefly unavailable on [date]', blocks: () => [
-    mk('logo', { align: 'left' }), H('Planned maintenance', { size: 22 }),
+    mk('logo'), H('Planned maintenance', { size: 22 }),
     T('Hi {{first_name}}, CVMaster will be unavailable on **[date] from [time] to [time] (Paris time)** while we make improvements.'),
     T('Your CVs are safe and nothing changes in your account. If you need a PDF before then, download it from My CVs now.'),
     BTN('Open my CVs'), SIGN() ] },
   price: { group: 'Important notice', name: 'Price change', audience: 'users', subject: 'A change to CVMaster’s prices', blocks: () => [
-    mk('logo', { align: 'left' }), H('A change to our prices', { size: 22 }),
+    mk('logo'), H('A change to our prices', { size: 22 }),
     T('Hi {{first_name}}, from **[date]**, the clean PDF of a CV will cost **[new price]** (currently €0.99).'),
     T('CVs you’ve already paid for stay unlocked, with free re-sends as before. Building and previewing stays free.'),
     BTN('See pricing', SITE + '/#pricing'), SIGN() ] },
   security: { group: 'Important notice', name: 'Security notice', audience: 'users', subject: 'Important: a security notice about your account', blocks: () => [
-    mk('logo', { align: 'left' }), H('A security notice', { size: 22 }),
+    mk('logo'), H('A security notice', { size: 22 }),
     T('Hi {{first_name}}, [what happened, in one or two plain sentences].'),
-    mk('callout', { text: '**What to do:** [for example, change your password in Settings]. If you use the same password elsewhere, change it there too.', icon: '🔒', bgColor: '#fff8e1', borderColor: '#f59e0b' }),
-    BTN('Go to Settings', SITE + '/settings'), T('We’re sorry for the trouble. Reply to this email if you have any questions.', { size: 13, color: '#888888' }), SIGN() ] },
+    mk('callout', { text: '**What to do:** [for example, change your password in Settings]. If you use the same password elsewhere, change it there too.', bgColor: '#FFF8EB', borderColor: '#D97706' }),
+    BTN('Go to Settings', SITE + '/settings'), T('We’re sorry for the trouble. Reply to this email if you have any questions.', { size: 13, color: '#6B6B80' }), SIGN() ] },
 }
 
-function loadTemplate(key) {
+async function loadTemplate(key) {
   const saved = (S.myTemplates || []).find(x => 'my:' + x.id === key)
   const tpl = saved ? { name: saved.name, subject: saved.subject, audience: saved.audience, blocks: () => saved.blocks.map(b => ({ ...b, id: uid() })) } : BUILTIN[key]
   if (!tpl) return
-  if (S.blocks.length && !confirm(`Replace the current email with “${tpl.name}”?`)) { render(); return }
+  if (S.blocks.length && !(await ask({ title: `Use “${tpl.name}”?`, message: 'This replaces the email you’re working on.', ok: 'Use template' }))) { render(); return }
   S.blocks = tpl.blocks()
   S.email.subject = tpl.subject || S.email.subject
   S.email.plan = tpl.audience || 'all'
@@ -1095,7 +1152,7 @@ async function saveTemplate(update) {
   if (!S.blocks.length) { toast('Add some content first.'); return }
   const subject = $('e-subject')?.value || S.email.subject
   const plan = $('e-plan-sel')?.value || S.email.plan
-  const name = update ? S.tplCurrent.name : prompt('Name this template:', subject || 'My template')
+  const name = update ? S.tplCurrent.name : await askText({ title: 'Save as template', message: 'Give it a name you’ll recognise.', value: subject || 'My template' })
   if (!name || !name.trim()) return
   const payload = { name: name.trim(), subject, audience: plan, blocks: S.blocks }
   try {
@@ -1106,7 +1163,7 @@ async function saveTemplate(update) {
   } catch (e) { toast(e.message) }
 }
 async function deleteTemplate() {
-  if (!S.tplCurrent || !confirm(`Delete the template “${S.tplCurrent.name}”? Emails already sent aren’t affected.`)) return
+  if (!S.tplCurrent || !(await ask({ title: `Delete “${S.tplCurrent.name}”?`, message: 'Emails already sent aren’t affected.', ok: 'Delete', danger: true }))) return
   try { await api('DELETE', '/email/templates/' + S.tplCurrent.id); S.tplCurrent = null; toast('Template deleted'); await loadMyTemplates() } catch (e) { toast(e.message) }
 }
 
@@ -1174,8 +1231,8 @@ async function sendEmail(test=false) {
   const subject=$('e-subject')?.value||S.email.subject;
   const plan=$('e-plan-sel')?.value||S.email.plan;
   const testTo=$('e-test')?.value||S.email.testTo;
-  if(!subject){alert('Please add a subject line.');return;}
-  if(S.blocks.length===0){alert('Please add at least one content block.');return;}
+  if (!subject) { toast('Add a subject line first.'); return; }
+  if (S.blocks.length === 0) { toast('Add at least one content block first.'); return; }
   S.email.subject=subject; S.email.plan=plan;
   S.email.sending=true; S.email.err=''; S.email.sent=false; render();
   try {
@@ -1205,7 +1262,7 @@ function renderBlockEditor(b) {
     rows.push(`<div class="bi-row" style="margin-top:4px"><label class="bi-label">Bold</label><input type="checkbox" ${b.bold!==false?'checked':''} ${upChk('bold')}><label class="bi-label" style="margin-left:10px">Italic</label><input type="checkbox" ${b.italic?'checked':''} ${upChk('italic')}></div>`);
   }
   if(type==='text'){
-    rows.push(`<textarea class="bi" rows="4" ${up('text')} placeholder="Text — supports **bold** and *italic*">${esc(b.text||'')}</textarea>`);
+    rows.push(`<textarea class="bi" rows="4" ${up('text')} placeholder="Text. Supports **bold** and *italic*">${esc(b.text||'')}</textarea>`);
     rows.push(`<div class="bi-row" style="margin-top:6px"><label class="bi-label">Align</label>${alignSel(b.align)}<label class="bi-label">Size</label><input type="number" class="bi" value="${b.size||15}" min="11" max="24" ${up('size')} style="width:58px">${colPick('color',b.color||'#333333','Color')}</div>`);
     rows.push(`<div class="bi-row" style="margin-top:4px"><label class="bi-label">Line height</label><input type="range" min="1.2" max="2.2" step="0.1" value="${b.lineHeight||1.7}" ${up('lineHeight')} style="flex:1"><span class="bi-label">${b.lineHeight||1.7}</span></div>`);
   }
@@ -1243,11 +1300,11 @@ function renderBlockEditor(b) {
   }
   if(type==='quote'){
     rows.push(`<textarea class="bi" rows="3" placeholder="Quote text" ${up('text')}>${esc(b.text||'')}</textarea>`);
-    rows.push(`<input class="bi" value="${esc(b.author||'')}" placeholder="— Author name" ${up('author')} style="margin-top:5px">`);
+    rows.push(`<input class="bi" value="${esc(b.author||'')}" placeholder="Author name" ${up('author')} style="margin-top:5px">`);
     rows.push(`<div class="bi-row" style="margin-top:5px">${colPick('color',b.color||'#4338CA','Accent')}${colPick('bgColor',b.bgColor||'#f0f4ff','Background')}</div>`);
   }
   if(type==='list'){
-    rows.push(`<label class="bi-label">Items — one per line (supports **bold**)</label><textarea class="bi" rows="4" data-bid="${id}" data-bf="items" data-blines="1" style="margin-top:3px">${(b.items||[]).join('\n')}</textarea>`);
+    rows.push(`<label class="bi-label">Items. One per line (supports **bold**)</label><textarea class="bi" rows="4" data-bid="${id}" data-bf="items" data-blines="1" style="margin-top:3px">${(b.items||[]).join('\n')}</textarea>`);
     rows.push(`<div class="bi-row" style="margin-top:5px">${colPick('color',b.color||'#4338CA','Check color')}</div>`);
   }
   if(type==='callout'){
@@ -1277,22 +1334,22 @@ function renderEmail() {
     <!-- Meta -->
     <div class="card">
       <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
-        <div class="form-group"><label class="form-label">Subject line</label><input class="inp" id="e-subject" placeholder="e.g. New templates just dropped! 🎨" value="${esc(S.email.subject)}" />
-          <div class="muted" style="font-size:12px;margin-top:5px">Tip: write <code>{{first_name}}</code> in the subject or text — each person sees their own first name (or “there”).</div></div>
+        <div class="form-group"><label class="form-label">Subject line</label><input class="inp" id="e-subject" placeholder="e.g. New CV layouts to try" value="${esc(S.email.subject)}" />
+          <div class="muted" style="font-size:12px;margin-top:5px">Tip: write <code>{{first_name}}</code> in the subject or text. Each person sees their own first name (or “there”).</div></div>
         <div class="form-group"><label class="form-label">Send to</label>
           <select class="inp" id="e-plan-sel">
-            <optgroup label="Newsletter — people who subscribed">
+            <optgroup label="Newsletter, people who subscribed">
               <option value="all"${S.email.plan==='all'?' selected':''}>All subscribers${S.subs ? ' (' + fmt(S.subs.counts.subscribed) + ')' : ''}</option>
               <option value="free"${S.email.plan==='free'?' selected':''}>Subscribers on the free plan${S.subs ? ' (' + fmt(S.subs.byPlan.free || 0) + ')' : ''}</option>
               <option value="pro"${S.email.plan==='pro'?' selected':''}>Subscribers on Pro${S.subs ? ' (' + fmt(S.subs.byPlan.pro || 0) + ')' : ''}</option>
               <option value="unpaid"${S.email.plan==='unpaid'?' selected':''}>Subscribers who made a CV but haven’t bought one${S.subs?.unpaid != null ? ' (' + fmt(S.subs.unpaid) + ')' : ''}</option>
             </optgroup>
-            <optgroup label="Important notice — every account">
+            <optgroup label="Important notice, every account">
               <option value="users"${S.email.plan==='users'?' selected':''}>Every user${S.subs?.allUsers != null ? ' (' + fmt(S.subs.allUsers) + ')' : ''}</option>
             </optgroup>
           </select>
           ${S.email.plan === 'users' ? `<div class="notice-box">
-            <b>Important notices only.</b> Every account gets this, whether or not they subscribed — so use it for things users need to know:
+            <b>Important notices only.</b> Every account gets this, whether or not they subscribed. So use it for things users need to know:
             changes to the Terms, Privacy policy or prices, security notices, outages, or problems with accounts or payments. Never for promotions.
             <label class="notice-check"><input type="checkbox" id="e-important" ${S.email.important ? 'checked' : ''}> This is an important service message, not marketing</label>
           </div>` : `<div class="muted" style="font-size:12px;margin-top:6px">Only people who agreed to get emails. An unsubscribe link is added to the bottom of every email.</div>`}
@@ -1340,7 +1397,7 @@ function renderEmail() {
     <!-- Send -->
     <div class="send-panel">
       ${S.email.err?`<div class="alert alert-error">${esc(S.email.err)}</div>`:''}
-      ${S.email.sent?`<div class="alert alert-success">✓ ${S.email.sentCount===1?'Sent to 1 recipient.':'Sending to '+fmt(S.email.sentCount)+' recipients — see “Sent emails” below.'}</div>`:''}
+      ${S.email.sent?`<div class="alert alert-success">✓ ${S.email.sentCount===1?'Sent to 1 recipient.':'Sending to '+fmt(S.email.sentCount)+' recipients. See “Sent emails” below.'}</div>`:''}
       <div class="flex" style="margin-bottom:8px">
         <input class="inp" id="e-test" type="email" placeholder="test@example.com" value="${esc(S.email.testTo)}" />
         <button class="btn btn-default" id="e-test-btn" ${S.email.sending?'disabled':''} style="white-space:nowrap">Send test</button>
@@ -1364,15 +1421,16 @@ function renderEmail() {
   <div class="email-right">
     <div class="card">
       <div class="card-head">
-        <h3>Preview — exactly as it’s sent</h3>
+        <h3>Preview. Exactly as it’s sent</h3>
         <div class="flex">
           <div class="seg-sm"><button class="${S.pvWidth !== 'phone' ? 'on' : ''}" data-act="pv-width" data-w="desktop">Desktop</button><button class="${S.pvWidth === 'phone' ? 'on' : ''}" data-act="pv-width" data-w="phone">Phone</button></div>
+          <div class="seg-sm" title="Dark mode: how the Gmail and Outlook phone apps recolour the email"><button class="${!S.pvDark ? 'on' : ''}" data-act="pv-dark" data-d="0">Light</button><button class="${S.pvDark ? 'on' : ''}" data-act="pv-dark" data-d="1">Dark</button></div>
           <button class="btn btn-default btn-sm" data-nl="copy">Copy HTML</button>
         </div>
       </div>
       <div id="pv-head" class="pv-head">${pvHead()}</div>
       <div class="card-body pv-stage" style="padding:0;flex:1">
-        <iframe id="e-preview" class="preview-iframe${S.pvWidth === 'phone' ? ' phone' : ''}" srcdoc="${esc(S.pv?.html || buildEmailHtml())}"></iframe>
+        <iframe id="e-preview" class="preview-iframe${S.pvWidth === 'phone' ? ' phone' : ''}" srcdoc="${esc(pvDoc(S.pv?.html || buildEmailHtml()))}"></iframe>
       </div>
     </div>
   </div>
@@ -1389,12 +1447,14 @@ function render() {
   // Emails are shown with no scripts, and remote images only on request (tracking pixels)
   setEmailFrame()
   bind()
+  // Phones: the nav is a sideways strip, keep the current page's tab in view
+  document.querySelector('.sb-nav .nav.on')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
 }
 
 function renderLogin() {
   return `<div class="login"><div class="login-card">
     <div class="login-brand"><span class="sb-mark">${MARK}</span><span class="sb-name">CV<span>Master</span></span></div>
-    <div class="login-sub">Admin — authorised access only</div>
+    <div class="login-sub">Admin, authorised access only</div>
     ${S.login.err ? `<div class="alert alert-err">${esc(S.login.err)}</div>` : ''}
     <form data-form="login">
       <div><label class="lbl" for="li-email">Email</label><input class="inp" id="li-email" type="email" value="${esc(S.login.email)}" autocomplete="username" required></div>
@@ -1435,16 +1495,16 @@ function bind() {
   $('sub-f')?.addEventListener('change', (e) => { S.subFilter = e.target.value; render() })
   $('sub-q')?.addEventListener('change', (e) => { S.subQ = e.target.value.trim(); render() })
   $('e-test-btn')?.addEventListener('click', () => sendEmail(true))
-  $('e-send-btn')?.addEventListener('click', () => {
+  $('e-send-btn')?.addEventListener('click', async () => {
     const plan = $('e-plan-sel')?.value || 'all'
     if (plan === 'users') {
       if (!S.email.important) { toast('Tick the box to confirm this is an important service message.'); return }
       const n = S.subs?.allUsers
-      if (!confirm('Send this important notice to EVERY user' + (n != null ? ' (' + n + ')' : '') + ' now? This can’t be undone.')) return
+      if (!(await ask({ title: 'Send to every user?', message: `This important notice goes to all ${n != null ? n + ' ' : ''}accounts right away. It can’t be undone.`, ok: 'Send to everyone', danger: true }))) return
     } else {
       const n = S.subs ? (plan === 'all' ? S.subs.counts.subscribed : plan === 'unpaid' ? S.subs.unpaid : (S.subs.byPlan[plan] || 0)) : null
       if (n === 0) { toast('No subscribers to send to yet.'); return }
-      if (!confirm('Send this newsletter to ' + (n == null ? 'your subscribers' : n + ' subscriber' + (n === 1 ? '' : 's')) + ' now?')) return
+      if (!(await ask({ title: 'Send this newsletter?', message: `It goes to ${n == null ? 'your subscribers' : n + ' subscriber' + (n === 1 ? '' : 's')} right away.`, ok: 'Send now' }))) return
     }
     S.email.sent = false; sendEmail(false)
   })
@@ -1462,6 +1522,7 @@ document.addEventListener('click', (e) => {
   if (t.dataset.act === 'email-history') { loadHistory(); return }
   if (t.dataset.act === 'ib-images') { S.inbox.showImages = true; render(); return }
   if (t.dataset.act === 'pv-width') { S.pvWidth = t.dataset.w; render(); return }
+  if (t.dataset.act === 'pv-dark') { S.pvDark = t.dataset.d === '1'; render(); return }
   if (t.dataset.go) { if (t.dataset.tab) S.inbox.tab = t.dataset.tab; go(t.dataset.go); return }
   if (t.dataset.open) { const [k, id] = t.dataset.open.split(':'); openItem(k, id); return }
   if (t.dataset.ibtab) { S.inbox.tab = t.dataset.ibtab; render(); return }

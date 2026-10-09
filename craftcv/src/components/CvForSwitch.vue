@@ -8,7 +8,7 @@
     </div>
     <p class="cvf-note">{{ $t(who === 'self'
       ? 'The AI personalises suggestions with your profile and your other CVs.'
-      : 'The AI uses only what’s in this CV — nothing from your profile or other CVs.') }}</p>
+      : 'The AI uses only what’s in this CV. Nothing from your profile or other CVs.') }}</p>
   </div>
 </template>
 

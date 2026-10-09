@@ -60,7 +60,7 @@ async function downloadFree() {
     })
     if (!res.ok) {
       const d = await res.json().catch(() => ({}))
-      throw new Error(res.status === 404 ? 'This download expired — click Download again.' : (d.error || 'Download failed. Please try again.'))
+      throw new Error(res.status === 404 ? 'This download expired, click Download again.' : (d.error || 'Download failed. Please try again.'))
     }
     const url = URL.createObjectURL(await res.blob())
     const a = document.createElement('a')

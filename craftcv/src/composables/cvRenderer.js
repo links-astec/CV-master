@@ -1,4 +1,4 @@
-// CV template engine — 50 layouts (26 ATS-friendly, 24 creative) × 12 colour themes.
+// CV template engine. 50 layouts (26 ATS-friendly, 24 creative) × 12 colour themes.
 // The first 12 layouts live here; the other 38 are in cvLayoutsMore.js.
 //
 // Every layout is built from the same section blocks, so all of them share:
@@ -24,7 +24,7 @@ const BASE_LAYOUTS = [
   { id: 'modern',    kind: 'ats',      name: 'Modern',    theme: 'indigo',   desc: 'Clean header, skills column on the right' },
   { id: 'classic',   kind: 'ats',      name: 'Classic',   theme: 'charcoal', hfont: 'DM Serif Display', desc: 'Single column, centred serif name' },
   { id: 'sidebar',   kind: 'ats',      name: 'Sidebar',   theme: 'teal',     photo: true, desc: 'Tinted column for contact, skills and education' },
-  { id: 'minimal',   kind: 'ats',      name: 'Minimal',   theme: 'charcoal', desc: 'Pure text with side labels — the most ATS-friendly' },
+  { id: 'minimal',   kind: 'ats',      name: 'Minimal',   theme: 'charcoal', desc: 'Pure text with side labels, the most ATS-friendly' },
   { id: 'executive', kind: 'ats',      name: 'Executive', theme: 'slate',    hfont: 'DM Serif Display', desc: 'Strong colour header, two columns' },
   { id: 'compact',   kind: 'ats',      name: 'Compact',   theme: 'blue',     desc: 'Dense layout that fits long CVs on one page' },
   { id: 'timeline',  kind: 'ats',      name: 'Timeline',  theme: 'indigo',   desc: 'Dates on the left, accent rule, confident name' },
@@ -37,8 +37,8 @@ const BASE_LAYOUTS = [
 // ATS-friendly first, then creative
 export const LAYOUTS = [...BASE_LAYOUTS, ...MORE_LAYOUTS].sort((x, y) => (x.kind === 'ats' ? 0 : 1) - (y.kind === 'ats' ? 0 : 1))
 export const LAYOUT_KINDS = {
-  ats:      { name: 'ATS-friendly', desc: 'For online applications — tracking systems read these cleanly' },
-  creative: { name: 'Creative',     desc: 'For print, in person or sending to a person — design first' },
+  ats:      { name: 'ATS-friendly', desc: 'For online applications. Tracking systems read these cleanly' },
+  creative: { name: 'Creative',     desc: 'For print, in person or sending to a person. Design first' },
 }
 
 export const THEMES = [
@@ -163,7 +163,7 @@ function hrefFor(raw) {
   return 'https://' + u.replace(/^\/+/, '')
 }
 const displayUrl = (u) => cleanUrl(u).replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/$/, '')
-// URL text that may wrap after "/" but never inside a segment — a URL split at a hyphen
+// URL text that may wrap after "/" but never inside a segment. A URL split at a hyphen
 // reads as two broken pieces to an ATS.
 const urlHtml = (u) => displayUrl(u).split('/').map(part => `<span class="nw">${esc(part)}</span>`).join('/<wbr>')
 
@@ -304,8 +304,8 @@ const B = {
       ${p.tech ? `<p class="item-m">${p.tech}</p>` : ''}
       ${p.desc ? `<p class="prose">${p.desc}</p>` : ''}
     </article>`).join(''),
-  langInline: (m) => m.languages.length ? `<p class="inline">${m.languages.map(l => !l.level ? l.name : l.level.includes('(') ? `${l.name} — ${l.level}` : `${l.name} (${l.level})`).join(sep)}</p>` : '',
-  langList: (m) => m.languages.length ? `<ul class="list">${m.languages.map(l => `<li><strong>${l.name}</strong>${l.level ? ` <span class="muted">— ${l.level}</span>` : ''}</li>`).join('')}</ul>` : '',
+  langInline: (m) => m.languages.length ? `<p class="inline">${m.languages.map(l => !l.level ? l.name : l.level.includes('(') ? `${l.name}, ${l.level}` : `${l.name} (${l.level})`).join(sep)}</p>` : '',
+  langList: (m) => m.languages.length ? `<ul class="list">${m.languages.map(l => `<li><strong>${l.name}</strong>${l.level ? ` <span class="muted">· ${l.level}</span>` : ''}</li>`).join('')}</ul>` : '',
   certs: (m) => m.certs.length ? `<ul class="list">${m.certs.map(c => `<li>${c}</li>`).join('')}</ul>` : '',
 }
 

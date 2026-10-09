@@ -9,11 +9,11 @@
           {{ $t('Remove something (such as what you just added), or shrink it to fit.') }}
         </template>
         <template v-else-if="page.zoom < SMALL_TEXT_ZOOM">
-          <strong>{{ $t('Shrunk to fit one page — text is at {n}%, which is getting small.', { n: zoomPct }) }}</strong>
+          <strong>{{ $t('Shrunk to fit one page. Text is at {n}%, which is getting small.', { n: zoomPct }) }}</strong>
           {{ $t('Trimming a few lines will make it easier to read.') }}
         </template>
         <template v-else>
-          {{ $t('Shrunk to fit one page — text at {n}%.', { n: zoomPct }) }}
+          {{ $t('Shrunk to fit one page, text at {n}%.', { n: zoomPct }) }}
         </template>
       </div>
       <button v-if="!fitAccepted" class="btn-primary btn-sm" @click="$emit('update:fitAccepted', true)">{{ $t('Shrink to fit') }}</button>
@@ -105,8 +105,9 @@ defineExpose({ page })
 </script>
 
 <style scoped>
-.cvp{display:flex;flex-direction:column;align-items:center;width:100%}
-.cvp-stage{position:relative;flex-shrink:0}
+/* Auto margins centre the page but keep its left edge reachable when zoomed wider than the screen */
+.cvp{display:flex;flex-direction:column;align-items:flex-start;width:100%}
+.cvp-stage{position:relative;flex-shrink:0;margin:0 auto}
 .cvp-page{position:relative;width:700px;background:#fff;border-radius:3px;
   box-shadow:0 1px 2px rgba(17,24,39,.06),0 8px 28px rgba(17,24,39,.10);overflow:hidden}
 .cvp-over{position:absolute;left:0;right:0;pointer-events:none;
@@ -114,7 +115,7 @@ defineExpose({ page })
 .cvp-break{position:absolute;left:0;right:0;height:0;border-top:2px dashed #dc2626;pointer-events:none}
 .cvp-break span{position:absolute;right:10px;top:-11px;background:#dc2626;color:#fff;font:600 11px/20px Inter,sans-serif;padding:0 8px;border-radius:6px}
 
-.cvp-notice{width:100%;max-width:700px;display:flex;align-items:center;gap:10px;padding:10px 12px 10px 14px;margin-bottom:14px;
+.cvp-notice{width:100%;max-width:700px;margin-left:auto;margin-right:auto;display:flex;align-items:center;gap:10px;padding:10px 12px 10px 14px;margin-bottom:14px;
   border-radius:12px;font-size:13px;line-height:1.45;border:1px solid transparent}
 .cvp-notice svg{width:18px;height:18px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:2}
 .cvp-notice-txt{flex:1;min-width:0}

@@ -18,14 +18,14 @@
             v-model="text"
             class="jo-textarea"
             rows="8"
-            :placeholder="$t('Paste the full job advert here — title, responsibilities and requirements…')"
+            :placeholder="$t('Paste the full job advert here. Title, responsibilities and requirements…')"
           />
           <div class="jo-hint" :class="{ warn: tooShort }">
-            {{ tooShort ? $t('Paste the full description — a few sentences at least.') : $t('{n} characters', { n: text.trim().length }) }}
+            {{ tooShort ? $t('Paste the full description. A few sentences at least.') : $t('{n} characters', { n: text.trim().length }) }}
           </div>
 
           <div class="jo-actions">
-            <button class="btn-secondary" @click="skip">{{ $t(hadOffer ? 'Remove job offer' : 'No job offer — skip') }}</button>
+            <button class="btn-secondary" @click="skip">{{ $t(hadOffer ? 'Remove job offer' : 'Skip, no job offer') }}</button>
             <button class="btn-primary accent" :disabled="!text.trim() || tooShort" @click="save">{{ $t('Use this job offer') }} →</button>
           </div>
         </div>

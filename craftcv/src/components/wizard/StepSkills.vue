@@ -32,7 +32,7 @@
     </div>
 
     <div v-if="suggested.length" class="suggested-block">
-      <div class="sug-label">💡 {{ $t('AI Suggestions — click to add') }}</div>
+      <div class="sug-label">💡 {{ $t('AI Suggestions, click to add') }}</div>
       <div class="sug-chips">
         <button
           v-for="s in suggested" :key="s"
@@ -90,7 +90,7 @@ async function suggestSkills() {
     const lower = new Set((store.data.skills || []).map(s => s.toLowerCase()))
     suggested.value = (skills || []).filter(s => typeof s === 'string' && !lower.has(s.toLowerCase()))
   } catch (e) {
-    showToast?.(e?.message || 'AI is unavailable right now — please try again in a moment.')
+    showToast?.(e?.message || 'AI is unavailable right now. Please try again in a moment.')
   }
   aiLoading.value = false
   emit('ai-thinking', false)

@@ -75,7 +75,7 @@
             <div v-if="errors.terms" class="field-err">{{ $t(errors.terms) }}</div>
             <label v-if="view === 'register'" class="terms terms-opt">
               <input type="checkbox" v-model="newsletter" />
-              <span>{{ $t('Email me CV tips and CVMaster news — at most a couple a month.') }} <em>{{ $t('Optional, unsubscribe any time.') }}</em></span>
+              <span>{{ $t('Email me CV tips and CVMaster news. At most a couple a month.') }} <em>{{ $t('Optional, unsubscribe any time.') }}</em></span>
             </label>
 
             <div v-if="serverError" class="notice error auth-err">{{ $t(serverError) }}</div>
@@ -90,7 +90,7 @@
         <template v-else-if="view === 'forgot'">
           <div v-if="forgotSent" class="notice success">
             <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-            <span>{{ $t('If an account exists for {email}, a reset link is on its way. It expires in 1 hour — check your spam folder too.', { email: form.email }) }}</span>
+            <span>{{ $t('If an account exists for {email}, a reset link is on its way. It expires in 1 hour. Check your spam folder too.', { email: form.email }) }}</span>
           </div>
           <form v-else @submit.prevent="submitForgot" novalidate>
             <div class="f-grp">
@@ -136,7 +136,7 @@ import { useAuthStore } from '../../stores/auth.js'
 import BrandLogo from '../BrandLogo.vue'
 import CvThumb from '../CvThumb.vue'
 import { sampleCv } from '../../composables/sampleCv.js'
-import { lang } from '../../i18n/index.js'
+import { lang, googleLocale } from '../../i18n/index.js'
 
 const props = defineProps({
   initialView: { type: String, default: 'register' },   // signin | register | forgot | reset
@@ -149,10 +149,10 @@ const auth = useAuthStore()
 
 const TITLES = { signin: 'Welcome back', register: 'Create your free account', forgot: 'Reset your password', reset: 'Choose a new password' }
 const REASONS = {
-  export:   'Create a free account to export — the CV you built comes with you.',
-  download: 'Create a free account to download — the CV you built comes with you.',
+  export:   'Create a free account to export. The CV you built comes with you.',
+  download: 'Create a free account to download. The CV you built comes with you.',
   save:     'Create a free account to keep your CV safe and edit it anywhere.',
-  ai:       'Create a free account to buy extra AI requests — they’re saved to your account.',
+  ai:       'Create a free account to buy extra AI requests. They’re saved to your account.',
 }
 
 const view   = ref(props.initialView === 'signin' || props.initialView === 'forgot' || props.initialView === 'reset' ? props.initialView : 'register')
@@ -246,7 +246,7 @@ function renderGoogle() {
   window.google.accounts.id.initialize({ client_id: clientId, callback: onGoogleCredential, cancel_on_tap_outside: true })
   googleEl.value.innerHTML = ''
   window.google.accounts.id.renderButton(googleEl.value, {
-    theme: 'outline', size: 'large', shape: 'rectangular', text: 'continue_with', locale: lang.value,
+    theme: 'outline', size: 'large', shape: 'rectangular', text: 'continue_with', locale: googleLocale(),
     width: Math.min(googleEl.value.clientWidth || 360, 400),
   })
   googleReady.value = true

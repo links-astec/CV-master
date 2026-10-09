@@ -4,7 +4,7 @@
     <div class="maint-box">
       <BrandLogo />
       <h1>{{ $t('We’ll be right back') }}</h1>
-      <p>{{ $t('CVMaster is being updated. Your CVs are safe — please check again in a few minutes.') }}</p>
+      <p>{{ $t('CVMaster is being updated. Your CVs are safe. Please check again in a few minutes.') }}</p>
       <button class="btn-secondary" @click="checkMaintenance">{{ $t('Check again') }}</button>
     </div>
   </div>
@@ -73,7 +73,7 @@
       </header>
       <!-- Email accounts that haven't confirmed yet -->
       <div v-if="auth.isLoggedIn && auth.user && auth.user.emailVerified === false && !verifyHidden" class="verify-bar">
-        <span>{{ $t('Confirm your email to unlock 30 AI requests a day — we sent a link to {email}.', { email: auth.user.email }) }}</span>
+        <span>{{ $t('Confirm your email to unlock 30 AI requests a day. We sent a link to {email}.', { email: auth.user.email }) }}</span>
         <button class="btn-secondary btn-sm" :disabled="verifySending" @click="resendVerification">{{ $t(verifySent ? 'Sent ✓' : verifySending ? 'Sending…' : 'Resend email') }}</button>
         <button class="verify-x" :aria-label="$t('Hide')" @click="verifyHidden = true">×</button>
       </div>
@@ -139,7 +139,7 @@ import AiLimitModal from './components/AiLimitModal.vue'
 import TutorialOverlay from './components/TutorialOverlay.vue'
 import BrandLogo from './components/BrandLogo.vue'
 import LangSwitch from './components/LangSwitch.vue'
-import { t, lang } from './i18n/index.js'
+import { t, lang, setLang, hasExplicitChoice } from './i18n/index.js'
 
 const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
 const lsGet = (k) => { try { return localStorage.getItem(k) } catch { return null } }
@@ -179,7 +179,7 @@ provide('showToast', showToast)
 provide('openPaywall', openPaywall)
 provide('confirm', (...args) => confirmRef.value?.ask(...args))
 provide('startTutorial', () => { showTutorial.value = true })
-// Feedback & complaints pop-up — openFeedback('complaint') opens on that type
+// Feedback & complaints pop-up, openFeedback('complaint') opens on that type
 const feedbackRef = ref(null)
 function openFeedback(kind) { feedbackRef.value?.show(kind) }
 provide('openFeedback', openFeedback)
@@ -195,7 +195,7 @@ async function resendVerification() {
     const j = await r.json().catch(() => ({}))
     if (!r.ok) throw new Error(j.error)
     if (j.alreadyVerified) { await auth.fetchMe(); showToast('Your email is already confirmed.') }
-    else { verifySent.value = true; showToast('Sent — check your inbox (and spam).') }
+    else { verifySent.value = true; showToast('Sent. Check your inbox (and spam).') }
   } catch (e) { showToast(e.message || 'Could not send the email.') }
   verifySending.value = false
 }
@@ -211,11 +211,11 @@ async function confirmEmail(token) {
     const j = await r.json().catch(() => ({}))
     if (!r.ok) throw new Error(j.error)
     if (auth.user) auth.user.emailVerified = true
-    showToast('Email confirmed — you now get 30 AI requests a day.')
+    showToast('Email confirmed. You now get 30 AI requests a day.')
   } catch (e) { showToast(e.message || 'Could not confirm your email.') }
 }
 
-// The homepage (Landing) — reachable from the sidebar logo and after signing out
+// The homepage (Landing). Reachable from the sidebar logo and after signing out
 function showHome() { showLanding.value = true }
 // The homepage keeps its own title/description while it's showing
 watch([showLanding, lang], () => { setSeo(showLanding.value ? homeSeo() : seoForRoute(route)) })
@@ -252,9 +252,9 @@ async function handleAiPackReturn() {
     })
     const j = await r.json().catch(() => ({}))
     if (!r.ok) throw new Error(j.error)
-    showToast(t('100 AI requests added — you now have {n} extra.', { n: j.credits }))
+    showToast(t('100 AI requests added. You now have {n} extra.', { n: j.credits }))
   } catch (e) {
-    showToast(e.message || 'We couldn’t confirm your payment — contact us if you were charged.')
+    showToast(e.message || 'We couldn’t confirm your payment. Contact us if you were charged.')
   }
 }
 provide('fmt', computed(() => store.fmt))
@@ -288,8 +288,15 @@ provide('requireAccount', (reason) => auth.isLoggedIn ? Promise.resolve(true) : 
 const onboardingDismissed = ref(false)
 const showOnboarding = computed(() => ready.value && auth.isLoggedIn && !auth.isOnboarded && !onboardingDismissed.value && !authState.open)
 
+// The account's language follows the user to other devices. Unless they picked one here
+function applyAccountLang() {
+  const l = auth.user?.uiLang
+  if (l && l !== lang.value && !hasExplicitChoice()) setLang(l, { explicit: false })
+}
+
 // Guest → account: keep the CV they built as their first saved draft
 async function afterSignIn() {
+  applyAccountLang()
   notif.fetch()
   if (store.hasContent && !store.currentDraftId) {
     const id = await store.saveDraft()
@@ -365,6 +372,7 @@ onMounted(async () => {
 
   const params = new URLSearchParams(window.location.search)
   if (auth.isLoggedIn) {
+    applyAccountLang()
     notif.fetch()
     await restoreLatestDraft()
   } else {
@@ -376,7 +384,7 @@ onMounted(async () => {
 
   if (params.get('verify')) confirmEmail(params.get('verify'))
   if (params.get('newsletter') === 'confirmed') {
-    showToast('You’re subscribed to the CVMaster newsletter — thanks!')
+    showToast('You’re subscribed to the CVMaster newsletter, thanks!')
     window.history.replaceState({}, '', window.location.pathname)
   }
   if (params.get('token')) openAuth('reset')

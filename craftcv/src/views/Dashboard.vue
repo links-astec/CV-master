@@ -5,7 +5,7 @@
         <div>
           <h1>{{ $t('My CVs') }}</h1>
           <p v-if="auth.isLoggedIn">{{ $t(cards.length ? 'Open a CV to edit it, or download and send it.' : 'Your saved CVs will appear here.') }}</p>
-          <p v-else>{{ $t('You’re using CVMaster as a guest — your CV is saved in this browser.') }}</p>
+          <p v-else>{{ $t('You’re using CVMaster as a guest. Your CV is saved in this browser.') }}</p>
         </div>
         <button class="btn-primary accent" @click="newCV">
           <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -56,6 +56,12 @@
         </article>
       </div>
 
+      <!-- Now and then: ask for a rating (only people with a CV a few days old who haven't reviewed) -->
+      <div v-if="askReview" v-show="reviewShown" class="db-review card">
+        <ReviewPrompt compact only-if-new @shown="reviewShown = true" />
+        <button class="link-btn db-review-later" @click="laterReview">{{ $t('Not now') }}</button>
+      </div>
+
       <!-- Empty state -->
       <div v-else class="db-empty card">
         <div class="db-empty-art"><CvThumb template="modern:indigo" :data="sampleCv()" /></div>
@@ -92,6 +98,7 @@ import { templateLabel, normalizeTemplate } from '../composables/cvRenderer.js'
 import { sampleCv } from '../composables/sampleCv.js'
 import CvThumb from '../components/CvThumb.vue'
 import WatermarkUnlock from '../components/WatermarkUnlock.vue'
+import ReviewPrompt from '../components/ReviewPrompt.vue'
 import { t, locale } from '../i18n/index.js'
 
 const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
@@ -120,7 +127,7 @@ const cards = computed(() => {
     return store.hasContent ? [{ key: 'local', id: null, data: { ...store.data, fmt: store.fmt }, template: store.template, title: titleOf(store.data), updatedAt: null, paid: false }] : []
   }
   return drafts.value.map(d => {
-    // The open CV may have newer, not-yet-saved edits — show those
+    // The open CV may have newer, not-yet-saved edits, show those
     const live = d.id === store.currentDraftId
     const data = live ? { ...store.data, fmt: store.fmt } : (d.data || {})
     return { key: d.id, id: d.id, data, template: normalizeTemplate(live ? store.template : d.template),
@@ -128,9 +135,20 @@ const cards = computed(() => {
   }).filter(c => hasDraftableContent(c.data))
 })
 
+// Review card: CVs at least 3 days old, not dismissed in the last 30 days
+const REVIEW_LATER = 'cvmaster-review-later'
+const reviewShown = ref(false)
+const reviewLaterAt = ref((() => { try { return Number(localStorage.getItem(REVIEW_LATER)) || 0 } catch { return 0 } })())
+const askReview = computed(() => auth.isLoggedIn && Date.now() - reviewLaterAt.value > 30 * 864e5 &&
+  drafts.value.some(d => d.createdAt && Date.now() - new Date(d.createdAt).getTime() > 3 * 864e5))
+function laterReview() {
+  reviewLaterAt.value = Date.now()
+  try { localStorage.setItem(REVIEW_LATER, String(reviewLaterAt.value)) } catch {}
+}
+
 function titleOf(d) {
   const name = [d?.fn, d?.ln].filter(Boolean).join(' ')
-  return name ? (d.title ? `${name} — ${d.title}` : name) : (d?.title || t('Untitled CV'))
+  return name ? (d.title ? `${name} · ${d.title}` : name) : (d?.title || t('Untitled CV'))
 }
 
 function progress(d = {}) {
@@ -207,7 +225,7 @@ async function download(c) {
   if (!(await requireAccount('download'))) return
   busy.value = c.key
   try {
-    // PDFs are built on the server from the saved CV — save the open one's latest edits first
+    // PDFs are built on the server from the saved CV. Save the open one's latest edits first
     if (!c.id || c.id === store.currentDraftId) await store.saveDraft()
     const draftId = c.id || store.currentDraftId
     if (!draftId) throw new Error('Save your CV first.')
@@ -283,6 +301,9 @@ async function remove(c) {
 
 <style scoped>
 .db-guest{margin-bottom:22px;align-items:center}
+.db-review{position:relative;margin-top:22px;padding:18px 20px}
+.db-review :deep(.rv){border:none;padding:0;background:none}
+.db-review-later{position:absolute;top:14px;right:16px;font-size:12.5px}
 .db-guest span{flex:1}
 .db-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:20px}
 .db-card{background:var(--c-surface);border:1px solid var(--c-border);border-radius:14px;overflow:hidden;box-shadow:var(--shadow-xs);display:flex;flex-direction:column;transition:box-shadow .18s}

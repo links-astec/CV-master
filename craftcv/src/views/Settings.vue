@@ -10,7 +10,7 @@
           <div class="st-acct-txt">
             <div class="st-acct-name">{{ auth.user?.name }}</div>
             <div class="st-acct-mail">{{ auth.user?.email }}
-              <span v-if="auth.user?.emailVerified === false" class="st-unv">· {{ $t('not confirmed') }} — <button class="st-link-btn" @click="resendVerification()">{{ $t('resend link') }}</button></span>
+              <span v-if="auth.user?.emailVerified === false" class="st-unv">· {{ $t('not confirmed') }}, <button class="st-link-btn" @click="resendVerification()">{{ $t('resend link') }}</button></span>
               <span v-else class="st-ver">· {{ $t('confirmed') }}</span></div>
           </div>
           <button class="btn-secondary btn-sm" @click="logout">{{ $t('Sign out') }}</button>
@@ -67,7 +67,7 @@
             <div><span>{{ referralInfo.rewarded ?? 0 }}</span>{{ $t('got their CV') }}</div>
             <div class="hl"><span>{{ referralInfo.credits }}</span>{{ $t(referralInfo.credits === 1 ? 'free CV to use' : 'free CVs to use') }}</div>
           </div>
-          <p v-if="referralInfo.credits > 0" class="st-note">{{ $t('Use a free CV at export — choose “Use a referral credit”.') }}</p>
+          <p v-if="referralInfo.credits > 0" class="st-note">{{ $t('Use a free CV at export. Choose “Use a referral credit”.') }}</p>
 
           <div class="st-link">
             <input class="f-inp" :value="referralInfo.link" readonly :aria-label="$t('Your invite link')" @focus="$event.target.select()" />
@@ -81,7 +81,7 @@
             <button class="st-share-btn" @click="shareEmail">{{ $t('Email') }}</button>
           </div>
         </template>
-        <div v-else class="st-muted">{{ $t('Couldn’t load your invite link — try refreshing.') }}</div>
+        <div v-else class="st-muted">{{ $t('Couldn’t load your invite link, try refreshing.') }}</div>
       </section>
 
       <!-- AI requests -->
@@ -89,9 +89,9 @@
         <div class="st-card-hd">
           <div>
             <div class="st-card-t">{{ $t('AI requests') }}</div>
-            <p class="st-p">{{ $t(aiQuota?.tier === 'verified' ? '30 free every day, reset at midnight (UTC). Extra requests never expire.' : '5 free a day — 30 once your email is confirmed. Reset at midnight (UTC). Extra requests never expire.') }}</p>
+            <p class="st-p">{{ $t(aiQuota?.tier === 'verified' ? '30 free every day, reset at midnight (UTC). Extra requests never expire.' : '5 free a day. 30 once your email is confirmed. Reset at midnight (UTC). Extra requests never expire.') }}</p>
           </div>
-          <button class="btn-secondary btn-sm" @click="openAiAllowance()">{{ $t('Get 100 more — €0.50') }}</button>
+          <button class="btn-secondary btn-sm" @click="openAiAllowance()">{{ $t('Get 100 more for €0.50') }}</button>
         </div>
         <template v-if="aiQuota">
           <div class="st-meter"><div :style="{ width: (aiQuota.freeLeft / aiQuota.limit * 100) + '%' }"></div></div>
@@ -153,7 +153,7 @@
         <div v-if="auth.isLoggedIn" class="st-pref">
           <div>
             <div class="st-pref-t">{{ $t('Email newsletter') }}</div>
-            <div class="st-pref-s">{{ $t(nlStatus === 'pending' ? 'Starts once you confirm your email address' : 'CV tips and CVMaster news — a couple of emails a month at most') }}</div>
+            <div class="st-pref-s">{{ $t(nlStatus === 'pending' ? 'Starts once you confirm your email address' : 'CV tips and CVMaster news. A couple of emails a month at most') }}</div>
           </div>
           <label class="toggle-switch">
             <input type="checkbox" :checked="nlStatus === 'subscribed' || nlStatus === 'pending'" :disabled="nlStatus === null || nlSaving" @change="setNewsletter($event.target.checked)" />
@@ -167,7 +167,7 @@
       </section>
 
       <!-- Review (only shows for people who have made a CV) -->
-      <ReviewPrompt class="st-review" />
+      <ReviewPrompt id="review" class="st-review" />
 
       <!-- Help -->
       <section class="st-card">
@@ -221,7 +221,7 @@ async function setNewsletter(on) {
     if (!r.ok) throw new Error(d.error)
     nlStatus.value = d.status
     showToast(d.status === 'subscribed' ? 'Subscribed to the newsletter' : d.status === 'pending' ? 'Confirm your email to start the newsletter' : 'Unsubscribed')
-  } catch (e) { showToast(e.message || 'Could not save — please try again.') }
+  } catch (e) { showToast(e.message || 'Could not save, please try again.') }
   nlSaving.value = false
 }
 
@@ -268,7 +268,7 @@ async function saveProfile() {
   saving.value = false
 }
 
-// Personalisation switch and onboarding answers — saved as soon as they change
+// Personalisation switch and onboarding answers. Saved as soon as they change
 const profileSaving = ref(false)
 async function saveAiProfile(change) {
   profileSaving.value = true
@@ -282,7 +282,7 @@ async function saveAiProfile(change) {
     if (!r.ok) throw new Error(data.error)
     if (auth.user && data.user) Object.assign(auth.user, { aiPersonalize: data.user.aiPersonalize, industry: data.user.industry, goal: data.user.goal, experience: data.user.experience })
     showToast('Saved')
-  } catch (e) { showToast(e.message || 'Could not save — please try again.') }
+  } catch (e) { showToast(e.message || 'Could not save, please try again.') }
   profileSaving.value = false
 }
 
@@ -317,15 +317,23 @@ async function copyLink() {
     await navigator.clipboard.writeText(link)
     copied.value = true
     setTimeout(() => { copied.value = false }, 2500)
-  } catch { prompt(t('Copy your invite link:'), link) }
+  } catch {
+    // Clipboard blocked: select the link so it can be copied by hand
+    const el = document.querySelector('.st-link input'); el?.focus(); el?.select()
+    showToast(t('Select and copy your invite link.'))
+  }
 }
-const shareMsg = () => t('I’ve been using CVMaster to build my CV — it tailors it to the job and checks it against ATS. Sign up with my link and get {n} extra AI requests: {link}', { n: referralInfo.value?.welcomeAi || 25, link: referralInfo.value?.link || '' })
+const shareMsg = () => t('I’ve been using CVMaster to build my CV. It tailors it to the job and checks it against ATS. Sign up with my link and get {n} extra AI requests: {link}', { n: referralInfo.value?.welcomeAi || 25, link: referralInfo.value?.link || '' })
 function shareWhatsApp() { window.open(`https://wa.me/?text=${encodeURIComponent(shareMsg())}`, '_blank') }
 function shareTwitter()  { window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareMsg())}`, '_blank') }
 function shareLinkedIn() { window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(referralInfo.value?.link || '')}`, '_blank') }
 function shareEmail()    { window.location.href = `mailto:?subject=${encodeURIComponent(t('Try CVMaster for your CV'))}&body=${encodeURIComponent(shareMsg())}` }
 
-onMounted(() => { loadAiQuota(); if (auth.isLoggedIn) { loadReferral(); loadNewsletter() } })
+onMounted(() => {
+  loadAiQuota(); if (auth.isLoggedIn) { loadReferral(); loadNewsletter() }
+  // Arriving from a "leave a rating" link or notification
+  if (location.hash === '#review') setTimeout(() => document.getElementById('review')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 600)
+})
 watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota() } })
 </script>
 

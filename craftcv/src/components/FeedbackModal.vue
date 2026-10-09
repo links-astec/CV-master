@@ -10,7 +10,7 @@
           <template v-if="sentRef">
             <div class="fb-done">
               <div class="fb-done-ic"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
-              <h3>{{ $t('Thanks — we’ve got it') }}</h3>
+              <h3>{{ $t('Thanks, we’ve got it') }}</h3>
               <p v-if="kind === 'complaint' || kind === 'payment'">
                 {{ $t('We take this seriously and will look into it.') }} {{ email ? $t('We’ll reply to {email}.', { email }) : $t('Add an email next time if you’d like a reply.') }}
               </p>
@@ -105,7 +105,7 @@ async function send() {
       body: JSON.stringify({ kind: kind.value, message: message.value, email: email.value.trim(), page: route.fullPath }),
     })
     const j = await r.json().catch(() => ({}))
-    if (!r.ok) throw new Error(j.error || 'We couldn’t send your message just now — please try again.')
+    if (!r.ok) throw new Error(j.error || 'We couldn’t send your message just now, please try again.')
     sentRef.value = j.ref
     message.value = ''
   } catch (e) {

@@ -1,4 +1,4 @@
-// One-page fitting — the browser twin of the server's PDF fit (server/index.js,
+// One-page fitting. The browser twin of the server's PDF fit (server/index.js,
 // renderPdfFromHtml). Both measure the CV root at 700px and, if it is taller than one
 // 990px page, find the largest zoom at which it fits while still filling the page width.
 // Keep the two algorithms identical so the preview matches the exported PDF.

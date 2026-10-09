@@ -47,7 +47,7 @@ function lsSet(key, val) {
   try { localStorage.setItem(key, val) } catch {}
 }
 
-// Safely parse JSON — return null on any error
+// Safely parse JSON. Return null on any error
 function safeParse(str) {
   try { return str ? JSON.parse(str) : null } catch { return null }
 }
@@ -118,7 +118,7 @@ export const useCvStore = defineStore('cv', () => {
   const currentDraftId = ref(null)
   const lastSavedAt    = ref(null)
 
-  // ── Persist on change — localStorage immediately, account debounced ─────────
+  // ── Persist on change. LocalStorage immediately, account debounced ─────────
   let saveTimer = null
   let savePromise = null
   function scheduleSave(delay = 1500) {
@@ -259,7 +259,7 @@ export const useCvStore = defineStore('cv', () => {
     }
   }
 
-  // Saves to the account. Guests have no account yet — their CV lives in this
+  // Saves to the account. Guests have no account yet. Their CV lives in this
   // browser until they sign up (App.vue then saves it as their first draft).
   async function saveDraft() {
     if (!auth.isLoggedIn) return false
@@ -268,7 +268,7 @@ export const useCvStore = defineStore('cv', () => {
       if (!currentDraftId.value && !hasDraftableContent(data.value)) return false
       const name = fullName.value
       const payload = {
-        title: `${name}${data.value.title ? ' — ' + data.value.title : ''}`,
+        title: `${name}${data.value.title ? ' · ' + data.value.title : ''}`,
         data: plainClone({ ...data.value, fmt: fmt.value }),
         template: template.value,
       }
@@ -281,7 +281,7 @@ export const useCvStore = defineStore('cv', () => {
         body: JSON.stringify(payload),
       })
       if (r.status === 404 && draftId) {
-        // Draft was deleted elsewhere — save this CV as a new one
+        // Draft was deleted elsewhere. Save this CV as a new one
         currentDraftId.value = null; wizardDraftId.value = null
         savePromise = null
         return saveDraft()

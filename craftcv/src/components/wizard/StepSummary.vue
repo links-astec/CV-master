@@ -70,7 +70,7 @@ async function enhanceSummary() {
     const { result } = await store.aiWrite('summary', { tone: selectedTone.value })
     aiResult.value = result || ''
   } catch (e) {
-    showToast?.(e?.message || 'AI is unavailable right now — please try again in a moment.')
+    showToast?.(e?.message || 'AI is unavailable right now. Please try again in a moment.')
   }
   aiLoading.value = false
   emit('ai-thinking', false)

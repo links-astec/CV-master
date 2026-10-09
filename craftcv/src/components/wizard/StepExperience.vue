@@ -7,7 +7,7 @@
     </div>
 
     <div v-if="outOfOrder" class="order-note">
-      <span>{{ $t('These roles aren’t in date order — recruiters expect the most recent first.') }}</span>
+      <span>{{ $t('These roles aren’t in date order. Recruiters expect the most recent first.') }}</span>
       <button class="btn-secondary btn-sm" @click="sortByDate(store.data.experiences, 'period')">{{ $t('Sort by date') }}</button>
     </div>
 
@@ -48,7 +48,7 @@
           <div class="thinking-txt">{{ $t('Adding metrics & bullet points…') }}</div>
         </div>
         <div v-if="suggestions[idx]" class="ai-suggestion">
-          <div class="ai-sug-lbl">✨ {{ $t('Enhanced version — with bullet points & metrics') }}</div>
+          <div class="ai-sug-lbl">✨ {{ $t('Enhanced version. With bullet points & metrics') }}</div>
           <div class="ai-sug-txt" style="white-space:pre-line;">{{ suggestions[idx] }}</div>
           <div class="ai-sug-actions">
             <button class="btn-sug-use" @click="applySuggestion(exp, idx)">{{ $t('Apply') }}</button>
@@ -87,7 +87,7 @@ async function quantifyExp(exp, idx) {
     const { result } = await store.aiWrite('bullets', { index: idx })
     suggestions[idx] = (result || '').trim()
   } catch (e) {
-    showToast?.(e?.message || 'AI is unavailable right now — please try again in a moment.')
+    showToast?.(e?.message || 'AI is unavailable right now. Please try again in a moment.')
   }
   quantifyIdx.value = null
   emit('ai-thinking', false)

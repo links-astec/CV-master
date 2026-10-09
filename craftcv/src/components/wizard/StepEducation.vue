@@ -11,7 +11,7 @@
       {{ $t('Education') }}
     </div>
     <div v-if="eduOutOfOrder" class="order-note">
-      <span>{{ $t('Your qualifications aren’t in date order — put the most recent first.') }}</span>
+      <span>{{ $t('Your qualifications aren’t in date order. Put the most recent first.') }}</span>
       <button class="btn-secondary btn-sm" @click="sortByDate(store.data.education, 'year')">{{ $t('Sort by date') }}</button>
     </div>
     <div class="edu-list">

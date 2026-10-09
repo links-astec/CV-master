@@ -1,7 +1,7 @@
 <template>
   <div class="step-wrap">
     <h3 class="step-title">{{ $t('Tell your story') }}</h3>
-    <p class="step-sub">{{ $t('Speak or type your career story — AI builds your whole CV from it.') }}</p>
+    <p class="step-sub">{{ $t('Speak or type your career story. AI builds your whole CV from it.') }}</p>
     <CvForSwitch v-if="!started" />
 
     <div v-if="!started">
@@ -22,7 +22,7 @@
         <textarea class="f-ta" v-model="story" rows="9"
           :placeholder="$t('e.g. I’ve been in product management for 8 years. I started at a startup in London where I built their first mobile app from scratch. Then I moved to a fintech where I led a team of 12 and grew the user base from 50K to 2M. I’m passionate about data-driven decisions…')"
           style="line-height:1.7;"></textarea>
-        <div class="f-hint">{{ $t('Be as detailed as you like — more context gives a better CV.') }}</div>
+        <div class="f-hint">{{ $t('Be as detailed as you like. More context gives a better CV.') }}</div>
       </div>
 
       <!-- SPEAK mode -->
@@ -48,7 +48,7 @@
             <span v-else-if="isRecording" class="mic-live">
               <span class="rec-dot"></span> {{ $t('Recording… tap to stop') }}
             </span>
-            <span v-else class="mic-done">{{ $t('Recording stopped — review below') }}</span>
+            <span v-else class="mic-done">{{ $t('Recording stopped, review below') }}</span>
           </div>
 
           <!-- Live waveform while recording -->
@@ -70,7 +70,7 @@
           </div>
           <!-- After stopping: editable textarea -->
           <div v-else>
-            <textarea class="f-ta" v-model="story" rows="5" style="margin-top:6px;line-height:1.65;" :placeholder="$t('Your recorded text appears here — edit freely before continuing…')"></textarea>
+            <textarea class="f-ta" v-model="story" rows="5" style="margin-top:6px;line-height:1.65;" :placeholder="$t('Your recorded text appears here. Edit freely before continuing…')"></textarea>
           </div>
           <div class="f-hint" style="margin-top:6px;">
             {{ $t(isRecording ? 'Recording in progress…' : 'Edit your transcript above if needed, then build your CV.') }}
@@ -101,7 +101,7 @@
           <svg v-if="aiLoading" class="spin-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" opacity=".25"/><path d="M21 12a9 9 0 00-9-9"/></svg>
           {{ $t(aiLoading ? 'Reading your story…' : 'Build my CV from my story') }}
         </button>
-        <button class="skip-link" @click="$emit('next')">{{ $t('Skip — fill it in myself instead') }}</button>
+        <button class="skip-link" @click="$emit('next')">{{ $t('Skip and fill it in myself') }}</button>
       </div>
     </div>
 
@@ -237,7 +237,7 @@ async function startMic() {
   console.log('[MIC] SpeechRecognition created, lang:', recognition.lang)
 
   recognition.onstart = () => {
-    console.log('[MIC] onstart fired — recording active')
+    console.log('[MIC] onstart fired, recording active')
     isRecording.value = true
   }
 
@@ -264,7 +264,7 @@ async function startMic() {
       micError.value = 'Microphone access denied. Please allow microphone access in your browser settings.'
       stopMic()
     } else if (e.error === 'no-speech') {
-      console.log('[MIC] No speech detected — restarting')
+      console.log('[MIC] No speech detected, restarting')
       if (isRecording.value) {
         clearTimeout(restartTimer)
         restartTimer = setTimeout(() => {
@@ -272,7 +272,7 @@ async function startMic() {
         }, 300)
       }
     } else if (e.error === 'network') {
-      console.warn('[MIC] Network error — retrying')
+      console.warn('[MIC] Network error, retrying')
       if (isRecording.value) {
         clearTimeout(restartTimer)
         restartTimer = setTimeout(() => {
@@ -331,7 +331,7 @@ function clearTranscript() {
 // The server either turns the story down (too thin / not a career story), asks
 // follow-up questions (shown in a pop-up, a few rounds at most) or builds the CV.
 const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
-const TOO_SHORT = 'That is too short for us to build a CV from. Tell us about your jobs, studies and what you did in them — a few sentences is enough to start.'
+const TOO_SHORT = 'That is too short for us to build a CV from. Tell us about your jobs, studies and what you did in them. A few sentences is enough to start.'
 const rejected  = ref('')
 const showQs    = ref(false)
 const questions = ref([])   // [{ q, hint, a }]
@@ -354,7 +354,7 @@ async function askServer(force) {
     }),
   })
   const j = await r.json().catch(() => ({}))
-  if (!r.ok) throw new Error(j.error || 'We couldn’t read your story just now — please try again.')
+  if (!r.ok) throw new Error(j.error || 'We couldn’t read your story just now, please try again.')
   return j
 }
 

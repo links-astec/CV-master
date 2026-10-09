@@ -3,7 +3,7 @@ export default {
   // My CVs
   'Open a CV to edit it, or download and send it.': 'Ouvrez un CV pour le modifier, ou téléchargez-le et envoyez-le.',
   'Your saved CVs will appear here.': 'Vos CV enregistrés apparaîtront ici.',
-  'You’re using CVMaster as a guest — your CV is saved in this browser.': 'Vous utilisez CVMaster en tant qu’invité — votre CV est enregistré dans ce navigateur.',
+  'You’re using CVMaster as a guest. Your CV is saved in this browser.': 'Vous utilisez CVMaster en tant qu’invité. Votre CV est enregistré dans ce navigateur.',
   'This CV only lives in this browser.': 'Ce CV n’existe que dans ce navigateur.',
   'Create a free account to keep it safe, edit it on any device and export it.': 'Créez un compte gratuit pour le garder en sécurité, le modifier sur n’importe quel appareil et l’exporter.',
   'Create account': 'Créer un compte',
@@ -32,7 +32,7 @@ export default {
   'Could not delete this CV.': 'Impossible de supprimer ce CV.',
 
   // Templates
-  '{n} layouts in 12 colours. Switch any time — your content moves with you.': '{n} mises en page en 12 couleurs. Changez quand vous voulez — votre contenu suit.',
+  '{n} layouts in 12 colours. Switch any time. Your content moves with you.': '{n} mises en page en 12 couleurs. Changez quand vous voulez, votre contenu suit.',
   'Colour': 'Couleur',
   'Each layout in its own suggested colour': 'Chaque mise en page dans sa couleur suggérée',
   'Suggested': 'Suggérée',
@@ -44,8 +44,21 @@ export default {
   'Previews show an example CV.': 'Les aperçus montrent un exemple de CV.',
   'Your photo appears in layouts tagged “Photo”; the others show your initials or no picture.': 'Votre photo apparaît dans les mises en page marquées « Photo » ; les autres affichent vos initiales ou aucune image.',
 
+  // Page titles and descriptions (search results, browser tab)
+  'CVMaster | Free AI CV Builder: ATS-Friendly CVs Tailored to Any Job': 'CVMaster | Créateur de CV gratuit avec IA : un CV compatible ATS adapté à chaque offre',
+  'Free AI CV builder and CV maker: build a professional CV in minutes, tailor it to any job offer, check your ATS score and download a one-page PDF. 50 CV templates.': 'Créateur de CV gratuit avec IA : créez un CV professionnel en quelques minutes, adaptez-le à chaque offre, vérifiez votre score ATS et téléchargez un PDF d’une page. 50 modèles de CV.',
+  '50 Free CV Templates. ATS-Friendly & Creative | CVMaster': '50 modèles de CV gratuits. Compatibles ATS et créatifs | CVMaster',
+  'Choose from 50 CV templates in 12 colours: plain ATS-friendly layouts for online applications and creative designs for print. Switch any time, free.': 'Choisissez parmi 50 modèles de CV en 12 couleurs : des mises en page sobres compatibles ATS pour les candidatures en ligne et des designs créatifs pour l’impression. Changez quand vous voulez, gratuitement.',
+  'Privacy Policy | CVMaster': 'Politique de confidentialité | CVMaster',
+  'Terms of Service | CVMaster': 'Conditions d’utilisation | CVMaster',
+  'How CVMaster handles your data, payments, refunds and complaints, in plain language.': 'Comment CVMaster traite vos données, les paiements, les remboursements et les réclamations, en termes simples.',
+  'Editor | CVMaster': 'Éditeur | CVMaster',
+  'Settings | CVMaster': 'Paramètres | CVMaster',
+
   // Editor
   'Hide editor': 'Masquer l’éditeur',
+  'Zoom in': 'Agrandir',
+  'Fit to screen': 'Ajuster à l’écran',
   'Show editor': 'Afficher l’éditeur',
   'Change layout and colour': 'Changer la mise en page et la couleur',
   'Fit': 'Ajusté',

@@ -9,7 +9,7 @@
 
           <div class="tr-hd">
             <h2>{{ $t(to === 'fr' ? 'Switch your CV to French' : 'Switch your CV to English') }}</h2>
-            <p>{{ $t('Headings change automatically. We’ll also translate your content — review it below and keep what you want. Names, companies, schools, technologies and numbers stay as they are.') }}</p>
+            <p>{{ $t('Headings change automatically. We’ll also translate your content. Review it below and keep what you want. Names, companies, schools, technologies and numbers stay as they are.') }}</p>
           </div>
 
           <div v-if="loading" class="tr-loading">
@@ -20,7 +20,7 @@
           <div v-else-if="error" class="notice error">{{ $t(error) }}</div>
 
           <template v-else>
-            <div v-if="!changes.length" class="notice success">{{ $t(to === 'fr' ? 'Your content is already in French — only the headings will change.' : 'Your content is already in English — only the headings will change.') }}</div>
+            <div v-if="!changes.length" class="notice success">{{ $t(to === 'fr' ? 'Your content is already in French. Only the headings will change.' : 'Your content is already in English. Only the headings will change.') }}</div>
             <div v-else class="tr-list">
               <div class="tr-toolbar">
                 <span>{{ $t('{n} of {total} selected', { n: selected, total: changes.length }) }}</span>
@@ -81,7 +81,7 @@ async function load() {
       body: JSON.stringify({ cv, to: props.to }),
     })
     const t = await r.json().catch(() => ({}))
-    if (!r.ok) throw new Error(t.error || 'Translation failed — please try again.')
+    if (!r.ok) throw new Error(t.error || 'Translation failed, please try again.')
     changes.value = buildChanges(t)
   } catch (e) {
     error.value = e.message
@@ -102,22 +102,22 @@ function buildChanges(tr) {
     const cur = d.experiences[e.i]; if (!cur) continue
     const before = [cur.title, cur.period, cur.desc].filter(Boolean).join('\n')
     const after  = [e.title, e.period, e.desc].filter(Boolean).join('\n')
-    add(`exp${e.i}`, t('Experience — {name}', { name: cur.company || cur.title || e.i + 1 }), before, after,
+    add(`exp${e.i}`, t('Experience: {name}', { name: cur.company || cur.title || e.i + 1 }), before, after,
       (x) => { const y = x.experiences[e.i]; if (y) Object.assign(y, { title: e.title, period: e.period, desc: e.desc }) })
   }
   for (const e of tr.education || []) {
     const cur = d.education[e.i]; if (!cur) continue
-    add(`edu${e.i}`, t('Education — {name}', { name: cur.school || e.i + 1 }), [cur.degree, cur.year].filter(Boolean).join(' · '), [e.degree, e.year].filter(Boolean).join(' · '),
+    add(`edu${e.i}`, t('Education: {name}', { name: cur.school || e.i + 1 }), [cur.degree, cur.year].filter(Boolean).join(' · '), [e.degree, e.year].filter(Boolean).join(' · '),
       (x) => { const y = x.education[e.i]; if (y) Object.assign(y, { degree: e.degree, year: e.year }) })
   }
   for (const p of tr.projects || []) {
     const cur = d.projects[p.i]; if (!cur) continue
-    add(`proj${p.i}`, t('Project — {name}', { name: cur.name || p.i + 1 }), cur.desc, p.desc, (x) => { if (x.projects[p.i]) x.projects[p.i].desc = p.desc })
+    add(`proj${p.i}`, t('Project: {name}', { name: cur.name || p.i + 1 }), cur.desc, p.desc, (x) => { if (x.projects[p.i]) x.projects[p.i].desc = p.desc })
   }
   if (Array.isArray(tr.skills) && tr.skills.length === d.skills.length) {
     add('skills', 'Skills', d.skills.join(' · '), tr.skills.join(' · '), (x) => { x.skills = [...tr.skills] })
   }
-  const langText = (list) => list.map(l => [l.name, l.level].filter(Boolean).join(' — ')).join(' · ')
+  const langText = (list) => list.map(l => [l.name, l.level].filter(Boolean).join(': ')).join(' · ')
   if (tr.languages?.length) {
     add('langs', 'Languages', langText(d.languages), langText(tr.languages),
       (x) => tr.languages.forEach(l => { if (x.languages[l.i]) Object.assign(x.languages[l.i], { name: l.name, level: l.level }) }))

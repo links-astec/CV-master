@@ -75,7 +75,7 @@
             {{ kw }}
           </button>
         </div>
-        <p v-if="result.missing?.length" class="ats-add-note">{{ $t('Tap a missing keyword to add it to your skills — only add the ones you really have. Then “Check again”.') }}</p>
+        <p v-if="result.missing?.length" class="ats-add-note">{{ $t('Tap a missing keyword to add it to your skills. Only add the ones you really have. Then “Check again”.') }}</p>
       </div>
 
       <!-- Gaps -->
@@ -83,7 +83,7 @@
         <div class="ats-section-title">{{ $t('Gaps to address') }}</div>
         <div v-for="(g, i) in result.gaps" :key="i" class="ats-gap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:13px;height:13px;flex-shrink:0;color:var(--c-amber)"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          <span>{{ g }}</span>
+          <span>{{ typeof g === 'string' ? g : $t(g.key, g.params) }}</span>
         </div>
       </div>
 
@@ -92,7 +92,7 @@
         <div class="ats-section-title">{{ $t('How to improve your match') }}</div>
         <div v-for="(s, i) in result.suggestions" :key="i" class="ats-suggestion">
           <div class="ats-sug-num">{{ i + 1 }}</div>
-          <span>{{ s }}</span>
+          <span>{{ typeof s === 'string' ? s : $t(s.key, s.params) }}</span>
         </div>
       </div>
 
@@ -182,7 +182,7 @@ async function runScore({ fresh = true } = {}) {
     emit('scored', result.value.score, result.value)
   } catch (e) {
     // The AI-limit pop-up explains a 429 by itself
-    error.value = e.status === 429 ? '' : (e.message || 'Analysis failed. Please try again — make sure your CV has some content filled in.')
+    error.value = e.status === 429 ? '' : (e.message || 'Analysis failed. Please try again. Make sure your CV has some content filled in.')
   }
   scoring.value = false
 }
@@ -195,7 +195,7 @@ async function analyse() {
   const r = await fetch(apiUrl('/api/ai/ats'), {
     method: 'POST', credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cv, jobOffer: jobDesc.value, uiLang: lang.value }),
+    body: JSON.stringify({ cv, jobOffer: jobDesc.value }),
   })
   const j = await r.json().catch(() => ({}))
   if (!r.ok) throw Object.assign(new Error(j.error || 'Analysis failed.'), { status: r.status })
@@ -205,7 +205,7 @@ async function analyse() {
 }
 
 // Standalone: score straight away when there's a job offer. Embedded in the Job match
-// panel: only show a result already worked out for this exact CV — the user starts the check.
+// panel: only show a result already worked out for this exact CV. The user starts the check.
 onMounted(() => {
   if (jobDesc.value.trim().length < 40) return
   if (!props.embedded || atsCache.has(cacheKey())) runScore({ fresh: false })

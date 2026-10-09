@@ -60,7 +60,7 @@
     </div>
 
     <div v-if="!uploaded" class="skip-section">
-      <button class="skip-btn" @click="$emit('next')">{{ $t('Skip — I’ll fill it in myself') }}</button>
+      <button class="skip-btn" @click="$emit('next')">{{ $t('Skip, I’ll fill it in myself') }}</button>
     </div>
 
     <div class="format-note">

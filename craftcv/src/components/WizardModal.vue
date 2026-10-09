@@ -22,7 +22,7 @@
               </div>
               <div v-if="store.data.jobOffer" class="notice info wiz-offer">
                 <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
-                <span>{{ $t('Job offer saved — you’ll tailor your CV to it near the end.') }}</span>
+                <span>{{ $t('Job offer saved. You’ll tailor your CV to it near the end.') }}</span>
               </div>
             </div>
           </div>
@@ -105,7 +105,7 @@ const emit = defineEmits(['open-builder', 'pay'])
 const MODES = [
   { id: 'manual',  name: 'Step by step', tag: 'Guided',   desc: 'Fill in each section with AI help along the way.',
     icon: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/>' },
-  { id: 'narrate', name: 'Tell your story', tag: 'AI',    desc: 'Type or speak about your career — AI turns it into a CV.',
+  { id: 'narrate', name: 'Tell your story', tag: 'AI',    desc: 'Type or speak about your career. AI turns it into a CV.',
     icon: '<path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>' },
   { id: 'upload',  name: 'Import a CV', tag: 'PDF · Word', desc: 'Upload your current CV and we extract everything.',
     icon: '<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>' },

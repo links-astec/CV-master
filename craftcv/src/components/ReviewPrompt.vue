@@ -1,7 +1,7 @@
 <template>
   <div v-if="state !== 'hidden'" class="rv" :class="{ compact }">
     <template v-if="state === 'done'">
-      <div class="rv-done">{{ $t('Thank you — your review helps other job seekers find CVMaster.') }}</div>
+      <div class="rv-done">{{ $t('Thank you. Your review helps other job seekers find CVMaster.') }}</div>
     </template>
     <template v-else>
       <div class="rv-q">{{ $t(existing ? 'Your review' : 'How was CVMaster?') }}</div>
@@ -11,7 +11,7 @@
       </div>
       <template v-if="rating">
         <textarea v-model="comment" class="f-ta rv-ta" rows="2" maxlength="600"
-          :placeholder="$t(rating >= 4 ? 'What did you like? (optional — may appear on our homepage)' : 'What should we improve? (optional)')"></textarea>
+          :placeholder="$t(rating >= 4 ? 'What did you like? (optional, may appear on our homepage)' : 'What should we improve? (optional)')"></textarea>
         <div class="rv-row">
           <span class="rv-note">{{ $t('Shown as your first name and initial.') }}</span>
           <button class="btn-primary accent btn-sm" :disabled="sending" @click="send">{{ $t(sending ? 'Sending…' : existing ? 'Update review' : 'Send review') }}</button>
@@ -29,6 +29,7 @@ import { useAuthStore } from '../stores/auth.js'
 // compact: smaller version for the "CV sent" screen. Hidden for guests and people who
 // haven't made a CV yet; in the export flow also hidden once they've already reviewed.
 const props = defineProps({ compact: Boolean, onlyIfNew: Boolean })
+const emit = defineEmits(['shown'])
 const auth = useAuthStore()
 const apiUrl = (p) => (import.meta.env.VITE_API_URL || '') + p
 
@@ -51,6 +52,7 @@ onMounted(async () => {
       existing.value = true; rating.value = j.review.rating; comment.value = j.review.comment || ''
     }
     state.value = 'ask'
+    emit('shown')
   } catch {}
 })
 

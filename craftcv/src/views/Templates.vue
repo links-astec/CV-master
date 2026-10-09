@@ -4,7 +4,7 @@
       <div class="page-intro">
         <div>
           <h1>{{ $t('Choose a layout') }}</h1>
-          <p>{{ $t('{n} layouts in 12 colours. Switch any time — your content moves with you.', { n: LAYOUTS.length }) }}</p>
+          <p>{{ $t('{n} layouts in 12 colours. Switch any time. Your content moves with you.', { n: LAYOUTS.length }) }}</p>
         </div>
         <div class="tp-colors">
           <span class="tp-colors-lbl">{{ $t('Colour') }}</span>
@@ -70,7 +70,7 @@ const isCurrent = (l) => store.hasContent && parseTemplate(store.template).layou
 const jobOfferRef = ref(null)
 async function pick(l) {
   const offer = await jobOfferRef.value?.ask(store.data.jobOffer)
-  if (offer === null || offer === undefined) return   // dismissed — nothing changes
+  if (offer === null || offer === undefined) return   // dismissed, nothing changes
   store.template = tplFor(l)
   if (offer !== store.data.jobOffer) store.data.jobTailored = ''
   store.data.jobOffer = offer

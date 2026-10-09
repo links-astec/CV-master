@@ -95,7 +95,7 @@ defineExpose({ show })
 .ced-tabs .seg button{flex:1}
 .ced-body{flex:1;overflow-y:auto;padding:18px;min-height:0}
 
-/* Step components are reused here — hide their wizard-style headings */
+/* Step components are reused here. Hide their wizard-style headings */
 .ced-acc :deep(.step-intro),.ced-acc :deep(.step-title),.ced-acc :deep(.step-sub){display:none}
 
 .acc{border:1px solid var(--c-border);border-radius:12px;background:var(--c-surface);margin-bottom:10px;overflow:hidden;transition:box-shadow .15s}

@@ -99,7 +99,7 @@ const thumbData  = computed(() => hasDraftableContent(store.data) ? store.data :
 function setLayout(id) { store.template = templateId(id, current.value.theme) }
 function setTheme(id)  { store.template = templateId(current.value.layout, id) }
 
-// Switching language translates the CV content too — reviewed in TranslateModal
+// Switching language translates the CV content too, reviewed in TranslateModal
 const translateTo = ref(null)
 const undo = ref(null)
 function switchLang(lang) {

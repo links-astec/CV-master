@@ -6,18 +6,18 @@
 
 export const MORE_LAYOUTS = [
   // ── ATS-friendly ──
-  { id: 'standard',   kind: 'ats', name: 'Standard',   theme: 'charcoal', desc: 'The plainest, most compatible layout — bold headings with full rules' },
+  { id: 'standard',   kind: 'ats', name: 'Standard',   theme: 'charcoal', desc: 'The plainest, most compatible layout. Bold headings with full rules' },
   { id: 'harvard',    kind: 'ats', name: 'Harvard',    theme: 'charcoal', hfont: 'EB Garamond', desc: 'Traditional résumé: centred Garamond name, ruled sections' },
   { id: 'corporate',  kind: 'ats', name: 'Corporate',  theme: 'blue',     hfont: 'Manrope', desc: 'Name left, contact right, double rule, accent-bar headings' },
   { id: 'swiss',      kind: 'ats', name: 'Swiss',      theme: 'crimson',  hfont: 'Space Grotesk', desc: 'Big grotesk name, headings in a left grid column' },
   { id: 'banner',     kind: 'ats', name: 'Banner',     theme: 'teal',     hfont: 'Outfit', desc: 'Soft tinted header band with the contact strip underneath' },
   { id: 'ledger',     kind: 'ats', name: 'Ledger',     theme: 'emerald',  hfont: 'Manrope', desc: 'Full-width header, tinted column on the right' },
-  { id: 'mono',       kind: 'ats', name: 'Developer',  theme: 'emerald',  hfont: 'Space Grotesk', desc: 'Code-style labels in a monospace font — for tech roles' },
+  { id: 'mono',       kind: 'ats', name: 'Developer',  theme: 'emerald',  hfont: 'Space Grotesk', desc: 'Code-style labels in a monospace font, for tech roles' },
   { id: 'clarity',    kind: 'ats', name: 'Clarity',    theme: 'indigo',   hfont: 'Manrope', desc: 'Section names in soft pills, lots of air' },
   { id: 'margin',     kind: 'ats', name: 'Margin',     theme: 'plum',     hfont: 'Outfit', desc: 'A quiet accent line runs beside every section' },
   { id: 'statement',  kind: 'ats', name: 'Statement',  theme: 'amber',    hfont: 'Manrope', desc: 'Very large name, contact details in a neat grid' },
-  { id: 'graduate',   kind: 'ats', name: 'Graduate',   theme: 'sky',      hfont: 'Outfit', desc: 'Education and projects first — for students and first jobs' },
-  { id: 'technical',  kind: 'ats', name: 'Technical',  theme: 'blue',     hfont: 'Space Grotesk', desc: 'Skills grid up front, then experience — for engineers' },
+  { id: 'graduate',   kind: 'ats', name: 'Graduate',   theme: 'sky',      hfont: 'Outfit', desc: 'Education and projects first. For students and first jobs' },
+  { id: 'technical',  kind: 'ats', name: 'Technical',  theme: 'blue',     hfont: 'Space Grotesk', desc: 'Skills grid up front, then experience. Built for engineers' },
   { id: 'consultant', kind: 'ats', name: 'Consultant', theme: 'burgundy', hfont: 'Playfair Display', desc: 'Highlighted profile box and a core-skills grid' },
   { id: 'scholar',    kind: 'ats', name: 'Scholar',    theme: 'slate',    hfont: 'Playfair Display', desc: 'Serif headings and an accent rule under the name' },
   { id: 'outline',    kind: 'ats', name: 'Outline',    theme: 'teal',     desc: 'Framed header and outlined section labels' },

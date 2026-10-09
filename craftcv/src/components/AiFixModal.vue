@@ -33,7 +33,7 @@
                 <span>{{ fixLabel(c) }}</span>
               </label>
               <div v-if="c.before" class="fx-before"><span>{{ $t('Before') }}</span>{{ c.before }}</div>
-              <div class="fx-after-lbl">{{ $t(c.before ? 'After — you can edit this' : 'New — you can edit this') }}</div>
+              <div class="fx-after-lbl">{{ $t(c.before ? 'After. You can edit this' : 'New. You can edit this') }}</div>
               <textarea v-model="c.after" class="f-ta fx-after" :rows="rowsFor(c.after)" :disabled="!c.checked"></textarea>
               <div v-if="c.checked && hasPlaceholder(c.after)" class="fx-fill">
                 <div class="fx-fill-h">{{ $t('Type your real numbers') }}</div>
@@ -47,7 +47,7 @@
 
             <div v-if="skills.length" class="fx-skills">
               <div class="fx-skills-lbl">{{ $t('Tick the skills you really have') }}</div>
-              <div class="fx-skills-n" :class="{ ok: skillTotal >= 6 }">{{ $t(skillTotal === 1 ? 'You’ll have {n} skill — 6 or more is recommended.' : 'You’ll have {n} skills — 6 or more is recommended.', { n: skillTotal }) }}</div>
+              <div class="fx-skills-n" :class="{ ok: skillTotal >= 6 }">{{ $t(skillTotal === 1 ? 'You’ll have {n} skill. 6 or more is recommended.' : 'You’ll have {n} skills. 6 or more is recommended.', { n: skillTotal }) }}</div>
               <div class="fx-chips">
                 <label v-for="s in skills" :key="s.name" class="fx-chip" :class="{ on: s.checked }">
                   <input type="checkbox" v-model="s.checked" /> {{ s.name }}
@@ -143,7 +143,7 @@ async function run() {
       body: JSON.stringify({ issue: issue.value, cv, uiLang: lang.value, jobOffer: store.data.jobOffer || '' }),
     })
     const j = await r.json().catch(() => ({}))
-    if (!r.ok) throw new Error(j.error || 'The AI couldn’t fix this just now — please try again.')
+    if (!r.ok) throw new Error(j.error || 'The AI couldn’t fix this just now, please try again.')
     changes.value = (j.changes || []).map(c => ({ ...c, checked: true }))
     skills.value  = (j.skills || []).map(name => ({ name, checked: false }))
     note.value    = j.note || ''

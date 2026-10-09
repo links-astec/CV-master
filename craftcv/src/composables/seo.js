@@ -1,39 +1,27 @@
 // Page title, description and canonical URL for search engines and link previews.
 // index.html carries the homepage values (and the structured data); this keeps them right
-// as the single-page app changes route. Each page exists in English (/path) and French
-// (/path?lang=fr); hreflang links tell search engines about both.
-import { lang } from '../i18n/index.js'
+// as the single-page app changes route. Each page exists in every interface language
+// (/path in English, /path?lang=xx otherwise); hreflang links tell search engines about all of them.
+// Titles and descriptions are translated through the i18n dictionaries like everything else.
+import { lang, t, LANGS } from '../i18n/index.js'
 
 export const SITE = 'https://www.cvmaster.live'
 
 const PAGES = {
-  en: {
-    '/':          { title: 'CVMaster — Free AI CV Builder: ATS-Friendly CVs Tailored to Any Job',
-                    description: 'Build a professional CV in minutes, free. Tailor it to any job offer with AI, check your ATS match score and download a one-page PDF. 50 templates, English and French.' },
-    '/templates': { title: '50 Free CV Templates — ATS-Friendly & Creative | CVMaster',
-                    description: 'Choose from 50 CV templates in 12 colours: plain ATS-friendly layouts for online applications and creative designs for print. Switch any time, free.' },
-    '/privacy':   { title: 'Privacy Policy — CVMaster', description: 'How CVMaster handles your data, payments, refunds and complaints — in plain language.' },
-    '/terms':     { title: 'Terms of Service — CVMaster', description: 'How CVMaster handles your data, payments, refunds and complaints — in plain language.' },
-    '/editor':    { title: 'Editor — CVMaster' },
-    '/settings':  { title: 'Settings — CVMaster' },
-  },
-  fr: {
-    '/':          { title: 'CVMaster — Créateur de CV gratuit avec IA : un CV compatible ATS adapté à chaque offre',
-                    description: 'Créez un CV professionnel en quelques minutes, gratuitement. Adaptez-le à chaque offre d’emploi avec l’IA, vérifiez votre score ATS et téléchargez un PDF d’une page. 50 modèles, en français et en anglais.' },
-    '/templates': { title: '50 modèles de CV gratuits — compatibles ATS et créatifs | CVMaster',
-                    description: 'Choisissez parmi 50 modèles de CV en 12 couleurs : des mises en page sobres compatibles ATS pour les candidatures en ligne et des designs créatifs pour l’impression. Changez quand vous voulez, gratuitement.' },
-    '/privacy':   { title: 'Politique de confidentialité — CVMaster', description: 'Comment CVMaster traite vos données, les paiements, les remboursements et les réclamations — en termes simples.' },
-    '/terms':     { title: 'Conditions d’utilisation — CVMaster', description: 'Comment CVMaster traite vos données, les paiements, les remboursements et les réclamations — en termes simples.' },
-    '/editor':    { title: 'Éditeur — CVMaster' },
-    '/settings':  { title: 'Paramètres — CVMaster' },
-  },
+  '/':          { title: 'CVMaster | Free AI CV Builder: ATS-Friendly CVs Tailored to Any Job',
+                  description: 'Free AI CV builder and CV maker: build a professional CV in minutes, tailor it to any job offer, check your ATS score and download a one-page PDF. 50 CV templates.' },
+  '/templates': { title: '50 Free CV Templates. ATS-Friendly & Creative | CVMaster',
+                  description: 'Choose from 50 CV templates in 12 colours: plain ATS-friendly layouts for online applications and creative designs for print. Switch any time, free.' },
+  '/privacy':   { title: 'Privacy Policy | CVMaster', description: 'How CVMaster handles your data, payments, refunds and complaints, in plain language.' },
+  '/terms':     { title: 'Terms of Service | CVMaster', description: 'How CVMaster handles your data, payments, refunds and complaints, in plain language.' },
+  '/editor':    { title: 'Editor | CVMaster' },
+  '/settings':  { title: 'Settings | CVMaster' },
 }
 const NOINDEX = new Set(['/editor', '/settings'])
 
 function page(path) {
-  const l = lang.value === 'fr' ? 'fr' : 'en'
-  const p = PAGES[l][path] || PAGES.en[path] || { title: 'CVMaster' }
-  return { ...p, path, noindex: NOINDEX.has(path) }
+  const p = PAGES[path] || { title: 'CVMaster' }
+  return { title: t(p.title), description: p.description && t(p.description), path, noindex: NOINDEX.has(path) }
 }
 // The homepage (shown by App while the landing page is up)
 export const homeSeo = () => page('/')
@@ -54,14 +42,16 @@ export function setSeo({ title, description, path, noindex } = {}) {
   if (title) { document.title = title; meta('property', 'og:title', title); meta('name', 'twitter:title', title) }
   if (description) { meta('name', 'description', description); meta('property', 'og:description', description); meta('name', 'twitter:description', description) }
   meta('name', 'robots', noindex ? 'noindex, nofollow' : 'index, follow')
-  meta('property', 'og:locale', lang.value === 'fr' ? 'fr_FR' : 'en_GB')
-  meta('property', 'og:locale:alternate', lang.value === 'fr' ? 'en_GB' : 'fr_FR')
+  meta('property', 'og:locale', (LANGS.find(l => l.code === lang.value) || LANGS[0]).locale.replace('-', '_'))
   if (path) {
-    const en = SITE + path, fr = SITE + path + '?lang=fr'
-    const url = lang.value === 'fr' ? fr : en
+    const urlFor = (code) => SITE + path + (code === 'en' ? '' : `?lang=${code}`)
+    const url = urlFor(lang.value)
     link('canonical', url)
     meta('property', 'og:url', url)
-    if (!noindex) { link('alternate', en, 'en'); link('alternate', fr, 'fr'); link('alternate', en, 'x-default') }
+    if (!noindex) {
+      for (const l of LANGS) link('alternate', urlFor(l.code), l.code === 'zh' ? 'zh-Hans' : l.code)
+      link('alternate', urlFor('en'), 'x-default')
+    }
   }
 }
 

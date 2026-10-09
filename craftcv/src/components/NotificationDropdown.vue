@@ -22,7 +22,7 @@
           </div>
 
           <div v-for="n in notifStore.items" :key="n.id"
-            class="notif-item" :class="{ unread: !n.read }"
+            class="notif-item" :class="{ unread: !n.read }" :style="n.link ? 'cursor:pointer' : ''"
             @click="read(n)">
             <div class="notif-icon" :style="{ background: iconBg(n.type) }">
               <svg :style="{ color: iconColor(n.type) }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" v-html="iconPath(n.type)"></svg>
@@ -43,14 +43,20 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useNotifStore } from '../stores/notifications.js'
+import { useRouter } from 'vue-router'
 import { t } from '../i18n/index.js'
 
 const notifStore = useNotifStore()
+const router = useRouter()
 const open = ref(false)
 const wrap = ref(null)
 
 function toggle() { open.value = !open.value }
-function read(n) { notifStore.markRead(n.id) }
+// Clicking marks it read and, when it points somewhere (e.g. Settings → review), goes there
+function read(n) {
+  notifStore.markRead(n.id)
+  if (n.link) { open.value = false; router.push(n.link) }
+}
 
 function iconPath(type) {
   const p = {

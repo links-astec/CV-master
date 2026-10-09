@@ -21,11 +21,12 @@
     <section class="lp-hero">
       <div class="lp-wrap lp-hero-in">
         <div class="lp-hero-copy">
+          <p class="lp-eyebrow">{{ $t('Free AI CV builder') }}</p>
           <h1>{{ $t('A CV that gets you') }} <span class="lp-hl">{{ $t('the interview.') }}</span></h1>
-          <p class="lp-lead">{{ $t('Build it in minutes, tailor it to the job, and see how well it matches — before you apply.') }}</p>
+          <p class="lp-lead">{{ $t('Build it in minutes, tailor it to the job, and see how well it matches, before you apply.') }}</p>
           <div class="lp-cta">
             <button class="btn-primary accent btn-lg" @click="$emit('start')">
-              {{ $t('Build my CV — free') }}
+              {{ $t('Build my CV for free') }}
               <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </button>
             <button class="btn-ghost btn-lg" @click="go('#templates')">{{ $t('See templates') }}</button>
@@ -74,7 +75,7 @@
       </div>
     </section>
 
-    <!-- Reviews — real ones only, shown once there are enough -->
+    <!-- Reviews. Real ones only, shown once there are enough -->
     <section v-if="rv.average" class="lp-sec" id="reviews">
       <div class="lp-wrap">
         <h2 class="lp-h2">{{ $t('Rated {n} out of 5', { n: rv.average.toLocaleString(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }) }}</h2>
@@ -129,7 +130,7 @@
           </div>
           <div v-if="nl.state === 'done'" class="lp-news-done" role="status">
             <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-            <span>{{ $t(nl.already ? 'You’re already subscribed — thanks!' : 'Almost done — click the link we just emailed you to confirm.') }}</span>
+            <span>{{ $t(nl.already ? 'You’re already subscribed, thanks!' : 'Almost done. Click the link we just emailed you to confirm.') }}</span>
           </div>
           <form v-else class="lp-news-form" novalidate @submit.prevent="subscribe">
             <div class="lp-news-row">
@@ -148,7 +149,7 @@
     <section class="lp-final">
       <div class="lp-wrap lp-final-in">
         <h2>{{ $t('Ready when you are.') }}</h2>
-        <button class="btn-primary accent btn-lg" @click="$emit('start')">{{ $t('Build my CV — free') }}</button>
+        <button class="btn-primary accent btn-lg" @click="$emit('start')">{{ $t('Build my CV for free') }}</button>
       </div>
     </section>
 
@@ -156,7 +157,7 @@
       <div class="lp-wrap lp-foot-in">
         <BrandLogo small />
         <span>© {{ new Date().getFullYear() }} CVMaster</span>
-        <nav><a href="/privacy">{{ $t('Privacy') }}</a><a href="/terms">{{ $t('Terms') }}</a><a href="#" @click.prevent="openFeedback?.()">{{ $t('Feedback') }}</a><a href="mailto:support@cvmaster.live">{{ $t('Contact') }}</a></nav>
+        <nav><a href="/templates">{{ $t('CV templates') }}</a><a href="/privacy">{{ $t('Privacy') }}</a><a href="/terms">{{ $t('Terms') }}</a><a href="#" @click.prevent="openFeedback?.()">{{ $t('Feedback') }}</a><a href="mailto:support@cvmaster.live">{{ $t('Contact') }}</a></nav>
       </div>
     </footer>
   </div>
@@ -185,7 +186,7 @@ async function subscribe() {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }),
     })
     const d = await r.json().catch(() => ({}))
-    if (!r.ok) throw new Error(d.error || 'Could not subscribe you — please try again.')
+    if (!r.ok) throw new Error(d.error || 'Could not subscribe you, please try again.')
     nl.already = !!d.already; nl.state = 'done'
   } catch (e) { nl.error = e.message; nl.state = 'idle' }
 }
@@ -228,7 +229,7 @@ const CHECKS = ['Keywords from the job', 'One A4 page', 'Readable by ATS']
 
 const STEPS = [
   { t: 'Build', d: 'Fill in guided steps, tell your story, or import the CV you already have.' },
-  { t: 'Tailor', d: 'Paste the job offer. AI rewords your CV in the employer’s language — it never invents anything, and you approve every change.' },
+  { t: 'Tailor', d: 'Paste the job offer. AI rewords your CV in the employer’s language. It never invents anything, and you approve every change.' },
   { t: 'Check & export', d: 'See your ATS match and what’s missing, fix it, then download a clean one-page PDF.' },
 ]
 
@@ -242,14 +243,14 @@ const SHOWCASE = [
 
 const PLANS = [
   { name: 'Free', price: '€0', per: '', cta: 'Start building',
-    items: ['All 50 templates', 'AI help — 30 requests a day with a free account', 'ATS job-match check', 'Preview PDF with watermark'] },
+    items: ['All 50 templates', 'AI help: 30 requests a day with a free account', 'ATS job-match check', 'Preview PDF with watermark'] },
   { name: 'Clean PDF', price: '€0.99', per: ' per CV', cta: 'Build my CV', featured: true,
     items: ['Watermark-free, one-page PDF', 'Emailed and downloadable', 'Free re-downloads after edits'] },
 ]
 
 const FAQ = [
-  { q: 'Is it really free to start?', a: 'Yes. Build, edit, tailor and preview your CV without paying or signing up. You only pay €0.99 if you want the clean PDF of a CV — and you can download it again for free after edits.' },
-  { q: 'Will my CV pass applicant tracking systems (ATS)?', a: 'Nobody can honestly guarantee it — every company sets up its ATS differently. Our ATS-friendly templates use plain, selectable text and standard headings, and the ATS check shows how well your CV matches the specific job so you can close the gaps.' },
+  { q: 'Is it really free to start?', a: 'Yes. Build, edit, tailor and preview your CV without paying or signing up. You only pay €0.99 if you want the clean PDF of a CV. And you can download it again for free after edits.' },
+  { q: 'Will my CV pass applicant tracking systems (ATS)?', a: 'Nobody can honestly guarantee it. Every company sets up its ATS differently. Our ATS-friendly templates use plain, selectable text and standard headings, and the ATS check shows how well your CV matches the specific job so you can close the gaps.' },
   { q: 'Does the AI make things up?', a: 'No. It rewords what you wrote using the job’s language, and you approve every change. Skills you don’t show are only suggested, so you add just the ones that are true.' },
   { q: 'Can I write my CV in French?', a: 'Yes. Switch the CV to Français and your whole CV is translated for you to review.' },
 ]
@@ -350,9 +351,10 @@ const FAQ = [
 .lp-final-in{display:flex;flex-direction:column;align-items:center;gap:20px;text-align:center}
 .lp-final h2{font-size:clamp(26px,3.2vw,36px);letter-spacing:-.035em;font-weight:800}
 
+.lp-eyebrow{display:inline-block;margin:0 0 14px;padding:4px 11px;border-radius:999px;background:var(--c-accent-lt,#EEF0FF);color:var(--c-accent,#4338CA);font-size:13px;font-weight:600;letter-spacing:.01em}
 .lp-foot{padding:26px 0;border-top:1px solid var(--c-border)}
 .lp-foot-in{display:flex;align-items:center;gap:18px;font-size:13.5px;color:var(--c-text3)}
-.lp-foot nav{margin-left:auto;display:flex;gap:20px}
+.lp-foot nav{margin-left:auto;display:flex;flex-wrap:wrap;justify-content:center;gap:8px 20px}
 .lp-foot a{color:var(--c-text2);text-decoration:none}
 .lp-foot a:hover{color:var(--c-text)}
 

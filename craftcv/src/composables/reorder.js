@@ -1,5 +1,5 @@
 // Reordering CV entries (experience, education, projects) in the editor, and checking
-// that dated entries are most-recent-first — the order recruiters and ATS expect.
+// that dated entries are most-recent-first. The order recruiters and ATS expect.
 import { ref } from 'vue'
 
 // ── date order ────────────────────────────────────────────────────────────────
