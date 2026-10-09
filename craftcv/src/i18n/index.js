@@ -21,7 +21,7 @@ const ALL_LANGS = [
 ]
 // Languages whose dictionary is still being generated stay out of the menu (and of device
 // detection) until it's complete. Remove a code from here once its file is filled in.
-const NOT_READY = ['pt', 'zh']
+const NOT_READY = ['zh']
 export const LANGS = ALL_LANGS.filter(l => !NOT_READY.includes(l.code))
 const CODES = LANGS.map(l => l.code)
 const LOADERS = {
