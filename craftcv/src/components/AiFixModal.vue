@@ -140,7 +140,7 @@ async function run() {
     const r = await fetch(apiUrl('/api/ai/fix'), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ issue: issue.value, cv, uiLang: lang.value }),
+      body: JSON.stringify({ issue: issue.value, cv, uiLang: lang.value, jobOffer: store.data.jobOffer || '' }),
     })
     const j = await r.json().catch(() => ({}))
     if (!r.ok) throw new Error(j.error || 'The AI couldn’t fix this just now — please try again.')

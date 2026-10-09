@@ -61,11 +61,9 @@
 <script setup>
 import { ref, inject } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
-import { useAuthStore } from '../../stores/auth.js'
 
 const store = useCvStore()
 const showToast = inject('showToast', null)
-const auth  = useAuthStore()
 const emit = defineEmits(['next', 'ai-thinking'])
 
 const newSkill  = ref('')
@@ -87,26 +85,12 @@ async function suggestSkills() {
   aiLoading.value = true
   emit('ai-thinking', true)
   try {
-    const u = auth.user
-    const ctx = [
-      u?.industry   ? `in the ${u.industry} industry` : '',
-      u?.experience ? `at ${u.experience} level`      : '',
-    ].filter(Boolean).join(' ')
-    // Use the job offer (if any) and what the CV already says, and skip skills already listed
-    const d = store.data
-    const have = (d.skills || []).join(', ')
-    const work = (d.experiences || []).map(e => [e.title, e.company, (e.desc || '').slice(0, 240)].filter(Boolean).join(' — ')).filter(Boolean).join('\n').slice(0, 1500)
-    const job  = (d.jobOffer || '').trim().slice(0, 1800)
-    const prompt = `Suggest 10 skills for this CV${ctx ? ` (${ctx})` : ''}. Target role: ${d.title || 'professional'}.
-${job ? `The job they are applying for:\n${job}\n\nPrefer skills this job asks for that fit their experience.\n` : ''}${work ? `Their experience:\n${work}\n` : ''}Skills already on the CV (do NOT repeat): ${have || 'none'}.
-Concrete skills (tools, methods, domain knowledge), short names, at most 2 soft skills.
-Return ONLY a JSON array of strings, no markdown, no explanation.${d.lang === 'fr' ? ' Skills in French (keep technical terms that are normally in English).' : ''}`
-    const result = await store.callAi(prompt)
-    const parsed = JSON.parse(result.slice(result.indexOf('['), result.lastIndexOf(']') + 1))
-    const lower  = new Set((d.skills || []).map(s => s.toLowerCase()))
-    suggested.value = (Array.isArray(parsed) ? parsed : []).filter(s => typeof s === 'string' && !lower.has(s.toLowerCase()))
+    // The server uses the job offer (if any) and what the CV already says, and skips skills already listed
+    const { skills } = await store.aiWrite('skills')
+    const lower = new Set((store.data.skills || []).map(s => s.toLowerCase()))
+    suggested.value = (skills || []).filter(s => typeof s === 'string' && !lower.has(s.toLowerCase()))
   } catch (e) {
-    showToast?.(/free AI requests/.test(e?.message || '') ? e.message : 'AI is unavailable right now — please try again in a moment.')
+    showToast?.(e?.message || 'AI is unavailable right now — please try again in a moment.')
   }
   aiLoading.value = false
   emit('ai-thinking', false)

@@ -17,7 +17,7 @@ function initialLang() {
     const saved = localStorage.getItem(KEY)
     if (saved === 'en' || saved === 'fr') return saved
   } catch {}
-  return /^fr\b/i.test(navigator.language || '') ? 'fr' : 'en'
+  return typeof navigator !== 'undefined' && /^fr\b/i.test(navigator.language || '') ? 'fr' : 'en'
 }
 
 export const lang = ref(initialLang())
@@ -49,20 +49,16 @@ export function setLang(code) {
   lang.value = code
 }
 
-watch(lang, (code) => {
-  try { localStorage.setItem(KEY, code) } catch {}
-  document.documentElement.lang = code
-}, { immediate: true })
+// The server imports the CV renderer (and so this file) to build PDFs — no DOM there
+if (typeof document !== 'undefined') {
+  watch(lang, (code) => {
+    try { localStorage.setItem(KEY, code) } catch {}
+    document.documentElement.lang = code
+  }, { immediate: true })
+}
 
 // Dates and numbers in the interface language
 export const locale = () => (lang.value === 'fr' ? 'fr-FR' : 'en-GB')
-
-// For AI prompts: explanations shown to the user (gaps, tips, questions) follow the
-// interface language. Text that goes onto the CV follows the CV's own language instead.
-export const aiExplainIn = (fields) => (lang.value === 'fr'
-  ? `\nWrite ${fields} in French (the user reads the app in French). Keep keywords and skill names exactly as they appear in the job description.`
-  : '')
-
 export default {
   install(app) {
     app.config.globalProperties.$t = t

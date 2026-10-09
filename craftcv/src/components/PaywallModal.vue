@@ -113,7 +113,7 @@ import { useNotifStore } from '../stores/notifications.js'
 import ReviewPrompt from './ReviewPrompt.vue'
 import { suggestEmail } from '../composables/emailTypos.js'
 import { render } from '../composables/cvRenderer.js'
-import { analysePage, exportDocument } from '../composables/pageFit.js'
+import { analysePage } from '../composables/pageFit.js'
 import { t } from '../i18n/index.js'
 
 const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
@@ -250,9 +250,9 @@ async function useCredit() {
 async function sendEmail(sessionId = null) {
   state.value = 'sending'
   try {
+    // The server builds the PDF from the saved CV, so save the latest edits first
+    if (!sessionId) await store.saveDraft()
     const data = await api('/api/cv/email', {
-      htmlContent:   exportDocument(cvHtml()),
-      fileName:      fileName(),
       overrideEmail: deliveryEmail.value.trim() || null,
       sessionId,
       draftId:       draftId.value || store.currentDraftId,
@@ -277,10 +277,11 @@ async function sendEmail(sessionId = null) {
 async function downloadPdf() {
   downloading.value = true
   try {
+    await store.saveDraft()
     const r = await fetch(apiUrl('/api/cv/export-pdf'), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ draftId: draftId.value || store.currentDraftId, htmlContent: exportDocument(cvHtml()), fileName: fileName() }),
+      body: JSON.stringify({ draftId: draftId.value || store.currentDraftId }),
     })
     if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Download failed.')
     const url = URL.createObjectURL(await r.blob())

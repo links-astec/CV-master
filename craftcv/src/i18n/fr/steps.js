@@ -179,6 +179,8 @@ export default {
   'Change': 'Modifier',
   'Paste the full job description — title, responsibilities and requirements…': 'Collez la description complète — intitulé, missions et profil recherché…',
   'Use this job': 'Utiliser cette offre',
+  'Target role': 'Poste visé',
+  'Every AI suggestion in your CV uses this job offer.': 'Chaque suggestion de l’IA pour votre CV tient compte de cette offre.',
   'Remove job': 'Retirer l’offre',
   'No specific job yet? Skip this — the checklist below still works.': 'Pas encore d’offre précise ? Passez cette étape — la liste de vérification ci-dessous fonctionne quand même.',
   'Tailor your CV with AI': 'Adaptez votre CV avec l’IA',

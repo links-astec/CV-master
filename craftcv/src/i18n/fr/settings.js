@@ -7,6 +7,7 @@ export default {
   'Display name': 'Nom affiché',
   'Password': 'Mot de passe',
   'Change password': 'Changer le mot de passe',
+  'Current password': 'Mot de passe actuel',
   'New password (8+ characters)': 'Nouveau mot de passe (8 caractères min.)',
   'Hide password': 'Masquer le mot de passe',
   'Show password': 'Afficher le mot de passe',

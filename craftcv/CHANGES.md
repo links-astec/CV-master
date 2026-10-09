@@ -1,5 +1,45 @@
 # Changes
 
+## 2026-10-09 — Security fixes, server-side PDFs, a reliable ATS score, and job context everywhere
+
+**Security**
+- **CORS:** no longer trusts every `*.vercel.app` site. Before, any page hosted on Vercel could read a signed-in visitor's CVs and account.
+- **Login cookie:** now `SameSite=Lax`, so other websites can't send requests with a user's session. The admin cookie is `Strict`.
+- **Sessions:**
+  - Sessions carry a version number. Changing or resetting the password signs out every other session.
+  - Changing the password needs the current one.
+  - Email-confirmation links can no longer be used as a login session.
+- **Google sign-in:** only works with a Google-verified email. Before, an unverified Google address could be linked to someone else's account.
+- **Password reset:** links are stored hashed. Login takes the same time whether or not an account exists, so response times don't reveal which emails are registered.
+- **Payments:**
+  - **PDFs are built on the server from the saved CV.** Before, one €0.99 payment could unlock unlimited CVs, because the browser sent the HTML.
+  - **A paid CV is tied to the name on it at first export.** Small corrections still pass; a different person needs a new payment.
+  - **No more HTML email attachments** when PDF generation fails.
+- **Removed endpoints:**
+  - the open AI prompt endpoint (anyone could use it as free Claude);
+  - the old €0.50 clean-download flow;
+  - `/api/email-test`, `/api/notifications/add`, `/api/ai/enhance`, `/api/referral/apply`.
+- **Limits:**
+  - PDF routes are rate-limited, with at most two renders at a time.
+  - At most 60 CVs per account and 4 MB per CV.
+  - Length limits on names, emails and passwords.
+  - Referral lookups return a first name only.
+  - Public `/api/health` shows less.
+  - Error messages no longer expose internals.
+- **Admin email preview:** blocks remote content, so tracking pixels can't tell senders the email was opened.
+- **Text-file CV import:** keeps accented letters.
+
+**ATS score**
+- **Job brief:** a pasted job advert is now analysed once (the whole advert, up to 15,000 characters) into a cached "job brief". It holds the title, requirements, and the keywords an ATS looks for, each with synonyms and English/French equivalents.
+- **Fixed calculation against the brief:** keywords 65, job title 12, sections 13, requirements 10. The same CV and job always get the same score, a CV that truthfully covers the job reaches the 90s, and re-checking is free.
+- Gaps and tips come back in the app's language.
+
+**The job offer is the context for every AI feature**
+- **Every AI helper uses the brief:** summary, skill suggestions, bullet points, AI fixes, story mode and tailoring. Tailoring also gets the exact keywords.
+- **No more truncation:** prompts used to cut the advert at 1,800–6,000 characters.
+- **Shown in Job match:** "Target role: … · Company" and "Every AI suggestion in your CV uses this job offer".
+- **Kept when starting a CV:** a job offer pasted before starting a CV is no longer lost when the new CV begins.
+
 ## 2026-10-09 — The whole site in French, and the team on the legal pages
 
 - **English / Français switch:** in the homepage header, the app's top bar and Settings → Preferences.

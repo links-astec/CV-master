@@ -120,6 +120,18 @@ CREATE TABLE IF NOT EXISTS reviews (
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- SESSIONS: bumped when the password changes, which signs out every other session
+ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT NOT NULL DEFAULT 0;
+-- A paid CV is tied to the name on it at its first export (one payment = one person's CV)
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS locked_name TEXT;
+-- Analysed job offers (keywords, requirements), shared by the ATS check and the AI helpers
+CREATE TABLE IF NOT EXISTS job_briefs (
+  hash       TEXT PRIMARY KEY,
+  brief      JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+-- Password reset links are now stored as SHA-256 hashes (old plain ones simply stop matching)
+
 -- NEWSLETTER (also created on demand): only people who agreed; double opt-in from the homepage
 CREATE TABLE IF NOT EXISTS newsletter_subscribers (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),

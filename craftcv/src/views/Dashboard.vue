@@ -88,8 +88,7 @@ import { ref, computed, inject, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCvStore, hasDraftableContent } from '../stores/cv.js'
 import { useAuthStore } from '../stores/auth.js'
-import { render, templateLabel, normalizeTemplate } from '../composables/cvRenderer.js'
-import { exportDocument } from '../composables/pageFit.js'
+import { templateLabel, normalizeTemplate } from '../composables/cvRenderer.js'
 import { sampleCv } from '../composables/sampleCv.js'
 import CvThumb from '../components/CvThumb.vue'
 import WatermarkUnlock from '../components/WatermarkUnlock.vue'
@@ -196,9 +195,6 @@ function importCv() {
   store.setMode('upload')
 }
 
-function exportHtml(c) {
-  return exportDocument(render(c.template, c.data, c.data.fmt || {}))
-}
 function fileName(c) {
   const name = [c.data.fn, c.data.ln].filter(Boolean).join(' ') || 'My CV'
   return name.replace(/[^a-zA-Z0-9\s-]/g, '').trim().replace(/\s+/g, '-') + '-CV.pdf'
@@ -211,12 +207,16 @@ async function download(c) {
   if (!(await requireAccount('download'))) return
   busy.value = c.key
   try {
+    // PDFs are built on the server from the saved CV — save the open one's latest edits first
+    if (!c.id || c.id === store.currentDraftId) await store.saveDraft()
+    const draftId = c.id || store.currentDraftId
+    if (!draftId) throw new Error('Save your CV first.')
     const card = c.id ? c : { ...c, data: { ...store.data, fmt: store.fmt }, template: store.template }
     if (c.paid && c.id) {
       const r = await fetch(apiUrl('/api/cv/export-pdf'), {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ draftId: c.id, htmlContent: exportHtml(card), fileName: fileName(card) }),
+        body: JSON.stringify({ draftId }),
       })
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `Server error ${r.status}`)
       const url = URL.createObjectURL(await r.blob())
@@ -230,7 +230,7 @@ async function download(c) {
     const res = await fetch(apiUrl('/api/cv/store-for-unlock'), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ htmlContent: exportHtml(card), fileName: fileName(card) }),
+      body: JSON.stringify({ draftId }),
     })
     const j = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(j.error || `Server error ${res.status}`)
@@ -255,10 +255,11 @@ function unlockPending() {
 async function resend(c) {
   busy.value = c.key + 'send'
   try {
+    if (c.id === store.currentDraftId) await store.saveDraft()
     const res = await fetch(apiUrl('/api/cv/redownload'), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ draftId: c.id, htmlContent: exportHtml(c), fileName: fileName(c) }),
+      body: JSON.stringify({ draftId: c.id }),
     })
     const j = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(j.error || 'Could not send the email.')

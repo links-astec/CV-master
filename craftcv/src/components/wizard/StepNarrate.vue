@@ -347,7 +347,7 @@ async function askServer(force) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       story: story.value, answers: answers.value, round: round.value, force,
-      lang: store.data.lang,
+      lang: store.data.lang, jobOffer: store.data.jobOffer || '',
       context: { industry: u?.industry || '', goal: u?.goal || '', experience: u?.experience || '' },
     }),
   })

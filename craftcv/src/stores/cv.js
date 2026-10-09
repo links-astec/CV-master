@@ -23,6 +23,7 @@ const emptyData = () => ({
   lang: 'en',
   jobOffer: '',        // job description the CV is being tailored to (optional)
   jobTailored: '',     // Job match step 2 for this offer: '' | 'applied' | 'skipped'
+  jobTarget: null,     // { title, company } read from the job offer (shown in Job match)
   checkIgnored: [],    // checklist warnings the user chose to ignore for this CV
   shrinkToFit: false,  // user accepted shrinking an over-long CV onto one page
 })
@@ -180,8 +181,10 @@ export const useCvStore = defineStore('cv', () => {
 
   // New, empty CV. Keeps the chosen template and formatting.
   function resetData() {
+    // A job offer pasted before any CV content exists belongs to the CV about to be made
+    const keepJob = !hasDraftableContent(data.value) ? (data.value.jobOffer || '') : ''
     // A new CV starts in the language the app is being used in (switchable in Design)
-    data.value = { ...emptyData(), lang: uiLang.value === 'fr' ? 'fr' : 'en' }
+    data.value = { ...emptyData(), lang: uiLang.value === 'fr' ? 'fr' : 'en', jobOffer: keepJob }
     wizardDraftId.value  = null
     currentDraftId.value = null
     lsSet('pcv-draft', '')
@@ -304,15 +307,18 @@ export const useCvStore = defineStore('cv', () => {
     return currentDraftId.value || wizardDraftId.value || null
   }
 
-  async function callAi(prompt) {
-    const r = await fetch(apiUrl('/api/ai/complete'),  {
+  // The editor's AI helpers (summary, skills, bullets). The server writes the prompt and
+  // always gets the job offer, so suggestions are aimed at the job being applied for.
+  async function aiWrite(task, extra = {}) {
+    const { photo, ...cv } = plainClone(data.value)
+    const r = await fetch(apiUrl('/api/ai/write'), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt }), // model is chosen server-side
+      body: JSON.stringify({ task, cv, jobOffer: data.value.jobOffer || '', ...extra }),
     })
     const json = await r.json().catch(() => ({}))
     if (!r.ok || json.error) throw new Error(json.error || 'AI request failed.')
-    return json.result
+    return json
   }
 
   return {
@@ -322,6 +328,6 @@ export const useCvStore = defineStore('cv', () => {
     initDarkMode, openWizard, openWizardAtStep, closeWizard,
     setMode, nextStep, prevStep,
     addExperience, removeExperience, addSkill, removeSkill,
-    resetData, loadDraft, applyExtracted, saveDraft, ensureSavedDraftId, callAi,
+    resetData, loadDraft, applyExtracted, saveDraft, ensureSavedDraftId, aiWrite,
   }
 })

@@ -281,6 +281,7 @@ input[type=range]{flex:1;accent-color:var(--ac)}
 <div id="app"></div>
 <script>
 // ── State ─────────────────────────────────────────────────────────────────────
+const SAFE_EMAIL_CSP = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: cid:; style-src 'unsafe-inline'; font-src data:">`
 const S = {
   auth: null, page: 'overview',
   stats: null, statsLoading: false, maintenance: false, maintLoading: false,
@@ -471,7 +472,7 @@ async function openItem(kind, id) {
     }
   } catch (e) { I.err = e.message }
   I.detailLoading = false; render()
-  const f = $('ib-frame'); if (f && I.detail?.html_body) f.srcdoc = I.detail.html_body
+  const f = $('ib-frame'); if (f && I.detail?.html_body) f.srcdoc = SAFE_EMAIL_CSP + I.detail.html_body
 }
 async function sendReply() {
   const I = S.inbox, d = I.detail
@@ -1152,7 +1153,8 @@ function render() {
   const keepScroll = document.querySelector('.ib-items')?.scrollTop
   $('app').innerHTML = (!S.auth ? renderLogin() : renderApp()) + (S.toast ? `<div class="toast">${esc(S.toast)}</div>` : '')
   if (keepScroll) { const l = document.querySelector('.ib-items'); if (l) l.scrollTop = keepScroll }
-  const f = $('ib-frame'); if (f && S.inbox.detail?.html_body) f.srcdoc = S.inbox.detail.html_body
+  // Emails are shown with no scripts and no remote content (tracking pixels can't tell the sender it was opened)
+  const f = $('ib-frame'); if (f && S.inbox.detail?.html_body) f.srcdoc = SAFE_EMAIL_CSP + S.inbox.detail.html_body
   bind()
 }
 

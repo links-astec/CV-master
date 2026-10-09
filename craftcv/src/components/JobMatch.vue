@@ -14,7 +14,11 @@
       </div>
 
       <div v-if="hasJob && !editingJob" class="jm-job">
+        <div v-if="store.data.jobTarget?.title" class="jm-target">
+          {{ $t('Target role') }}: <strong>{{ store.data.jobTarget.title }}</strong><template v-if="store.data.jobTarget.company"> · {{ store.data.jobTarget.company }}</template>
+        </div>
         <div class="jm-job-txt">{{ jobPreview }}</div>
+        <div class="jm-job-note">{{ $t('Every AI suggestion in your CV uses this job offer.') }}</div>
       </div>
       <template v-else>
         <textarea ref="jobRef" v-model="draft" class="f-ta" rows="7"
@@ -137,6 +141,7 @@ function removeJob() {
 }
 function resetProgress() {
   store.data.jobTailored = ''
+  store.data.jobTarget = null
   score.value = prevScore.value = null
   atsResult.value = null
 }
@@ -184,6 +189,8 @@ onMounted(() => { if (!hasJob.value) draft.value = store.data.jobOffer || '' })
 .jm-tag.mid{background:var(--c-amber-lt);color:var(--c-amber)}
 
 .jm-job{background:var(--c-bg);border-radius:8px;padding:10px 12px}
+.jm-target{font-size:13px;color:var(--c-text);margin-bottom:6px}
+.jm-job-note{font-size:11.5px;color:var(--c-text3);margin-top:6px}
 .jm-job-txt{font-size:12.5px;color:var(--c-text2);line-height:1.5;white-space:pre-line;overflow-wrap:anywhere;
   display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .jm-txt{font-size:12.5px;color:var(--c-text2);line-height:1.55}

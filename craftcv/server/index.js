@@ -9,7 +9,7 @@ import multer from 'multer';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuid } from 'uuid';
-import { randomBytes, createHmac, timingSafeEqual } from 'crypto';
+import { randomBytes, createHmac, createHash, timingSafeEqual } from 'crypto';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { OAuth2Client } from 'google-auth-library';
@@ -157,7 +157,6 @@ app.use(cors({
         'https://cvmaster.live',
         'https://www.cvmaster.live',
         process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '',
-        /\.vercel\.app$/,
       ].filter(Boolean)
     : ['http://localhost:5173', 'http://localhost:3000'],
   credentials: true,
@@ -173,14 +172,18 @@ app.use('/api/ai/',   rateLimit({ windowMs: 60*1000,    max: 20,  message: { err
 app.use('/api/auth/', rateLimit({ windowMs: 15*60*1000, max: 15,  message: { error: 'Too many attempts, try again later.' } }));
 
 // ── Auth helpers ──────────────────────────────────────────────────────────────
-function signToken(userId) {
-  return jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: '7d' });
+// `v` is the user's token_version: changing or resetting the password bumps it, which
+// signs out every other session.
+function signToken(userId, v = 0) {
+  return jwt.sign({ sub: userId, v: v || 0 }, JWT_SECRET, { expiresIn: '7d' });
 }
+// www.cvmaster.live and api.cvmaster.live are the same site, so Lax works and stops other
+// websites from sending requests with the user's session.
 function setAuthCookie(res, token) {
   res.cookie('token', token, {
     httpOnly: true,
     secure: IS_PROD,
-    sameSite: IS_PROD ? 'none' : 'lax',
+    sameSite: 'lax',
     domain: IS_PROD ? '.cvmaster.live' : undefined,
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
@@ -192,11 +195,42 @@ function generateReferralCode(name, email) {
   return `${prefix}-${suffix}`
 }
 
-function authMiddleware(req, res, next) {
-  const token = req.cookies?.token || req.headers.authorization?.replace('Bearer ', '');
+const tokenOf = (req) => req.cookies?.token || req.headers.authorization?.replace('Bearer ', '') || '';
+const _tokenVersions = new Map();   // userId → { v, at } — cached for 30s
+async function tokenVersionOf(userId) {
+  const hit = _tokenVersions.get(userId);
+  if (hit && Date.now() - hit.at < 30000) return hit.v;
+  let v;
+  try {
+    const r = await query('SELECT token_version FROM users WHERE id = $1', [userId]);
+    v = r.rows.length ? (r.rows[0].token_version || 0) : null;   // null: the account was deleted
+  } catch { v = 0; }   // column not there yet (before migration): accept version 0
+  _tokenVersions.set(userId, { v, at: Date.now() });
+  return v;
+}
+async function bumpTokenVersion(userId) {
+  const r = await query('UPDATE users SET token_version = COALESCE(token_version, 0) + 1 WHERE id = $1 RETURNING token_version', [userId]);
+  _tokenVersions.delete(userId);
+  return r.rows[0]?.token_version || 0;
+}
+// The signed-in user for a session token, or null. Email links (purpose: 'verify') are not sessions.
+async function userFromToken(token) {
+  if (!token) return null;
+  let p;
+  try { p = jwt.verify(token, JWT_SECRET); } catch { return null; }
+  if (!p?.sub || p.purpose) return null;
+  const v = await tokenVersionOf(p.sub);
+  if (v === null || (p.v || 0) !== v) return null;
+  return p;
+}
+
+async function authMiddleware(req, res, next) {
+  const token = tokenOf(req);
   if (!token) return res.status(401).json({ error: 'Unauthorized' });
-  try { req.user = jwt.verify(token, JWT_SECRET); next(); }
-  catch { res.status(401).json({ error: 'Session expired, please sign in again.' }); }
+  const user = await userFromToken(token).catch(() => null);
+  if (!user) return res.status(401).json({ error: 'Session expired, please sign in again.' });
+  req.user = user;
+  next();
 }
 // AI + CV import work for guests too (attach the user when there is a valid session).
 // Every AI request uses the daily allowance — AI_FREE_PER_DAY per account, or per IP for
@@ -246,19 +280,10 @@ async function useAiAllowance(req) {
 }
 
 async function aiAccess(req, res, next) {
-  const token = req.cookies?.token || req.headers.authorization?.replace('Bearer ', '');
-  req.user = null;
-  if (token) { try { req.user = jwt.verify(token, JWT_SECRET); } catch {} }
+  req.user = await userFromToken(tokenOf(req)).catch(() => null);
   try {
     const a = await useAiAllowance(req);
-    if (!a.ok) {
-      const error = a.tier === 'guest'
-        ? `You’ve used today’s ${AI_GUEST_PER_DAY} free AI requests. Create a free account to get ${AI_FREE_PER_DAY} a day.`
-        : a.tier === 'unverified'
-          ? `You’ve used today’s ${AI_GUEST_PER_DAY} AI requests. Confirm your email to get ${AI_FREE_PER_DAY} a day.`
-          : `You’ve used today’s ${AI_FREE_PER_DAY} free AI requests. Get ${AI_PACK_SIZE} more for €0.50, or come back tomorrow.`;
-      return res.status(429).json({ code: 'AI_LIMIT', tier: a.tier, signedIn: !!req.user, error });
-    }
+    if (!a.ok) return res.status(429).json({ code: 'AI_LIMIT', tier: a.tier, signedIn: !!req.user, error: aiLimitError(a) });
   } catch (e) {
     console.warn('[ai-allowance] check failed, allowing request:', e.message); // never block AI because of a counter error
   }
@@ -302,6 +327,7 @@ function ensureReferralColumns() {
     _refCols = query('ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_rewarded BOOLEAN NOT NULL DEFAULT FALSE')
       .then(() => query('ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_welcomed BOOLEAN NOT NULL DEFAULT FALSE'))
       .then(() => query('ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE'))
+      .then(() => query('ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT NOT NULL DEFAULT 0'))
       .then(() => ensureAiTables())
       .catch(e => { _refCols = null; throw e; });
   }
@@ -348,6 +374,7 @@ app.post('/api/auth/verify-email', async (req, res) => {
   try {
     let p;
     try { p = jwt.verify(String(req.body?.token || ''), JWT_SECRET); } catch { return res.status(400).json({ error: 'This confirmation link is invalid or has expired. Send a new one from Settings.' }); }
+    if (p.purpose !== 'verify') return res.status(400).json({ error: 'Invalid link.' });
     if (p.purpose !== 'verify') return res.status(400).json({ error: 'Invalid link.' });
     await ensureReferralColumns();
     const { rows } = await query('UPDATE users SET email_verified = TRUE WHERE id = $1 AND email = $2 RETURNING *', [p.sub, p.email]);
@@ -568,8 +595,11 @@ app.post('/api/auth/register', async (req, res) => {
     const { email, password, name } = req.body;
     const wantsNewsletter = req.body.newsletter === true;
     const referredBy = req.body.referredBy || req.cookies?.pcv_ref || '';
-    if (!email || !password || !name) return res.status(400).json({ error: 'All fields required.' });
+    if (typeof email !== 'string' || typeof password !== 'string' || typeof name !== 'string' || !name.trim() || !email.trim()) {
+      return res.status(400).json({ error: 'All fields required.' });
+    }
     if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    if (password.length > 200 || email.length > 254 || name.trim().length > 100) return res.status(400).json({ error: 'That’s too long — please shorten it.' });
     const key = email.toLowerCase().trim();
     const emailCheck = await checkEmailAddress(key);
     if (!emailCheck.ok) return res.status(400).json({ error: emailCheck.error });
@@ -601,22 +631,23 @@ app.post('/api/auth/register', async (req, res) => {
     if (wantsNewsletter) await setSubscription(key, { userId: user.id, source: 'signup', status: 'pending' }).catch(e => console.warn('[newsletter] signup:', e.message));
 
     await seedNotifications(user.id);
-    setAuthCookie(res, signToken(user.id));
+    setAuthCookie(res, signToken(user.id, user.token_version));
     res.json({ user: publicUser(user) });
   } catch (e) { console.error(e); res.status(500).json({ error: 'Registration failed.' }); }
 });
 
 // ── LOGIN ─────────────────────────────────────────────────────────────────────
+const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 12);
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: 'Email and password required.' });
-    const { rows } = await query('SELECT * FROM users WHERE email = $1', [email.toLowerCase().trim()]);
+    if (typeof email !== 'string' || typeof password !== 'string' || !email || !password) return res.status(400).json({ error: 'Email and password required.' });
+    const { rows } = await query('SELECT * FROM users WHERE email = $1', [email.toLowerCase().trim().slice(0, 254)]);
     const user = rows[0];
-    if (!user || !user.hash) return res.status(401).json({ error: 'Invalid email or password.' });
-    const ok = await bcrypt.compare(password, user.hash);
-    if (!ok) return res.status(401).json({ error: 'Invalid email or password.' });
-    setAuthCookie(res, signToken(user.id));
+    // Compare against a dummy hash when there's no account, so timing doesn't reveal which emails exist
+    const ok = await bcrypt.compare(password.slice(0, 200), user?.hash || DUMMY_HASH);
+    if (!user || !user.hash || !ok) return res.status(401).json({ error: 'Invalid email or password.' });
+    setAuthCookie(res, signToken(user.id, user.token_version));
     res.json({ user: publicUser(user) });
   } catch (e) { console.error(e); res.status(500).json({ error: 'Login failed.' }); }
 });
@@ -633,6 +664,8 @@ app.post('/api/auth/google', async (req, res) => {
     const ticket  = await client.verifyIdToken({ idToken: credential, audience: GOOGLE_CLIENT_ID });
     const payload = ticket.getPayload();
     const { email, name, picture, sub: googleId } = payload;
+    // Only an address Google has verified may sign in to (or link with) an account
+    if (!email || payload.email_verified !== true) return res.status(401).json({ error: 'Google sign-in failed: this Google account’s email isn’t verified.' });
     const key = email.toLowerCase();
 
     const googleReferrerId = await findReferrer(referredBy, key);
@@ -664,15 +697,16 @@ app.post('/api/auth/google', async (req, res) => {
     // Google proves the address, so the newsletter box takes effect straight away
     if (wantsNewsletter) await setSubscription(key, { userId: user.id, source: 'signup', status: 'subscribed' }).catch(e => console.warn('[newsletter] google:', e.message));
 
-    setAuthCookie(res, signToken(user.id));
+    setAuthCookie(res, signToken(user.id, user.token_version));
     res.json({ user: publicUser(user) });
   } catch (e) {
-    console.error('Google auth error:', e.message, '| audience:', GOOGLE_CLIENT_ID?.slice(0,20));
-    res.status(401).json({ error: `Google sign-in failed: ${e.message}` });
+    console.error('Google auth error:', e.message);
+    res.status(401).json({ error: 'Google sign-in failed — please try again.' });
   }
 });
 
 // ── FORGOT PASSWORD ───────────────────────────────────────────────────────────
+const hashResetToken = (t) => createHash('sha256').update(String(t || '')).digest('hex');
 app.post('/api/auth/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
@@ -682,14 +716,14 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     // Always return 200 — never reveal whether an email exists
     if (!user || user.provider === 'google') return res.json({ ok: true });
 
-    const token    = uuid().replace(/-/g, '') + uuid().replace(/-/g, '');
+    const token    = randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
-    // Delete any existing tokens for this user, then insert new one
+    // Delete any existing tokens for this user, then store only a hash of the new one
     await query('DELETE FROM reset_tokens WHERE user_id = $1', [user.id]);
     await query(
       'INSERT INTO reset_tokens (token, user_id, expires_at) VALUES ($1, $2, $3)',
-      [token, user.id, expiresAt]
+      [hashResetToken(token), user.id, expiresAt]
     );
 
     const resetUrl = `${FRONTEND_URL}/reset-password?token=${token}`;
@@ -726,23 +760,24 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 app.post('/api/auth/reset-password', async (req, res) => {
   try {
     const { token, password } = req.body;
-    if (!token || !password) return res.status(400).json({ error: 'Token and password required.' });
+    if (typeof token !== 'string' || typeof password !== 'string' || !token || !password) return res.status(400).json({ error: 'Token and password required.' });
     if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    if (password.length > 200) return res.status(400).json({ error: 'That’s too long — please shorten it.' });
 
     const { rows } = await query(
-      'SELECT * FROM reset_tokens WHERE token = $1 AND expires_at > NOW()',
-      [token]
+      'DELETE FROM reset_tokens WHERE token = $1 AND expires_at > NOW() RETURNING user_id',
+      [hashResetToken(token)]
     );
     if (!rows.length) return res.status(400).json({ error: 'Invalid or expired reset link.' });
     const { user_id } = rows[0];
 
     const hash = await bcrypt.hash(password, 12);
     await query('UPDATE users SET hash = $1 WHERE id = $2', [hash, user_id]);
-    await query('DELETE FROM reset_tokens WHERE token = $1', [token]);
+    const v = await bumpTokenVersion(user_id);   // signs out every other session
 
     const { rows: userRows } = await query('SELECT * FROM users WHERE id = $1', [user_id]);
     const user = userRows[0];
-    setAuthCookie(res, signToken(user.id));
+    setAuthCookie(res, signToken(user.id, v));
     res.json({ user: publicUser(user) });
   } catch (e) { console.error(e); res.status(500).json({ error: 'Password reset failed.' }); }
 });
@@ -751,8 +786,8 @@ app.post('/api/auth/reset-password', async (req, res) => {
 app.get('/api/auth/reset-password/:token', async (req, res) => {
   try {
     const { rows } = await query(
-      'SELECT id FROM reset_tokens WHERE token = $1 AND expires_at > NOW()',
-      [req.params.token]
+      'SELECT 1 FROM reset_tokens WHERE token = $1 AND expires_at > NOW()',
+      [hashResetToken(req.params.token)]
     );
     if (!rows.length) return res.status(400).json({ valid: false, error: 'Invalid or expired link.' });
     res.json({ valid: true });
@@ -790,13 +825,22 @@ app.patch('/api/auth/settings', authMiddleware, async (req, res) => {
   try {
     const updates = [];
     const params  = [];
-    if (req.body.name) {
-      params.push(req.body.name.trim(), req.body.name.trim()[0].toUpperCase());
+    const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+    if (name) {
+      if (name.length > 100) return res.status(400).json({ error: 'That’s too long — please shorten it.' });
+      params.push(name, name[0].toUpperCase());
       updates.push(`name = $${params.length - 1}`, `avatar = $${params.length}`);
     }
-    if (req.body.password) {
-      if (req.body.password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
-      params.push(await bcrypt.hash(req.body.password, 12));
+    const newPassword = typeof req.body.password === 'string' ? req.body.password : '';
+    if (newPassword) {
+      if (newPassword.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+      if (newPassword.length > 200) return res.status(400).json({ error: 'That’s too long — please shorten it.' });
+      const me = (await query('SELECT hash FROM users WHERE id = $1', [req.user.sub])).rows[0];
+      // Accounts with a password must confirm the current one (Google-only accounts are setting their first)
+      if (me?.hash && !(await bcrypt.compare(String(req.body.currentPassword || '').slice(0, 200), me.hash))) {
+        return res.status(400).json({ error: 'Your current password is incorrect.' });
+      }
+      params.push(await bcrypt.hash(newPassword, 12));
       updates.push(`hash = $${params.length}`);
     }
     if (!updates.length) return res.status(400).json({ error: 'Nothing to update.' });
@@ -805,6 +849,8 @@ app.patch('/api/auth/settings', authMiddleware, async (req, res) => {
       `UPDATE users SET ${updates.join(', ')} WHERE id = $${params.length} RETURNING *`,
       params
     );
+    // A new password signs out every other session; this one gets a fresh token
+    if (newPassword) setAuthCookie(res, signToken(req.user.sub, await bumpTokenVersion(req.user.sub)));
     res.json({ ok: true, user: publicUser(rows[0]) });
   } catch (e) { res.status(500).json({ error: 'Settings update failed.' }); }
 });
@@ -840,24 +886,10 @@ app.patch('/api/notifications/read-all', authMiddleware, async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Update failed.' }); }
 });
 
-// Add a notification programmatically (called from frontend events)
-app.post('/api/notifications/add', authMiddleware, async (req, res) => {
-  try {
-    const { type = 'system', title, body } = req.body;
-    if (!title || !body) return res.status(400).json({ error: 'title and body required.' });
-    await query(
-      'INSERT INTO notifications (user_id, type, title, body) VALUES ($1, $2, $3, $4)',
-      [req.user.sub, type, title, body]
-    );
-    res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: 'Failed to add notification.' }); }
-});
 
 // ── AI ALLOWANCE: status and the €0.50 pack ─────────────────────────────────────
 app.get('/api/ai/quota', async (req, res) => {
-  const token = req.cookies?.token;
-  req.user = null;
-  if (token) { try { req.user = jwt.verify(token, JWT_SECRET); } catch {} }
+  req.user = await userFromToken(tokenOf(req)).catch(() => null);
   try {
     await ensureAiTables();
     const tier = await aiTier(req), limit = aiLimitFor(tier);
@@ -984,18 +1016,6 @@ async function callGroq(prompt, model = AI_MODEL, systemPrompt = null, maxTokens
   return j.choices?.[0]?.message?.content || '';
 }
 
-// The model is chosen server-side (clients can't pick a more expensive one) and
-// prompts are capped, so this isn't a free general-purpose proxy on our Groq key.
-const MAX_PROMPT_CHARS  = 12000;
-
-app.post('/api/ai/complete', aiAccess, async (req, res) => {
-  const { prompt } = req.body;
-  if (!prompt || typeof prompt !== 'string') return res.status(400).json({ error: 'prompt required.' });
-  if (prompt.length > MAX_PROMPT_CHARS) return res.status(413).json({ error: 'Prompt too long.' });
-  try { res.json({ result: await callAi(prompt, AI_MODEL, null, 1200) }); }
-  catch (e) { res.status(500).json({ error: e.message }); }
-});
-
 // Pull the first {...} object out of a model reply (tolerates ``` fences / chatter).
 function parseJsonObject(raw) {
   const clean = String(raw || '').replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
@@ -1003,6 +1023,288 @@ function parseJsonObject(raw) {
   if (start === -1 || end === -1) throw new Error('No JSON object in AI reply.');
   return JSON.parse(clean.slice(start, end + 1));
 }
+
+// ── JOB BRIEF ─────────────────────────────────────────────────────────────────
+// A pasted job offer is analysed once (title, requirements, the keywords an ATS looks for)
+// and cached by its text, so every AI feature works from the same reading of the job and
+// re-checking the ATS score costs nothing. The whole advert is read, not just the start.
+const MAX_JOB_CHARS = 15000;
+const normJob = (t) => String(t || '').replace(/\r/g, '').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim().slice(0, MAX_JOB_CHARS);
+let _jobTable = null;
+function ensureJobTable() {
+  if (!_jobTable) {
+    _jobTable = query(`CREATE TABLE IF NOT EXISTS job_briefs (
+      hash TEXT PRIMARY KEY, brief JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`)
+      .catch(e => { _jobTable = null; throw e; });
+  }
+  return _jobTable;
+}
+const JOB_BRIEF_PROMPT = `You read a job advert the way an applicant tracking system (ATS) does. Reply with ONLY a JSON object:
+{"title":"the job title as written","company":"","seniority":"intern|junior|mid|senior|lead|executive|","years":null,
+ "education":"","languages":[],"summary":"one sentence on what the role is","duties":["3-6 short main responsibilities"],
+ "keywords":[{"term":"","alts":[],"type":"hard|tool|cert|domain|soft","required":true}]}
+Rules:
+- "keywords": 12-30 terms an ATS would match — skills, tools, technologies, methods, certifications, domain knowledge, and at most 4 soft skills. Use the advert's own wording, 1-4 words each. No generic words ("team", "work", "experience").
+- "required": true when the advert says it is required, essential, a must, or lists it under requirements; false for nice-to-haves.
+- "alts": up to 5 other ways a CV might say the same thing — acronym and full form (CRM / Customer Relationship Management), singular/plural, common spellings, and the equivalent in French and in English.
+- "years": the minimum years of experience asked for, as a number, or null if not stated.
+- "education": the degree level or field asked for, or "" if none. "languages": spoken languages required (e.g. "English", "French").`;
+
+function cleanBrief(b) {
+  const s = (v, n = 120) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
+  const list = (v, n, len) => (Array.isArray(v) ? v : []).map(x => s(x, len)).filter(Boolean).slice(0, n);
+  const seen = new Set();
+  const keywords = (Array.isArray(b?.keywords) ? b.keywords : []).map(k => ({
+    term: s(k?.term, 60), alts: list(k?.alts, 6, 60),
+    type: ['hard', 'tool', 'cert', 'domain', 'soft'].includes(k?.type) ? k.type : 'hard',
+    required: k?.required === true,
+  })).filter(k => k.term && !seen.has(k.term.toLowerCase()) && seen.add(k.term.toLowerCase())).slice(0, 32);
+  const years = Number(b?.years);
+  return {
+    title: s(b?.title), company: s(b?.company), seniority: s(b?.seniority, 20),
+    years: Number.isFinite(years) && years > 0 && years < 40 ? years : null,
+    education: s(b?.education, 160), languages: list(b?.languages, 6, 40),
+    summary: s(b?.summary, 300), duties: list(b?.duties, 6, 200), keywords,
+  };
+}
+
+// The brief for a job offer (cached). `charge`: count it against the AI allowance when it
+// isn't cached yet (endpoints behind aiAccess have already counted the request).
+async function jobBrief(jobText, req, { charge = false } = {}) {
+  const job = normJob(jobText);
+  if (job.length < 40) return null;
+  await ensureJobTable();
+  const hash = createHash('sha256').update(job).digest('hex');
+  const hit = (await query('SELECT brief FROM job_briefs WHERE hash = $1', [hash])).rows[0];
+  if (hit) return hit.brief;
+  if (charge) {
+    const a = await useAiAllowance(req);
+    if (!a.ok) throw Object.assign(new Error('AI_LIMIT'), { aiLimit: a });
+  }
+  const brief = cleanBrief(parseJsonObject(await callAi(`JOB ADVERT:\n${job}`, AI_MODEL, JOB_BRIEF_PROMPT, 2500, 'medium')));
+  if (brief.keywords.length) await query('INSERT INTO job_briefs (hash, brief) VALUES ($1, $2) ON CONFLICT (hash) DO NOTHING', [hash, JSON.stringify(brief)]);
+  return brief;
+}
+// Short text version of the brief for prompts
+function briefForPrompt(b) {
+  if (!b) return '';
+  const req = b.keywords.filter(k => k.required).map(k => k.term), nice = b.keywords.filter(k => !k.required).map(k => k.term);
+  return [
+    `Job: ${b.title}${b.company ? ` at ${b.company}` : ''}${b.seniority ? ` (${b.seniority})` : ''}`,
+    b.summary && `About the role: ${b.summary}`,
+    b.duties.length && `Main duties: ${b.duties.join('; ')}`,
+    req.length && `Required keywords: ${req.join(', ')}`,
+    nice.length && `Nice-to-have keywords: ${nice.join(', ')}`,
+    b.years && `Experience asked for: ${b.years}+ years`,
+    b.education && `Education asked for: ${b.education}`,
+  ].filter(Boolean).join('\n');
+}
+
+// ── ATS SCORE ─────────────────────────────────────────────────────────────────
+// A fixed calculation against the job brief, so the same CV and job always get the same
+// score and every change shows up. Weights: keywords 65, job title 12, sections 13,
+// requirements (years, education, languages) 10. A CV that truthfully covers the job's
+// keywords scores in the 90s.
+const normText = (s) => ' ' + String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  .replace(/[^a-z0-9+#.]+/g, ' ').replace(/(\S)\.(?=\s|$)/g, '$1').replace(/\s+/g, ' ').trim() + ' ';
+function termForms(term) {
+  const t = normText(term).trim();
+  if (!t) return [];
+  const forms = new Set([t]);
+  if (t.length > 3 && t.endsWith('s')) forms.add(t.slice(0, -1)); else if (t.length > 2) forms.add(t + 's');
+  if (t.includes(' ')) forms.add(t.replace(/ /g, ''));   // "power bi" ~ "powerbi"
+  return [...forms];
+}
+const hasTerm = (text, k) => [k.term, ...k.alts].some(v => termForms(v).some(f => text.includes(` ${f} `)));
+const LANG_WORDS = { english: ['english', 'anglais'], french: ['french', 'francais'], spanish: ['spanish', 'espagnol'], german: ['german', 'allemand'],
+  italian: ['italian', 'italien'], portuguese: ['portuguese', 'portugais'], arabic: ['arabic', 'arabe'], chinese: ['chinese', 'chinois', 'mandarin'], dutch: ['dutch', 'neerlandais'] };
+function cvYears(exps) {
+  const now = new Date().getFullYear();
+  let total = 0;
+  for (const e of exps) {
+    const p = normText(e.period);
+    const ys = (p.match(/\b(19|20)\d{2}\b/g) || []).map(Number);
+    if (!ys.length) continue;
+    const end = /present|now|current|today|aujourd|actuel|en cours|ongoing/.test(p) ? now : Math.max(...ys);
+    total += Math.max(0.5, end - Math.min(...ys));
+  }
+  return Math.round(total * 10) / 10;
+}
+
+function atsScore(cv, brief, uiLang) {
+  const fr = uiLang === 'fr', L = (en, frT) => (fr ? frT : en);
+  const str = (v) => (typeof v === 'string' ? v : '');
+  const arr = (v) => (Array.isArray(v) ? v : []);
+  const exps = arr(cv.experiences).filter(e => e && (str(e.title) || str(e.company) || str(e.desc)));
+  const edu = arr(cv.education).filter(e => e && (str(e.degree) || str(e.school)));
+  const text = normText([
+    cv.title, cv.sum, ...exps.map(e => `${str(e.title)} ${str(e.company)} ${str(e.desc)}`),
+    ...arr(cv.projects).map(p => `${str(p?.name)} ${str(p?.tech)} ${str(p?.desc)}`),
+    ...arr(cv.skills), ...edu.map(e => `${str(e.degree)} ${str(e.school)}`), ...arr(cv.certifications),
+    ...arr(cv.languages).map(l => `${str(l?.name)} ${str(l?.level)}`),
+  ].map(str).join(' \n '));
+
+  // Keywords
+  const weightOf = (k) => (k.required ? 3 : 1.5) * (k.type === 'soft' ? 0.6 : 1);
+  let total = 0, got = 0;
+  const matched = [], missing = [];
+  for (const k of brief.keywords) {
+    total += weightOf(k);
+    if (hasTerm(text, k)) { got += weightOf(k); matched.push(k.term); } else missing.push(k);
+  }
+  const kwScore = total ? got / total : 1;
+
+  // Job title: the CV headline or a past role uses the job's title words
+  const STOP = new Set(['senior', 'junior', 'lead', 'head', 'chief', 'and', 'the', 'of', 'h', 'f', 'm', 'w', 'x', 'de', 'des', 'du', 'et', 'en', 'stage', 'stagiaire', 'intern', 'alternance', 'cdi', 'cdd']);
+  const titleWords = normText(brief.title).trim().split(' ').filter(w => w.length > 1 && !STOP.has(w));
+  const titleText = normText([cv.title, ...exps.map(e => e.title)].map(str).join(' '));
+  const titleHits = titleWords.filter(w => titleText.includes(` ${w} `) || titleText.includes(` ${w}s `)).length;
+  const titleScore = !titleWords.length ? 1 : Math.min(1, titleHits / Math.max(1, Math.ceil(titleWords.length * 0.6)));
+
+  // Sections an ATS parses
+  const sections = [
+    ['email', !!str(cv.email).trim(), L('email address', 'adresse e-mail')],
+    ['phone', !!str(cv.phone).trim(), L('phone number', 'numéro de téléphone')],
+    ['summary', str(cv.sum).trim().length >= 80, L('a professional summary', 'un résumé professionnel')],
+    ['experience', exps.length > 0 && exps.some(e => str(e.period).trim()), L('dated work experience', 'une expérience datée')],
+    ['education', edu.length > 0, L('education', 'une formation')],
+    ['skills', arr(cv.skills).length >= 5, L('at least 5 skills', 'au moins 5 compétences')],
+  ];
+  const secScore = sections.filter(s => s[1]).length / sections.length;
+
+  // Requirements: years, education, languages (only those the job states)
+  const reqParts = [];
+  const years = cvYears(exps);
+  if (brief.years) reqParts.push(Math.min(1, years / brief.years));
+  if (brief.education) reqParts.push(edu.length ? 1 : 0);
+  const langsMissing = brief.languages.filter(l => {
+    const key = normText(l).trim(), words = LANG_WORDS[key] || LANG_WORDS[Object.keys(LANG_WORDS).find(k => LANG_WORDS[k].includes(key))] || [key];
+    return !words.some(w => text.includes(` ${w} `));
+  });
+  if (brief.languages.length) reqParts.push(1 - langsMissing.length / brief.languages.length);
+  const reqScore = reqParts.length ? reqParts.reduce((a, b) => a + b, 0) / reqParts.length : 1;
+
+  const score = Math.round(100 * (0.65 * kwScore + 0.12 * titleScore + 0.13 * secScore + 0.10 * reqScore));
+
+  // What to do about it, most useful first
+  const reqMissing = missing.filter(k => k.required).map(k => k.term), niceMissing = missing.filter(k => !k.required).map(k => k.term);
+  const gaps = [], suggestions = [];
+  if (reqMissing.length) gaps.push(L(`Required by the job but not on your CV: ${reqMissing.slice(0, 8).join(', ')}.`, `Exigé par l’offre mais absent de votre CV : ${reqMissing.slice(0, 8).join(', ')}.`));
+  if (brief.years && years < brief.years) gaps.push(L(`The job asks for ${brief.years}+ years of experience; your CV shows about ${years}.`, `L’offre demande ${brief.years} ans d’expérience ou plus ; votre CV en montre environ ${years}.`));
+  if (langsMissing.length) gaps.push(L(`The job asks for ${langsMissing.join(', ')} — add it under Languages if you speak it.`, `L’offre demande : ${langsMissing.join(', ')} — ajoutez-la dans Langues si vous la parlez.`));
+  if (brief.education && !edu.length) gaps.push(L(`The job mentions ${brief.education} — your CV has no education section.`, `L’offre mentionne : ${brief.education} — votre CV n’a pas de section formation.`));
+  const missingSections = sections.filter(s => !s[1]).map(s => s[2]);
+  if (missingSections.length) gaps.push(L(`ATS systems look for ${missingSections.join(', ')}.`, `Les ATS recherchent ${missingSections.join(', ')}.`));
+
+  if (reqMissing.length || niceMissing.length) suggestions.push(L('Use “Improve my score with AI” to work the missing keywords into what you’ve already written — only where they’re true for you.', 'Utilisez « Améliorer mon score avec l’IA » pour intégrer les mots-clés manquants à ce que vous avez déjà écrit — seulement là où c’est vrai.'));
+  if (missing.length) suggestions.push(L('Tap a missing keyword below to add it to your skills if you have it.', 'Touchez un mot-clé manquant ci-dessous pour l’ajouter à vos compétences si vous l’avez.'));
+  if (titleScore < 1 && brief.title) suggestions.push(L(`Use the job title “${brief.title}” in your headline if it matches what you do.`, `Utilisez l’intitulé « ${brief.title} » dans votre titre s’il correspond à ce que vous faites.`));
+  if (!reqMissing.length && niceMissing.length) suggestions.push(L(`Nice-to-haves you could mention: ${niceMissing.slice(0, 6).join(', ')}.`, `Atouts que vous pourriez mentionner : ${niceMissing.slice(0, 6).join(', ')}.`));
+  if (str(cv.sum).trim().length < 80) suggestions.push(L('Write a 2–3 sentence summary aimed at this job.', 'Rédigez un résumé de 2 à 3 phrases ciblé sur cette offre.'));
+
+  return {
+    score, matched, missing: [...reqMissing, ...niceMissing].slice(0, 14), gaps: gaps.slice(0, 4), suggestions: suggestions.slice(0, 4),
+    job: { title: brief.title, company: brief.company, keywords: brief.keywords.length },
+    breakdown: { keywords: Math.round(kwScore * 100), title: Math.round(titleScore * 100), sections: Math.round(secScore * 100), requirements: Math.round(reqScore * 100) },
+  };
+}
+
+function aiLimitError(a) {
+  return a.tier === 'guest'
+    ? `You’ve used today’s ${AI_GUEST_PER_DAY} free AI requests. Create a free account to get ${AI_FREE_PER_DAY} a day.`
+    : a.tier === 'unverified'
+      ? `You’ve used today’s ${AI_GUEST_PER_DAY} AI requests. Confirm your email to get ${AI_FREE_PER_DAY} a day.`
+      : `You’ve used today’s ${AI_FREE_PER_DAY} free AI requests. Get ${AI_PACK_SIZE} more for €0.50, or come back tomorrow.`;
+}
+
+// The CV the client sends, without the photo and capped in size
+function cvFromBody(body) {
+  const cv = body?.cv && typeof body.cv === 'object' ? { ...body.cv } : {};
+  delete cv.photo;
+  return JSON.stringify(cv).length > 60000 ? null : cv;
+}
+
+// POST /api/ai/job-brief — the analysed job (free once cached)
+app.post('/api/ai/job-brief', async (req, res) => {
+  req.user = await userFromToken(tokenOf(req)).catch(() => null);
+  try {
+    const brief = await jobBrief(req.body?.jobOffer, req, { charge: true });
+    if (!brief) return res.status(400).json({ error: 'Please paste the full job description (at least a few sentences).' });
+    res.json({ title: brief.title, company: brief.company, keywords: brief.keywords.length, summary: brief.summary });
+  } catch (e) {
+    if (e.aiLimit) return res.status(429).json({ code: 'AI_LIMIT', tier: e.aiLimit.tier, signedIn: !!req.user, error: aiLimitError(e.aiLimit) });
+    console.error('[job-brief]', e.message);
+    res.status(500).json({ error: 'AI is unavailable right now — please try again in a moment.' });
+  }
+});
+
+// POST /api/ai/ats — score a CV against a job offer (only the first analysis of a job uses AI)
+app.post('/api/ai/ats', rateLimit({ windowMs: 60 * 1000, max: 30 }), async (req, res) => {
+  req.user = await userFromToken(tokenOf(req)).catch(() => null);
+  try {
+    const cv = cvFromBody(req.body);
+    if (!cv) return res.status(413).json({ error: 'This CV is too long to check in one go.' });
+    const brief = await jobBrief(req.body?.jobOffer, req, { charge: true });
+    if (!brief) return res.status(400).json({ error: 'Please paste the full job description (at least a few sentences).' });
+    if (!brief.keywords.length) return res.status(500).json({ error: 'Analysis failed. Please try again — make sure your CV has some content filled in.' });
+    res.json(atsScore(cv, brief, req.body?.uiLang === 'fr' ? 'fr' : 'en'));
+  } catch (e) {
+    if (e.aiLimit) return res.status(429).json({ code: 'AI_LIMIT', tier: e.aiLimit.tier, signedIn: !!req.user, error: aiLimitError(e.aiLimit) });
+    console.error('[ats]', e.message);
+    res.status(500).json({ error: 'Analysis failed. Please try again — make sure your CV has some content filled in.' });
+  }
+});
+
+// POST /api/ai/write — the editor's AI helpers, with the job offer as context.
+//   summary { tone } · skills · bullets { index }
+app.post('/api/ai/write', aiAccess, async (req, res) => {
+  try {
+    const cv = cvFromBody(req.body);
+    if (!cv) return res.status(413).json({ error: 'This CV is too long to work on in one go.' });
+    const task = req.body?.task;
+    const str = (v) => (typeof v === 'string' ? v.trim() : '');
+    const arr = (v) => (Array.isArray(v) ? v : []);
+    const language = cv.lang === 'fr' ? 'French' : 'British English';
+    const brief = await jobBrief(req.body?.jobOffer, req).catch(() => null);
+    const job = brief ? `\n\nTHE JOB THEY ARE APPLYING FOR:\n${briefForPrompt(brief)}` : '';
+    const exps = arr(cv.experiences).filter(e => e && (str(e.title) || str(e.company) || str(e.desc))).slice(0, 10);
+    const facts = [
+      `Name: ${str(cv.fn)} ${str(cv.ln)}`, `Headline: ${str(cv.title)}`, `Current summary: ${str(cv.sum) || 'none'}`,
+      `Experience:\n${exps.map(e => `- ${str(e.title)} at ${str(e.company)} (${str(e.period)}): ${str(e.desc).slice(0, 700)}`).join('\n') || 'none'}`,
+      `Skills: ${arr(cv.skills).map(str).filter(Boolean).join(', ') || 'none'}`,
+      `Education: ${arr(cv.education).map(e => [str(e?.degree), str(e?.school)].filter(Boolean).join(', ')).filter(Boolean).join('; ') || 'none'}`,
+    ].join('\n');
+    const u = req.user ? (await query('SELECT industry, goal, experience FROM users WHERE id = $1', [req.user.sub])).rows[0] : null;
+    const profile = u ? [u.industry && `industry ${u.industry}`, u.goal && `goal ${u.goal}`, u.experience && `level ${u.experience}`].filter(Boolean).join(', ') : '';
+    const RULES = `Never invent employers, dates, numbers, qualifications, tools or achievements — use only what the CV says. Write in ${language}.`;
+
+    if (task === 'summary') {
+      const tone = ['professional', 'confident', 'creative', 'academic'].includes(req.body?.tone) ? req.body.tone : 'professional';
+      const out = await callAi(`CV:\n${facts}${job}${profile ? `\nAbout the person: ${profile}` : ''}`, AI_MODEL,
+        `You write CV summaries. Write one ${tone} professional summary: 2-3 sentences, under 60 words, no "I", no clichés. ${brief ? 'Aim it at the job: lead with what matters most for it and use its keywords where the CV shows that skill. ' : ''}${RULES} Return only the summary text, no quotes.`, 600);
+      return res.json({ result: str(out).replace(/^["“]|["”]$/g, '') });
+    }
+    if (task === 'skills') {
+      const have = new Set(arr(cv.skills).map(s => str(s).toLowerCase()));
+      const out = await callAi(`CV:\n${facts}${job}`, AI_MODEL,
+        `Suggest 10 skills for this CV: concrete tools, methods and domain knowledge (at most 2 soft skills), short names. ${brief ? 'Prefer the job’s keywords (exact wording) that the experience supports. ' : ''}Do not repeat skills already listed. Skill names in ${language} (keep technical terms normally left in English). Return ONLY a JSON array of strings.`, 600);
+      const list = JSON.parse(String(out).slice(String(out).indexOf('['), String(out).lastIndexOf(']') + 1));
+      return res.json({ skills: arr(list).map(str).filter(s => s && s.length <= 50 && !have.has(s.toLowerCase())).slice(0, 12) });
+    }
+    if (task === 'bullets') {
+      const e = arr(cv.experiences)[Number(req.body?.index)];
+      if (!e) return res.status(400).json({ error: 'This item can’t be fixed automatically.' });
+      const out = await callAi(`ROLE: ${str(e.title)} at ${str(e.company)} (${str(e.period)})\nCURRENT DESCRIPTION:\n${str(e.desc) || 'none'}${job}`, AI_MODEL,
+        `You are a CV writer. Rewrite the description as 3-4 concise bullet points, each starting with "• " and a strong action verb, one per line. Keep every number exactly as written. Never invent numbers or achievements: where a figure would help, insert a placeholder such as [X%], [N] or [£X] for the person to fill in. ${brief ? 'Use the job’s wording for the same activities where it fits. ' : ''}${RULES} Return only the bullet points.`, 700);
+      const text = str(out).split('\n').map(l => l.trim()).filter(l => l.startsWith('•')).join('\n') || str(out);
+      return res.json({ result: text });
+    }
+    res.status(400).json({ error: 'Unknown task.' });
+  } catch (e) {
+    console.error('[ai/write]', e.message);
+    res.status(500).json({ error: 'AI is unavailable right now — please try again in a moment.' });
+  }
+});
 
 // ── BUILD A CV FROM A STORY ───────────────────────────────────────────────────
 // One call per round. The AI either rejects the story (too thin / not about a career),
@@ -1057,7 +1359,8 @@ Only include "questions" for needs_more and "cv" for ready. Questions and reason
 
     const context = [ctx.industry && `Industry: ${ctx.industry}`, ctx.goal && `Goal: ${ctx.goal}`, ctx.experience && `Level: ${ctx.experience}`]
       .filter(Boolean).map(String).join(' | ').slice(0, 200);
-    const userPrompt = `${context ? `About the person (from sign-up): ${context}\n\n` : ''}THEIR STORY:\n${story}\n\n${
+    const brief = await jobBrief(req.body?.jobOffer, req).catch(() => null);
+    const userPrompt = `${context ? `About the person (from sign-up): ${context}\n\n` : ''}${brief ? `THE JOB THEY ARE APPLYING FOR (shape the headline, summary and skill order around it, and ask about anything it requires that the story doesn't cover — never invent):\n${briefForPrompt(brief)}\n\n` : ''}THEIR STORY:\n${story}\n\n${
       answers.length ? `THEIR ANSWERS TO FOLLOW-UP QUESTIONS:\n${answers.map(a => `Q: ${a.q}\nA: ${a.a}`).join('\n\n')}\n\n` : ''}Question rounds so far: ${round} of ${STORY_MAX_ROUNDS}.`;
 
     const out = parseJsonObject(await callAi(userPrompt, AI_MODEL, systemPrompt, 4000, 'medium'));
@@ -1113,7 +1416,9 @@ Rules:
 Reply with ONLY a JSON object, no markdown:
 {"changes":[{"key":"title|sum|exp:<i>","after":"new text"}],"skills":["..."],"note":"one short sentence for the user in ${noteLanguage}, optional"}`;
 
-    const out = parseJsonObject(await callAi(`TASK: ${task}\n\nCV:\n${payload}`, AI_MODEL, systemPrompt, 3000, 'medium'));
+    const brief = await jobBrief(req.body?.jobOffer, req).catch(() => null);
+    const jobCtx = brief ? `\n\nTHE JOB THEY ARE APPLYING FOR (aim the wording at it, using its keywords only where the CV supports them):\n${briefForPrompt(brief)}` : '';
+    const out = parseJsonObject(await callAi(`TASK: ${task}\n\nCV:\n${payload}${jobCtx}`, AI_MODEL, systemPrompt, 3000, 'medium'));
     const exps = src.experiences;
     const changes = (Array.isArray(out.changes) ? out.changes : []).map(c => {
       const key = String(c?.key || ''), after = str(c?.after);
@@ -1195,7 +1500,7 @@ app.post('/api/ai/translate', aiAccess, async (req, res) => {
 app.post('/api/ai/tailor', aiAccess, async (req, res) => {
   try {
     const { cv = {}, jobOffer = '', ats = null } = req.body || {};
-    const job = String(jobOffer).trim().slice(0, 6000);
+    const job = normJob(jobOffer).slice(0, 12000);
     // Boost mode: the ATS check scored low — target what it found missing, without growing the CV
     const list = (v, n) => (Array.isArray(v) ? v : []).map(x => String(x || '').trim().slice(0, 120)).filter(Boolean).slice(0, n);
     const boost = ats && typeof ats === 'object'
@@ -1242,9 +1547,10 @@ Example — original: "Resolved billing issues." for a job offer that says "reso
 - Write in ${isFrench ? 'FRENCH' : 'the same language as the CV'}.
 - Return ONLY valid JSON, no markdown.`;
 
+    const brief = await jobBrief(job, req).catch(() => null);
     const userPrompt = `JOB OFFER:
 ${job}
-
+${brief ? `\nKEYWORDS AN ATS WILL LOOK FOR (use this exact wording wherever the CV already shows that skill or activity):\n${brief.keywords.map(k => `${k.term}${k.required ? ' (required)' : ''}`).join(', ')}\n` : ''}
 CURRENT CV:
 ${cvText}
 
@@ -1301,21 +1607,6 @@ Your goal now is to raise the score honestly AND keep the CV the same size:
   }
 });
 
-app.post('/api/ai/enhance', aiAccess, async (req, res) => {
-  const { type, data } = req.body;
-  const isFrench = data.lang === 'fr';
-  const prompts = isFrench ? {
-    summary:    `Rédige un résumé professionnel percutant en FRANÇAIS (2-3 phrases, optimisé ATS, moins de 60 mots). Nom: ${data.name}, Titre: ${data.title}. Actuel: "${data.current}". Retourne uniquement le texte du résumé en français.`,
-    experience: `Améliore cette description de poste en FRANÇAIS avec des verbes d'action forts et des métriques quantifiées (1-2 phrases). Rôle: ${data.title} chez ${data.company}. Actuel: "${data.desc}". Retourne uniquement le texte amélioré en français.`,
-    skills:     `Liste 10 compétences recherchées pour un poste de ${data.title}. Retourne uniquement un tableau JSON de chaînes en français — sans markdown, sans explication.`,
-  } : {
-    summary:    `Write a compelling professional summary (2-3 sentences, ATS-optimised, under 60 words). Name: ${data.name}, Title: ${data.title}. Current: "${data.current}". Return only the summary text.`,
-    experience: `Improve this job description with strong action verbs and quantified metrics (1-2 sentences). Role: ${data.title} at ${data.company}. Current: "${data.desc}". Return only improved text.`,
-    skills:     `List 10 in-demand skills for a ${data.title} role. Return a JSON array of strings only — no markdown, no explanation.`,
-  };
-  try { res.json({ result: await callAi(prompts[type] || prompts.summary) }); }
-  catch (e) { res.status(500).json({ error: e.message }); }
-});
 
 // ── CV UPLOAD (real Groq extraction) ─────────────────────────────────────────
 async function extractTextFromBuffer(buffer, mimetype, originalname) {
@@ -1346,7 +1637,7 @@ async function extractTextFromBuffer(buffer, mimetype, originalname) {
   }
 
   // Plain text / TXT / fallback
-  return buffer.toString('utf-8').replace(/[^\x20-\x7E\n\r\t]/g, ' ').replace(/\s{3,}/g, '\n').trim();
+  return buffer.toString('utf-8').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\uFFFD]/g, ' ').replace(/\s{3,}/g, '\n').trim();
 }
 
 app.post('/api/cv/upload', aiAccess, upload.single('cv'), async (req, res) => {
@@ -1477,7 +1768,7 @@ ${textFull}`;
     });
   } catch (e) {
     console.error('[upload] Error:', e.message);
-    res.status(500).json({ error: 'Extraction failed: ' + e.message });
+    res.status(500).json({ error: /^Could not read/.test(e.message) ? e.message : 'Failed to extract CV. Try a different file or fill in manually.' });
   }
 });
 
@@ -1766,7 +2057,16 @@ async function resetBrowser() {
   try { await b?.close(); } catch {}
 }
 
-async function generateCvPdf(htmlContent) {
+let _pdfActive = 0;
+const _pdfQueue = [];
+async function withPdfSlot(fn) {
+  if (_pdfActive >= 2) await new Promise(r => _pdfQueue.push(r));
+  _pdfActive++;
+  try { return await fn(); } finally { _pdfActive--; _pdfQueue.shift()?.(); }
+}
+
+function generateCvPdf(htmlContent) { return withPdfSlot(() => generateCvPdfNow(htmlContent)); }
+async function generateCvPdfNow(htmlContent) {
   for (let attempt = 1; attempt <= 2; attempt++) {
     const t0 = Date.now();
     try {
@@ -1843,21 +2143,100 @@ async function verifyEmailSession(sessionId) {
 const escHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 const isEmail = e => typeof e === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 
-app.post('/api/cv/email', async (req, res) => {
-  try {
-    const { htmlContent, fileName, overrideEmail, sessionId, draftId } = req.body;
-    if (!htmlContent) return res.status(400).json({ error: 'CV content required.' });
+// ── EXPORTS ARE RENDERED FROM THE SAVED CV ────────────────────────────────────
+// PDFs are always built on the server from the CV saved in the account (with the same
+// renderer the editor uses), never from HTML sent by the browser. So a paid CV can't be
+// swapped for other content, and the PDF engine only ever sees escaped CV data.
+let _renderer = null;
+function cvRenderer() {
+  if (!_renderer) {
+    _renderer = Promise.all([import('../src/composables/cvRenderer.js'), import('../src/composables/pageFit.js')])
+      .then(([r, p]) => ({ render: r.render, exportDocument: p.exportDocument }))
+      .catch(e => { _renderer = null; throw e; });
+  }
+  return _renderer;
+}
+async function ownDraft(userId, draftId) {
+  if (!UUID_RE.test(String(draftId || ''))) return null;
+  return (await query('SELECT id, cv_data, template FROM drafts WHERE id = $1 AND user_id = $2', [draftId, userId])).rows[0] || null;
+}
+async function draftDocument(draft) {
+  const { render, exportDocument } = await cvRenderer();
+  const data = draft.cv_data && typeof draft.cv_data === 'object' ? draft.cv_data : {};
+  return exportDocument(render(draft.template, data, data.fmt || {}));
+}
+function draftFileName(draft) {
+  const d = draft.cv_data || {};
+  const name = [d.fn, d.ln].filter(Boolean).join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '') || 'My CV';
+  return name.replace(/[^a-zA-Z0-9\s-]/g, '').trim().replace(/\s+/g, '-').slice(0, 60) + '-CV.pdf';
+}
 
-    // Auth via cookie, or via the paid Stripe session (cross-site cookie can be lost after the redirect)
-    let userId = null;
-    try {
-      const token = req.cookies?.token || req.headers.authorization?.replace('Bearer ', '');
-      if (token) userId = jwt.verify(token, JWT_SECRET).sub;
-    } catch {}
+// One payment = one person's CV. Edits are free (that's the promise), but the name on a
+// paid CV is remembered at the first export; a CV for someone else needs its own payment.
+// Small corrections (a typo, adding a middle name) still count as the same person.
+let _payCols = null;
+function ensurePaymentCols() {
+  if (!_payCols) _payCols = query('ALTER TABLE payments ADD COLUMN IF NOT EXISTS locked_name TEXT').catch(e => { _payCols = null; throw e; });
+  return _payCols;
+}
+const normName = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  .replace(/[^a-z\s'-]/g, ' ').replace(/\s+/g, ' ').trim();
+function editDistance(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+function samePerson(locked, now) {
+  if (!locked || !now || locked === now) return true;
+  const a = locked.split(' ').filter(w => w.length > 1), b = new Set(now.split(' ').filter(w => w.length > 1));
+  if (a.some(w => b.has(w))) return true;
+  return editDistance(locked, now) <= 2;
+}
+const IDENTITY_MSG = 'This CV was paid for under another person’s name. A CV for someone else needs its own payment — start a new CV for them.';
+async function checkPaidIdentity(userId, draft) {
+  await ensurePaymentCols();
+  const d = draft.cv_data || {};
+  const name = normName([d.fn, d.ln].filter(Boolean).join(' '));
+  const rows = (await query(
+    `SELECT locked_name FROM payments WHERE user_id = $1 AND paid = TRUE AND product = 'email_export' AND draft_id = $2`,
+    [userId, String(draft.id)])).rows;
+  if (!rows.length) return true;   // unlocked through an old account-wide payment
+  const locked = rows.find(r => r.locked_name)?.locked_name;
+  if (!locked) {
+    if (name) await query(`UPDATE payments SET locked_name = $1 WHERE user_id = $2 AND draft_id = $3 AND product = 'email_export' AND locked_name IS NULL`,
+      [name, userId, String(draft.id)]);
+    return true;
+  }
+  return samePerson(locked, name);
+}
+
+// PDFs are heavy: a per-IP limit, and at most two renders at a time
+const pdfLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, message: { error: 'Too many downloads — please wait a few minutes.' } });
+
+// The paid PDF of a saved draft, after the payment and identity checks.
+// Returns { pdf, fileName, draft } or { status, error }.
+async function paidDraftPdf(userId, draftId) {
+  const draft = await ownDraft(userId, draftId);
+  if (!draft) return { status: 404, error: 'Save your CV before exporting.' };
+  if (!(await hasEmailExport(userId, draft.id))) return { status: 402, error: 'This CV has not been paid for yet.' };
+  if (!(await checkPaidIdentity(userId, draft))) return { status: 403, error: IDENTITY_MSG };
+  const pdf = await generateCvPdf(await draftDocument(draft));
+  if (!pdf) return { status: 500, error: 'PDF generation failed. Please try again.' };
+  return { pdf, fileName: draftFileName(draft), draft };
+}
+
+app.post('/api/cv/email', pdfLimiter, async (req, res) => {
+  try {
+    const { overrideEmail, sessionId, draftId } = req.body || {};
+
+    // Auth via cookie, or via the paid Stripe session (the cookie can be missing right after the redirect)
+    let userId = (await userFromToken(tokenOf(req)).catch(() => null))?.sub || null;
 
     let paidSession = null;
     if (sessionId) {
-      try { paidSession = await verifyEmailSession(sessionId); }
+      try { paidSession = await verifyEmailSession(String(sessionId)); }
       catch (e) { console.warn('[email] Stripe session check failed:', e.message); }
       if (paidSession) {
         if (userId && userId !== paidSession.userId) {
@@ -1869,71 +2248,33 @@ app.post('/api/cv/email', async (req, res) => {
     }
     if (!userId) return res.status(401).json({ error: 'Please sign in again to send your CV.' });
 
-    const { rows } = await query('SELECT * FROM users WHERE id = $1', [userId]);
-    const user = rows[0];
-    if (!user) return res.status(404).json({ error: 'User not found.' });
+    const user = (await query('SELECT email, name FROM users WHERE id = $1', [userId])).rows[0];
+    if (!user) return res.status(404).json({ error: 'Account not found.' });
 
     const targetDraft = paidSession?.draftId || draftId;
     if (!targetDraft) return res.status(400).json({ error: 'Save your CV before exporting.' });
-    if (!(await hasEmailExport(userId, targetDraft))) {
-      return res.status(403).json({ error: 'Payment required to export this CV.' });
-    }
+    const out = await paidDraftPdf(userId, targetDraft);
+    if (out.error) return res.status(out.status).json({ error: out.error });
 
-    const toEmail = isEmail(overrideEmail) ? overrideEmail.trim() : user.email;
-    console.log('[email] Sending draft', targetDraft, 'to:', toEmail);
-
-    const pdfBuffer = await generateCvPdf(htmlContent);
-    if (!pdfBuffer) console.warn('[email] All PDF methods failed — sending HTML');
-
-    const base = (fileName || 'my-cv').replace(/\.pdf$/i,'').replace(/\.html?$/i,'').replace(/[^a-zA-Z0-9-_.]/g, '-');
-    const attachment = pdfBuffer
-      ? { filename: base + '.pdf',  content: pdfBuffer,  contentType: 'application/pdf' }
-      : { filename: base + '.html', content: htmlContent, contentType: 'text/html' };
-
+    const toEmail = isEmail(overrideEmail) ? overrideEmail.trim().slice(0, 254) : user.email;
     await sendMail({
       to: toEmail,
       subject: 'Your CV from CVMaster',
       html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:36px 24px;">
-        <div style="margin-bottom:24px;display:flex;align-items:center;gap:10px;">
-          <div style="width:36px;height:36px;background:#4338CA;border-radius:9px;display:flex;align-items:center;justify-content:center;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          </div>
-          <span style="font-size:18px;font-weight:700;color:#1a1916;">CVMaster</span>
-        </div>
-        <h2 style="font-size:22px;color:#1a1916;margin:0 0 10px;">Your CV is attached, ${escHtml(user.name || 'there')}!</h2>
-        <p style="color:#6b6860;font-size:14px;line-height:1.7;margin:0 0 20px;">
-          ${pdfBuffer
-            ? 'Your CV is attached as a ready-to-send PDF.'
-            : 'Your CV is attached as an HTML file. Open it in Chrome and press <strong>Ctrl+P → Save as PDF</strong> to get a PDF.'}
-        </p>
+        <div style="font-size:18px;font-weight:800;margin-bottom:24px;color:#14142B">CV<span style="color:#4338CA">Master</span></div>
+        <h2 style="font-size:22px;color:#1a1916;margin:0 0 10px;">Your CV is attached, ${escHtml(String(user.name || '').split(' ')[0] || 'there')}!</h2>
+        <p style="color:#6b6860;font-size:14px;line-height:1.7;margin:0 0 20px;">Your CV is attached as a ready-to-send PDF. You can send it again for free from My CVs, even after edits.</p>
         <p style="color:#b0ada6;font-size:12px;margin:0;">CVMaster · <a href="https://www.cvmaster.live" style="color:#4338CA;">cvmaster.live</a></p>
       </div>`,
-      attachments: [attachment],
+      attachments: [{ filename: out.fileName, content: out.pdf, contentType: 'application/pdf' }],
     });
-
-    console.log('[email] Sent successfully to:', toEmail);
-    res.json({ ok: true, sentTo: toEmail, draftId: targetDraft, format: pdfBuffer ? 'pdf' : 'html' });
+    res.json({ ok: true, sentTo: toEmail, draftId: out.draft.id, format: 'pdf' });
   } catch (e) {
-    console.error('[email] FAILED:', e.message, e.stack);
-    res.status(500).json({ error: 'Failed to send email: ' + e.message });
+    console.error('[email] FAILED:', e.message);
+    res.status(500).json({ error: 'We couldn’t email your CV just now — please try again.' });
   }
 });
 
-// ── EMAIL TEST (dev only) ─────────────────────────────────────────────────────
-app.get('/api/email-test', authMiddleware, async (req, res) => {
-  try {
-    const { rows } = await query('SELECT email, name FROM users WHERE id = $1', [req.user.sub]);
-    const user = rows[0];
-    await sendMail({
-      to: user.email,
-      subject: 'CVMaster — Email Test',
-      html: '<p>If you receive this, email is working correctly.</p>',
-    });
-    res.json({ ok: true, sentTo: user.email, smtp: process.env.SMTP_HOST || 'ethereal (dev)' });
-  } catch (e) {
-    res.status(500).json({ error: e.message, smtp: process.env.SMTP_HOST || 'NOT SET' });
-  }
-});
 // ── DRAFTS ────────────────────────────────────────────────────────────────────
 app.get('/api/drafts', authMiddleware, async (req, res) => {
   try {
@@ -1945,13 +2286,20 @@ app.get('/api/drafts', authMiddleware, async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Failed to fetch drafts.' }); }
 });
 
+const MAX_DRAFTS = 60;
+const MAX_DRAFT_BYTES = 4 * 1024 * 1024;   // a CV with a photo is well under this
+const draftTooBig = (data) => data && JSON.stringify(data).length > MAX_DRAFT_BYTES;
+
 app.post('/api/drafts', authMiddleware, async (req, res) => {
   try {
     const { title, data, template } = req.body;
+    if (draftTooBig(data)) return res.status(413).json({ error: 'This CV is too large to save — try a smaller photo.' });
+    const n = (await query('SELECT COUNT(*)::int AS n FROM drafts WHERE user_id = $1', [req.user.sub])).rows[0].n;
+    if (n >= MAX_DRAFTS) return res.status(400).json({ error: 'You have a lot of CVs saved — delete some old ones first.' });
     const { rows } = await query(
       `INSERT INTO drafts (user_id, title, cv_data, template)
        VALUES ($1, $2, $3, $4) RETURNING *`,
-      [req.user.sub, title || 'Untitled CV', JSON.stringify(data || {}), template || 'executive']
+      [req.user.sub, String(title || 'Untitled CV').slice(0, 200), JSON.stringify(data || {}), String(template || 'modern:indigo').slice(0, 60)]
     );
     const d = rows[0];
     res.json({ id: d.id, userId: d.user_id, title: d.title, data: d.cv_data, template: d.template, createdAt: d.created_at, updatedAt: d.updated_at });
@@ -1961,11 +2309,13 @@ app.post('/api/drafts', authMiddleware, async (req, res) => {
 app.put('/api/drafts/:id', authMiddleware, async (req, res) => {
   try {
     const { title, data, template } = req.body;
+    if (!UUID_RE.test(req.params.id)) return res.status(404).json({ error: 'Draft not found.' });
+    if (draftTooBig(data)) return res.status(413).json({ error: 'This CV is too large to save — try a smaller photo.' });
     const { rows } = await query(
       `UPDATE drafts SET title = COALESCE($1, title), cv_data = COALESCE($2, cv_data),
        template = COALESCE($3, template), updated_at = NOW()
        WHERE id = $4 AND user_id = $5 RETURNING *`,
-      [title, data ? JSON.stringify(data) : null, template, req.params.id, req.user.sub]
+      [title == null ? null : String(title).slice(0, 200), data ? JSON.stringify(data) : null, template == null ? null : String(template).slice(0, 60), req.params.id, req.user.sub]
     );
     if (!rows.length) return res.status(404).json({ error: 'Draft not found.' });
     const d = rows[0];
@@ -1975,6 +2325,7 @@ app.put('/api/drafts/:id', authMiddleware, async (req, res) => {
 
 app.delete('/api/drafts/:id', authMiddleware, async (req, res) => {
   try {
+    if (!UUID_RE.test(req.params.id)) return res.json({ ok: true });
     await query('DELETE FROM drafts WHERE id = $1 AND user_id = $2', [req.params.id, req.user.sub]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'Failed to delete draft.' }); }
@@ -2058,194 +2409,82 @@ app.get('/api/payment/status/:draftId', authMiddleware, async (req, res) => {
 });
 
 
-// ── CV WATERMARK DOWNLOAD ─────────────────────────────────────────────────────
-// CV WATERMARK DOWNLOAD SYSTEM
-// ─────────────────────────────────────────────────────────────────────────────
-// Flow:
-//  1. POST /api/cv/store-for-unlock  → stores HTML + token, returns immediately
-//  2. User chooses free or paid in modal
-//  3a. Free:  POST /api/cv/download-watermarked → generates watermarked PDF and returns it
-//  3b. Paid:  POST /api/cv/unlock → Stripe PaymentIntent
-//  4. Stripe confirms → GET /api/cv/clean/:token → generateCvPdf (same as email) → return bytes
-//
-// The clean download uses EXACTLY the same PDF pipeline as the email export.
-// Quality is identical to what the user sees in the preview.
-
-const cleanStore = new Map();
-
-function makeToken() {
-  return randomBytes(24).toString('hex');
-}
+// ── FREE PREVIEW (WATERMARKED) DOWNLOAD ───────────────────────────────────────
+//  1. POST /api/cv/store-for-unlock { draftId } → token; the watermarked PDF renders in the background
+//  2. POST /api/cv/download-watermarked { token } → the PDF
+// The clean PDF is the €0.99 export (PaywallModal), not part of this flow.
+const cleanStore = new Map();   // token → { userId, draftId, fileName, watermarkedPdf, ready, expiresAt }
+const makeToken = () => randomBytes(24).toString('hex');
 
 function addHtmlWatermark(html) {
   const row  = '<div style="width:320px;padding:18px 0;font-family:sans-serif;font-size:13px;font-weight:700;color:#111;letter-spacing:.06em;white-space:nowrap;">CVMaster — upgrade at cvmaster.live</div>';
   const rows = Array(120).fill(row).join('');
-  // Use position:absolute (not fixed) — Puppeteer PDF ignores fixed positioning
-  // The wrapper must be inside a position:relative container (body) to fill the whole page
+  // position:absolute (not fixed) — Puppeteer's PDF ignores fixed positioning
   const wm   = `<div style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;"><div style="position:absolute;top:-50%;left:-50%;width:200%;height:200%;display:flex;flex-wrap:wrap;align-content:flex-start;transform:rotate(-28deg);opacity:0.18;">${rows}</div></div>`;
-  // Make body position:relative so absolute watermark is relative to it
   const bodyStyle = '<style>body{position:relative!important;}</style>';
-  let out = html.includes('</head>') ? html.replace('</head>', bodyStyle + '</head>') : bodyStyle + html;
+  const out = html.includes('</head>') ? html.replace('</head>', bodyStyle + '</head>') : bodyStyle + html;
   return out.includes('</body>') ? out.replace('</body>', wm + '</body>') : out + wm;
 }
 
-// POST /api/cv/store-for-unlock
-// Returns token immediately. Kicks off background rendering of BOTH PDFs.
-// By the time user reads modal + enters card details (~15-30s), PDFs are ready.
-// cv/clean then serves pre-rendered bytes instantly — no wait after payment.
-app.post('/api/cv/store-for-unlock', authMiddleware, async (req, res) => {
+app.post('/api/cv/store-for-unlock', authMiddleware, pdfLimiter, async (req, res) => {
   try {
-    const { htmlContent, fileName = 'cv.pdf' } = req.body;
-    if (!htmlContent) return res.status(400).json({ error: 'htmlContent required.' });
-    const token   = makeToken();
-    const safe    = String(fileName).replace(/\.pdf$/i, '').replace(/[^a-zA-Z0-9-_.]/g, '-') + '.pdf';
-    const entry   = { userId: req.user.sub, html: htmlContent, fileName: safe, cleanPdf: null, watermarkedPdf: null, ready: false, expiresAt: Date.now() + 2 * 60 * 60 * 1000 };
+    const draft = await ownDraft(req.user.sub, req.body?.draftId);
+    if (!draft) return res.status(400).json({ error: 'Save your CV first.' });
+    // Keep only each user's latest few pending downloads in memory
+    const mine = [...cleanStore.entries()].filter(([, e]) => e.userId === req.user.sub);
+    for (const [t] of mine.slice(0, Math.max(0, mine.length - 2))) cleanStore.delete(t);
+
+    const token = makeToken();
+    const entry = { userId: req.user.sub, draftId: draft.id, fileName: draftFileName(draft), watermarkedPdf: null, ready: false, expiresAt: Date.now() + 2 * 60 * 60 * 1000 };
     cleanStore.set(token, entry);
     setTimeout(() => cleanStore.delete(token), 2 * 60 * 60 * 1000);
+    res.json({ token, fileName: entry.fileName });
 
-    // Respond immediately — don't wait for rendering
-    res.json({ token, fileName: safe });
-
-    // Render both PDFs concurrently in background
-    console.log('[pdf] Background render starting for token:', token.slice(0,8));
-    Promise.all([
-      generateCvPdf(htmlContent),
-      generateCvPdf(addHtmlWatermark(htmlContent)),
-    ]).then(([cleanPdf, watermarkedPdf]) => {
-      entry.cleanPdf       = cleanPdf       ? Buffer.from(cleanPdf)       : null;
-      entry.watermarkedPdf = watermarkedPdf ? Buffer.from(watermarkedPdf) : null;
-      console.log('[pdf] Background render done, clean:', cleanPdf?.length, 'watermarked:', watermarkedPdf?.length);
-    }).catch((e) => {
-      console.error('[pdf] Background render FAILED:', e.message, e.stack?.split('\n')[1]);
-    }).finally(() => {
-      entry.ready = true; // done either way — waiters fall back to rendering on demand
-    });
+    draftDocument(draft)
+      .then(html => generateCvPdf(addHtmlWatermark(html)))
+      .then(pdf => { entry.watermarkedPdf = pdf ? Buffer.from(pdf) : null; })
+      .catch(e => console.error('[pdf] watermarked render failed:', e.message))
+      .finally(() => { entry.ready = true; });
   } catch (e) {
-    res.status(500).json({ error: 'Could not prepare download: ' + e.message });
+    console.error('[store-for-unlock]', e.message);
+    res.status(500).json({ error: 'Could not prepare the download — please try again.' });
   }
 });
 
-// Token entries belong to the user who created them.
 function getOwnEntry(token, userId) {
-  const entry = cleanStore.get(token);
+  const entry = cleanStore.get(String(token || ''));
   if (!entry || Date.now() > entry.expiresAt || entry.userId !== userId) return null;
   return entry;
 }
-
-async function waitForRender(entry, ms = 30000) {
+async function waitForRender(entry, ms = 40000) {
   let waited = 0;
   while (!entry.ready && waited < ms) { await new Promise(r => setTimeout(r, 300)); waited += 300; }
 }
-
 function sendPdf(res, pdf, fileName) {
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+  res.setHeader('Content-Disposition', `attachment; filename="${String(fileName).replace(/[^a-zA-Z0-9._-]/g, '-')}"`);
   res.send(Buffer.from(pdf));
 }
 
-// POST /api/cv/download-watermarked — serves pre-rendered watermarked PDF instantly
-app.post('/api/cv/download-watermarked', authMiddleware, async (req, res) => {
+app.post('/api/cv/download-watermarked', authMiddleware, pdfLimiter, async (req, res) => {
   try {
-    const { token } = req.body;
-    if (!token) return res.status(400).json({ error: 'token required.' });
-    const entry = getOwnEntry(token, req.user.sub);
-    if (!entry) return res.status(404).json({ error: 'Session expired. Please click download again.' });
+    const entry = getOwnEntry(req.body?.token, req.user.sub);
+    if (!entry) return res.status(404).json({ error: 'This download expired — click Download again.' });
     await waitForRender(entry);
-    const pdf = entry.watermarkedPdf || await generateCvPdf(addHtmlWatermark(entry.html));
+    let pdf = entry.watermarkedPdf;
+    if (!pdf) {
+      const draft = await ownDraft(req.user.sub, entry.draftId);
+      if (draft) pdf = await generateCvPdf(addHtmlWatermark(await draftDocument(draft)));
+    }
     if (!pdf) return res.status(500).json({ error: 'PDF generation failed. Please try again.' });
     sendPdf(res, pdf, entry.fileName.replace(/\.pdf$/, '-preview.pdf'));
   } catch (e) {
-    res.status(500).json({ error: 'Download failed: ' + e.message });
+    console.error('[download-watermarked]', e.message);
+    res.status(500).json({ error: 'Download failed. Please try again.' });
   }
 });
 
-// POST /api/cv/unlock — Stripe Checkout for a €0.50 clean download
-app.post('/api/cv/unlock', authMiddleware, async (req, res) => {
-  try {
-    const { token } = req.body;
-    if (!token) return res.status(400).json({ error: 'token required.' });
-    if (!getOwnEntry(token, req.user.sub)) return res.status(404).json({ error: 'Session expired. Please click download again.' });
-
-    const stripe = await getStripe();
-    if (!stripe) {
-      if (!FREE_EXPORTS) return res.status(503).json({ error: PAYMENTS_DOWN });
-      await recordPayment({ userId: req.user.sub, draftId: 'wm_' + token, sessionId: token, product: 'clean_download', source: 'demo' });
-      return res.json({ demo: true });
-    }
-
-    const metadata = { product: 'cvmaster_clean_download', clean_token: token, user_id: req.user.sub };
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [{
-        price_data: {
-          currency: 'eur',
-          product_data: { name: 'CVMaster — Clean CV Download', description: 'Watermark-free PDF · ATS-ready' },
-          unit_amount: 50,
-        },
-        quantity: 1,
-      }],
-      mode: 'payment',
-      success_url: `${FRONTEND_URL}/download-clean?token=${token}&session={CHECKOUT_SESSION_ID}`,
-      cancel_url:  `${FRONTEND_URL}/`,
-      client_reference_id: req.user.sub,
-      metadata,
-      payment_intent_data: { metadata }, // so the payment_intent.succeeded webhook sees it too
-    });
-    res.json({ url: session.url });
-  } catch (e) {
-    res.status(500).json({ error: 'Could not create payment: ' + e.message });
-  }
-});
-
-// GET /api/cv/clean/:token
-// X-Payment-Intent-Id header (actually the Checkout Session id) → verify with Stripe directly.
-// Otherwise: check payments DB (set by webhook, demo mode or a referral credit).
-app.get('/api/cv/clean/:token', authMiddleware, async (req, res) => {
-  try {
-    const { token }  = req.params;
-    const sessionId  = req.headers['x-payment-intent-id'];
-    let paid = false;
-
-    const stripe = await getStripe();
-    if (sessionId && stripe) {
-      try {
-        const session = await stripe.checkout.sessions.retrieve(sessionId);
-        if (session.payment_status === 'paid' && session.metadata?.clean_token === token
-            && session.metadata?.user_id === req.user.sub) {
-          paid = true;
-          await recordPayment({ userId: req.user.sub, draftId: 'wm_' + token, sessionId: token, product: 'clean_download', source: 'stripe' });
-        }
-      } catch (e) { console.warn('[clean] Stripe verify failed:', e.message); }
-    }
-
-    if (!paid) {
-      const { rows } = await query(
-        `SELECT 1 FROM payments WHERE session_id = $1 AND user_id = $2 AND paid = TRUE AND product = 'clean_download' LIMIT 1`,
-        [token, req.user.sub]
-      );
-      paid = rows.length > 0;
-    }
-    if (!paid) return res.status(402).json({ error: 'Payment not confirmed yet.' });
-
-    const entry = getOwnEntry(token, req.user.sub);
-    if (!entry) {
-      cleanStore.delete(token);
-      return res.status(410).json({
-        error: 'Your download link has expired (2-hour limit). Please contact support with your receipt and we will send your clean CV.',
-        expired: true,
-      });
-    }
-
-    await waitForRender(entry);
-    const pdf = entry.cleanPdf || await generateCvPdf(entry.html);
-    if (!pdf) return res.status(500).json({ error: 'PDF generation failed. Please try again.' });
-    sendPdf(res, pdf, entry.fileName);
-  } catch (e) {
-    res.status(500).json({ error: 'Could not generate clean PDF: ' + e.message });
-  }
-});
-
-// Stripe webhook — records paid clean downloads and email exports
+// Stripe webhook — records paid exports and AI packs
 async function handleWatermarkWebhook(req, res) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   const stripe        = await getStripe();
@@ -2254,20 +2493,16 @@ async function handleWatermarkWebhook(req, res) {
   try {
     event = stripe.webhooks.constructEvent(req.body, req.headers['stripe-signature'], webhookSecret);
   } catch (e) {
-    return res.status(400).json({ error: 'Webhook signature invalid: ' + e.message });
+    return res.status(400).json({ error: 'Webhook signature invalid.' });
   }
   try {
     const obj  = event.data.object;
     const meta = obj.metadata || {};
-    const paid = event.type === 'payment_intent.succeeded'
-      || (event.type === 'checkout.session.completed' && obj.payment_status === 'paid');
-    if (paid && meta.product === 'cvmaster_clean_download' && meta.clean_token && meta.user_id) {
-      await recordPayment({ userId: meta.user_id, draftId: 'wm_' + meta.clean_token, sessionId: meta.clean_token, product: 'clean_download', source: 'stripe' });
-    }
-    if (paid && event.type === 'checkout.session.completed' && meta.product === 'ai_pack' && meta.userId) {
+    const paid = event.type === 'checkout.session.completed' && obj.payment_status === 'paid';
+    if (paid && meta.product === 'ai_pack' && meta.userId) {
       await creditAiPack(meta.userId, obj.id, 'stripe');
     }
-    if (paid && event.type === 'checkout.session.completed' && meta.product === 'email_export' && meta.userId && meta.draftId) {
+    if (paid && meta.product === 'email_export' && meta.userId && meta.draftId) {
       await recordPayment({ userId: meta.userId, draftId: meta.draftId, sessionId: obj.id, product: 'email_export', source: 'stripe' });
     }
   } catch (e) { console.error('[webhook]', e.message); }
@@ -2275,58 +2510,42 @@ async function handleWatermarkWebhook(req, res) {
 }
 
 // ── DIRECT PDF DOWNLOAD (paid drafts) ────────────────────────────────────────
-// The €0.99 export covers that CV, so a direct download is allowed too — this is the
+// The €0.99 export covers that CV, so a direct download is allowed too — also the
 // fallback when email delivery fails, so a paying user always gets their PDF.
-app.post('/api/cv/export-pdf', authMiddleware, async (req, res) => {
+app.post('/api/cv/export-pdf', authMiddleware, pdfLimiter, async (req, res) => {
   try {
-    const { draftId, htmlContent, fileName } = req.body;
-    if (!htmlContent) return res.status(400).json({ error: 'htmlContent required.' });
-    if (!draftId || !(await hasEmailExport(req.user.sub, draftId))) {
-      return res.status(402).json({ error: 'This CV has not been paid for yet.' });
-    }
-    const pdf = await generateCvPdf(htmlContent);
-    if (!pdf) return res.status(500).json({ error: 'PDF generation failed. Please try again.' });
-    const safe = String(fileName || 'cv.pdf').replace(/\.pdf$/i, '').replace(/[^a-zA-Z0-9-_.]/g, '-') + '.pdf';
-    sendPdf(res, pdf, safe);
+    const out = await paidDraftPdf(req.user.sub, req.body?.draftId);
+    if (out.error) return res.status(out.status).json({ error: out.error });
+    sendPdf(res, out.pdf, out.fileName);
   } catch (e) {
     console.error('[cv/export-pdf]', e.message);
-    res.status(500).json({ error: 'Download failed: ' + e.message });
+    res.status(500).json({ error: 'Download failed. Please try again.' });
   }
 });
 
 // ── CV RE-SEND (paid drafts) ─────────────────────────────────────────────────
-// €0.99 unlocks one draft — re-sending that same draft (even after edits) is free.
-app.post('/api/cv/redownload', authMiddleware, async (req, res) => {
+app.post('/api/cv/redownload', authMiddleware, pdfLimiter, async (req, res) => {
   try {
-    const { draftId, htmlContent, fileName, overrideEmail } = req.body;
-    if (!htmlContent) return res.status(400).json({ error: 'htmlContent required.' });
-    if (!draftId || !(await hasEmailExport(req.user.sub, draftId))) {
-      return res.status(402).json({ error: 'This CV has not been exported yet.' });
-    }
-
-    const { rows: userRows } = await query('SELECT email FROM users WHERE id = $1', [req.user.sub]);
-    const toEmail = isEmail(overrideEmail) ? overrideEmail.trim() : userRows[0]?.email;
+    const { draftId, overrideEmail } = req.body || {};
+    const user = (await query('SELECT email, name FROM users WHERE id = $1', [req.user.sub])).rows[0];
+    const toEmail = isEmail(overrideEmail) ? overrideEmail.trim().slice(0, 254) : user?.email;
     if (!toEmail) return res.status(400).json({ error: 'No email address found for this account.' });
-
-    const pdfBuffer = await generateCvPdf(htmlContent);
-    const safeName  = (fileName || 'cv.pdf').replace(/[^a-zA-Z0-9-_.]/g, '-');
-    const attachment = pdfBuffer
-      ? { filename: safeName, content: Buffer.from(pdfBuffer), contentType: 'application/pdf' }
-      : { filename: safeName.replace(/\.pdf$/i, '.html'), content: htmlContent, contentType: 'text/html' };
-
+    const out = await paidDraftPdf(req.user.sub, draftId);
+    if (out.error) return res.status(out.status === 402 ? 402 : out.status).json({ error: out.status === 402 ? 'This CV has not been exported yet.' : out.error });
     await sendMail({
       to: toEmail,
-      subject: `Your CVMaster CV — ${safeName.replace('-CV.pdf','').replace(/-/g,' ')}`,
-      html: `<p>Hi! Here's your CV re-sent as requested.</p>
-             <p>Your CV is attached as a ${pdfBuffer ? 'PDF' : 'HTML'} file.</p>
-             <p style="color:#888;font-size:12px;">CVMaster — cvmaster.live</p>`,
-      attachments: [attachment],
+      subject: 'Your CV from CVMaster',
+      html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:36px 24px;">
+        <div style="font-size:18px;font-weight:800;margin-bottom:24px;color:#14142B">CV<span style="color:#4338CA">Master</span></div>
+        <p style="color:#6b6860;font-size:14px;line-height:1.7;margin:0 0 20px;">Here’s your CV again, as a ready-to-send PDF.</p>
+        <p style="color:#b0ada6;font-size:12px;margin:0;">CVMaster · <a href="https://www.cvmaster.live" style="color:#4338CA;">cvmaster.live</a></p>
+      </div>`,
+      attachments: [{ filename: out.fileName, content: Buffer.from(out.pdf), contentType: 'application/pdf' }],
     });
-
-    res.json({ ok: true, sentTo: toEmail, format: pdfBuffer ? 'pdf' : 'html' });
+    res.json({ ok: true, sentTo: toEmail, format: 'pdf' });
   } catch (e) {
     console.error('[cv/redownload]', e.message);
-    res.status(500).json({ error: 'Re-send failed: ' + e.message });
+    res.status(500).json({ error: 'We couldn’t email your CV just now — please try again.' });
   }
 });
 
@@ -2376,9 +2595,9 @@ app.post('/api/admin/login', async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.status(400).json({ error: 'Email and password required.' });
   try {
-    const { rows } = await query('SELECT * FROM admins WHERE email = $1', [email.toLowerCase().trim()]);
+    const { rows } = await query('SELECT * FROM admins WHERE email = $1', [String(email).toLowerCase().trim().slice(0, 254)]);
     const admin = rows[0];
-    const valid = admin && await bcrypt.compare(password, admin.password_hash);
+    const valid = await bcrypt.compare(String(password).slice(0, 200), admin?.password_hash || DUMMY_HASH) && !!admin;
     if (!valid) {
       att.count += 1;
       if (att.count >= 5) att.lockedUntil = now + 15 * 60 * 1000;
@@ -2388,10 +2607,11 @@ app.post('/api/admin/login', async (req, res) => {
     adminLoginAttempts.delete(ip);
     await query('UPDATE admins SET last_login = NOW() WHERE id = $1', [admin.id]).catch(() => {});
     const token = jwt.sign({ id: admin.id, email: admin.email, role: admin.role }, ADMIN_JWT_SECRET, { expiresIn: '8h' });
-    res.cookie('admin_token', token, { httpOnly: true, secure: IS_PROD, sameSite: IS_PROD ? 'none' : 'lax', maxAge: 8 * 60 * 60 * 1000 });
+    res.cookie('admin_token', token, { httpOnly: true, secure: IS_PROD, sameSite: 'strict', maxAge: 8 * 60 * 60 * 1000 });
     res.json({ ok: true, email: admin.email, role: admin.role });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error('[admin/login]', e.message);
+    res.status(500).json({ error: 'Login failed.' });
   }
 });
 
@@ -2898,14 +3118,8 @@ app.post('/api/feedback', feedbackLimiter, async (req, res) => {
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'That email address doesn’t look right.' });
 
     // Signed in? Link the message to the account (and use its email if none was given)
-    let userId = null;
-    const token = req.cookies?.token;
-    if (token) {
-      try {
-        userId = jwt.verify(token, JWT_SECRET).sub;
-        if (!email) email = (await query('SELECT email FROM users WHERE id = $1', [userId])).rows[0]?.email || '';
-      } catch {}
-    }
+    const userId = (await userFromToken(tokenOf(req)).catch(() => null))?.sub || null;
+    if (userId && !email) email = (await query('SELECT email FROM users WHERE id = $1', [userId])).rows[0]?.email || '';
 
     await ensureFeedbackTable();
     const { rows } = await query(
@@ -2965,10 +3179,11 @@ app.get('/api/referral/lookup', async (req, res) => {
   try {
     const code = (req.query.code || '').trim().toUpperCase();
     if (!code) return res.status(400).json({ error: 'code required' });
-    const { rows } = await query('SELECT name FROM users WHERE UPPER(referral_code) = $1', [code.toUpperCase()]);
+    if (code.length > 40) return res.status(400).json({ error: 'Invalid code' });
+    const { rows } = await query('SELECT name FROM users WHERE UPPER(referral_code) = $1', [code]);
     if (!rows.length) return res.status(404).json({ error: 'Invalid code' });
-    res.json({ name: rows[0].name });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+    res.json({ name: String(rows[0].name || '').trim().split(/\s+/)[0] });
+  } catch (e) { res.status(500).json({ error: 'Lookup failed.' }); }
 });
 
 app.get('/api/referral/info', authMiddleware, async (req, res) => {
@@ -2980,7 +3195,7 @@ app.get('/api/referral/info', authMiddleware, async (req, res) => {
               (SELECT COUNT(*) FROM users WHERE referred_by = $1 AND created_at > NOW() - INTERVAL '30 days') AS recent_count
        FROM users WHERE id = $1`, [req.user.sub]
     );
-    if (!rows.length) return res.status(404).json({ error: 'User not found.' });
+    if (!rows.length) return res.status(404).json({ error: 'Account not found.' });
     const { referral_code, referral_credits, referral_count, recent_count, rewarded_count } = rows[0];
     res.json({
       code:        referral_code,
@@ -2991,37 +3206,20 @@ app.get('/api/referral/info', authMiddleware, async (req, res) => {
       welcomeAi:   REFERRAL_WELCOME_AI,
       link:        `${FRONTEND_URL}?ref=${referral_code}`,
     });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Could not load your invite link.' }); }
 });
 
-app.post('/api/referral/apply', async (req, res) => {
-  try {
-    const { code } = req.body;
-    if (!code) return res.status(400).json({ error: 'code required.' });
-    const { rows } = await query('SELECT id FROM users WHERE referral_code = $1', [code]);
-    if (!rows.length) return res.status(404).json({ error: 'Invalid referral code.' });
-    res.cookie('pcv_ref', code, { httpOnly: true, maxAge: 30 * 24 * 60 * 60 * 1000, sameSite: 'lax' });
-    res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
 
 // POST /api/referral/redeem — spend 1 credit on a product, at checkout
 //   { product: 'email_export',   draftId } → unlocks that draft (same as paying €0.99)
 //   { product: 'clean_download', token }   → unlocks that clean download (same as paying €0.50)
 app.post('/api/referral/redeem', authMiddleware, async (req, res) => {
   try {
-    const { product, draftId, token } = req.body || {};
-    let payDraftId, sessionId;
-    if (product === 'email_export') {
-      if (!(await assertOwnDraft(req.user.sub, draftId))) return res.status(400).json({ error: 'Save your CV first.' });
-      if (await hasEmailExport(req.user.sub, draftId)) return res.json({ ok: true, alreadyPaid: true });
-      payDraftId = draftId; sessionId = `credit_${uuid()}`;
-    } else if (product === 'clean_download') {
-      if (!getOwnEntry(token, req.user.sub)) return res.status(404).json({ error: 'Session expired. Please click download again.' });
-      payDraftId = 'wm_' + token; sessionId = token;
-    } else {
-      return res.status(400).json({ error: 'Unknown product.' });
-    }
+    const { product, draftId } = req.body || {};
+    if (product !== 'email_export') return res.status(400).json({ error: 'Unknown product.' });
+    if (!(await assertOwnDraft(req.user.sub, draftId))) return res.status(400).json({ error: 'Save your CV first.' });
+    if (await hasEmailExport(req.user.sub, draftId)) return res.json({ ok: true, alreadyPaid: true });
+    const payDraftId = draftId, sessionId = `credit_${uuid()}`;
 
     const { rows } = await query(
       `UPDATE users SET referral_credits = referral_credits - 1
@@ -3050,7 +3248,7 @@ app.get('/api/health', async (req, res) => {
   if (maintenanceMode) {
     return res.status(503).json({ ok: false, maintenance: true, message: 'Under maintenance' });
   }
-  res.json({ ok: true, maintenance: false, db, groq: !!GROQ_KEY, ai: AI_PROVIDER, aiLast, stripe: !!STRIPE_KEY, freeExports: FREE_EXPORTS, pdf: pdfEngine.status, pdfError: pdfEngine.error, pdfMs: pdfEngine.lastMs, email: !!(resend || smtpTransport), google: !!GOOGLE_CLIENT_ID, time: new Date().toISOString() });
+  res.json({ ok: true, maintenance: false, db, ai: !!AI_READY, pdf: pdfEngine.status, time: new Date().toISOString() });
 });
 
 // Frontend is served by Vercel — no static file serving needed here.

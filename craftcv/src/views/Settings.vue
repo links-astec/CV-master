@@ -24,9 +24,12 @@
           <div class="st-row">
             <label class="st-lbl" for="st-pw">{{ $t('Password') }}</label>
             <div v-if="!changingPw"><button class="btn-ghost btn-sm st-inline" @click="changingPw = true">{{ $t('Change password') }}</button></div>
-            <div v-else class="st-pw">
+            <div v-else class="st-pw-col">
+              <input v-if="auth.user?.provider !== 'google'" class="f-inp" v-model="currentPassword" type="password" :placeholder="$t('Current password')" autocomplete="current-password" />
+              <div class="st-pw">
               <input id="st-pw" class="f-inp" v-model="newPassword" :type="showPw ? 'text' : 'password'" :placeholder="$t('New password (8+ characters)')" autocomplete="new-password" />
               <button type="button" class="st-eye" :aria-label="$t(showPw ? 'Hide password' : 'Show password')" @click="showPw = !showPw">{{ $t(showPw ? 'Hide' : 'Show') }}</button>
+              </div>
             </div>
           </div>
         </div>
@@ -193,6 +196,7 @@ async function loadAiQuota() {
 // ── Profile ───────────────────────────────────────────────────────────────────
 const name        = ref(auth.user?.name || '')
 const newPassword = ref('')
+const currentPassword = ref('')
 const changingPw  = ref(false)
 const showPw      = ref(false)
 const saving      = ref(false)
@@ -209,7 +213,7 @@ async function saveProfile() {
   try {
     const body = {}
     if (name.value && name.value !== auth.user?.name) body.name = name.value
-    if (newPassword.value) body.password = newPassword.value
+    if (newPassword.value) { body.password = newPassword.value; body.currentPassword = currentPassword.value }
     const r = await fetch(apiUrl('/api/auth/settings'), {
       method: 'PATCH', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -219,6 +223,7 @@ async function saveProfile() {
     if (!r.ok) throw new Error(data.error)
     if (auth.user && name.value) auth.user.name = name.value
     newPassword.value = ''
+    currentPassword.value = ''
     changingPw.value = false
     showToast('Saved')
   } catch (e) { saveError.value = e.message }
@@ -294,6 +299,7 @@ watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota() } }
 .st-row{display:grid;grid-template-columns:140px 1fr;align-items:center;gap:14px}
 .st-lbl{font-size:13px;font-weight:600;color:var(--c-text2)}
 .st-inline{padding-left:0}
+.st-pw-col{display:flex;flex-direction:column;gap:8px}
 .st-pw{position:relative}
 .st-pw .f-inp{padding-right:64px}
 .st-eye{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:12px;font-weight:600;color:var(--c-accent)}

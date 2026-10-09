@@ -110,7 +110,7 @@ const atsCache = new Map()
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useCvStore } from '../stores/cv.js'
-import { lang, locale, aiExplainIn } from '../i18n/index.js'
+import { lang, locale } from '../i18n/index.js'
 
 const props   = defineProps({ embedded: Boolean })
 const emit    = defineEmits(['scored'])
@@ -174,57 +174,34 @@ async function runScore({ fresh = true } = {}) {
   const key = cacheKey()
   try {
     if (fresh || !atsCache.has(key)) {
-      atsCache.set(key, analyse(cvText(), jobDesc.value))
+      atsCache.set(key, analyse())
       atsCache.get(key).catch(() => atsCache.delete(key)) // don't cache failures
     }
     result.value = await atsCache.get(key)
     checkedAt.value = new Date().toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' })
     emit('scored', result.value.score, result.value)
   } catch (e) {
-    error.value = 'Analysis failed. Please try again — make sure your CV has some content filled in.'
-    console.error('ATS score error:', e)
+    // The AI-limit pop-up explains a 429 by itself
+    error.value = e.status === 429 ? '' : (e.message || 'Analysis failed. Please try again — make sure your CV has some content filled in.')
   }
   scoring.value = false
 }
 
-async function analyse(cvText, job) {
-    const prompt = `You are an expert ATS (Applicant Tracking System) analyser.
-
-Compare this CV against the job description and return ONLY valid JSON with this exact structure:
-{
-  "score": 0-100,
-  "matched": ["keyword1", "keyword2", "keyword3"],
-  "missing": ["keyword1", "keyword2", "keyword3"],
-  "gaps": ["gap description 1", "gap description 2"],
-  "suggestions": ["specific action 1", "specific action 2", "specific action 3"]
-}
-
-Rules:
-- score: percentage match (0-100) based on keyword overlap, experience relevance, skills match
-- matched: keywords/skills from job description found in CV (max 12)
-- missing: important keywords/skills in job description NOT in CV (max 8)
-- gaps: specific experience or qualification gaps (max 4)
-- suggestions: concrete actions to improve match — be specific, not generic (max 4)
-
-CV:
-${cvText.slice(0, 4000)}
-
-JOB DESCRIPTION:
-${job.slice(0, 4000)}
-
-Return ONLY the JSON object, no markdown, no explanation.${aiExplainIn('"gaps" and "suggestions"')}`
-
-    const raw    = await store.callAi(prompt)
-    const clean  = raw.replace(/```json\s*/gi, '').replace(/```/g, '').trim()
-    const parsed = JSON.parse(clean.slice(clean.indexOf('{'), clean.lastIndexOf('}') + 1))
-    const list   = v => Array.isArray(v) ? v.filter(x => typeof x === 'string') : []
-    return {
-      score:       Math.max(0, Math.min(100, Math.round(Number(parsed.score) || 0))),
-      matched:     list(parsed.matched),
-      missing:     list(parsed.missing),
-      gaps:        list(parsed.gaps),
-      suggestions: list(parsed.suggestions),
-    }
+// The server scores the CV against the analysed job (a fixed calculation, so the same CV
+// always gets the same score). Only the first check of a new job offer uses an AI request.
+const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
+async function analyse() {
+  const { photo, ...cv } = JSON.parse(JSON.stringify(store.data))
+  const r = await fetch(apiUrl('/api/ai/ats'), {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cv, jobOffer: jobDesc.value, uiLang: lang.value }),
+  })
+  const j = await r.json().catch(() => ({}))
+  if (!r.ok) throw Object.assign(new Error(j.error || 'Analysis failed.'), { status: r.status })
+  // Remember which job this CV is aimed at, so the editor can show it
+  if (j.job?.title) store.data.jobTarget = { title: j.job.title, company: j.job.company || '' }
+  return j
 }
 
 // Standalone: score straight away when there's a job offer. Embedded in the Job match

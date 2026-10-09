@@ -348,27 +348,6 @@ function handleStripeReturn() {
   if (!sessionId) return
   const draftId   = params.get('draft')
 
-  // Clean (watermark-free) download: token saved in sessionStorage before the redirect
-  const wmToken = sessionStorage.getItem('pcv_wm_token')
-  if (wmToken) {
-    const wmFilename = sessionStorage.getItem('pcv_wm_filename') || 'cv.pdf'
-    sessionStorage.removeItem('pcv_wm_token')
-    sessionStorage.removeItem('pcv_wm_filename')
-    window.history.replaceState({}, '', '/')
-    fetch(apiUrl(`/api/cv/clean/${wmToken}`), { credentials: 'include', headers: { 'x-payment-intent-id': sessionId } })
-      .then(r => r.ok ? r.blob() : Promise.reject(r.status))
-      .then(blob => {
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url; a.download = wmFilename.replace(/\.pdf$/i, '') + '-clean.pdf'
-        document.body.appendChild(a); a.click(); a.remove()
-        setTimeout(() => URL.revokeObjectURL(url), 1000)
-        showToast('Your clean CV has downloaded.')
-      })
-      .catch(() => showToast('Payment received, but the download didn’t start. Try Download again from My CVs.'))
-    return
-  }
-
   // Clean PDF for a CV (€0.99)
   window.history.replaceState({}, '', '/')
   nextTick(() => nextTick(() => {

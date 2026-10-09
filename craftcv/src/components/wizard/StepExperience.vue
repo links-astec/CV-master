@@ -83,31 +83,11 @@ async function quantifyExp(exp, idx) {
   quantifyIdx.value = idx
   emit('ai-thinking', true)
   try {
-    const prompt = `You are a professional CV writer. Rewrite the following work experience description as 3-4 concise bullet points using strong action verbs and metrics wherever the description supports them.
-
-Job: ${exp.title} at ${exp.company}
-Current description: ${exp.desc || 'No description yet'}
-
-Rules:
-- Return ONLY the bullet points, each starting with "• "
-- Each bullet on its own line
-- Keep every number that is in the description exactly as written
-- NEVER invent numbers or achievements. Where a metric would strengthen a bullet but none is given, insert a placeholder in square brackets for the candidate to fill in, e.g. [X%], [N people], [£X]
-- Strong action verbs: Led, Built, Grew, Reduced, Launched, Managed, Delivered, Increased, Streamlined
-- No preamble, no explanation, just the bullet points
-- Language: ${store.data.lang === 'fr' ? 'French' : 'English'}
-
-Example output:
-• Led a cross-functional team of [N] engineers to launch the company's first mobile app
-• Grew quarterly revenue by [X%] through data-driven pricing changes
-• Reduced customer churn by [X%] with a proactive onboarding programme`
-
-    const result = await store.callAi(prompt)
-    // Ensure it starts cleanly with bullets
-    const cleaned = result.trim().replace(/^[^•\n].*\n/m, '').trim()
-    suggestions[idx] = cleaned || result.trim()
-  } catch {
-    showToast?.('AI is unavailable right now — please try again in a moment.')
+    // Placeholders like [X%] are added instead of invented numbers; the job offer guides the wording
+    const { result } = await store.aiWrite('bullets', { index: idx })
+    suggestions[idx] = (result || '').trim()
+  } catch (e) {
+    showToast?.(e?.message || 'AI is unavailable right now — please try again in a moment.')
   }
   quantifyIdx.value = null
   emit('ai-thinking', false)
