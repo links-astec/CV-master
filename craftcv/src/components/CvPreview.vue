@@ -5,19 +5,19 @@
       <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
       <div class="cvp-notice-txt">
         <template v-if="!fitAccepted">
-          <strong>Your CV is {{ overPct }}% longer than one A4 page.</strong>
-          Remove something (such as what you just added), or shrink it to fit.
+          <strong>{{ $t('Your CV is {n}% longer than one A4 page.', { n: overPct }) }}</strong>
+          {{ $t('Remove something (such as what you just added), or shrink it to fit.') }}
         </template>
         <template v-else-if="page.zoom < SMALL_TEXT_ZOOM">
-          <strong>Shrunk to fit one page — text is at {{ zoomPct }}%, which is getting small.</strong>
-          Trimming a few lines will make it easier to read.
+          <strong>{{ $t('Shrunk to fit one page — text is at {n}%, which is getting small.', { n: zoomPct }) }}</strong>
+          {{ $t('Trimming a few lines will make it easier to read.') }}
         </template>
         <template v-else>
-          Shrunk to fit one page — text at {{ zoomPct }}%.
+          {{ $t('Shrunk to fit one page — text at {n}%.', { n: zoomPct }) }}
         </template>
       </div>
-      <button v-if="!fitAccepted" class="btn-primary btn-sm" @click="$emit('update:fitAccepted', true)">Shrink to fit</button>
-      <button v-else class="btn-ghost btn-sm" @click="$emit('update:fitAccepted', false)">Undo</button>
+      <button v-if="!fitAccepted" class="btn-primary btn-sm" @click="$emit('update:fitAccepted', true)">{{ $t('Shrink to fit') }}</button>
+      <button v-else class="btn-ghost btn-sm" @click="$emit('update:fitAccepted', false)">{{ $t('Undo') }}</button>
     </div>
 
     <div class="cvp-stage" :style="{ width: 700 * scale + 'px', height: stageHeight * scale + 'px' }">
@@ -25,7 +25,7 @@
         <div v-html="shownHtml"></div>
         <template v-if="showBreak">
           <div class="cvp-over" :style="{ top: PAGE_H + 'px', height: (page.height - PAGE_H) + 'px' }"></div>
-          <div class="cvp-break" :style="{ top: PAGE_H + 'px' }"><span>End of page 1</span></div>
+          <div class="cvp-break" :style="{ top: PAGE_H + 'px' }"><span>{{ $t('End of page 1') }}</span></div>
         </template>
       </div>
     </div>
@@ -88,7 +88,7 @@ watch(html, (h) => {
     page.value = info
     emit('page', info)
     if (measured && !wasOver && info.overflow && props.notices) {
-      showToast?.("That change made your CV longer than one A4 page.")
+      showToast?.('That change made your CV longer than one A4 page.')
     }
     measured = true
   }, measured ? 350 : 0)

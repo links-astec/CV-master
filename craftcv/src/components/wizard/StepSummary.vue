@@ -2,42 +2,42 @@
   <div class="step-wrap">
     <div class="step-intro">
       <div class="step-icon">📝</div>
-      <h3>Professional Summary</h3>
-      <p>A compelling 2–3 sentence summary that grabs attention. AI can write or enhance this for you.</p>
+      <h3>{{ $t('Professional Summary') }}</h3>
+      <p>{{ $t('A compelling 2–3 sentence summary that grabs attention. AI can write or enhance this for you.') }}</p>
     </div>
 
     <div class="f-grp">
-      <div class="f-lbl">Summary</div>
+      <div class="f-lbl">{{ $t('Summary') }}</div>
       <textarea class="f-ta" v-model="store.data.sum" rows="5"
-        placeholder="Results-driven professional with X years experience in..."></textarea>
-      <div class="f-hint">Aim for 40–60 words. Focus on value, not just experience.</div>
+        :placeholder="$t('Results-driven professional with X years experience in…')"></textarea>
+      <div class="f-hint">{{ $t('Aim for 40–60 words. Focus on value, not just experience.') }}</div>
     </div>
 
     <div v-if="aiLoading" class="thinking">
       <div class="thinking-dots"><span></span><span></span><span></span></div>
-      <div class="thinking-txt">AI is writing your summary...</div>
+      <div class="thinking-txt">{{ $t('AI is writing your summary…') }}</div>
     </div>
 
     <div v-if="aiResult" class="ai-suggestion">
-      <div class="ai-sug-lbl">✨ AI Suggestion</div>
+      <div class="ai-sug-lbl">✨ {{ $t('AI Suggestion') }}</div>
       <div class="ai-sug-txt">{{ aiResult }}</div>
       <div class="ai-sug-actions">
-        <button class="btn-sug-use" @click="useSuggestion">Use this</button>
-        <button class="btn-sug-dismiss" @click="aiResult = ''">Dismiss</button>
+        <button class="btn-sug-use" @click="useSuggestion">{{ $t('Use this') }}</button>
+        <button class="btn-sug-dismiss" @click="aiResult = ''">{{ $t('Dismiss') }}</button>
       </div>
     </div>
 
     <button class="btn-ai" @click="enhanceSummary" :disabled="aiLoading">
       <svg viewBox="0 0 24 24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
-      {{ aiLoading ? 'Writing...' : 'Generate with AI' }}
+      {{ $t(aiLoading ? 'Writing…' : 'Generate with AI') }}
     </button>
 
     <div class="tone-row">
-      <div class="f-lbl" style="margin-bottom:8px;">Tone</div>
+      <div class="f-lbl" style="margin-bottom:8px;">{{ $t('Tone') }}</div>
       <div class="tone-pills">
         <button v-for="t in tones" :key="t.id" class="tone-pill"
           :class="{ active: selectedTone === t.id }"
-          @click="selectedTone = t.id">{{ t.label }}</button>
+          @click="selectedTone = t.id">{{ $t(t.label) }}</button>
       </div>
     </div>
   </div>

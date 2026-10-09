@@ -1,17 +1,16 @@
 <template>
   <div class="jm">
     <div class="jm-intro">
-      <h3>Match your CV to a job</h3>
-      <p>Paste the job advert. AI rewords your CV in the job's language, then scores how well
-        an applicant tracking system (ATS) would rank you. Nothing changes without your OK.</p>
+      <h3>{{ $t('Match your CV to a job') }}</h3>
+      <p>{{ $t('Paste the job advert. AI rewords your CV in the job’s language, then scores how well an applicant tracking system (ATS) would rank you. Nothing changes without your OK.') }}</p>
     </div>
 
     <!-- 1 · The job -->
     <section class="jm-step" :class="stateOf(1)">
       <div class="jm-step-hd">
         <span class="jm-num"><svg v-if="hasJob" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><template v-else>1</template></span>
-        <div class="jm-step-ttl">The job you're applying for</div>
-        <button v-if="hasJob && !editingJob" class="jm-link" @click="editJob">Change</button>
+        <div class="jm-step-ttl">{{ $t('The job you’re applying for') }}</div>
+        <button v-if="hasJob && !editingJob" class="jm-link" @click="editJob">{{ $t('Change') }}</button>
       </div>
 
       <div v-if="hasJob && !editingJob" class="jm-job">
@@ -19,14 +18,14 @@
       </div>
       <template v-else>
         <textarea ref="jobRef" v-model="draft" class="f-ta" rows="7"
-          placeholder="Paste the full job description — title, responsibilities and requirements…"></textarea>
-        <div v-if="draftTooShort" class="jm-hint warn">Paste the full description — a few sentences at least.</div>
+          :placeholder="$t('Paste the full job description — title, responsibilities and requirements…')"></textarea>
+        <div v-if="draftTooShort" class="jm-hint warn">{{ $t('Paste the full description — a few sentences at least.') }}</div>
         <div class="jm-row">
-          <button class="btn-primary accent" :disabled="draft.trim().length < MIN_CHARS" @click="saveJob">Use this job</button>
-          <button v-if="hasJob" class="btn-ghost" @click="editingJob = false">Cancel</button>
-          <button v-if="hasJob" class="btn-ghost jm-remove" @click="removeJob">Remove job</button>
+          <button class="btn-primary accent" :disabled="draft.trim().length < MIN_CHARS" @click="saveJob">{{ $t('Use this job') }}</button>
+          <button v-if="hasJob" class="btn-ghost" @click="editingJob = false">{{ $t('Cancel') }}</button>
+          <button v-if="hasJob" class="btn-ghost jm-remove" @click="removeJob">{{ $t('Remove job') }}</button>
         </div>
-        <div v-if="!hasJob" class="jm-hint">No specific job yet? Skip this — the checklist below still works.</div>
+        <div v-if="!hasJob" class="jm-hint">{{ $t('No specific job yet? Skip this — the checklist below still works.') }}</div>
       </template>
     </section>
 
@@ -34,14 +33,13 @@
     <section class="jm-step" :class="stateOf(2)">
       <div class="jm-step-hd">
         <span class="jm-num"><svg v-if="tailorDone" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><template v-else>2</template></span>
-        <div class="jm-step-ttl">Tailor your CV with AI</div>
-        <span v-if="store.data.jobTailored === 'skipped'" class="jm-tag">Skipped</span>
+        <div class="jm-step-ttl">{{ $t('Tailor your CV with AI') }}</div>
+        <span v-if="store.data.jobTailored === 'skipped'" class="jm-tag">{{ $t('Skipped') }}</span>
       </div>
       <template v-if="hasJob && !editingJob">
-        <p v-if="!tailorDone" class="jm-txt">AI rephrases your summary, experience and skills using the job's keywords.
-          It never invents experience — you tick the changes you want.</p>
+        <p v-if="!tailorDone" class="jm-txt">{{ $t('AI rephrases your summary, experience and skills using the job’s keywords. It never invents experience — you tick the changes you want.') }}</p>
         <StepTailor embedded @applied="onApplied" />
-        <button v-if="!tailorDone" class="btn-ghost jm-skip" @click="store.data.jobTailored = 'skipped'">Skip — keep my wording</button>
+        <button v-if="!tailorDone" class="btn-ghost jm-skip" @click="store.data.jobTailored = 'skipped'">{{ $t('Skip — keep my wording') }}</button>
       </template>
     </section>
 
@@ -49,18 +47,18 @@
     <section class="jm-step" :class="stateOf(3)">
       <div class="jm-step-hd">
         <span class="jm-num"><svg v-if="score != null" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><template v-else>3</template></span>
-        <div class="jm-step-ttl">Your ATS score</div>
-        <span v-if="score != null" class="jm-tag" :class="score >= 70 ? 'good' : 'mid'">{{ score }}% match</span>
+        <div class="jm-step-ttl">{{ $t('Your ATS score') }}</div>
+        <span v-if="score != null" class="jm-tag" :class="score >= 70 ? 'good' : 'mid'">{{ $t('{n}% match', { n: score }) }}</span>
       </div>
       <template v-if="hasJob && !editingJob && tailorDone">
-        <p v-if="score == null" class="jm-txt">See how well your CV matches the job's keywords and requirements.</p>
+        <p v-if="score == null" class="jm-txt">{{ $t('See how well your CV matches the job’s keywords and requirements.') }}</p>
         <p v-if="prevScore != null && score != null && prevScore !== score" class="jm-delta">
-          {{ prevScore }}% → <strong>{{ score }}%</strong> after your changes
+          {{ prevScore }}% → <strong>{{ score }}%</strong> {{ $t('after your changes') }}
         </p>
         <!-- Low score: let the AI work the missing keywords in, without growing the CV -->
         <div v-if="score != null && score < LOW_SCORE && atsResult" class="jm-boost">
-          <div class="jm-boost-t">{{ score < 50 ? 'This score is unlikely to get past the screening' : 'This score may not get you shortlisted' }}</div>
-          <p>AI can work the missing keywords into what you’ve already written — without making your CV longer. You review every change, and anything you might not have is only suggested.</p>
+          <div class="jm-boost-t">{{ $t(score < 50 ? 'This score is unlikely to get past the screening' : 'This score may not get you shortlisted') }}</div>
+          <p>{{ $t('AI can work the missing keywords into what you’ve already written — without making your CV longer. You review every change, and anything you might not have is only suggested.') }}</p>
           <StepTailor embedded :ats="atsResult" @applied="onBoosted" />
         </div>
         <AtsScorer ref="atsRef" embedded @scored="onScored" />
@@ -69,16 +67,16 @@
 
     <!-- Checklist -->
     <section class="jm-check">
-      <div class="jm-check-hd">Before you export</div>
+      <div class="jm-check-hd">{{ $t('Before you export') }}</div>
       <StepReview />
     </section>
 
     <div class="jm-cta">
       <div>
-        <div class="jm-cta-ttl">Happy with it?</div>
-        <div class="jm-cta-sub">Get the clean PDF — emailed and downloadable.</div>
+        <div class="jm-cta-ttl">{{ $t('Happy with it?') }}</div>
+        <div class="jm-cta-sub">{{ $t('Get the clean PDF — emailed and downloadable.') }}</div>
       </div>
-      <button class="btn-primary accent" @click="$emit('pay')">Export PDF</button>
+      <button class="btn-primary accent" @click="$emit('pay')">{{ $t('Export PDF') }}</button>
     </div>
   </div>
 </template>

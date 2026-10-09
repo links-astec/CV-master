@@ -1,14 +1,14 @@
 <template>
   <div class="step-wrap">
-    <h3 class="step-title">Personal Information</h3>
-    <p class="step-sub">Your contact details appear at the top of every CV.</p>
+    <h3 class="step-title">{{ $t('Personal Information') }}</h3>
+    <p class="step-sub">{{ $t('Your contact details appear at the top of every CV.') }}</p>
 
     <!-- Photo — shown by the layouts tagged "Photo" (photo: true in the layout list) -->
     <div v-if="showsPhoto" class="photo-section">
       <div class="photo-section-lbl">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-        Profile Photo
-        <span class="opt-badge">Optional</span>
+        {{ $t('Profile Photo') }}
+        <span class="opt-badge">{{ $t('Optional') }}</span>
       </div>
       <div class="photo-upload-row">
         <div class="photo-circle" @click="triggerPick" :class="{ 'has-photo': !!store.data.photo }">
@@ -24,47 +24,47 @@
           <input type="file" ref="fileInput" accept="image/jpeg,image/png,image/webp" style="display:none" @change="handleFile" />
           <div v-if="!store.data.photo" class="dz-content">
             <svg class="dz-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>
-            <div class="dz-primary">Drop photo here or <span class="dz-link">browse</span></div>
-            <div class="dz-hint">JPG, PNG or WEBP · Max 5MB · Headshot style</div>
+            <div class="dz-primary">{{ $t('Drop photo here or') }} <span class="dz-link">{{ $t('browse') }}</span></div>
+            <div class="dz-hint">{{ $t('JPG, PNG or WEBP · Max 5MB · Headshot style') }}</div>
           </div>
           <div v-else class="dz-content">
             <svg class="dz-icon" viewBox="0 0 24 24" fill="none" stroke="var(--c-green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-            <div class="dz-primary" style="color:var(--c-green);">Photo uploaded</div>
-            <div class="dz-hint">Click or drop to replace</div>
+            <div class="dz-primary" style="color:var(--c-green);">{{ $t('Photo uploaded') }}</div>
+            <div class="dz-hint">{{ $t('Click or drop to replace') }}</div>
           </div>
         </div>
       </div>
       <div v-if="store.data.photo" class="photo-actions">
         <button class="photo-rm-btn" @click="store.data.photo = null">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>
-          Remove photo
+          {{ $t('Remove photo') }}
         </button>
       </div>
-      <div v-if="photoError" class="photo-err">{{ photoError }}</div>
+      <div v-if="photoError" class="photo-err">{{ $t(photoError) }}</div>
     </div>
 
-    <div class="f-sec">Name</div>
+    <div class="f-sec">{{ $t('Name') }}</div>
     <div class="f-row">
-      <div class="f-grp"><div class="f-lbl">First Name</div><input class="f-inp" v-model="store.data.fn" placeholder="Alexandra" autocomplete="given-name" /></div>
-      <div class="f-grp"><div class="f-lbl">Last Name</div><input class="f-inp" v-model="store.data.ln" placeholder="Morrison" autocomplete="family-name" /></div>
+      <div class="f-grp"><div class="f-lbl">{{ $t('First Name') }}</div><input class="f-inp" v-model="store.data.fn" :placeholder="$t('Alexandra')" autocomplete="given-name" /></div>
+      <div class="f-grp"><div class="f-lbl">{{ $t('Last Name') }}</div><input class="f-inp" v-model="store.data.ln" :placeholder="$t('Morrison')" autocomplete="family-name" /></div>
     </div>
-    <div class="f-grp"><div class="f-lbl">Job Title / Desired Role</div><input class="f-inp" v-model="store.data.title" placeholder="Senior Product Manager" /></div>
+    <div class="f-grp"><div class="f-lbl">{{ $t('Job Title / Desired Role') }}</div><input class="f-inp" v-model="store.data.title" :placeholder="$t('Senior Product Manager')" /></div>
 
-    <div class="f-sec">Contact</div>
+    <div class="f-sec">{{ $t('Contact') }}</div>
     <div class="f-row">
-      <div class="f-grp"><div class="f-lbl">Email</div><input class="f-inp" v-model="store.data.email" type="email" placeholder="you@email.com" autocomplete="email" /></div>
-      <div class="f-grp"><div class="f-lbl">Phone</div><input class="f-inp" v-model="store.data.phone" placeholder="+44 7712 000 000" autocomplete="tel" /></div>
+      <div class="f-grp"><div class="f-lbl">{{ $t('Email') }}</div><input class="f-inp" v-model="store.data.email" type="email" :placeholder="$t('you@email.com')" autocomplete="email" /></div>
+      <div class="f-grp"><div class="f-lbl">{{ $t('Phone') }}</div><input class="f-inp" v-model="store.data.phone" :placeholder="$t('+44 7712 000 000')" autocomplete="tel" /></div>
     </div>
     <div class="f-row">
-      <div class="f-grp"><div class="f-lbl">Location</div><input class="f-inp" v-model="store.data.loc" placeholder="London, UK" /></div>
+      <div class="f-grp"><div class="f-lbl">{{ $t('Location') }}</div><input class="f-inp" v-model="store.data.loc" :placeholder="$t('London, UK')" /></div>
       <div class="f-grp">
-        <div class="f-lbl">LinkedIn URL <span class="opt-lbl">optional</span></div>
-        <input class="f-inp" v-model="store.data.li" placeholder="linkedin.com/in/you" autocomplete="off" />
+        <div class="f-lbl">{{ $t('LinkedIn URL') }} <span class="opt-lbl">{{ $t('optional') }}</span></div>
+        <input class="f-inp" v-model="store.data.li" :placeholder="$t('linkedin.com/in/you')" autocomplete="off" />
       </div>
     </div>
     <div class="f-grp">
-      <div class="f-lbl">Website / Portfolio <span class="opt-lbl">optional</span></div>
-      <input class="f-inp" v-model="store.data.website" placeholder="yourportfolio.com" autocomplete="url" />
+      <div class="f-lbl">{{ $t('Website / Portfolio') }} <span class="opt-lbl">{{ $t('optional') }}</span></div>
+      <input class="f-inp" v-model="store.data.website" :placeholder="$t('yourportfolio.com')" autocomplete="url" />
     </div>
   </div>
 </template>

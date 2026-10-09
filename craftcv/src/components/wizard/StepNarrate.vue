@@ -1,27 +1,27 @@
 <template>
   <div class="step-wrap">
-    <h3 class="step-title">Tell your story</h3>
-    <p class="step-sub">Speak or type your career story — AI builds your whole CV from it.</p>
+    <h3 class="step-title">{{ $t('Tell your story') }}</h3>
+    <p class="step-sub">{{ $t('Speak or type your career story — AI builds your whole CV from it.') }}</p>
 
     <div v-if="!started">
       <!-- Mode toggle -->
       <div class="input-mode-toggle">
         <button :class="['mode-btn', inputMode==='type' && 'active']" @click="switchMode('type')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:15px;height:15px;"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          Type
+          {{ $t('Type') }}
         </button>
         <button :class="['mode-btn', inputMode==='speak' && 'active']" @click="switchMode('speak')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:15px;height:15px;"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-          Microphone
+          {{ $t('Microphone') }}
         </button>
       </div>
 
       <!-- TYPE mode -->
       <div v-if="inputMode === 'type'" class="f-grp">
         <textarea class="f-ta" v-model="story" rows="9"
-          placeholder="e.g. I've been in product management for 8 years. I started at a startup in London where I built their first mobile app from scratch. Then I moved to a fintech where I led a team of 12 and grew the user base from 50K to 2M. I'm passionate about data-driven decisions..."
+          :placeholder="$t('e.g. I’ve been in product management for 8 years. I started at a startup in London where I built their first mobile app from scratch. Then I moved to a fintech where I led a team of 12 and grew the user base from 50K to 2M. I’m passionate about data-driven decisions…')"
           style="line-height:1.7;"></textarea>
-        <div class="f-hint">Be as detailed as you like — more context gives a better CV.</div>
+        <div class="f-hint">{{ $t('Be as detailed as you like — more context gives a better CV.') }}</div>
       </div>
 
       <!-- SPEAK mode -->
@@ -29,7 +29,7 @@
         <!-- Not supported warning -->
         <div v-if="!micSupported || micError" class="mic-error">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          {{ micError || 'Microphone not available. Use Chrome or Edge, ensure microphone access is allowed, then try again.' }}
+          {{ $t(micError || 'Microphone not available. Use Chrome or Edge, ensure microphone access is allowed, then try again.') }}
         </div>
 
         <!-- Mic UI -->
@@ -43,11 +43,11 @@
           </button>
 
           <div class="mic-label">
-            <span v-if="!isRecording && !story" class="mic-idle">Tap to start recording</span>
+            <span v-if="!isRecording && !story" class="mic-idle">{{ $t('Tap to start recording') }}</span>
             <span v-else-if="isRecording" class="mic-live">
-              <span class="rec-dot"></span> Recording... tap to stop
+              <span class="rec-dot"></span> {{ $t('Recording… tap to stop') }}
             </span>
-            <span v-else class="mic-done">Recording stopped — review below</span>
+            <span v-else class="mic-done">{{ $t('Recording stopped — review below') }}</span>
           </div>
 
           <!-- Live waveform while recording -->
@@ -59,8 +59,8 @@
         <!-- Live transcript -->
         <div v-if="story || interim" class="transcript-wrap">
           <div class="transcript-hd">
-            Transcript
-            <button class="transcript-clear" @click="clearTranscript">Clear</button>
+            {{ $t('Transcript') }}
+            <button class="transcript-clear" @click="clearTranscript">{{ $t('Clear') }}</button>
           </div>
           <!-- While recording: show live text + italic interim -->
           <div v-if="isRecording" class="transcript-body">
@@ -69,38 +69,38 @@
           </div>
           <!-- After stopping: editable textarea -->
           <div v-else>
-            <textarea class="f-ta" v-model="story" rows="5" style="margin-top:6px;line-height:1.65;" placeholder="Your recorded text appears here — edit freely before continuing..."></textarea>
+            <textarea class="f-ta" v-model="story" rows="5" style="margin-top:6px;line-height:1.65;" :placeholder="$t('Your recorded text appears here — edit freely before continuing…')"></textarea>
           </div>
           <div class="f-hint" style="margin-top:6px;">
-            {{ isRecording ? 'Recording in progress...' : 'Edit your transcript above if needed, then click Build My CV.' }}
+            {{ $t(isRecording ? 'Recording in progress…' : 'Edit your transcript above if needed, then build your CV.') }}
           </div>
         </div>
       </div>
 
       <!-- Story couldn't be used -->
       <div v-if="rejected" class="nr-reject">
-        <div class="nr-reject-ttl">We can't build a CV from that yet</div>
-        <p>{{ rejected }}</p>
+        <div class="nr-reject-ttl">{{ $t('We can’t build a CV from that yet') }}</div>
+        <p>{{ $t(rejected) }}</p>
         <div class="nr-reject-actions">
-          <button class="btn-secondary btn-sm" @click="retry">Try again</button>
-          <button class="btn-ghost btn-sm" @click="$emit('next')">Fill it in step by step</button>
-          <button class="btn-ghost btn-sm" @click="store.setMode('upload')">Import my CV instead</button>
+          <button class="btn-secondary btn-sm" @click="retry">{{ $t('Try again') }}</button>
+          <button class="btn-ghost btn-sm" @click="$emit('next')">{{ $t('Fill it in step by step') }}</button>
+          <button class="btn-ghost btn-sm" @click="store.setMode('upload')">{{ $t('Import my CV instead') }}</button>
         </div>
       </div>
 
       <!-- AI loading -->
       <div v-if="aiLoading && !showQs" class="thinking" style="margin-top:14px;">
         <div class="thinking-dots"><span></span><span></span><span></span></div>
-        <div class="thinking-txt">AI is reading your story…</div>
+        <div class="thinking-txt">{{ $t('AI is reading your story…') }}</div>
       </div>
 
       <div class="narrate-actions">
         <button class="btn-primary accent" @click="startNarrate"
           :disabled="!story.trim() || aiLoading" style="width:100%;justify-content:center;">
           <svg v-if="aiLoading" class="spin-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" opacity=".25"/><path d="M21 12a9 9 0 00-9-9"/></svg>
-          {{ aiLoading ? 'Reading your story…' : 'Build my CV from my story' }}
+          {{ $t(aiLoading ? 'Reading your story…' : 'Build my CV from my story') }}
         </button>
-        <button class="skip-link" @click="$emit('next')">Skip — fill in manually instead</button>
+        <button class="skip-link" @click="$emit('next')">{{ $t('Skip — fill it in myself instead') }}</button>
       </div>
     </div>
 
@@ -109,17 +109,17 @@
       <div class="done-box">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:20px;height:20px;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
         <div>
-          <div style="font-weight:700;margin-bottom:3px;">CV built from your story</div>
-          <div style="font-size:12px;">All sections pre-filled. Review and edit each one below.</div>
+          <div style="font-weight:700;margin-bottom:3px;">{{ $t('CV built from your story') }}</div>
+          <div style="font-size:12px;">{{ $t('All sections pre-filled. Review and edit each one below.') }}</div>
         </div>
       </div>
       <div class="story-preview">
-        <div class="sp-lbl">Your story</div>
-        <div class="sp-txt">{{ story.slice(0, 200) }}{{ story.length > 200 ? '...' : '' }}</div>
-        <button class="sp-edit" @click="started=false">Edit story</button>
+        <div class="sp-lbl">{{ $t('Your story') }}</div>
+        <div class="sp-txt">{{ story.slice(0, 200) }}{{ story.length > 200 ? '…' : '' }}</div>
+        <button class="sp-edit" @click="started=false">{{ $t('Edit story') }}</button>
       </div>
       <button class="btn-primary accent" @click="$emit('next')" style="width:100%;justify-content:center;margin-top:12px;">
-        Review Each Section →
+        {{ $t('Review each section') }} →
       </button>
     </div>
 
@@ -128,26 +128,26 @@
       <Transition name="fade">
         <div v-if="showQs" class="nq-backdrop" @click.self="closeQs">
           <div class="nq" role="dialog" aria-labelledby="nq-title">
-            <button class="icon-btn nq-x" @click="closeQs" aria-label="Close" :disabled="aiLoading">
+            <button class="icon-btn nq-x" @click="closeQs" :aria-label="$t('Close')" :disabled="aiLoading">
               <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
-            <div class="nq-step">Round {{ round }} of up to {{ maxRounds }}</div>
-            <h3 id="nq-title">A few details will make your CV much stronger</h3>
-            <p class="nq-sub">Answer what you can and skip anything you'd rather not. We only use what you tell us.</p>
+            <div class="nq-step">{{ $t('Round {n} of up to {max}', { n: round, max: maxRounds }) }}</div>
+            <h3 id="nq-title">{{ $t('A few details will make your CV much stronger') }}</h3>
+            <p class="nq-sub">{{ $t('Answer what you can and skip anything you’d rather not. We only use what you tell us.') }}</p>
 
             <div class="nq-list">
               <div v-for="(q, i) in questions" :key="round + '-' + i" class="nq-item">
                 <label class="nq-q" :for="'nq-' + i">{{ q.q }}</label>
-                <textarea :id="'nq-' + i" v-model="q.a" class="f-ta" rows="2" :placeholder="q.hint || 'Your answer'" :disabled="aiLoading"></textarea>
+                <textarea :id="'nq-' + i" v-model="q.a" class="f-ta" rows="2" :placeholder="q.hint || $t('Your answer')" :disabled="aiLoading"></textarea>
               </div>
             </div>
 
-            <div v-if="qError" class="nq-err">{{ qError }}</div>
+            <div v-if="qError" class="nq-err">{{ $t(qError) }}</div>
             <div class="nq-ft">
-              <button class="btn-ghost" :disabled="aiLoading" @click="submitAnswers(true)">Build my CV now</button>
+              <button class="btn-ghost" :disabled="aiLoading" @click="submitAnswers(true)">{{ $t('Build my CV now') }}</button>
               <button class="btn-primary accent" :disabled="aiLoading || !anyAnswer" @click="submitAnswers(false)">
                 <svg v-if="aiLoading" class="spin-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" opacity=".25"/><path d="M21 12a9 9 0 00-9-9"/></svg>
-                {{ aiLoading ? 'Reading your answers…' : 'Continue' }}
+                {{ $t(aiLoading ? 'Reading your answers…' : 'Continue') }}
               </button>
             </div>
           </div>
@@ -352,7 +352,7 @@ async function askServer(force) {
     }),
   })
   const j = await r.json().catch(() => ({}))
-  if (!r.ok) throw new Error(j.error || "We couldn't read your story just now — please try again.")
+  if (!r.ok) throw new Error(j.error || 'We couldn’t read your story just now — please try again.')
   return j
 }
 

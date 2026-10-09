@@ -4,40 +4,40 @@
       <div class="ob-card" role="dialog" aria-labelledby="ob-title">
         <div class="ob-body">
           <BrandLogo mark-only large />
-          <h2 id="ob-title">Welcome{{ firstName ? `, ${firstName}` : '' }}</h2>
-          <p class="ob-lead">Three quick questions so the AI writes in the right tone for you. All optional.</p>
+          <h2 id="ob-title">{{ firstName ? $t('Welcome, {name}', { name: firstName }) : $t('Welcome') }}</h2>
+          <p class="ob-lead">{{ $t('Three quick questions so the AI writes in the right tone for you. All optional.') }}</p>
 
           <div class="ob-q">
-            <div class="ob-q-lbl">Your field</div>
+            <div class="ob-q-lbl">{{ $t('Your field') }}</div>
             <div class="ob-chips">
               <button v-for="o in industries" :key="o.id" class="ob-chip" :class="{ on: form.industry === o.id }"
-                      :aria-pressed="form.industry === o.id" @click="pickOne('industry', o.id)">{{ o.label }}</button>
+                      :aria-pressed="form.industry === o.id" @click="pickOne('industry', o.id)">{{ $t(o.label) }}</button>
             </div>
           </div>
 
           <div class="ob-q">
-            <div class="ob-q-lbl">What are you aiming for?</div>
+            <div class="ob-q-lbl">{{ $t('What are you aiming for?') }}</div>
             <div class="ob-chips">
               <button v-for="o in goals" :key="o.id" class="ob-chip" :class="{ on: form.goal === o.id }"
-                      :aria-pressed="form.goal === o.id" @click="pickOne('goal', o.id)">{{ o.label }}</button>
+                      :aria-pressed="form.goal === o.id" @click="pickOne('goal', o.id)">{{ $t(o.label) }}</button>
             </div>
           </div>
 
           <div class="ob-q">
-            <div class="ob-q-lbl">Experience</div>
+            <div class="ob-q-lbl">{{ $t('Experience') }}</div>
             <div class="ob-chips">
               <button v-for="o in expLevels" :key="o.id" class="ob-chip" :class="{ on: form.experience === o.id }"
                       :aria-pressed="form.experience === o.id" @click="pickOne('experience', o.id)">
-                {{ o.label }} <span class="ob-chip-sub">{{ o.years }}</span>
+                {{ $t(o.label) }} <span class="ob-chip-sub">{{ $t(o.years) }}</span>
               </button>
             </div>
           </div>
         </div>
 
         <div class="ob-footer">
-          <button class="btn-ghost" :disabled="loading" @click="skip">Skip</button>
+          <button class="btn-ghost" :disabled="loading" @click="skip">{{ $t('Skip') }}</button>
           <button class="btn-primary accent" :disabled="loading" @click="finish">
-            {{ loading ? 'Saving…' : 'Start building' }}
+            {{ $t(loading ? 'Saving…' : 'Start building') }}
             <svg v-if="!loading" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
           </button>
         </div>
@@ -72,8 +72,8 @@ const finish = () => save(form.value)
 
 const industries = [
   { id: 'tech', label: 'Technology' }, { id: 'finance', label: 'Finance' }, { id: 'marketing', label: 'Marketing' },
-  { id: 'design', label: 'Design' }, { id: 'healthcare', label: 'Healthcare' }, { id: 'education', label: 'Education' },
-  { id: 'legal', label: 'Legal' }, { id: 'engineering', label: 'Engineering' }, { id: 'sales', label: 'Sales' },
+  { id: 'design', label: 'Design' }, { id: 'healthcare', label: 'Healthcare' }, { id: 'education', label: 'industry|Education' },
+  { id: 'legal', label: 'industry|Legal' }, { id: 'engineering', label: 'Engineering' }, { id: 'sales', label: 'Sales' },
   { id: 'hr', label: 'HR' }, { id: 'creative', label: 'Creative' }, { id: 'other', label: 'Other' },
 ]
 const goals = [

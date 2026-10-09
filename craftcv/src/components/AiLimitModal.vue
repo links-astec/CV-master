@@ -6,26 +6,26 @@
           <div class="al-ic">
             <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
           </div>
-          <h3 id="al-title">{{ reason === 'limit' ? 'You’ve used today’s free AI' : 'Your AI requests' }}</h3>
-          <p v-if="tier === 'guest'">Guests get <strong>5 free AI requests a day</strong>. Create a free account to get <strong>30 a day</strong> — your CV comes with you.</p>
-          <p v-else-if="tier === 'unverified'">You get <strong>5 a day</strong> until you confirm your email — then it’s <strong>30 a day</strong>. Check your inbox for our link.</p>
-          <p v-else>You get <strong>30 free AI requests a day</strong> — writing help, tailoring, ATS checks and fixes. They reset every day at midnight (UTC).</p>
-          <div v-if="tier === 'guest'" class="al-next"><button class="btn-primary accent" @click="signUp">Create free account</button></div>
-          <div v-else-if="tier === 'unverified'" class="al-next"><button class="btn-primary accent" @click="resend">{{ resent ? 'Sent ✓' : 'Resend confirmation email' }}</button></div>
+          <h3 id="al-title">{{ $t(reason === 'limit' ? 'You’ve used today’s free AI' : 'Your AI requests') }}</h3>
+          <p v-if="tier === 'guest'">{{ $t('Guests get 5 free AI requests a day. Create a free account to get 30 a day — your CV comes with you.') }}</p>
+          <p v-else-if="tier === 'unverified'">{{ $t('You get 5 a day until you confirm your email — then it’s 30 a day. Check your inbox for our link.') }}</p>
+          <p v-else>{{ $t('You get 30 free AI requests a day — writing help, tailoring, ATS checks and fixes. They reset every day at midnight (UTC).') }}</p>
+          <div v-if="tier === 'guest'" class="al-next"><button class="btn-primary accent" @click="signUp">{{ $t('Create free account') }}</button></div>
+          <div v-else-if="tier === 'unverified'" class="al-next"><button class="btn-primary accent" @click="resend">{{ $t(resent ? 'Sent ✓' : 'Resend confirmation email') }}</button></div>
           <div v-if="quota" class="al-quota">
-            <div><span>{{ quota.freeLeft }}</span> free left today</div>
-            <div><span>{{ quota.credits }}</span> extra</div>
+            <div><span>{{ quota.freeLeft }}</span> {{ $t('free left today') }}</div>
+            <div><span>{{ quota.credits }}</span> {{ $t('extra') }}</div>
           </div>
           <div v-if="tier === 'verified'" class="al-offer">
             <div>
-              <div class="al-offer-t">100 extra AI requests</div>
-              <div class="al-offer-s">One-time €0.50 · they never expire</div>
+              <div class="al-offer-t">{{ $t('100 extra AI requests') }}</div>
+              <div class="al-offer-s">{{ $t('One-time €0.50 · they never expire') }}</div>
             </div>
-            <button class="btn-primary accent" :disabled="buying || !withdrawalOk" @click="buy">{{ buying ? 'Please wait…' : 'Get them — €0.50' }}</button>
+            <button class="btn-primary accent" :disabled="buying || !withdrawalOk" @click="buy">{{ $t(buying ? 'Please wait…' : 'Get them — €0.50') }}</button>
           </div>
-          <label v-if="tier === 'verified'" class="al-consent"><input type="checkbox" v-model="withdrawalOk" /><span>I want the requests straight away and agree that I lose my 14-day right of withdrawal once they’re added.</span></label>
-          <div v-if="error" class="al-err">{{ error }}</div>
-          <button class="btn-ghost al-later" @click="open = false">{{ reason === 'limit' ? 'Maybe tomorrow' : 'Close' }}</button>
+          <label v-if="tier === 'verified'" class="al-consent"><input type="checkbox" v-model="withdrawalOk" /><span>{{ $t('I want the requests straight away and agree that I lose my 14-day right of withdrawal once they’re added.') }}</span></label>
+          <div v-if="error" class="al-err">{{ $t(error) }}</div>
+          <button class="btn-ghost al-later" @click="open = false">{{ $t(reason === 'limit' ? 'Maybe tomorrow' : 'Close') }}</button>
         </div>
       </div>
     </Transition>

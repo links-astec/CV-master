@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import { useAuthStore } from './auth.js'
 import { DEFAULT_TEMPLATE, normalizeTemplate, FONTS } from '../composables/cvRenderer.js'
+import { lang as uiLang } from '../i18n/index.js'
 
 const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
 
@@ -70,7 +71,10 @@ export function hasDraftableContent(d) {
 
 // Saved data (localStorage or a server draft) → a complete, well-formed CV object
 function normaliseData(saved) {
-  const merged = { ...emptyData(), ...(saved && typeof saved === 'object' ? saved : {}) }
+  // Saved CVs without a language were made before French existed, so they are English;
+  // with nothing saved yet, the CV starts in the app's language
+  const hasSaved = !!(saved && typeof saved === 'object')
+  const merged = { ...emptyData(), lang: hasSaved ? 'en' : (uiLang.value === 'fr' ? 'fr' : 'en'), ...(hasSaved ? saved : {}) }
   delete merged.fmt
   for (const k of ['skills', 'certifications', 'languages', 'projects']) {
     if (!Array.isArray(merged[k])) merged[k] = []
@@ -142,6 +146,8 @@ export const useCvStore = defineStore('cv', () => {
   const fullName = computed(() => `${data.value.fn} ${data.value.ln}`.trim() || 'Your Name')
   const initials = computed(() => ((data.value.fn?.[0] || '') + (data.value.ln?.[0] || '')).toUpperCase())
   const hasContent = computed(() => hasDraftableContent(data.value))
+  // While the CV is still empty, its language follows the app language switch
+  watch(uiLang, (l) => { if (!hasContent.value) data.value.lang = l === 'fr' ? 'fr' : 'en' })
 
   function openWizard(preserveStep = false) {
     wizardOpen.value = true
@@ -174,7 +180,8 @@ export const useCvStore = defineStore('cv', () => {
 
   // New, empty CV. Keeps the chosen template and formatting.
   function resetData() {
-    data.value = emptyData()
+    // A new CV starts in the language the app is being used in (switchable in Design)
+    data.value = { ...emptyData(), lang: uiLang.value === 'fr' ? 'fr' : 'en' }
     wizardDraftId.value  = null
     currentDraftId.value = null
     lsSet('pcv-draft', '')

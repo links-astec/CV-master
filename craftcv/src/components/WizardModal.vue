@@ -6,23 +6,23 @@
 
           <!-- ── MODE PICKER ── -->
           <div v-if="!store.wizardMode" class="wiz-pick">
-            <button class="icon-btn wiz-x" @click="handleClose" aria-label="Close">
+            <button class="icon-btn wiz-x" @click="handleClose" :aria-label="$t('Close')">
               <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
             <div class="wiz-pick-in">
-              <h2>How would you like to start?</h2>
-              <p>You can edit everything afterwards, and nothing is ever added without you seeing it.</p>
+              <h2>{{ $t('How would you like to start?') }}</h2>
+              <p>{{ $t('You can edit everything afterwards, and nothing is ever added without you seeing it.') }}</p>
               <div class="wiz-modes">
                 <button v-for="m in MODES" :key="m.id" class="wiz-mode" @click="store.setMode(m.id)">
                   <span class="wiz-mode-ic"><svg viewBox="0 0 24 24" v-html="m.icon"></svg></span>
-                  <span class="wiz-mode-name">{{ m.name }}</span>
-                  <span class="wiz-mode-desc">{{ m.desc }}</span>
-                  <span class="wiz-mode-tag">{{ m.tag }}</span>
+                  <span class="wiz-mode-name">{{ $t(m.name) }}</span>
+                  <span class="wiz-mode-desc">{{ $t(m.desc) }}</span>
+                  <span class="wiz-mode-tag">{{ $t(m.tag) }}</span>
                 </button>
               </div>
               <div v-if="store.data.jobOffer" class="notice info wiz-offer">
                 <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
-                <span>Job offer saved — you'll tailor your CV to it near the end.</span>
+                <span>{{ $t('Job offer saved — you’ll tailor your CV to it near the end.') }}</span>
               </div>
             </div>
           </div>
@@ -31,14 +31,14 @@
           <div v-else class="wiz-body">
             <section class="wiz-panel">
               <header class="wiz-hd">
-                <button class="icon-btn" @click="handleClose" aria-label="Close">
+                <button class="icon-btn" @click="handleClose" :aria-label="$t('Close')">
                   <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
                 <div class="wiz-hd-mid">
-                  <div class="wiz-hd-lbl">Step {{ store.wizardStep + 1 }} of {{ steps.length }} · <strong>{{ steps[store.wizardStep]?.label }}</strong></div>
+                  <div class="wiz-hd-lbl">{{ $t('Step {n} of {total}', { n: store.wizardStep + 1, total: steps.length }) }} · <strong>{{ $t(steps[store.wizardStep]?.label) }}</strong></div>
                   <div class="wiz-progress"><div :style="{ width: ((store.wizardStep + 1) / steps.length * 100) + '%' }"></div></div>
                 </div>
-                <span class="badge">{{ modeLabel }}</span>
+                <span class="badge">{{ $t(modeLabel) }}</span>
               </header>
 
               <div class="wiz-content" ref="panelBody">
@@ -48,12 +48,12 @@
               </div>
 
               <footer class="wiz-ft">
-                <button class="btn-secondary" @click="handleBack">Back</button>
+                <button class="btn-secondary" @click="handleBack">{{ $t('Back') }}</button>
                 <button v-if="store.wizardStep < steps.length - 1" class="btn-primary accent" @click="handleNext" :disabled="aiThinking">
                   {{ nextLabel }}
                   <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
                 </button>
-                <button v-else class="btn-primary accent" @click="finish">Open in editor</button>
+                <button v-else class="btn-primary accent" @click="finish">{{ $t('Open in editor') }}</button>
               </footer>
             </section>
 
@@ -61,13 +61,13 @@
             <section class="wiz-preview">
               <div class="wiz-pv-bar">
                 <div class="wiz-pv-layout">
-                  <button class="icon-btn" @click="shiftLayout(-1)" aria-label="Previous layout"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
-                  <span>{{ layoutName }}</span>
-                  <button class="icon-btn" @click="shiftLayout(1)" aria-label="Next layout"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>
+                  <button class="icon-btn" @click="shiftLayout(-1)" :aria-label="$t('Previous layout')"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
+                  <span>{{ $t(layoutName) }}</span>
+                  <button class="icon-btn" @click="shiftLayout(1)" :aria-label="$t('Next layout')"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>
                 </div>
                 <div class="wiz-pv-colors">
                   <button v-for="t in THEMES" :key="t.id" class="wiz-sw" :class="{ active: current.theme === t.id }"
-                          :style="{ '--sw': t.accent }" :title="t.name" :aria-label="t.name" @click="setTheme(t.id)"></button>
+                          :style="{ '--sw': t.accent }" :title="$t(t.name)" :aria-label="$t(t.name)" @click="setTheme(t.id)"></button>
                 </div>
               </div>
               <div class="wiz-pv-canvas" @click="handlePreviewClick">
@@ -88,6 +88,7 @@ import { ref, computed, watch, nextTick, defineAsyncComponent } from 'vue'
 import { useCvStore } from '../stores/cv.js'
 import { LAYOUTS, THEMES, parseTemplate, templateId, getLayout } from '../composables/cvRenderer.js'
 import CvPreview from './CvPreview.vue'
+import { t } from '../i18n/index.js'
 
 const StepPersonal   = defineAsyncComponent(() => import('./wizard/StepPersonal.vue'))
 const StepSummary    = defineAsyncComponent(() => import('./wizard/StepSummary.vue'))
@@ -131,7 +132,7 @@ const currentStepComp = computed(() => steps.value[store.wizardStep]?.comp || St
 const modeLabel = computed(() => MODES.find(m => m.id === store.wizardMode)?.name || 'Wizard')
 const nextLabel = computed(() => {
   const next = steps.value[store.wizardStep + 1]?.label
-  return next ? `Next: ${next}` : 'Next'
+  return next ? t('Next: {step}', { step: t(next) }) : t('Next')
 })
 
 // Layout / colour quick controls
@@ -186,7 +187,7 @@ function handlePreviewClick(e) {
   store.wizardStep = Math.min(step + offset, steps.value.length - 1)
   scrollTop()
   clearTimeout(toastTimer)
-  editToast.value = `Editing: ${STEP_NAME[step]}`
+  editToast.value = t('Editing: {step}', { step: t(STEP_NAME[step]) })
   toastTimer = setTimeout(() => { editToast.value = '' }, 1800)
 }
 

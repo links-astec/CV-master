@@ -2,28 +2,28 @@
   <div class="dp">
     <section class="dp-sec">
       <template v-for="k in ['ats', 'creative']" :key="k">
-      <div class="dp-hd">{{ LAYOUT_KINDS[k].name }} <span class="dp-val">{{ k === 'ats' ? 'online applications' : 'print & in person' }}</span></div>
+      <div class="dp-hd">{{ $t(LAYOUT_KINDS[k].name) }} <span class="dp-val">{{ $t(k === 'ats' ? 'online applications' : 'print & in person') }}</span></div>
       <div class="dp-layouts">
         <button v-for="l in LAYOUTS.filter(x => x.kind === k)" :key="l.id" class="dp-layout" :class="{ active: current.layout === l.id }"
-                @click="setLayout(l.id)" :title="l.desc">
+                @click="setLayout(l.id)" :title="$t(l.desc)">
           <CvThumb :template="`${l.id}:${current.theme}`" :data="thumbData" :fmt="store.fmt" />
-          <span>{{ l.name }}</span>
+          <span>{{ $t(l.name) }}</span>
         </button>
       </div>
       </template>
-      <p class="dp-note">{{ layoutDesc }}</p>
+      <p class="dp-note">{{ $t(layoutDesc) }}</p>
     </section>
 
     <section class="dp-sec">
-      <div class="dp-hd">Colour <span class="dp-val">{{ themeName }}</span></div>
+      <div class="dp-hd">{{ $t('Colour') }} <span class="dp-val">{{ $t(themeName) }}</span></div>
       <div class="dp-swatches">
         <button v-for="t in THEMES" :key="t.id" class="dp-swatch" :class="{ active: current.theme === t.id }"
-                :style="{ '--sw': t.accent }" :title="t.name" :aria-label="t.name" @click="setTheme(t.id)"></button>
+                :style="{ '--sw': t.accent }" :title="$t(t.name)" :aria-label="$t(t.name)" @click="setTheme(t.id)"></button>
       </div>
     </section>
 
     <section class="dp-sec">
-      <div class="dp-hd">Font</div>
+      <div class="dp-hd">{{ $t('Font') }}</div>
       <div class="seg dp-seg">
         <button v-for="f in FONTS" :key="f.id" :class="{ active: store.fmt.fontFamily === f.id }"
                 :style="{ fontFamily: `'${f.id}'` }" @click="store.fmt.fontFamily = f.id">{{ f.name }}</button>
@@ -32,49 +32,49 @@
 
     <section class="dp-sec dp-grid">
       <div>
-        <div class="dp-hd">Text size</div>
+        <div class="dp-hd">{{ $t('Text size') }}</div>
         <div class="seg dp-seg">
-          <button v-for="o in SIZE" :key="o.v" :class="{ active: store.fmt.fontSize === o.v }" @click="store.fmt.fontSize = o.v">{{ o.l }}</button>
+          <button v-for="o in SIZE" :key="o.v" :class="{ active: store.fmt.fontSize === o.v }" @click="store.fmt.fontSize = o.v">{{ $t(o.l) }}</button>
         </div>
       </div>
       <div>
-        <div class="dp-hd">Line spacing</div>
+        <div class="dp-hd">{{ $t('Line spacing') }}</div>
         <div class="seg dp-seg">
-          <button v-for="o in SPACING" :key="o.v" :class="{ active: store.fmt.lineSpacing === o.v }" @click="store.fmt.lineSpacing = o.v">{{ o.l }}</button>
+          <button v-for="o in SPACING" :key="o.v" :class="{ active: store.fmt.lineSpacing === o.v }" @click="store.fmt.lineSpacing = o.v">{{ $t(o.l) }}</button>
         </div>
       </div>
       <div>
-        <div class="dp-hd">Section spacing</div>
+        <div class="dp-hd">{{ $t('Section spacing') }}</div>
         <div class="seg dp-seg">
-          <button v-for="o in SPACING" :key="o.v" :class="{ active: store.fmt.sectionSpacing === o.v }" @click="store.fmt.sectionSpacing = o.v">{{ o.l }}</button>
+          <button v-for="o in SPACING" :key="o.v" :class="{ active: store.fmt.sectionSpacing === o.v }" @click="store.fmt.sectionSpacing = o.v">{{ $t(o.l) }}</button>
         </div>
       </div>
       <div>
-        <div class="dp-hd">Links</div>
+        <div class="dp-hd">{{ $t('Links') }}</div>
         <div class="seg dp-seg">
-          <button :class="{ active: store.fmt.linkStyle !== 'underline' }" @click="store.fmt.linkStyle = 'plain'">Plain text</button>
-          <button :class="{ active: store.fmt.linkStyle === 'underline' }" @click="store.fmt.linkStyle = 'underline'">Underlined</button>
+          <button :class="{ active: store.fmt.linkStyle !== 'underline' }" @click="store.fmt.linkStyle = 'plain'">{{ $t('Plain text') }}</button>
+          <button :class="{ active: store.fmt.linkStyle === 'underline' }" @click="store.fmt.linkStyle = 'underline'">{{ $t('Underlined') }}</button>
         </div>
         <div class="seg dp-seg" style="margin-top:8px">
-          <button :class="{ active: store.fmt.linkText !== 'full' }" @click="store.fmt.linkText = 'short'">Short labels</button>
-          <button :class="{ active: store.fmt.linkText === 'full' }" @click="store.fmt.linkText = 'full'">Full addresses</button>
+          <button :class="{ active: store.fmt.linkText !== 'full' }" @click="store.fmt.linkText = 'short'">{{ $t('Short labels') }}</button>
+          <button :class="{ active: store.fmt.linkText === 'full' }" @click="store.fmt.linkText = 'full'">{{ $t('Full addresses') }}</button>
         </div>
-        <p class="dp-hint">Long links show as “LinkedIn” or “Website” with short labels. Tracking junk (like ?utm_source=…) is always removed, and every link stays clickable in your PDF.</p>
+        <p class="dp-hint">{{ $t('Long links show as “LinkedIn” or “Website” with short labels. Tracking junk (like ?utm_source=…) is always removed, and every link stays clickable in your PDF.') }}</p>
       </div>
       <div>
-        <div class="dp-hd">CV language</div>
+        <div class="dp-hd">{{ $t('CV language') }}</div>
         <div class="seg dp-seg">
           <button :class="{ active: store.data.lang !== 'fr' }" @click="switchLang('en')">English</button>
           <button :class="{ active: store.data.lang === 'fr' }" @click="switchLang('fr')">Français</button>
         </div>
         <div v-if="undo" class="dp-undo">
-          <span>{{ undo.count ? `Translated ${undo.count} section${undo.count === 1 ? '' : 's'}.` : 'Headings switched.' }}</span>
-          <button class="link-btn" @click="undoTranslate">Undo</button>
+          <span>{{ undo.count ? $t(undo.count === 1 ? 'Translated {n} section.' : 'Translated {n} sections.', { n: undo.count }) : $t('Headings switched.') }}</span>
+          <button class="link-btn" @click="undoTranslate">{{ $t('Undo') }}</button>
         </div>
       </div>
     </section>
     <TranslateModal :show="!!translateTo" :to="translateTo || 'fr'" @close="translateTo = null" @applied="onTranslated" />
-    <p class="dp-note">Tip: “Compact” spacing and a smaller text size help a long CV fit on one page without shrinking it.</p>
+    <p class="dp-note">{{ $t('Tip: “Compact” spacing and a smaller text size help a long CV fit on one page without shrinking it.') }}</p>
   </div>
 </template>
 
@@ -82,7 +82,7 @@
 import { computed, ref } from 'vue'
 import { useCvStore, hasDraftableContent } from '../stores/cv.js'
 import { LAYOUTS, LAYOUT_KINDS, THEMES, FONTS, parseTemplate, templateId, getLayout, getTheme } from '../composables/cvRenderer.js'
-import { SAMPLE_CV } from '../composables/sampleCv.js'
+import { sampleCv } from '../composables/sampleCv.js'
 import CvThumb from './CvThumb.vue'
 import TranslateModal from './TranslateModal.vue'
 
@@ -94,7 +94,7 @@ const current    = computed(() => parseTemplate(store.template))
 const themeName  = computed(() => getTheme(current.value.theme)?.name)
 const layoutDesc = computed(() => getLayout(current.value.layout)?.desc)
 // Show the user's own CV in the thumbnails once there is something to show
-const thumbData  = computed(() => hasDraftableContent(store.data) ? store.data : SAMPLE_CV)
+const thumbData  = computed(() => hasDraftableContent(store.data) ? store.data : sampleCv())
 
 function setLayout(id) { store.template = templateId(id, current.value.theme) }
 function setTheme(id)  { store.template = templateId(current.value.layout, id) }

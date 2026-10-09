@@ -3,9 +3,9 @@
   <div v-if="maintenance" class="maint">
     <div class="maint-box">
       <BrandLogo />
-      <h1>We'll be right back</h1>
-      <p>CVMaster is being updated. Your CVs are safe — please check again in a few minutes.</p>
-      <button class="btn-secondary" @click="checkMaintenance">Check again</button>
+      <h1>{{ $t('We’ll be right back') }}</h1>
+      <p>{{ $t('CVMaster is being updated. Your CVs are safe — please check again in a few minutes.') }}</p>
+      <button class="btn-secondary" @click="checkMaintenance">{{ $t('Check again') }}</button>
     </div>
   </div>
 
@@ -15,27 +15,27 @@
     <!-- Sidebar -->
     <div class="sb-dim" :class="{ on: navOpen }" @click="navOpen = false"></div>
     <aside class="sb" :class="{ open: navOpen }">
-      <button type="button" class="sb-brand" title="CVMaster home" @click="navOpen = false; showHome()"><BrandLogo /></button>
+      <button type="button" class="sb-brand" :title="$t('CVMaster home')" @click="navOpen = false; showHome()"><BrandLogo /></button>
 
       <button class="btn-primary accent btn-block sb-new" data-tour="new-cv" @click="newCV">
         <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        New CV
+        {{ $t('New CV') }}
       </button>
 
       <nav class="sb-nav">
         <RouterLink v-for="n in NAV" :key="n.to" :to="n.to" class="sb-link" :data-tour="`nav-${n.id}`"
                     :class="{ active: route.path === n.to }" @click="navOpen = false">
           <svg viewBox="0 0 24 24" v-html="n.icon"></svg>
-          {{ n.label }}
+          {{ $t(n.label) }}
         </RouterLink>
       </nav>
 
       <div class="sb-foot">
         <div v-if="!auth.isLoggedIn" class="sb-guest">
-          <div class="sb-guest-ttl">You're using CVMaster as a guest</div>
-          <p>Your CV is saved in this browser. Create a free account to keep it safe and export it.</p>
-          <button class="btn-primary accent btn-block btn-sm" @click="openAuth('register')">Create free account</button>
-          <button class="btn-ghost btn-block btn-sm" @click="openAuth('signin')">Sign in</button>
+          <div class="sb-guest-ttl">{{ $t('You’re using CVMaster as a guest') }}</div>
+          <p>{{ $t('Your CV is saved in this browser. Create a free account to keep it safe and export it.') }}</p>
+          <button class="btn-primary accent btn-block btn-sm" @click="openAuth('register')">{{ $t('Create free account') }}</button>
+          <button class="btn-ghost btn-block btn-sm" @click="openAuth('signin')">{{ $t('Sign in') }}</button>
         </div>
         <RouterLink v-else to="/settings" class="sb-user" @click="navOpen = false">
           <span class="sb-ava">{{ auth.user?.avatar || auth.user?.name?.[0] || 'U' }}</span>
@@ -45,11 +45,11 @@
           </span>
         </RouterLink>
         <div class="sb-legal">
-          <button type="button" @click="navOpen = false; openFeedback()">Feedback</button>
+          <button type="button" @click="navOpen = false; openFeedback()">{{ $t('Feedback') }}</button>
           <span>·</span>
-          <RouterLink to="/privacy" @click="navOpen = false">Privacy</RouterLink>
+          <RouterLink to="/privacy" @click="navOpen = false">{{ $t('Privacy') }}</RouterLink>
           <span>·</span>
-          <RouterLink to="/terms" @click="navOpen = false">Terms</RouterLink>
+          <RouterLink to="/terms" @click="navOpen = false">{{ $t('Terms') }}</RouterLink>
         </div>
       </div>
     </aside>
@@ -57,24 +57,25 @@
     <!-- Main -->
     <div class="main">
       <header class="top">
-        <button class="icon-btn show-mobile" @click="navOpen = true" aria-label="Menu">
+        <button class="icon-btn show-mobile" @click="navOpen = true" :aria-label="$t('Menu')">
           <svg viewBox="0 0 24 24"><line x1="3" y1="7" x2="21" y2="7"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="17" x2="21" y2="17"/></svg>
         </button>
-        <div class="top-title">{{ route.meta.title || 'CVMaster' }}</div>
+        <div class="top-title">{{ route.meta.title ? $t(route.meta.title) : 'CVMaster' }}</div>
         <div class="top-actions">
+          <LangSwitch class="top-lang" />
           <NotificationDropdown v-if="auth.isLoggedIn" />
-          <button class="icon-btn" @click="store.darkMode = !store.darkMode" :title="store.darkMode ? 'Light mode' : 'Dark mode'">
+          <button class="icon-btn" @click="store.darkMode = !store.darkMode" :title="$t(store.darkMode ? 'Light mode' : 'Dark mode')">
             <svg v-if="store.darkMode" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
             <svg v-else viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
           </button>
-          <button v-if="!auth.isLoggedIn" class="btn-secondary btn-sm hide-mobile" @click="openAuth('signin')">Sign in</button>
+          <button v-if="!auth.isLoggedIn" class="btn-secondary btn-sm hide-mobile" @click="openAuth('signin')">{{ $t('Sign in') }}</button>
         </div>
       </header>
       <!-- Email accounts that haven't confirmed yet -->
       <div v-if="auth.isLoggedIn && auth.user && auth.user.emailVerified === false && !verifyHidden" class="verify-bar">
-        <span>Confirm your email to unlock <strong>30 AI requests a day</strong> — we sent a link to {{ auth.user.email }}.</span>
-        <button class="btn-secondary btn-sm" :disabled="verifySending" @click="resendVerification">{{ verifySent ? 'Sent ✓' : verifySending ? 'Sending…' : 'Resend email' }}</button>
-        <button class="verify-x" aria-label="Hide" @click="verifyHidden = true">×</button>
+        <span>{{ $t('Confirm your email to unlock 30 AI requests a day — we sent a link to {email}.', { email: auth.user.email }) }}</span>
+        <button class="btn-secondary btn-sm" :disabled="verifySending" @click="resendVerification">{{ $t(verifySent ? 'Sent ✓' : verifySending ? 'Sending…' : 'Resend email') }}</button>
+        <button class="verify-x" :aria-label="$t('Hide')" @click="verifyHidden = true">×</button>
       </div>
       <main class="content" :class="{ full: route.meta.full }">
         <RouterView />
@@ -84,19 +85,19 @@
     <!-- Mobile bottom nav -->
     <nav class="bnav show-mobile">
       <RouterLink to="/" class="bnav-btn" :class="{ active: route.path === '/' }">
-        <svg viewBox="0 0 24 24" v-html="NAV[0].icon"></svg>My CVs
+        <svg viewBox="0 0 24 24" v-html="NAV[0].icon"></svg>{{ $t('My CVs') }}
       </RouterLink>
       <RouterLink to="/templates" class="bnav-btn" :class="{ active: route.path === '/templates' }">
-        <svg viewBox="0 0 24 24" v-html="NAV[1].icon"></svg>Templates
+        <svg viewBox="0 0 24 24" v-html="NAV[1].icon"></svg>{{ $t('Templates') }}
       </RouterLink>
-      <button class="bnav-fab" @click="newCV" aria-label="New CV">
+      <button class="bnav-fab" @click="newCV" :aria-label="$t('New CV')">
         <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       </button>
       <RouterLink to="/editor" class="bnav-btn" :class="{ active: route.path === '/editor' }">
-        <svg viewBox="0 0 24 24" v-html="NAV[2].icon"></svg>Editor
+        <svg viewBox="0 0 24 24" v-html="NAV[2].icon"></svg>{{ $t('Editor') }}
       </RouterLink>
       <RouterLink to="/settings" class="bnav-btn" :class="{ active: route.path === '/settings' }">
-        <svg viewBox="0 0 24 24" v-html="NAV[3].icon"></svg>Settings
+        <svg viewBox="0 0 24 24" v-html="NAV[3].icon"></svg>{{ $t('Settings') }}
       </RouterLink>
     </nav>
   </div>
@@ -114,7 +115,7 @@
 
   <div class="toast-wrap">
     <TransitionGroup name="toast">
-      <div v-for="t in toasts" :key="t.id" class="toast">{{ t.msg }}</div>
+      <div v-for="ts in toasts" :key="ts.id" class="toast">{{ $t(ts.msg) }}</div>
     </TransitionGroup>
   </div>
 </template>
@@ -133,10 +134,12 @@ import PaywallModal from './components/PaywallModal.vue'
 import NotificationDropdown from './components/NotificationDropdown.vue'
 import ConfirmModal from './components/ConfirmModal.vue'
 import FeedbackModal from './components/FeedbackModal.vue'
-import { setSeo, seoForRoute, HOME_SEO } from './composables/seo.js'
+import { setSeo, seoForRoute, homeSeo } from './composables/seo.js'
 import AiLimitModal from './components/AiLimitModal.vue'
 import TutorialOverlay from './components/TutorialOverlay.vue'
 import BrandLogo from './components/BrandLogo.vue'
+import LangSwitch from './components/LangSwitch.vue'
+import { t, lang } from './i18n/index.js'
 
 const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
 const lsGet = (k) => { try { return localStorage.getItem(k) } catch { return null } }
@@ -215,7 +218,7 @@ async function confirmEmail(token) {
 // The homepage (Landing) — reachable from the sidebar logo and after signing out
 function showHome() { showLanding.value = true }
 // The homepage keeps its own title/description while it's showing
-watch(showLanding, (v) => { if (v) setSeo(HOME_SEO); else setSeo(seoForRoute(route)) })
+watch([showLanding, lang], () => { setSeo(showLanding.value ? homeSeo() : seoForRoute(route)) })
 provide('showHome', showHome)
 
 // AI allowance: any AI call refused for the daily limit opens the "get more" pop-up.
@@ -249,7 +252,7 @@ async function handleAiPackReturn() {
     })
     const j = await r.json().catch(() => ({}))
     if (!r.ok) throw new Error(j.error)
-    showToast(`100 AI requests added — you now have ${j.credits} extra.`)
+    showToast(t('100 AI requests added — you now have {n} extra.', { n: j.credits }))
   } catch (e) {
     showToast(e.message || 'We couldn’t confirm your payment — contact us if you were charged.')
   }
@@ -312,9 +315,9 @@ async function newCV() {
   navOpen.value = false
   if (!auth.isLoggedIn && store.hasContent) {
     const ok = await confirmRef.value?.ask({
-      title: 'Start a new CV?',
-      message: "Your current CV is only saved in this browser, so it will be replaced. Create a free account first if you want to keep both.",
-      ok: 'Start new CV', cancel: 'Keep current', mode: 'warning',
+      title: t('Start a new CV?'),
+      message: t('Your current CV is only saved in this browser, so it will be replaced. Create a free account first if you want to keep both.'),
+      ok: t('Start new CV'), cancel: t('Keep current'), mode: 'warning',
     })
     if (!ok) return
   }
@@ -362,7 +365,7 @@ function handleStripeReturn() {
         setTimeout(() => URL.revokeObjectURL(url), 1000)
         showToast('Your clean CV has downloaded.')
       })
-      .catch(() => showToast("Payment received, but the download didn't start. Try Download again from My CVs."))
+      .catch(() => showToast('Payment received, but the download didn’t start. Try Download again from My CVs.'))
     return
   }
 
@@ -441,6 +444,7 @@ watch(() => route.path, () => { navOpen.value = false })
 .sb-legal a,.sb-legal button{color:var(--c-text3);text-decoration:none;background:none;border:none;padding:0;font:inherit;cursor:pointer}
 .sb-legal a:hover,.sb-legal button:hover{color:var(--c-text)}
 .sb-dim{display:none}
+.top-lang{margin-right:4px}
 
 /* Main */
 .main{flex:1;min-width:0;display:flex;flex-direction:column}

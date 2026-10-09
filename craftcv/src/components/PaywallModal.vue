@@ -3,25 +3,25 @@
     <Transition name="modal-fade">
       <div v-if="show" class="modal-backdrop" @click.self="close">
         <div class="modal pw" role="dialog" aria-modal="true">
-          <button class="icon-btn modal-close" @click="close" aria-label="Close">
+          <button class="icon-btn modal-close" @click="close" :aria-label="$t('Close')">
             <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
 
           <!-- Working -->
           <div v-if="state === 'checking' || state === 'sending'" class="pw-center">
             <span class="pw-spin"></span>
-            <h2>{{ state === 'sending' ? 'Creating your PDF…' : 'Getting your CV ready…' }}</h2>
-            <p v-if="state === 'sending'">Sending to {{ deliveryEmail.trim() || userEmail }}. This takes a few seconds.</p>
+            <h2>{{ $t(state === 'sending' ? 'Creating your PDF…' : 'Getting your CV ready…') }}</h2>
+            <p v-if="state === 'sending'">{{ $t('Sending to {email}. This takes a few seconds.', { email: deliveryEmail.trim() || userEmail }) }}</p>
           </div>
 
           <!-- Sent -->
           <div v-else-if="state === 'sent'" class="pw-center">
             <span class="pw-ok"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span>
-            <h2>Your CV is on its way</h2>
-            <p>We emailed the PDF to <strong>{{ sentTo }}</strong>. Check your spam folder if it isn't there in a minute.</p>
+            <h2>{{ $t('Your CV is on its way') }}</h2>
+            <p>{{ $t('We emailed the PDF to {email}. Check your spam folder if it isn’t there in a minute.', { email: sentTo }) }}</p>
             <div class="pw-row">
-              <button class="btn-secondary" :disabled="downloading" @click="downloadPdf">{{ downloading ? 'Preparing…' : 'Download PDF' }}</button>
-              <button class="btn-primary accent" @click="close">Done</button>
+              <button class="btn-secondary" :disabled="downloading" @click="downloadPdf">{{ $t(downloading ? 'Preparing…' : 'Download PDF') }}</button>
+              <button class="btn-primary accent" @click="close">{{ $t('Done') }}</button>
             </div>
             <ReviewPrompt compact only-if-new />
           </div>
@@ -29,75 +29,75 @@
           <!-- Paid, but the email failed -->
           <div v-else-if="state === 'emailFailed'" class="pw-center">
             <span class="pw-warn"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg></span>
-            <h2>We couldn't email your CV</h2>
-            <p>Your payment is safe and this CV is unlocked. Download the PDF now, or try the email again.</p>
+            <h2>{{ $t('We couldn’t email your CV') }}</h2>
+            <p>{{ $t('Your payment is safe and this CV is unlocked. Download the PDF now, or try the email again.') }}</p>
             <div class="pw-row">
-              <button class="btn-primary accent" :disabled="downloading" @click="downloadPdf">{{ downloading ? 'Preparing…' : 'Download PDF' }}</button>
-              <button class="btn-secondary" @click="sendEmail()">Try email again</button>
+              <button class="btn-primary accent" :disabled="downloading" @click="downloadPdf">{{ $t(downloading ? 'Preparing…' : 'Download PDF') }}</button>
+              <button class="btn-secondary" @click="sendEmail()">{{ $t('Try email again') }}</button>
             </div>
           </div>
 
           <!-- Longer than one page -->
           <div v-else-if="state === 'tooLong'" class="pw-body">
             <div class="pw-hd">
-              <h2>Your CV is longer than one page</h2>
-              <p>It's about {{ overPct }}% over. We'll shrink it to fit one A4 page — text will be at {{ zoomPct }}% of its normal size{{ page.zoom < 0.82 ? ', which is quite small' : '' }}.</p>
+              <h2>{{ $t('Your CV is longer than one page') }}</h2>
+              <p>{{ $t(page.zoom < 0.82 ? 'It’s about {over}% over. We’ll shrink it to fit one A4 page — text will be at {zoom}% of its normal size, which is quite small.' : 'It’s about {over}% over. We’ll shrink it to fit one A4 page — text will be at {zoom}% of its normal size.', { over: overPct, zoom: zoomPct }) }}</p>
             </div>
             <div class="pw-row">
-              <button class="btn-secondary" @click="close">Edit it first</button>
-              <button class="btn-primary accent" @click="acceptShrink">Continue &amp; shrink to fit</button>
+              <button class="btn-secondary" @click="close">{{ $t('Edit it first') }}</button>
+              <button class="btn-primary accent" @click="acceptShrink">{{ $t('Continue & shrink to fit') }}</button>
             </div>
           </div>
 
           <!-- Choose how to pay / send -->
           <div v-else-if="state === 'ready'" class="pw-body">
             <div class="pw-hd">
-              <h2>{{ paidForDraft ? 'Send your CV' : 'Get your CV as a PDF' }}</h2>
-              <p v-if="paidForDraft">This CV is already paid for — send it as often as you like, even after edits.</p>
-              <p v-else-if="demoMode">Payments aren't switched on yet, so this is free for now.</p>
-              <p v-else>A clean, one-page PDF, emailed to you.</p>
+              <h2>{{ $t(paidForDraft ? 'Send your CV' : 'Get your CV as a PDF') }}</h2>
+              <p v-if="paidForDraft">{{ $t('This CV is already paid for — send it as often as you like, even after edits.') }}</p>
+              <p v-else-if="demoMode">{{ $t('Payments aren’t switched on yet, so this is free for now.') }}</p>
+              <p v-else>{{ $t('A clean, one-page PDF, emailed to you.') }}</p>
             </div>
 
             <div v-if="!paidForDraft && !demoMode" class="pw-price">
-              <div class="pw-amt">€0.99 <span>one-time, for this CV</span></div>
+              <div class="pw-amt">{{ $t('€0.99') }} <span>{{ $t('one-time, for this CV') }}</span></div>
               <ul>
-                <li v-for="f in FEATURES" :key="f"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ f }}</li>
+                <li v-for="f in FEATURES" :key="f"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ $t(f) }}</li>
               </ul>
             </div>
 
             <div class="f-grp">
-              <label class="f-lbl" for="pw-email">Send to</label>
+              <label class="f-lbl" for="pw-email">{{ $t('Send to') }}</label>
               <input id="pw-email" class="f-inp" v-model="deliveryEmail" type="email" :placeholder="userEmail" @keydown.enter="primary" />
-              <p v-if="deliverySuggestion && deliveryOk" class="f-hint">Did you mean <button type="button" class="pw-fix" @click="deliveryEmail = deliverySuggestion">{{ deliverySuggestion }}</button>?</p>
-              <p v-else class="f-hint" :class="{ err: !deliveryOk }">{{ deliveryOk ? 'Leave blank to use your account email.' : 'Please enter a valid email address.' }}</p>
+              <p v-if="deliverySuggestion && deliveryOk" class="f-hint">{{ $t('Did you mean') }} <button type="button" class="pw-fix" @click="deliveryEmail = deliverySuggestion">{{ deliverySuggestion }}</button>?</p>
+              <p v-else class="f-hint" :class="{ err: !deliveryOk }">{{ $t(deliveryOk ? 'Leave blank to use your account email.' : 'Please enter a valid email address.') }}</p>
             </div>
 
             <!-- EU/French law: buyers of instant digital content must agree before paying
                  that delivery starts now and ends the 14-day right of withdrawal -->
             <label v-if="!paidForDraft && !demoMode" class="pw-consent">
               <input type="checkbox" v-model="withdrawalOk" />
-              <span>I want my PDF straight away and agree that I lose my 14-day right of withdrawal once it’s delivered.</span>
+              <span>{{ $t('I want my PDF straight away and agree that I lose my 14-day right of withdrawal once it’s delivered.') }}</span>
             </label>
 
-            <div v-if="error" class="notice error pw-err">{{ error }}</div>
+            <div v-if="error" class="notice error pw-err">{{ $t(error) }}</div>
 
             <button class="btn-primary accent btn-lg btn-block" :disabled="loading || !deliveryOk || (!paidForDraft && !demoMode && !withdrawalOk)" @click="primary">
-              {{ loading ? 'Please wait…' : paidForDraft || demoMode ? 'Email my CV' : 'Pay €0.99 — get my CV' }}
+              {{ $t(loading ? 'Please wait…' : paidForDraft || demoMode ? 'Email my CV' : 'Pay €0.99 — get my CV') }}
             </button>
             <button v-if="!paidForDraft && !demoMode && credits > 0" class="btn-secondary btn-block pw-credit" :disabled="loading || !deliveryOk" @click="useCredit">
-              Use a referral credit instead — free ({{ credits }} left)
+              {{ $t('Use a referral credit instead — free ({n} left)', { n: credits }) }}
             </button>
             <p v-if="!paidForDraft && !demoMode" class="pw-secure">
               <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-              Secure payment by Stripe · No subscription
+              {{ $t('Secure payment by Stripe · No subscription') }}
             </p>
           </div>
 
           <!-- Couldn't prepare -->
           <div v-else-if="state === 'error'" class="pw-center">
-            <h2>Something went wrong</h2>
-            <p>{{ error }}</p>
-            <div class="pw-row"><button class="btn-secondary" @click="close">Close</button><button class="btn-primary accent" @click="prepare">Try again</button></div>
+            <h2>{{ $t('Something went wrong') }}</h2>
+            <p>{{ $t(error) }}</p>
+            <div class="pw-row"><button class="btn-secondary" @click="close">{{ $t('Close') }}</button><button class="btn-primary accent" @click="prepare">{{ $t('Try again') }}</button></div>
           </div>
         </div>
       </div>
@@ -114,6 +114,7 @@ import ReviewPrompt from './ReviewPrompt.vue'
 import { suggestEmail } from '../composables/emailTypos.js'
 import { render } from '../composables/cvRenderer.js'
 import { analysePage, exportDocument } from '../composables/pageFit.js'
+import { t } from '../i18n/index.js'
 
 const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
 
@@ -141,7 +142,7 @@ const sentTo        = ref('')
 const draftId       = ref(null)
 const page          = ref({ overflow: false, overBy: 0, zoom: 1 })
 
-const userEmail  = computed(() => auth.user?.email || 'your email')
+const userEmail  = computed(() => auth.user?.email || t('your email'))
 const withdrawalOk = ref(false)
 // "Did you mean …@gmail.com?" so a PDF never goes to a typo
 const deliverySuggestion = computed(() => suggestEmail(deliveryEmail.value))
@@ -188,7 +189,7 @@ async function prepare() {
   try {
     const [id, info] = await Promise.all([store.ensureSavedDraftId(), analysePage(cvHtml())])
     page.value = info
-    if (!id) throw new Error("We couldn't save your CV to your account. Check your connection and try again.")
+    if (!id) throw new Error('We couldn’t save your CV to your account. Check your connection and try again.')
     draftId.value = id
     const [status, refInfo] = await Promise.all([
       api(`/api/payment/status/${id}`).catch(() => ({ paid: false })),

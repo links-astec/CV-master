@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div class="modal-backdrop" @click.self="close">
       <div class="modal auth" role="dialog" aria-modal="true">
-        <button class="icon-btn modal-close" @click="close" aria-label="Close">
+        <button class="icon-btn modal-close" @click="close" :aria-label="$t('Close')">
           <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
 
@@ -10,78 +10,78 @@
         <aside class="auth-side" aria-hidden="true">
           <BrandLogo dark />
           <div class="auth-side-copy">
-            <h3>Your CV, tailored to every job.</h3>
+            <h3>{{ $t('Your CV, tailored to every job.') }}</h3>
             <ul>
-              <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Keep every CV safe in one place</li>
-              <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Tailor to job offers and check your ATS match</li>
-              <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Export clean one-page PDFs</li>
+              <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ $t('Keep every CV safe in one place') }}</li>
+              <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ $t('Tailor to job offers and check your ATS match') }}</li>
+              <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ $t('Export clean one-page PDFs') }}</li>
             </ul>
           </div>
-          <div class="auth-side-cv"><CvThumb template="modern:indigo" :data="SAMPLE_CV" /></div>
+          <div class="auth-side-cv"><CvThumb template="modern:indigo" :data="sampleCv()" /></div>
         </aside>
 
         <div class="auth-main">
         <div class="auth-hd">
           <BrandLogo mark-only class="auth-mobile-mark" />
-          <h2>{{ TITLES[view] }}</h2>
-          <p>{{ subtitle }}</p>
+          <h2>{{ $t(TITLES[view]) }}</h2>
+          <p>{{ $t(subtitle) }}</p>
         </div>
 
         <!-- Sign in / Create account -->
         <template v-if="view === 'signin' || view === 'register'">
           <div class="seg auth-seg">
-            <button :class="{ active: view === 'register' }" @click="switchView('register')">Create account</button>
-            <button :class="{ active: view === 'signin' }" @click="switchView('signin')">Sign in</button>
+            <button :class="{ active: view === 'register' }" @click="switchView('register')">{{ $t('Create account') }}</button>
+            <button :class="{ active: view === 'signin' }" @click="switchView('signin')">{{ $t('Sign in') }}</button>
           </div>
 
           <div v-if="view === 'register' && refCode" class="notice success auth-ref">
             <svg viewBox="0 0 24 24"><path d="M20 12v10H4V12"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/></svg>
-            <span><strong>{{ refName ? `${refName} invited you.` : 'You were invited.' }}</strong> They earn a free export credit when you join.</span>
+            <span><strong>{{ refName ? $t('{name} invited you.', { name: refName }) : $t('You were invited.') }}</strong> {{ $t('They earn a free export credit when you join.') }}</span>
           </div>
 
           <div ref="googleEl" class="google-btn" :class="{ hidden: !googleReady }"></div>
-          <div v-if="googleReady" class="auth-or"><span>or with email</span></div>
+          <div v-if="googleReady" class="auth-or"><span>{{ $t('or with email') }}</span></div>
 
           <form @submit.prevent="view === 'signin' ? submitLogin() : submitRegister()" novalidate>
             <div v-if="view === 'register'" class="f-grp">
-              <label class="f-lbl" for="au-name">Full name</label>
+              <label class="f-lbl" for="au-name">{{ $t('Full name') }}</label>
               <input id="au-name" class="f-inp" v-model="form.name" autocomplete="name" :class="{ err: errors.name }" />
-              <div v-if="errors.name" class="field-err">{{ errors.name }}</div>
+              <div v-if="errors.name" class="field-err">{{ $t(errors.name) }}</div>
             </div>
             <div class="f-grp">
-              <label class="f-lbl" for="au-email">Email</label>
+              <label class="f-lbl" for="au-email">{{ $t('Email') }}</label>
               <input id="au-email" class="f-inp" v-model="form.email" type="email" autocomplete="email" :class="{ err: errors.email }" @blur="onEmailBlur" />
-              <div v-if="errors.email" class="field-err">{{ errors.email }}</div>
-              <div v-else-if="emailSuggestion" class="field-hint">Did you mean <button type="button" class="link-fix" @click="form.email = emailSuggestion; emailSuggestion = ''; onEmailBlur()">{{ emailSuggestion }}</button>?</div>
+              <div v-if="errors.email" class="field-err">{{ $t(errors.email) }}</div>
+              <div v-else-if="emailSuggestion" class="field-hint">{{ $t('Did you mean') }} <button type="button" class="link-fix" @click="form.email = emailSuggestion; emailSuggestion = ''; onEmailBlur()">{{ emailSuggestion }}</button>?</div>
             </div>
             <div class="f-grp">
               <div class="auth-lbl-row">
-                <label class="f-lbl" for="au-pw">Password</label>
-                <button v-if="view === 'signin'" type="button" class="link-btn auth-small" @click="switchView('forgot')">Forgot password?</button>
+                <label class="f-lbl" for="au-pw">{{ $t('Password') }}</label>
+                <button v-if="view === 'signin'" type="button" class="link-btn auth-small" @click="switchView('forgot')">{{ $t('Forgot password?') }}</button>
               </div>
               <div class="pw-wrap">
                 <input id="au-pw" class="f-inp" v-model="form.password" :type="showPw ? 'text' : 'password'"
                        :autocomplete="view === 'signin' ? 'current-password' : 'new-password'" :class="{ err: errors.password }"
-                       :placeholder="view === 'register' ? 'At least 8 characters' : ''" />
-                <button type="button" class="pw-toggle" @click="showPw = !showPw">{{ showPw ? 'Hide' : 'Show' }}</button>
+                       :placeholder="view === 'register' ? $t('At least 8 characters') : ''" />
+                <button type="button" class="pw-toggle" @click="showPw = !showPw">{{ $t(showPw ? 'Hide' : 'Show') }}</button>
               </div>
-              <div v-if="errors.password" class="field-err">{{ errors.password }}</div>
+              <div v-if="errors.password" class="field-err">{{ $t(errors.password) }}</div>
             </div>
 
             <label v-if="view === 'register'" class="terms">
               <input type="checkbox" v-model="agreed" />
-              <span>I agree to the <a href="/terms" target="_blank" rel="noopener">Terms</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</span>
+              <span>{{ $t('I agree to the') }} <a href="/terms" target="_blank" rel="noopener">{{ $t('Terms') }}</a> {{ $t('and the') }} <a href="/privacy" target="_blank" rel="noopener">{{ $t('Privacy Policy') }}</a>.</span>
             </label>
-            <div v-if="errors.terms" class="field-err">{{ errors.terms }}</div>
+            <div v-if="errors.terms" class="field-err">{{ $t(errors.terms) }}</div>
             <label v-if="view === 'register'" class="terms terms-opt">
               <input type="checkbox" v-model="newsletter" />
-              <span>Email me CV tips and CVMaster news — at most a couple a month. <em>Optional, unsubscribe any time.</em></span>
+              <span>{{ $t('Email me CV tips and CVMaster news — at most a couple a month.') }} <em>{{ $t('Optional, unsubscribe any time.') }}</em></span>
             </label>
 
-            <div v-if="serverError" class="notice error auth-err">{{ serverError }}</div>
+            <div v-if="serverError" class="notice error auth-err">{{ $t(serverError) }}</div>
 
             <button type="submit" class="btn-primary accent btn-lg btn-block" :disabled="loading">
-              {{ loading ? 'Please wait…' : view === 'signin' ? 'Sign in' : 'Create free account' }}
+              {{ $t(loading ? 'Please wait…' : view === 'signin' ? 'Sign in' : 'Create free account') }}
             </button>
           </form>
         </template>
@@ -90,38 +90,38 @@
         <template v-else-if="view === 'forgot'">
           <div v-if="forgotSent" class="notice success">
             <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-            <span>If an account exists for <strong>{{ form.email }}</strong>, a reset link is on its way. It expires in 1 hour — check your spam folder too.</span>
+            <span>{{ $t('If an account exists for {email}, a reset link is on its way. It expires in 1 hour — check your spam folder too.', { email: form.email }) }}</span>
           </div>
           <form v-else @submit.prevent="submitForgot" novalidate>
             <div class="f-grp">
-              <label class="f-lbl" for="au-femail">Email</label>
+              <label class="f-lbl" for="au-femail">{{ $t('Email') }}</label>
               <input id="au-femail" class="f-inp" v-model="form.email" type="email" autocomplete="email" :class="{ err: errors.email }" />
-              <div v-if="errors.email" class="field-err">{{ errors.email }}</div>
+              <div v-if="errors.email" class="field-err">{{ $t(errors.email) }}</div>
             </div>
-            <div v-if="serverError" class="notice error auth-err">{{ serverError }}</div>
-            <button type="submit" class="btn-primary accent btn-lg btn-block" :disabled="loading">{{ loading ? 'Sending…' : 'Send reset link' }}</button>
+            <div v-if="serverError" class="notice error auth-err">{{ $t(serverError) }}</div>
+            <button type="submit" class="btn-primary accent btn-lg btn-block" :disabled="loading">{{ $t(loading ? 'Sending…' : 'Send reset link') }}</button>
           </form>
-          <button class="link-btn auth-back" @click="switchView('signin')">← Back to sign in</button>
+          <button class="link-btn auth-back" @click="switchView('signin')">← {{ $t('Back to sign in') }}</button>
         </template>
 
         <!-- Reset password (link from email) -->
         <template v-else>
-          <div v-if="resetTokenError" class="notice error">{{ resetTokenError }}</div>
+          <div v-if="resetTokenError" class="notice error">{{ $t(resetTokenError) }}</div>
           <form v-else @submit.prevent="submitReset" novalidate>
             <div class="f-grp">
-              <label class="f-lbl" for="au-npw">New password</label>
-              <input id="au-npw" class="f-inp" v-model="form.password" type="password" autocomplete="new-password" placeholder="At least 8 characters" :class="{ err: errors.password }" />
-              <div v-if="errors.password" class="field-err">{{ errors.password }}</div>
+              <label class="f-lbl" for="au-npw">{{ $t('New password') }}</label>
+              <input id="au-npw" class="f-inp" v-model="form.password" type="password" autocomplete="new-password" :placeholder="$t('At least 8 characters')" :class="{ err: errors.password }" />
+              <div v-if="errors.password" class="field-err">{{ $t(errors.password) }}</div>
             </div>
             <div class="f-grp">
-              <label class="f-lbl" for="au-cpw">Confirm password</label>
+              <label class="f-lbl" for="au-cpw">{{ $t('Confirm password') }}</label>
               <input id="au-cpw" class="f-inp" v-model="form.confirm" type="password" autocomplete="new-password" :class="{ err: errors.confirm }" />
-              <div v-if="errors.confirm" class="field-err">{{ errors.confirm }}</div>
+              <div v-if="errors.confirm" class="field-err">{{ $t(errors.confirm) }}</div>
             </div>
-            <div v-if="serverError" class="notice error auth-err">{{ serverError }}</div>
-            <button type="submit" class="btn-primary accent btn-lg btn-block" :disabled="loading">{{ loading ? 'Saving…' : 'Set new password' }}</button>
+            <div v-if="serverError" class="notice error auth-err">{{ $t(serverError) }}</div>
+            <button type="submit" class="btn-primary accent btn-lg btn-block" :disabled="loading">{{ $t(loading ? 'Saving…' : 'Set new password') }}</button>
           </form>
-          <button class="link-btn auth-back" @click="switchView('forgot')">Request a new link</button>
+          <button class="link-btn auth-back" @click="switchView('forgot')">{{ $t('Request a new link') }}</button>
         </template>
         </div>
       </div>
@@ -135,7 +135,8 @@ import { suggestEmail, checkEmail } from '../../composables/emailTypos.js'
 import { useAuthStore } from '../../stores/auth.js'
 import BrandLogo from '../BrandLogo.vue'
 import CvThumb from '../CvThumb.vue'
-import { SAMPLE_CV } from '../../composables/sampleCv.js'
+import { sampleCv } from '../../composables/sampleCv.js'
+import { lang } from '../../i18n/index.js'
 
 const props = defineProps({
   initialView: { type: String, default: 'register' },   // signin | register | forgot | reset
@@ -179,7 +180,7 @@ async function onEmailBlur() {
 }
 
 const subtitle = computed(() => {
-  if (view.value === 'forgot') return "Enter your email and we'll send you a reset link."
+  if (view.value === 'forgot') return 'Enter your email and we’ll send you a reset link.'
   if (view.value === 'reset')  return 'Use at least 8 characters.'
   if (props.reason && REASONS[props.reason]) return REASONS[props.reason]
   return view.value === 'signin' ? 'Sign in to see your saved CVs.' : 'Free to build. Pay only when you export.'
@@ -196,7 +197,7 @@ function check(fields) {
   if (fields.includes('email') && !emailOk(form.value.email)) e.email = 'Please enter a valid email address.'
   if (fields.includes('password') && !form.value.password) e.password = 'Please enter your password.'
   if (fields.includes('newPassword') && form.value.password.length < 8) e.password = 'Use at least 8 characters.'
-  if (fields.includes('confirm') && form.value.password !== form.value.confirm) e.confirm = "The passwords don't match."
+  if (fields.includes('confirm') && form.value.password !== form.value.confirm) e.confirm = 'The passwords don’t match.'
   if (fields.includes('terms') && !agreed.value) e.terms = 'Please agree to the Terms and Privacy Policy.'
   errors.value = e
   serverError.value = ''
@@ -245,7 +246,7 @@ function renderGoogle() {
   window.google.accounts.id.initialize({ client_id: clientId, callback: onGoogleCredential, cancel_on_tap_outside: true })
   googleEl.value.innerHTML = ''
   window.google.accounts.id.renderButton(googleEl.value, {
-    theme: 'outline', size: 'large', shape: 'rectangular', text: 'continue_with',
+    theme: 'outline', size: 'large', shape: 'rectangular', text: 'continue_with', locale: lang.value,
     width: Math.min(googleEl.value.clientWidth || 360, 400),
   })
   googleReady.value = true
@@ -276,6 +277,7 @@ function loadGoogle() {
   setTimeout(() => clearInterval(poll), 10000)
 }
 watch(view, (v) => { if (v === 'signin' || v === 'register') nextTick(renderGoogle) })
+watch(lang, () => nextTick(renderGoogle))   // Google button in the interface language
 
 onMounted(async () => {
   const params = new URLSearchParams(window.location.search)

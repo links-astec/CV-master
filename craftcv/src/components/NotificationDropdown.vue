@@ -1,6 +1,6 @@
 <template>
   <div class="notif-wrap" ref="wrap">
-    <button class="icon-btn" @click="toggle" :title="open ? 'Close notifications' : 'Notifications'">
+    <button class="icon-btn" @click="toggle" :title="$t(open ? 'Close notifications' : 'Notifications')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
       <span v-if="notifStore.unreadCount > 0" class="notif-dot"></span>
     </button>
@@ -9,16 +9,16 @@
       <div v-if="open" class="notif-dropdown">
         <div class="notif-hd">
           <div class="notif-hd-title">
-            Notifications
+            {{ $t('Notifications') }}
             <span v-if="notifStore.unreadCount" class="notif-count-badge">{{ notifStore.unreadCount }}</span>
           </div>
-          <button v-if="notifStore.unreadCount" class="notif-mark-all" @click="notifStore.markAllRead()">Mark all read</button>
+          <button v-if="notifStore.unreadCount" class="notif-mark-all" @click="notifStore.markAllRead()">{{ $t('Mark all read') }}</button>
         </div>
 
         <div class="notif-list">
           <div v-if="!notifStore.items.length" class="notif-empty">
             <svg style="width:28px;height:28px;color:var(--c-border2);margin-bottom:8px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
-            <div>No notifications yet</div>
+            <div>{{ $t('No notifications yet') }}</div>
           </div>
 
           <div v-for="n in notifStore.items" :key="n.id"
@@ -28,8 +28,8 @@
               <svg :style="{ color: iconColor(n.type) }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" v-html="iconPath(n.type)"></svg>
             </div>
             <div class="notif-content">
-              <div class="notif-title">{{ n.title }}</div>
-              <div class="notif-body">{{ n.body }}</div>
+              <div class="notif-title">{{ $t(n.title) }}</div>
+              <div class="notif-body">{{ $t(n.body) }}</div>
               <div class="notif-time">{{ timeAgo(n.time) }}</div>
             </div>
             <div v-if="!n.read" class="notif-unread-pip"></div>
@@ -43,6 +43,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useNotifStore } from '../stores/notifications.js'
+import { t } from '../i18n/index.js'
 
 const notifStore = useNotifStore()
 const open = ref(false)
@@ -72,10 +73,10 @@ function iconColor(type) {
 
 function timeAgo(ts) {
   const d = Date.now() - ts
-  if (d < 60000) return 'just now'
-  if (d < 3600000) return `${Math.floor(d / 60000)}m ago`
-  if (d < 86400000) return `${Math.floor(d / 3600000)}h ago`
-  return `${Math.floor(d / 86400000)}d ago`
+  if (d < 60000) return t('just now')
+  if (d < 3600000) return t('{n} min ago', { n: Math.floor(d / 60000) })
+  if (d < 86400000) return t('{n} h ago', { n: Math.floor(d / 3600000) })
+  return t('{n} d ago', { n: Math.floor(d / 86400000) })
 }
 
 function onClickOutside(e) { if (wrap.value && !wrap.value.contains(e.target)) open.value = false }

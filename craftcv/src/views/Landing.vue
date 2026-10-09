@@ -5,13 +5,14 @@
       <div class="lp-wrap lp-nav-in">
         <BrandLogo />
         <nav class="lp-links">
-          <a href="#templates" @click.prevent="go('#templates')">Templates</a>
-          <a href="#pricing" @click.prevent="go('#pricing')">Pricing</a>
-          <a href="#faq" @click.prevent="go('#faq')">FAQ</a>
+          <a href="#templates" @click.prevent="go('#templates')">{{ $t('Templates') }}</a>
+          <a href="#pricing" @click.prevent="go('#pricing')">{{ $t('Pricing') }}</a>
+          <a href="#faq" @click.prevent="go('#faq')">{{ $t('FAQ') }}</a>
         </nav>
         <div class="lp-nav-cta">
-          <button v-if="!signedIn" class="btn-ghost" @click="$emit('sign-in')">Sign in</button>
-          <button class="btn-primary accent" @click="$emit('start')">{{ signedIn ? 'Open my CVs' : 'Build my CV' }}</button>
+          <LangSwitch />
+          <button v-if="!signedIn" class="btn-ghost" @click="$emit('sign-in')">{{ $t('Sign in') }}</button>
+          <button class="btn-primary accent" @click="$emit('start')">{{ $t(signedIn ? 'Open my CVs' : 'Build my CV') }}</button>
         </div>
       </div>
     </header>
@@ -20,25 +21,25 @@
     <section class="lp-hero">
       <div class="lp-wrap lp-hero-in">
         <div class="lp-hero-copy">
-          <h1>A CV that gets you <span class="lp-hl">the interview.</span></h1>
-          <p class="lp-lead">Build it in minutes, tailor it to the job, and see how well it matches — before you apply.</p>
+          <h1>{{ $t('A CV that gets you') }} <span class="lp-hl">{{ $t('the interview.') }}</span></h1>
+          <p class="lp-lead">{{ $t('Build it in minutes, tailor it to the job, and see how well it matches — before you apply.') }}</p>
           <div class="lp-cta">
             <button class="btn-primary accent btn-lg" @click="$emit('start')">
-              Build my CV — free
+              {{ $t('Build my CV — free') }}
               <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </button>
-            <button class="btn-ghost btn-lg" @click="go('#templates')">See templates</button>
+            <button class="btn-ghost btn-lg" @click="go('#templates')">{{ $t('See templates') }}</button>
           </div>
           <ul class="lp-trust">
-            <li v-for="t in TRUST" :key="t"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ t }}</li>
+            <li v-for="t in TRUST" :key="t"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ $t(t) }}</li>
           </ul>
         </div>
 
         <div class="lp-hero-art" aria-hidden="true" inert>
-          <div class="lp-page"><CvThumb template="modern:indigo" :data="SAMPLE_CV" /></div>
+          <div class="lp-page"><CvThumb template="modern:indigo" :data="sampleCv()" /></div>
           <div class="lp-check">
-            <div class="lp-check-score"><span>86%</span>job match</div>
-            <div v-for="c in CHECKS" :key="c" class="lp-check-row"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ c }}</div>
+            <div class="lp-check-score"><span>86%</span>{{ $t('job match') }}</div>
+            <div v-for="c in CHECKS" :key="c" class="lp-check-row"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ $t(c) }}</div>
           </div>
         </div>
       </div>
@@ -47,12 +48,12 @@
     <!-- How it works -->
     <section class="lp-sec lp-alt" id="how">
       <div class="lp-wrap">
-        <h2 class="lp-h2">Three steps, about ten minutes</h2>
+        <h2 class="lp-h2">{{ $t('Three steps, about ten minutes') }}</h2>
         <div class="lp-steps">
           <div v-for="(s, i) in STEPS" :key="s.t" class="lp-step">
             <span class="lp-step-n">{{ i + 1 }}</span>
-            <h3>{{ s.t }}</h3>
-            <p>{{ s.d }}</p>
+            <h3>{{ $t(s.t) }}</h3>
+            <p>{{ $t(s.d) }}</p>
           </div>
         </div>
       </div>
@@ -61,23 +62,23 @@
     <!-- Templates -->
     <section class="lp-sec" id="templates">
       <div class="lp-wrap">
-        <h2 class="lp-h2">50 templates, 12 colours</h2>
-        <p class="lp-sub">Plain ATS-friendly ones for online applications, creative ones for print and in person.</p>
+        <h2 class="lp-h2">{{ $t('50 templates, 12 colours') }}</h2>
+        <p class="lp-sub">{{ $t('Plain ATS-friendly ones for online applications, creative ones for print and in person.') }}</p>
         <div class="lp-tpls">
           <figure v-for="t in SHOWCASE" :key="t.id" class="lp-tpl">
-            <div class="lp-tpl-img"><CvThumb :template="t.id" :data="SAMPLE_CV" /></div>
+            <div class="lp-tpl-img"><CvThumb :template="t.id" :data="sampleCv()" /></div>
             <figcaption>{{ t.name }}</figcaption>
           </figure>
         </div>
-        <div class="lp-center"><button class="btn-secondary" @click="$emit('start')">Browse all templates</button></div>
+        <div class="lp-center"><button class="btn-secondary" @click="$emit('start')">{{ $t('Browse all templates') }}</button></div>
       </div>
     </section>
 
     <!-- Reviews — real ones only, shown once there are enough -->
     <section v-if="rv.average" class="lp-sec" id="reviews">
       <div class="lp-wrap">
-        <h2 class="lp-h2">Rated {{ rv.average.toFixed(1) }} out of 5</h2>
-        <p class="lp-sub"><span class="lp-stars" role="img" :aria-label="`${rv.average} out of 5 stars`">{{ '★'.repeat(Math.round(rv.average)) }}<span>{{ '★'.repeat(5 - Math.round(rv.average)) }}</span></span> from {{ rv.count }} reviews by people who built their CV here</p>
+        <h2 class="lp-h2">{{ $t('Rated {n} out of 5', { n: rv.average.toLocaleString(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }) }}</h2>
+        <p class="lp-sub"><span class="lp-stars" role="img" :aria-label="$t('{n} out of 5 stars', { n: rv.average })">{{ '★'.repeat(Math.round(rv.average)) }}<span>{{ '★'.repeat(5 - Math.round(rv.average)) }}</span></span> {{ $t('from {n} reviews by people who built their CV here', { n: rv.count }) }}</p>
         <div v-if="rv.reviews.length" class="lp-reviews">
           <figure v-for="(r, i) in rv.reviews.slice(0, 3)" :key="i" class="lp-review">
             <div class="lp-stars">{{ '★'.repeat(r.rating) }}<span>{{ '★'.repeat(5 - r.rating) }}</span></div>
@@ -91,29 +92,29 @@
     <!-- Pricing -->
     <section class="lp-sec lp-alt" id="pricing">
       <div class="lp-wrap">
-        <h2 class="lp-h2">Free to build. €0.99 when you’re ready.</h2>
-        <p class="lp-sub">No subscription, no trial that renews.</p>
+        <h2 class="lp-h2">{{ $t('Free to build. €0.99 when you’re ready.') }}</h2>
+        <p class="lp-sub">{{ $t('No subscription, no trial that renews.') }}</p>
         <div class="lp-prices">
           <div v-for="p in PLANS" :key="p.name" class="lp-price" :class="{ featured: p.featured }">
-            <h3>{{ p.name }}</h3>
-            <div class="lp-amt">{{ p.price }}<span>{{ p.per }}</span></div>
+            <h3>{{ $t(p.name) }}</h3>
+            <div class="lp-amt">{{ $t(p.price) }}<span>{{ p.per && $t(p.per) }}</span></div>
             <ul>
-              <li v-for="it in p.items" :key="it"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ it }}</li>
+              <li v-for="it in p.items" :key="it"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ $t(it) }}</li>
             </ul>
-            <button class="btn-block btn-lg" :class="p.featured ? 'btn-primary accent' : 'btn-secondary'" @click="$emit('start')">{{ p.cta }}</button>
+            <button class="btn-block btn-lg" :class="p.featured ? 'btn-primary accent' : 'btn-secondary'" @click="$emit('start')">{{ $t(p.cta) }}</button>
           </div>
         </div>
-        <p class="lp-small">Need more AI? 100 extra requests cost €0.50 and never expire.</p>
+        <p class="lp-small">{{ $t('Need more AI? 100 extra requests cost €0.50 and never expire.') }}</p>
       </div>
     </section>
 
     <!-- FAQ -->
     <section class="lp-sec" id="faq">
       <div class="lp-wrap lp-faq-wrap">
-        <h2 class="lp-h2">Questions</h2>
+        <h2 class="lp-h2">{{ $t('Questions') }}</h2>
         <details v-for="q in FAQ" :key="q.q" class="lp-faq">
-          <summary>{{ q.q }}<svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></summary>
-          <p>{{ q.a }}</p>
+          <summary>{{ $t(q.q) }}<svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></summary>
+          <p>{{ $t(q.a) }}</p>
         </details>
       </div>
     </section>
@@ -123,21 +124,21 @@
       <div class="lp-wrap">
         <div class="lp-news">
           <div class="lp-news-txt">
-            <h2>CV tips in your inbox</h2>
-            <p>Short, practical advice on CVs, ATS and applications, plus new templates when they land. A couple of emails a month at most.</p>
+            <h2>{{ $t('CV tips in your inbox') }}</h2>
+            <p>{{ $t('Short, practical advice on CVs, ATS and applications, plus new templates when they land. A couple of emails a month at most.') }}</p>
           </div>
           <div v-if="nl.state === 'done'" class="lp-news-done" role="status">
             <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-            <span>{{ nl.already ? 'You’re already subscribed — thanks!' : 'Almost done — click the link we just emailed you to confirm.' }}</span>
+            <span>{{ $t(nl.already ? 'You’re already subscribed — thanks!' : 'Almost done — click the link we just emailed you to confirm.') }}</span>
           </div>
           <form v-else class="lp-news-form" novalidate @submit.prevent="subscribe">
             <div class="lp-news-row">
-              <input v-model="nl.email" class="f-inp" type="email" autocomplete="email" placeholder="you@example.com" aria-label="Email address" @input="nl.error = ''" />
-              <button class="btn-primary accent" :disabled="nl.state === 'sending'">{{ nl.state === 'sending' ? 'Subscribing…' : 'Subscribe' }}</button>
+              <input v-model="nl.email" class="f-inp" type="email" autocomplete="email" :placeholder="$t('you@example.com')" :aria-label="$t('Email address')" @input="nl.error = ''" />
+              <button class="btn-primary accent" :disabled="nl.state === 'sending'">{{ $t(nl.state === 'sending' ? 'Subscribing…' : 'Subscribe') }}</button>
             </div>
-            <p v-if="nl.error" class="lp-news-err" role="alert">{{ nl.error }}</p>
-            <p v-else-if="nlSuggest" class="lp-news-fine">Did you mean <button type="button" class="lp-news-fix" @click="nl.email = nlSuggest">{{ nlSuggest }}</button>?</p>
-            <p class="lp-news-fine">No spam, and you can unsubscribe in one click. See our <a href="/privacy">Privacy Policy</a>.</p>
+            <p v-if="nl.error" class="lp-news-err" role="alert">{{ $t(nl.error) }}</p>
+            <p v-else-if="nlSuggest" class="lp-news-fine">{{ $t('Did you mean') }} <button type="button" class="lp-news-fix" @click="nl.email = nlSuggest">{{ nlSuggest }}</button>?</p>
+            <p class="lp-news-fine">{{ $t('No spam, and you can unsubscribe in one click.') }} <a href="/privacy">{{ $t('Privacy Policy') }}</a></p>
           </form>
         </div>
       </div>
@@ -146,8 +147,8 @@
     <!-- Final CTA -->
     <section class="lp-final">
       <div class="lp-wrap lp-final-in">
-        <h2>Ready when you are.</h2>
-        <button class="btn-primary accent btn-lg" @click="$emit('start')">Build my CV — free</button>
+        <h2>{{ $t('Ready when you are.') }}</h2>
+        <button class="btn-primary accent btn-lg" @click="$emit('start')">{{ $t('Build my CV — free') }}</button>
       </div>
     </section>
 
@@ -155,7 +156,7 @@
       <div class="lp-wrap lp-foot-in">
         <BrandLogo small />
         <span>© {{ new Date().getFullYear() }} CVMaster</span>
-        <nav><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="#" @click.prevent="openFeedback?.()">Feedback</a><a href="mailto:support@cvmaster.live">Contact</a></nav>
+        <nav><a href="/privacy">{{ $t('Privacy') }}</a><a href="/terms">{{ $t('Terms') }}</a><a href="#" @click.prevent="openFeedback?.()">{{ $t('Feedback') }}</a><a href="mailto:support@cvmaster.live">{{ $t('Contact') }}</a></nav>
       </div>
     </footer>
   </div>
@@ -165,8 +166,10 @@
 import { ref, reactive, computed, inject, onMounted, onUnmounted } from 'vue'
 import BrandLogo from '../components/BrandLogo.vue'
 import CvThumb from '../components/CvThumb.vue'
-import { SAMPLE_CV } from '../composables/sampleCv.js'
+import { sampleCv } from '../composables/sampleCv.js'
 import { suggestEmail } from '../composables/emailTypos.js'
+import LangSwitch from '../components/LangSwitch.vue'
+import { locale } from '../i18n/index.js'
 
 const openFeedback = inject('openFeedback', null)
 
@@ -262,7 +265,7 @@ const FAQ = [
 .lp-links{display:flex;gap:28px}
 .lp-links a{color:var(--c-text2);text-decoration:none;font-size:14.5px;font-weight:500}
 .lp-links a:hover{color:var(--c-text)}
-.lp-nav-cta{display:flex;gap:6px}
+.lp-nav-cta{display:flex;gap:6px;align-items:center}
 
 /* Hero */
 .lp-hero{padding:64px 0 80px;background:linear-gradient(180deg,var(--c-accent-lt) 0%,var(--c-surface) 85%)}
@@ -365,6 +368,7 @@ const FAQ = [
 }
 @media (max-width:560px){
   .lp-nav-cta .btn-ghost{display:none}
+  .lp-nav-cta{gap:8px}
   .lp-hero{padding:36px 0 56px}
   .lp-check{position:relative;left:auto;bottom:auto;width:auto;margin-top:-30px;margin-left:16px;margin-right:16px}
   .lp-sec{padding:60px 0}

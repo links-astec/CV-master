@@ -2,7 +2,7 @@
   <div class="ced">
     <div class="ced-tabs">
       <div class="seg">
-        <button v-for="t in TABS" :key="t.id" :class="{ active: tab === t.id }" @click="tab = t.id">{{ t.label }}</button>
+        <button v-for="t in TABS" :key="t.id" :class="{ active: tab === t.id }" @click="tab = t.id">{{ $t(t.label) }}</button>
       </div>
     </div>
 
@@ -14,7 +14,7 @@
             <span class="acc-dot" :class="{ done: s.done() }">
               <svg v-if="s.done()" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
             </span>
-            <span class="acc-title">{{ s.label }}</span>
+            <span class="acc-title">{{ $t(s.label) }}</span>
             <span class="acc-meta">{{ s.meta() }}</span>
             <svg class="acc-chev" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
@@ -41,6 +41,7 @@ import StepExperience from './wizard/StepExperience.vue'
 import StepSkills from './wizard/StepSkills.vue'
 import StepEducation from './wizard/StepEducation.vue'
 import JobMatch from './JobMatch.vue'
+import { t } from '../i18n/index.js'
 
 defineEmits(['pay'])
 const store = useCvStore()
@@ -55,18 +56,18 @@ const open = ref('personal')
 const bodyRef = ref(null)
 
 const d = () => store.data
-const count = (n, one, many) => n ? `${n} ${n === 1 ? one : many}` : ''
+const count = (n, one, many) => n ? t(n === 1 ? one : many, { n }) : ''
 const SECTIONS = [
   { id: 'personal',   label: 'Personal details', comp: StepPersonal,
     done: () => !!(d().fn && d().email), meta: () => [d().fn, d().ln].filter(Boolean).join(' ') },
   { id: 'summary',    label: 'Summary',          comp: StepSummary,
-    done: () => (d().sum || '').length > 40, meta: () => d().sum ? `${d().sum.split(/\s+/).length} words` : '' },
+    done: () => (d().sum || '').length > 40, meta: () => d().sum ? t('{n} words', { n: d().sum.split(/\s+/).length }) : '' },
   { id: 'experience', label: 'Experience',       comp: StepExperience,
-    done: () => d().experiences.some(e => e.title && e.desc), meta: () => count(d().experiences.filter(e => e.title || e.company).length, 'role', 'roles') },
+    done: () => d().experiences.some(e => e.title && e.desc), meta: () => count(d().experiences.filter(e => e.title || e.company).length, '{n} role', '{n} roles') },
   { id: 'skills',     label: 'Skills',           comp: StepSkills,
-    done: () => d().skills.length >= 5, meta: () => count(d().skills.length, 'skill', 'skills') },
+    done: () => d().skills.length >= 5, meta: () => count(d().skills.length, '{n} skill', '{n} skills') },
   { id: 'education',  label: 'Education, projects & languages', comp: StepEducation,
-    done: () => d().education.some(e => e.degree || e.school), meta: () => count(d().education.filter(e => e.degree || e.school).length, 'entry', 'entries') },
+    done: () => d().education.some(e => e.degree || e.school), meta: () => count(d().education.filter(e => e.degree || e.school).length, '{n} entry', '{n} entries') },
 ]
 
 function toggle(id) { open.value = open.value === id ? null : id }

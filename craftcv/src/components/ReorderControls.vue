@@ -1,12 +1,12 @@
 <template>
   <div class="roc">
-    <span class="roc-grip" title="Drag to reorder" aria-hidden="true" @mousedown="$emit('arm')" @mouseup="$emit('disarm')">
+    <span class="roc-grip" :title="$t('Drag to reorder')" aria-hidden="true" @mousedown="$emit('arm')" @mouseup="$emit('disarm')">
       <svg viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/></svg>
     </span>
-    <button type="button" class="roc-btn" :disabled="index === 0" aria-label="Move up" title="Move up" @click="$emit('move', -1)">
+    <button type="button" class="roc-btn" :disabled="index === 0" :aria-label="$t('Move up')" :title="$t('Move up')" @click="$emit('move', -1)">
       <svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
     </button>
-    <button type="button" class="roc-btn" :disabled="index >= total - 1" aria-label="Move down" title="Move down" @click="$emit('move', 1)">
+    <button type="button" class="roc-btn" :disabled="index >= total - 1" :aria-label="$t('Move down')" :title="$t('Move down')" @click="$emit('move', 1)">
       <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
     </button>
   </div>

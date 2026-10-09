@@ -3,20 +3,20 @@
     <div class="view-inner">
       <div class="page-intro">
         <div>
-          <h1>My CVs</h1>
-          <p v-if="auth.isLoggedIn">{{ cards.length ? 'Open a CV to edit it, or download and send it.' : 'Your saved CVs will appear here.' }}</p>
-          <p v-else>You're using CVMaster as a guest — your CV is saved in this browser.</p>
+          <h1>{{ $t('My CVs') }}</h1>
+          <p v-if="auth.isLoggedIn">{{ $t(cards.length ? 'Open a CV to edit it, or download and send it.' : 'Your saved CVs will appear here.') }}</p>
+          <p v-else>{{ $t('You’re using CVMaster as a guest — your CV is saved in this browser.') }}</p>
         </div>
         <button class="btn-primary accent" @click="newCV">
           <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          New CV
+          {{ $t('New CV') }}
         </button>
       </div>
 
       <div v-if="!auth.isLoggedIn && store.hasContent" class="notice info db-guest">
         <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        <span><strong>This CV only lives in this browser.</strong> Create a free account to keep it safe, edit it on any device and export it.</span>
-        <button class="btn-primary accent btn-sm" @click="openAuth('register', 'save')">Create account</button>
+        <span><strong>{{ $t('This CV only lives in this browser.') }}</strong> {{ $t('Create a free account to keep it safe, edit it on any device and export it.') }}</span>
+        <button class="btn-primary accent btn-sm" @click="openAuth('register', 'save')">{{ $t('Create account') }}</button>
       </div>
 
       <div v-if="loading" class="db-grid">
@@ -25,30 +25,30 @@
 
       <div v-else-if="cards.length" class="db-grid">
         <article v-for="c in cards" :key="c.key" class="db-card">
-          <button class="db-thumb" @click="open(c)" :aria-label="`Open ${c.title}`">
+          <button class="db-thumb" @click="open(c)" :aria-label="$t('Open {title}', { title: c.title })">
             <CvThumb :template="c.template" :data="c.data" :fmt="c.data.fmt || {}" />
           </button>
           <div class="db-body">
             <div class="db-title-row">
               <h3 class="db-title" :title="c.title">{{ c.title }}</h3>
-              <span v-if="c.paid" class="badge green">Paid</span>
+              <span v-if="c.paid" class="badge green">{{ $t('Paid') }}</span>
             </div>
             <div class="db-meta">
               <span>{{ templateLabel(c.template) }}</span>
               <span v-if="c.updatedAt">· {{ timeAgo(c.updatedAt) }}</span>
             </div>
-            <div class="db-progress" :title="`${progress(c.data)}% complete`">
+            <div class="db-progress" :title="$t('{n}% complete', { n: progress(c.data) })">
               <div class="db-progress-bar" :style="{ width: progress(c.data) + '%' }"></div>
             </div>
             <div class="db-actions">
-              <button class="btn-secondary btn-sm" @click="open(c)">Open</button>
+              <button class="btn-secondary btn-sm" @click="open(c)">{{ $t('Open') }}</button>
               <button class="btn-secondary btn-sm" :disabled="busy === c.key" @click="download(c)">
-                {{ busy === c.key ? 'Preparing…' : 'Download' }}
+                {{ $t(busy === c.key ? 'Preparing…' : 'Download') }}
               </button>
               <button v-if="c.paid" class="btn-secondary btn-sm" :disabled="busy === c.key + 'send'" @click="resend(c)">
-                {{ busy === c.key + 'send' ? 'Sending…' : 'Email again' }}
+                {{ $t(busy === c.key + 'send' ? 'Sending…' : 'Email again') }}
               </button>
-              <button v-if="c.id" class="icon-btn db-del" title="Delete" @click="remove(c)">
+              <button v-if="c.id" class="icon-btn db-del" :title="$t('Delete')" @click="remove(c)">
                 <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
               </button>
             </div>
@@ -58,15 +58,15 @@
 
       <!-- Empty state -->
       <div v-else class="db-empty card">
-        <div class="db-empty-art"><CvThumb template="modern:indigo" :data="SAMPLE_CV" /></div>
+        <div class="db-empty-art"><CvThumb template="modern:indigo" :data="sampleCv()" /></div>
         <div class="db-empty-copy">
-          <h2>Let's build your CV</h2>
-          <p>Pick a layout, tell us about your experience (or import an old CV), tailor it to a job offer, and export a one-page PDF.</p>
+          <h2>{{ $t('Let’s build your CV') }}</h2>
+          <p>{{ $t('Pick a layout, tell us about your experience (or import an old CV), tailor it to a job offer, and export a one-page PDF.') }}</p>
           <div class="db-empty-cta">
-            <button class="btn-primary accent" @click="router.push('/templates')">Choose a layout</button>
-            <button class="btn-secondary" @click="importCv">Import an existing CV</button>
+            <button class="btn-primary accent" @click="router.push('/templates')">{{ $t('Choose a layout') }}</button>
+            <button class="btn-secondary" @click="importCv">{{ $t('Import an existing CV') }}</button>
           </div>
-          <button class="link-btn db-tour" @click="startTutorial?.()">Take a 1-minute tour</button>
+          <button class="link-btn db-tour" @click="startTutorial?.()">{{ $t('Take a 1-minute tour') }}</button>
         </div>
       </div>
     </div>
@@ -90,9 +90,10 @@ import { useCvStore, hasDraftableContent } from '../stores/cv.js'
 import { useAuthStore } from '../stores/auth.js'
 import { render, templateLabel, normalizeTemplate } from '../composables/cvRenderer.js'
 import { exportDocument } from '../composables/pageFit.js'
-import { SAMPLE_CV } from '../composables/sampleCv.js'
+import { sampleCv } from '../composables/sampleCv.js'
 import CvThumb from '../components/CvThumb.vue'
 import WatermarkUnlock from '../components/WatermarkUnlock.vue'
+import { t, locale } from '../i18n/index.js'
 
 const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
 const store  = useCvStore()
@@ -124,13 +125,13 @@ const cards = computed(() => {
     const live = d.id === store.currentDraftId
     const data = live ? { ...store.data, fmt: store.fmt } : (d.data || {})
     return { key: d.id, id: d.id, data, template: normalizeTemplate(live ? store.template : d.template),
-             title: titleOf(data) || d.title || 'Untitled CV', updatedAt: d.updatedAt, paid: legacyPaidAll.value || paidIds.value.has(d.id) }
+             title: titleOf(data) || d.title || t('Untitled CV'), updatedAt: d.updatedAt, paid: legacyPaidAll.value || paidIds.value.has(d.id) }
   }).filter(c => hasDraftableContent(c.data))
 })
 
 function titleOf(d) {
   const name = [d?.fn, d?.ln].filter(Boolean).join(' ')
-  return name ? (d.title ? `${name} — ${d.title}` : name) : (d?.title || 'Untitled CV')
+  return name ? (d.title ? `${name} — ${d.title}` : name) : (d?.title || t('Untitled CV'))
 }
 
 function progress(d = {}) {
@@ -144,11 +145,11 @@ function progress(d = {}) {
 
 function timeAgo(ts) {
   const s = (Date.now() - new Date(ts).getTime()) / 1000
-  if (s < 60) return 'just now'
-  if (s < 3600) return `${Math.floor(s / 60)} min ago`
-  if (s < 86400) return `${Math.floor(s / 3600)} h ago`
+  if (s < 60) return t('just now')
+  if (s < 3600) return t('{n} min ago', { n: Math.floor(s / 60) })
+  if (s < 86400) return t('{n} h ago', { n: Math.floor(s / 3600) })
   const days = Math.floor(s / 86400)
-  return days < 30 ? `${days} d ago` : new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+  return days < 30 ? t('{n} d ago', { n: days }) : new Date(ts).toLocaleDateString(locale(), { day: 'numeric', month: 'short' })
 }
 
 async function loadDrafts() {
@@ -183,7 +184,7 @@ function open(c) {
 
 async function newCV() {
   if (!auth.isLoggedIn && store.hasContent) {
-    const ok = await confirm({ title: 'Start a new CV?', message: "Your current CV is only saved in this browser, so it will be replaced. Create a free account first if you want to keep both.", ok: 'Start new CV', cancel: 'Keep current', mode: 'warning' })
+    const ok = await confirm({ title: t('Start a new CV?'), message: t('Your current CV is only saved in this browser, so it will be replaced. Create a free account first if you want to keep both.'), ok: t('Start new CV'), cancel: t('Keep current'), mode: 'warning' })
     if (!ok) return
   }
   store.resetData()
@@ -237,7 +238,7 @@ async function download(c) {
     cleanFileName.value = j.fileName || fileName(card)
     showUnlock.value = true
   } catch (e) {
-    showToast('Download failed: ' + e.message)
+    showToast(t('Download failed: {e}', { e: t(e.message) }))
   } finally {
     busy.value = null
   }
@@ -261,7 +262,7 @@ async function resend(c) {
     })
     const j = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(j.error || 'Could not send the email.')
-    showToast(`Sent to ${j.sentTo}`)
+    showToast(t('Sent to {email}', { email: j.sentTo }))
   } catch (e) {
     showToast(e.message)
   } finally {
@@ -270,7 +271,7 @@ async function resend(c) {
 }
 
 async function remove(c) {
-  const ok = await confirm({ title: 'Delete this CV?', message: 'It will be permanently deleted from your account.', ok: 'Delete', cancel: 'Keep it', mode: 'danger' })
+  const ok = await confirm({ title: t('Delete this CV?'), message: t('It will be permanently deleted from your account.'), ok: t('Delete'), cancel: t('Keep it'), mode: 'danger' })
   if (!ok) return
   const r = await fetch(apiUrl(`/api/drafts/${c.id}`), { method: 'DELETE', credentials: 'include' })
   if (!r.ok) { showToast('Could not delete this CV.'); return }

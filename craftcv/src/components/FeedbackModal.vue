@@ -3,46 +3,46 @@
     <Transition name="fade">
       <div v-if="open" class="fb-backdrop" @click.self="close">
         <div class="fb" role="dialog" aria-labelledby="fb-title">
-          <button class="icon-btn fb-x" @click="close" aria-label="Close">
+          <button class="icon-btn fb-x" @click="close" :aria-label="$t('Close')">
             <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
 
           <template v-if="sentRef">
             <div class="fb-done">
               <div class="fb-done-ic"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
-              <h3>Thanks — we’ve got it</h3>
+              <h3>{{ $t('Thanks — we’ve got it') }}</h3>
               <p v-if="kind === 'complaint' || kind === 'payment'">
-                We take this seriously and will look into it. {{ email ? `We’ll reply to ${email}.` : 'Add an email next time if you’d like a reply.' }}
+                {{ $t('We take this seriously and will look into it.') }} {{ email ? $t('We’ll reply to {email}.', { email }) : $t('Add an email next time if you’d like a reply.') }}
               </p>
-              <p v-else>{{ email ? `If we need more detail we’ll reply to ${email}.` : 'We read every message.' }}</p>
-              <p class="fb-ref">Reference #{{ sentRef }}</p>
-              <button class="btn-primary accent" @click="close">Done</button>
+              <p v-else>{{ email ? $t('If we need more detail we’ll reply to {email}.', { email }) : $t('We read every message.') }}</p>
+              <p class="fb-ref">{{ $t('Reference #{ref}', { ref: sentRef }) }}</p>
+              <button class="btn-primary accent" @click="close">{{ $t('Done') }}</button>
             </div>
           </template>
 
           <template v-else>
-            <h3 id="fb-title">Feedback &amp; complaints</h3>
-            <p class="fb-sub">Tell us what’s working, what isn’t, or anything that went wrong. Every message is read.</p>
+            <h3 id="fb-title">{{ $t('Feedback & complaints') }}</h3>
+            <p class="fb-sub">{{ $t('Tell us what’s working, what isn’t, or anything that went wrong. Every message is read.') }}</p>
 
-            <div class="fb-lbl">What is it about?</div>
+            <div class="fb-lbl">{{ $t('What is it about?') }}</div>
             <div class="fb-kinds">
               <button v-for="k in KINDS" :key="k.id" class="fb-kind" :class="{ on: kind === k.id }" :aria-pressed="kind === k.id" @click="kind = k.id">
-                <span class="fb-kind-t">{{ k.label }}</span>
-                <span class="fb-kind-d">{{ k.desc }}</span>
+                <span class="fb-kind-t">{{ $t(k.label) }}</span>
+                <span class="fb-kind-d">{{ $t(k.desc) }}</span>
               </button>
             </div>
 
-            <label class="fb-lbl" for="fb-msg">Your message</label>
-            <textarea id="fb-msg" ref="msgRef" v-model="message" class="f-ta" rows="5" maxlength="4000" :placeholder="placeholder"></textarea>
+            <label class="fb-lbl" for="fb-msg">{{ $t('Your message') }}</label>
+            <textarea id="fb-msg" ref="msgRef" v-model="message" class="f-ta" rows="5" maxlength="4000" :placeholder="$t(placeholder)"></textarea>
 
-            <label class="fb-lbl" for="fb-email">Email for our reply <span class="fb-opt">{{ auth.isLoggedIn ? '' : '(optional)' }}</span></label>
-            <input id="fb-email" v-model="email" class="f-inp" type="email" placeholder="you@email.com" />
+            <label class="fb-lbl" for="fb-email">{{ $t('Email for our reply') }} <span class="fb-opt">{{ auth.isLoggedIn ? '' : $t('(optional)') }}</span></label>
+            <input id="fb-email" v-model="email" class="f-inp" type="email" :placeholder="$t('you@email.com')" />
 
-            <div v-if="error" class="fb-err">{{ error }}</div>
+            <div v-if="error" class="fb-err">{{ $t(error) }}</div>
             <div class="fb-ft">
-              <span class="fb-note">Urgent payment problem? Include the email you paid with.</span>
+              <span class="fb-note">{{ $t('Urgent payment problem? Include the email you paid with.') }}</span>
               <button class="btn-primary accent" :disabled="sending || message.trim().length < 10" @click="send">
-                {{ sending ? 'Sending…' : 'Send' }}
+                {{ $t(sending ? 'Sending…' : 'Send') }}
               </button>
             </div>
           </template>

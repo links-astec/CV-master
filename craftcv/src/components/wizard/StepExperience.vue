@@ -2,13 +2,13 @@
   <div class="step-wrap">
     <div class="step-intro">
       <div class="step-icon">💼</div>
-      <h3>Work Experience</h3>
-      <p>Add your roles. AI can quantify your achievements with real metrics.</p>
+      <h3>{{ $t('Work Experience') }}</h3>
+      <p>{{ $t('Add your roles. AI can quantify your achievements with real metrics.') }}</p>
     </div>
 
     <div v-if="outOfOrder" class="order-note">
-      <span>These roles aren’t in date order — recruiters expect the most recent first.</span>
-      <button class="btn-secondary btn-sm" @click="sortByDate(store.data.experiences, 'period')">Sort by date</button>
+      <span>{{ $t('These roles aren’t in date order — recruiters expect the most recent first.') }}</span>
+      <button class="btn-secondary btn-sm" @click="sortByDate(store.data.experiences, 'period')">{{ $t('Sort by date') }}</button>
     </div>
 
     <TransitionGroup name="exp-list">
@@ -16,43 +16,43 @@
         <div class="exp-card-hd">
           <ReorderControls v-if="store.data.experiences.length > 1" :index="idx" :total="store.data.experiences.length"
             @move="d => ro.move(idx, idx + d)" @arm="ro.arm(idx)" @disarm="ro.disarm()" />
-          <span class="exp-num">Role {{ idx + 1 }}</span>
-          <button v-if="store.data.experiences.length > 1" class="exp-rm" @click="store.removeExperience(exp.id)">Remove</button>
+          <span class="exp-num">{{ $t('Role {n}', { n: idx + 1 }) }}</span>
+          <button v-if="store.data.experiences.length > 1" class="exp-rm" @click="store.removeExperience(exp.id)">{{ $t('Remove') }}</button>
         </div>
         <div class="f-grp">
-          <div class="f-lbl">Job Title</div>
-          <input class="f-inp" v-model="exp.title" placeholder="Senior Product Manager" />
+          <div class="f-lbl">{{ $t('Job Title') }}</div>
+          <input class="f-inp" v-model="exp.title" :placeholder="$t('Senior Product Manager')" />
         </div>
         <div class="f-row">
           <div class="f-grp">
-            <div class="f-lbl">Company</div>
+            <div class="f-lbl">{{ $t('Company') }}</div>
             <input class="f-inp" v-model="exp.company" placeholder="Acme Corp" />
           </div>
           <div class="f-grp">
-            <div class="f-lbl">Period</div>
-            <input class="f-inp" v-model="exp.period" placeholder="2021 – Present" />
+            <div class="f-lbl">{{ $t('Period') }}</div>
+            <input class="f-inp" v-model="exp.period" :placeholder="$t('2021 – Present')" />
           </div>
         </div>
         <div class="f-grp">
-          <div class="f-lbl">Description / Achievements</div>
+          <div class="f-lbl">{{ $t('Description / Achievements') }}</div>
           <textarea class="f-ta" v-model="exp.desc" rows="4"
-            placeholder="• Led product strategy...&#10;• Grew revenue by 30%...&#10;• Managed a team of 8..."></textarea>
-          <div class="f-hint">Tip: start each line with • for bullet points on your CV</div>
+            :placeholder="$t('• Led product strategy…\n• Grew revenue by 30%…\n• Managed a team of 8…')"></textarea>
+          <div class="f-hint">{{ $t('Tip: start each line with • for bullet points on your CV') }}</div>
         </div>
         <button class="btn-ai-sm" @click="quantifyExp(exp, idx)" :disabled="quantifyIdx === idx">
           <svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
-          {{ quantifyIdx === idx ? 'Enhancing...' : 'Quantify with AI' }}
+          {{ $t(quantifyIdx === idx ? 'Enhancing…' : 'Quantify with AI') }}
         </button>
         <div v-if="quantifyIdx === idx" class="thinking" style="margin-top:8px;">
           <div class="thinking-dots"><span></span><span></span><span></span></div>
-          <div class="thinking-txt">Adding metrics & bullet points...</div>
+          <div class="thinking-txt">{{ $t('Adding metrics & bullet points…') }}</div>
         </div>
         <div v-if="suggestions[idx]" class="ai-suggestion">
-          <div class="ai-sug-lbl">✨ Enhanced Version — with bullet points & metrics</div>
+          <div class="ai-sug-lbl">✨ {{ $t('Enhanced version — with bullet points & metrics') }}</div>
           <div class="ai-sug-txt" style="white-space:pre-line;">{{ suggestions[idx] }}</div>
           <div class="ai-sug-actions">
-            <button class="btn-sug-use" @click="applySuggestion(exp, idx)">Apply</button>
-            <button class="btn-sug-dismiss" @click="delete suggestions[idx]">Dismiss</button>
+            <button class="btn-sug-use" @click="applySuggestion(exp, idx)">{{ $t('Apply') }}</button>
+            <button class="btn-sug-dismiss" @click="delete suggestions[idx]">{{ $t('Dismiss') }}</button>
           </div>
         </div>
       </div>
@@ -60,7 +60,7 @@
 
     <button class="add-exp-btn" @click="store.addExperience">
       <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Add Another Role
+      {{ $t('Add Another Role') }}
     </button>
   </div>
 </template>

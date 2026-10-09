@@ -5,8 +5,8 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:20px;height:20px"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
       </div>
       <div>
-        <div class="ats-title">ATS Job Match</div>
-        <div class="ats-sub">Paste a job description to see how well your CV matches</div>
+        <div class="ats-title">{{ $t('ATS Job Match') }}</div>
+        <div class="ats-sub">{{ $t('Paste a job description to see how well your CV matches') }}</div>
       </div>
     </div>
 
@@ -15,7 +15,7 @@
       v-if="!embedded"
       v-model="store.data.jobOffer"
       class="ats-textarea"
-      placeholder="Paste the full job description here..."
+      :placeholder="$t('Paste the full job description here…')"
       rows="6"
       :disabled="scoring"
     />
@@ -23,11 +23,11 @@
     <button class="ats-btn" :class="embedded && result ? 'btn-secondary' : 'btn-primary accent'" @click="runScore()" :disabled="scoring || !jobDesc.trim()">
       <svg v-if="scoring" class="ats-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" opacity=".25"/><path d="M21 12a9 9 0 00-9-9"/></svg>
       <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:14px;height:14px"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2"/></svg>
-      {{ scoring ? 'Analysing your CV against the job…' : result ? 'Check again' : embedded ? 'Check my ATS score' : 'Check ATS match' }}
+      {{ $t(scoring ? 'Analysing your CV against the job…' : result ? 'Check again' : embedded ? 'Check my ATS score' : 'Check ATS match') }}
     </button>
 
     <!-- Results -->
-    <div v-if="result && checkedAt && !scoring" class="ats-checked">Checked {{ checkedAt }}</div>
+    <div v-if="result && checkedAt && !scoring" class="ats-checked">{{ $t('Checked {time}', { time: checkedAt }) }}</div>
     <div v-if="result" class="ats-results">
 
       <!-- Score ring -->
@@ -45,15 +45,15 @@
           </svg>
           <div class="ats-ring-inner">
             <div class="ats-ring-score" :style="{color:ringColor}">{{ result.score }}%</div>
-            <div class="ats-ring-lbl">Match</div>
+            <div class="ats-ring-lbl">{{ $t('Match') }}</div>
           </div>
         </div>
         <div class="ats-score-info">
-          <div class="ats-verdict" :style="{color:ringColor}">{{ verdict }}</div>
-          <div class="ats-verdict-sub">{{ verdictSub }}</div>
+          <div class="ats-verdict" :style="{color:ringColor}">{{ $t(verdict) }}</div>
+          <div class="ats-verdict-sub">{{ $t(verdictSub) }}</div>
           <div class="ats-chips">
             <span class="ats-chip" :class="result.score >= 70 ? 'green' : 'red'">
-              {{ result.score >= 70 ? 'Strong keyword match' : 'Keyword gaps to close' }}
+              {{ $t(result.score >= 70 ? 'Strong keyword match' : 'Keyword gaps to close') }}
             </span>
           </div>
         </div>
@@ -61,7 +61,7 @@
 
       <!-- Keyword breakdown -->
       <div class="ats-section">
-        <div class="ats-section-title">Keyword matches</div>
+        <div class="ats-section-title">{{ $t('Keyword matches') }}</div>
         <div class="ats-keywords">
           <span v-for="kw in result.matched" :key="kw" class="ats-kw ats-kw-match">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" style="width:10px;height:10px"><polyline points="20 6 9 17 4 12"/></svg>
@@ -69,18 +69,18 @@
           </span>
           <!-- Missing keywords: one tap adds it to the CV's skills -->
           <button v-for="kw in result.missing" :key="kw" type="button" class="ats-kw ats-kw-miss" :class="{ added: hasSkill(kw) }"
-                  :disabled="hasSkill(kw)" :title="hasSkill(kw) ? 'Added to your skills' : 'Add to your skills'" @click="store.addSkill(kw)">
+                  :disabled="hasSkill(kw)" :title="$t(hasSkill(kw) ? 'Added to your skills' : 'Add to your skills')" @click="store.addSkill(kw)">
             <svg v-if="hasSkill(kw)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" style="width:10px;height:10px"><polyline points="20 6 9 17 4 12"/></svg>
             <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="width:10px;height:10px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             {{ kw }}
           </button>
         </div>
-        <p v-if="result.missing?.length" class="ats-add-note">Tap a missing keyword to add it to your skills — only add the ones you really have. Then “Check again”.</p>
+        <p v-if="result.missing?.length" class="ats-add-note">{{ $t('Tap a missing keyword to add it to your skills — only add the ones you really have. Then “Check again”.') }}</p>
       </div>
 
       <!-- Gaps -->
       <div class="ats-section" v-if="result.gaps?.length">
-        <div class="ats-section-title">Gaps to address</div>
+        <div class="ats-section-title">{{ $t('Gaps to address') }}</div>
         <div v-for="(g, i) in result.gaps" :key="i" class="ats-gap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:13px;height:13px;flex-shrink:0;color:var(--c-amber)"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <span>{{ g }}</span>
@@ -89,7 +89,7 @@
 
       <!-- Suggestions -->
       <div class="ats-section" v-if="result.suggestions?.length">
-        <div class="ats-section-title">How to improve your match</div>
+        <div class="ats-section-title">{{ $t('How to improve your match') }}</div>
         <div v-for="(s, i) in result.suggestions" :key="i" class="ats-suggestion">
           <div class="ats-sug-num">{{ i + 1 }}</div>
           <span>{{ s }}</span>
@@ -98,7 +98,7 @@
 
     </div>
 
-    <div v-if="error" class="ats-error">{{ error }}</div>
+    <div v-if="error" class="ats-error">{{ $t(error) }}</div>
   </div>
 </template>
 
@@ -110,6 +110,7 @@ const atsCache = new Map()
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useCvStore } from '../stores/cv.js'
+import { lang, locale, aiExplainIn } from '../i18n/index.js'
 
 const props   = defineProps({ embedded: Boolean })
 const emit    = defineEmits(['scored'])
@@ -162,7 +163,7 @@ function cvText() {
 }
 // Same CV + same job → same analysis. Shared across instances, so auto-runs
 // don't fire duplicate AI calls.
-const cacheKey = () => jobDesc.value.trim() + '\n--\n' + cvText()
+const cacheKey = () => lang.value + '\n' + jobDesc.value.trim() + '\n--\n' + cvText()
 
 async function runScore({ fresh = true } = {}) {
   if (!jobDesc.value.trim()) return
@@ -177,7 +178,7 @@ async function runScore({ fresh = true } = {}) {
       atsCache.get(key).catch(() => atsCache.delete(key)) // don't cache failures
     }
     result.value = await atsCache.get(key)
-    checkedAt.value = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    checkedAt.value = new Date().toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' })
     emit('scored', result.value.score, result.value)
   } catch (e) {
     error.value = 'Analysis failed. Please try again — make sure your CV has some content filled in.'
@@ -211,7 +212,7 @@ ${cvText.slice(0, 4000)}
 JOB DESCRIPTION:
 ${job.slice(0, 4000)}
 
-Return ONLY the JSON object, no markdown, no explanation.`
+Return ONLY the JSON object, no markdown, no explanation.${aiExplainIn('"gaps" and "suggestions"')}`
 
     const raw    = await store.callAi(prompt)
     const clean  = raw.replace(/```json\s*/gi, '').replace(/```/g, '').trim()

@@ -45,24 +45,24 @@
           </div>
 
           <!-- Content -->
-          <h3 class="tut-title">{{ currentStepData.title }}</h3>
-          <p class="tut-desc">{{ currentStepData.desc }}</p>
+          <h3 class="tut-title">{{ $t(currentStepData.title) }}</h3>
+          <p class="tut-desc">{{ $t(currentStepData.desc) }}</p>
 
           <!-- Tip badge -->
           <div v-if="currentStepData.tip" class="tut-tip">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:13px;height:13px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            {{ currentStepData.tip }}
+            {{ $t(currentStepData.tip) }}
           </div>
 
           <!-- Actions -->
           <div class="tut-actions">
-            <button class="tut-skip" @click="finish">Skip tour</button>
+            <button class="tut-skip" @click="finish">{{ $t('Skip tour') }}</button>
             <div class="tut-nav">
               <button v-if="currentStep > 0" class="tut-back" @click="prev">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="width:14px;height:14px"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
               </button>
               <button class="tut-next" @click="next">
-                {{ isLast ? 'Done!' : 'Next' }}
+                {{ $t(isLast ? 'Done!' : 'Next') }}
                 <svg v-if="!isLast" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="width:14px;height:14px"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               </button>
             </div>
@@ -136,13 +136,13 @@ const steps = [
   },
   {
     title: 'Referral credits',
-    desc:  'Share your link from Settings. Each friend who signs up earns you a credit that unlocks the clean PDF of one CV.',
+    desc:  'Share your link from Settings. When a friend you invite gets their first clean CV, you earn a credit that unlocks the clean PDF of one CV.',
     icon:  '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/>',
     iconBg:'var(--c-rose-lt)',
     target: '[data-tour="nav-settings"]',
   },
   {
-    title: "You're ready",
+    title: 'You’re ready',
     desc:  'Pick a layout to get started. Good luck with your applications!',
     icon:  '<polyline points="20 6 9 17 4 12"/>',
     iconBg:'var(--c-green-lt)',

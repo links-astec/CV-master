@@ -2,39 +2,39 @@
   <div class="step-wrap">
     <div class="step-intro">
       <div class="step-icon">🎓</div>
-      <h3>Education, Projects & Languages</h3>
-      <p>Add your qualifications, personal projects, certifications, and languages.</p>
+      <h3>{{ $t('Education, projects & languages') }}</h3>
+      <p>{{ $t('Add your qualifications, personal projects, certifications, and languages.') }}</p>
     </div>
 
     <!-- EDUCATION -->
     <div class="f-sec-hd">
-      Education
+      {{ $t('Education') }}
     </div>
     <div v-if="eduOutOfOrder" class="order-note">
-      <span>Your qualifications aren’t in date order — put the most recent first.</span>
-      <button class="btn-secondary btn-sm" @click="sortByDate(store.data.education, 'year')">Sort by date</button>
+      <span>{{ $t('Your qualifications aren’t in date order — put the most recent first.') }}</span>
+      <button class="btn-secondary btn-sm" @click="sortByDate(store.data.education, 'year')">{{ $t('Sort by date') }}</button>
     </div>
     <div class="edu-list">
       <div v-for="(edu, i) in store.data.education" :key="i" class="edu-card" v-bind="roEdu.card(i)">
         <div class="edu-card-hd">
           <ReorderControls v-if="store.data.education.length > 1" :index="i" :total="store.data.education.length"
             @move="d => roEdu.move(i, i + d)" @arm="roEdu.arm(i)" @disarm="roEdu.disarm()" />
-          <span class="edu-num">{{ i === 0 ? 'Primary' : 'Additional' }}</span>
-          <button v-if="i > 0" class="rm-btn" @click="store.data.education.splice(i, 1)" title="Remove">
+          <span class="edu-num">{{ $t(i === 0 ? 'Primary' : 'Additional') }}</span>
+          <button v-if="i > 0" class="rm-btn" @click="store.data.education.splice(i, 1)" :title="$t('Remove')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
         <div class="f-grp">
-          <div class="f-lbl">Degree / Qualification</div>
-          <input class="f-inp" v-model="edu.degree" placeholder="MSc Product Management" />
+          <div class="f-lbl">{{ $t('Degree / Qualification') }}</div>
+          <input class="f-inp" v-model="edu.degree" :placeholder="$t('MSc Product Management')" />
         </div>
         <div class="f-row">
           <div class="f-grp">
-            <div class="f-lbl">School / University</div>
-            <input class="f-inp" v-model="edu.school" placeholder="UCL" />
+            <div class="f-lbl">{{ $t('School / University') }}</div>
+            <input class="f-inp" v-model="edu.school" :placeholder="$t('UCL')" />
           </div>
           <div class="f-grp" style="flex:0 0 110px;">
-            <div class="f-lbl">Year</div>
+            <div class="f-lbl">{{ $t('Year') }}</div>
             <input class="f-inp" v-model="edu.year" placeholder="2016" />
           </div>
         </div>
@@ -42,54 +42,54 @@
     </div>
     <button class="add-btn" @click="store.data.education.push({ degree: '', school: '', year: '' })">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:12px;height:12px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Add Another Qualification
+      {{ $t('Add Another Qualification') }}
     </button>
 
     <!-- PROJECTS -->
     <div class="f-sec-hd">
-      Projects <span class="opt-badge">optional</span>
+      {{ $t('Projects') }} <span class="opt-badge">{{ $t('optional') }}</span>
     </div>
-    <p class="f-sec-sub">Great for developers, designers, or anyone with side projects worth showcasing.</p>
+    <p class="f-sec-sub">{{ $t('Great for developers, designers, or anyone with side projects worth showcasing.') }}</p>
     <div class="proj-list">
       <div v-for="(proj, i) in store.data.projects" :key="proj.id" class="proj-card" v-bind="roProj.card(i)">
         <div class="proj-card-hd">
           <ReorderControls v-if="store.data.projects.length > 1" :index="i" :total="store.data.projects.length"
             @move="d => roProj.move(i, i + d)" @arm="roProj.arm(i)" @disarm="roProj.disarm()" />
-          <span class="proj-num">Project {{ i + 1 }}</span>
-          <button class="rm-btn" @click="store.data.projects.splice(i, 1)" title="Remove project">
+          <span class="proj-num">{{ $t('Project {n}', { n: i + 1 }) }}</span>
+          <button class="rm-btn" @click="store.data.projects.splice(i, 1)" :title="$t('Remove project')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
         <div class="f-grp">
-          <div class="f-lbl">Project Name</div>
-          <input class="f-inp" v-model="proj.name" placeholder="e.g. Portfolio Website, Open Source Tool" />
+          <div class="f-lbl">{{ $t('Project Name') }}</div>
+          <input class="f-inp" v-model="proj.name" :placeholder="$t('e.g. Portfolio Website, Open Source Tool')" />
         </div>
         <div class="f-grp">
-          <div class="f-lbl">Tech / Stack <span class="opt-badge">optional</span></div>
-          <input class="f-inp" v-model="proj.tech" placeholder="e.g. Vue, Node.js, PostgreSQL" />
+          <div class="f-lbl">{{ $t('Tech / Stack') }} <span class="opt-badge">{{ $t('optional') }}</span></div>
+          <input class="f-inp" v-model="proj.tech" :placeholder="$t('e.g. Vue, Node.js, PostgreSQL')" />
         </div>
         <div class="f-grp">
-          <div class="f-lbl">Description</div>
-          <textarea class="f-inp f-area" v-model="proj.desc" placeholder="What did you build? What problem did it solve? Any key results?" rows="2" />
+          <div class="f-lbl">{{ $t('Description') }}</div>
+          <textarea class="f-inp f-area" v-model="proj.desc" :placeholder="$t('What did you build? What problem did it solve? Any key results?')" rows="2" />
         </div>
         <div class="f-grp">
-          <div class="f-lbl">URL <span class="opt-badge">optional</span></div>
+          <div class="f-lbl">{{ $t('URL') }} <span class="opt-badge">{{ $t('optional') }}</span></div>
           <input class="f-inp" v-model="proj.url" placeholder="https://github.com/you/project" />
         </div>
       </div>
     </div>
     <button class="add-btn" @click="addProject">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:12px;height:12px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Add Project
+      {{ $t('Add Project') }}
     </button>
 
     <!-- CERTIFICATIONS -->
     <div class="f-sec-hd">
-      Certifications <span class="opt-badge">optional</span>
+      {{ $t('Certifications') }} <span class="opt-badge">{{ $t('optional') }}</span>
     </div>
     <div class="cert-list">
       <div v-for="(cert, i) in store.data.certifications" :key="i" class="cert-row">
-        <input class="f-inp" v-model="store.data.certifications[i]" placeholder="e.g. AWS Certified, PMP, PSPO II" />
+        <input class="f-inp" v-model="store.data.certifications[i]" :placeholder="$t('e.g. AWS Certified, PMP, PSPO II')" />
         <button class="rm-btn" @click="store.data.certifications.splice(i, 1)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
@@ -97,31 +97,27 @@
     </div>
     <button class="add-btn" @click="store.data.certifications.push('')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:12px;height:12px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Add Certification
+      {{ $t('Add Certification') }}
     </button>
 
     <!-- LANGUAGES -->
     <div class="f-sec-hd">
-      Languages <span class="opt-badge">optional</span>
+      {{ $t('Languages') }} <span class="opt-badge">{{ $t('optional') }}</span>
     </div>
     <div class="lang-list">
       <div v-for="(lang, i) in store.data.languages" :key="i" class="lang-card">
         <div class="lang-fields">
           <div class="f-grp" style="flex:1;">
-            <div class="f-lbl">Language</div>
-            <input class="f-inp" v-model="lang.name" placeholder="e.g. French" />
+            <div class="f-lbl">{{ $t('Language') }}</div>
+            <input class="f-inp" v-model="lang.name" :placeholder="$t(store.data.lang === 'fr' ? 'e.g. English' : 'e.g. French')" />
           </div>
           <div class="f-grp" style="flex:1;">
-            <div class="f-lbl">Level</div>
+            <div class="f-lbl">{{ $t('Level') }}</div>
+            <!-- The level is printed on the CV, so its wording follows the CV's language -->
             <select class="f-inp f-select" v-model="lang.level">
-              <option value="">Select level</option>
-              <option value="Native">Native</option>
-              <option value="Fluent (C2)">Fluent (C2)</option>
-              <option value="Advanced (C1)">Advanced (C1)</option>
-              <option value="Upper-Intermediate (B2)">Upper-Intermediate (B2)</option>
-              <option value="Intermediate (B1)">Intermediate (B1)</option>
-              <option value="Basic (A2)">Basic (A2)</option>
-              <option value="Beginner (A1)">Beginner (A1)</option>
+              <option value="">{{ $t('Select level') }}</option>
+              <option v-if="lang.level && !levels.includes(lang.level)" :value="lang.level">{{ lang.level }}</option>
+              <option v-for="lv in levels" :key="lv" :value="lv">{{ lv }}</option>
             </select>
           </div>
           <button class="rm-btn lang-rm" @click="store.data.languages.splice(i, 1)">
@@ -132,7 +128,7 @@
     </div>
     <button class="add-btn" @click="store.data.languages.push({ name: '', level: '' })">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:12px;height:12px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Add Language
+      {{ $t('Add Language') }}
     </button>
   </div>
 </template>
@@ -146,6 +142,11 @@ const store = useCvStore()
 const roEdu  = useReorder(() => store.data.education)
 const roProj = useReorder(() => store.data.projects)
 const eduOutOfOrder = computed(() => isOutOfOrder(store.data.education, 'year'))
+const LEVELS = {
+  en: ['Native', 'Fluent (C2)', 'Advanced (C1)', 'Upper-Intermediate (B2)', 'Intermediate (B1)', 'Basic (A2)', 'Beginner (A1)'],
+  fr: ['Langue maternelle', 'Bilingue (C2)', 'Courant (C1)', 'Avancé (B2)', 'Intermédiaire (B1)', 'Notions (A2)', 'Débutant (A1)'],
+}
+const levels = computed(() => LEVELS[store.data.lang === 'fr' ? 'fr' : 'en'])
 defineEmits(['next'])
 
 // Ensure all arrays exist and education is array

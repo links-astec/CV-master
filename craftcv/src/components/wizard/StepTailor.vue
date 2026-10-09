@@ -2,65 +2,65 @@
   <div class="step-wrap">
     <div v-if="!embedded" class="step-intro">
       <div class="step-icon">🎯</div>
-      <h3>Tailor to the job</h3>
-      <p>AI rewrites your CV in the language of the job offer so it ranks well in applicant tracking systems. It only rephrases what you've written — it never invents experience. You approve every change.</p>
+      <h3>{{ $t('Tailor to the job') }}</h3>
+      <p>{{ $t('AI rewrites your CV in the language of the job offer so it ranks well in applicant tracking systems. It only rephrases what you’ve written — it never invents experience. You approve every change.') }}</p>
     </div>
 
     <!-- Job offer (the Job match panel has its own box for it) -->
     <div v-if="!embedded" class="f-grp">
-      <div class="f-lbl">Job offer</div>
+      <div class="f-lbl">{{ $t('Job offer') }}</div>
       <textarea class="f-ta" v-model="store.data.jobOffer" rows="6" :disabled="loading"
-        placeholder="Paste the full job description here…"></textarea>
+        :placeholder="$t('Paste the full job description here…')"></textarea>
       <div class="f-hint" :class="{ warn: tooShort }">
-        {{ !hasOffer ? 'No job offer yet? You can skip this and come back any time.'
+        {{ $t(!hasOffer ? 'No job offer yet? You can skip this and come back any time.'
           : tooShort ? 'Paste the full description — a few sentences at least.'
-          : 'Your job offer is saved with this CV.' }}
+          : 'Your job offer is saved with this CV.') }}
       </div>
     </div>
 
     <button v-if="!proposal" class="btn-ai" @click="tailor" :disabled="loading || !hasOffer || tooShort">
       <svg viewBox="0 0 24 24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
-      {{ ats
+      {{ $t(ats
         ? (loading ? 'Improving your match…' : applied ? 'Improve again' : 'Improve my score with AI')
-        : (loading ? 'Tailoring your CV…' : applied ? 'Tailor again' : 'Tailor my CV to this job') }}
+        : (loading ? 'Tailoring your CV…' : applied ? 'Tailor again' : 'Tailor my CV to this job')) }}
     </button>
 
     <div v-if="loading" class="thinking">
       <div class="thinking-dots"><span></span><span></span><span></span></div>
-      <div class="thinking-txt">{{ ats ? 'Working the missing keywords into what you’ve written…' : 'Matching your CV to the job offer…' }}</div>
+      <div class="thinking-txt">{{ $t(ats ? 'Working the missing keywords into what you’ve written…' : 'Matching your CV to the job offer…') }}</div>
     </div>
 
-    <div v-if="error" class="tl-error">{{ error }}</div>
+    <div v-if="error" class="tl-error">{{ $t(error) }}</div>
 
     <!-- Applied confirmation -->
     <div v-if="applied && !proposal" class="tl-applied">
-      <div>✓ Applied {{ applied }} change{{ applied === 1 ? '' : 's' }}{{ targetTitle ? ` for “${targetTitle}”` : '' }}.</div>
-      <button class="btn-sug-dismiss" @click="undo">Undo</button>
+      <div>✓ {{ targetTitle ? $t(applied === 1 ? 'Applied {n} change for “{job}”.' : 'Applied {n} changes for “{job}”.', { n: applied, job: targetTitle }) : $t(applied === 1 ? 'Applied {n} change.' : 'Applied {n} changes.', { n: applied }) }}</div>
+      <button class="btn-sug-dismiss" @click="undo">{{ $t('Undo') }}</button>
     </div>
 
     <!-- Proposed changes -->
     <template v-if="proposal">
       <div class="tl-head">
-        <div class="tl-head-ttl">Suggested changes{{ targetTitle ? ` for “${targetTitle}”` : '' }}</div>
-        <button class="tl-link" @click="setAll(!allChecked)">{{ allChecked ? 'Untick all' : 'Tick all' }}</button>
+        <div class="tl-head-ttl">{{ targetTitle ? $t('Suggested changes for “{job}”', { job: targetTitle }) : $t('Suggested changes') }}</div>
+        <button class="tl-link" @click="setAll(!allChecked)">{{ $t(allChecked ? 'Untick all' : 'Tick all') }}</button>
       </div>
 
       <div v-if="!changes.length && !suggested.length" class="tl-empty">
-        Your CV already matches this job well — there's nothing worth changing.
+        {{ $t('Your CV already matches this job well — there’s nothing worth changing.') }}
       </div>
 
       <label v-for="c in changes" :key="c.key" class="tl-change" :class="{ off: !c.checked }">
         <input type="checkbox" v-model="c.checked" />
         <div class="tl-change-body">
-          <div class="tl-change-lbl">{{ c.label }}</div>
-          <div class="tl-before"><span>Before</span>{{ c.before || '—' }}</div>
-          <div class="tl-after"><span>After</span>{{ c.after }}</div>
+          <div class="tl-change-lbl">{{ $t(c.label) }}</div>
+          <div class="tl-before"><span>{{ $t('Before') }}</span>{{ c.before || '—' }}</div>
+          <div class="tl-after"><span>{{ $t('After') }}</span>{{ c.after }}</div>
         </div>
       </label>
 
       <div v-if="suggested.length" class="tl-skills">
-        <div class="tl-change-lbl">Keywords from the job you could add</div>
-        <div class="tl-skills-note">Only tick the ones you genuinely have — recruiters will ask about them.</div>
+        <div class="tl-change-lbl">{{ $t('Keywords from the job you could add') }}</div>
+        <div class="tl-skills-note">{{ $t('Only tick the ones you genuinely have — recruiters will ask about them.') }}</div>
         <div class="tl-chips">
           <label v-for="s in suggested" :key="s.name" class="tl-chip" :class="{ on: s.checked }">
             <input type="checkbox" v-model="s.checked" /> {{ s.name }}
@@ -69,15 +69,15 @@
       </div>
 
       <div v-if="notes.length" class="tl-notes">
-        <div class="tl-change-lbl">Worth knowing</div>
+        <div class="tl-change-lbl">{{ $t('Worth knowing') }}</div>
         <div v-for="(n, i) in notes" :key="i" class="tl-note">💡 {{ n }}</div>
       </div>
 
       <div class="ai-sug-actions tl-actions">
         <button class="btn-sug-use" :disabled="!selectedCount" @click="apply">
-          Apply {{ selectedCount }} change{{ selectedCount === 1 ? '' : 's' }}
+          {{ $t(selectedCount === 1 ? 'Apply {n} change' : 'Apply {n} changes', { n: selectedCount }) }}
         </button>
-        <button class="btn-sug-dismiss" @click="proposal = null">Discard</button>
+        <button class="btn-sug-dismiss" @click="proposal = null">{{ $t('Discard') }}</button>
       </div>
     </template>
   </div>
@@ -86,6 +86,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
+import { t, lang } from '../../i18n/index.js'
 
 const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
 const MIN_CHARS = 40 // same minimum the /api/ai/tailor endpoint enforces
@@ -126,7 +127,7 @@ async function tailor() {
     const r = await fetch(apiUrl('/api/ai/tailor'), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cv, jobOffer: store.data.jobOffer,
+      body: JSON.stringify({ cv, jobOffer: store.data.jobOffer, uiLang: lang.value,
         ...(props.ats ? { ats: { score: props.ats.score, missing: props.ats.missing, gaps: props.ats.gaps } } : {}) }),
     })
     const p = await r.json().catch(() => ({}))
@@ -146,7 +147,7 @@ function buildChanges(p) {
   const differs = (a, b) => b && (a || '').trim() !== b.trim()
 
   if (differs(d.title, p.title)) {
-    out.push({ key: 'title', label: 'Headline', before: d.title, after: p.title, checked: true,
+    out.push({ key: 'title', label: 'cv|Headline', before: d.title, after: p.title, checked: true,
       apply: () => { store.data.title = p.title } })
   }
   if (differs(d.sum, p.sum)) {
@@ -159,7 +160,7 @@ function buildChanges(p) {
     const exp = d.experiences.find(x => e.id != null && x.id === e.id) || nonEmpty[e.index]
     if (!exp || !differs(exp.desc, e.desc)) continue
     const id = exp.id
-    out.push({ key: `exp-${id}`, label: [exp.title, exp.company].filter(Boolean).join(' at ') || 'Experience',
+    out.push({ key: `exp-${id}`, label: [exp.title, exp.company].filter(Boolean).join(t(' at ')) || 'Experience',
       before: exp.desc, after: e.desc, checked: true,
       apply: () => { const x = store.data.experiences.find(y => y.id === id); if (x) x.desc = e.desc } })
   }

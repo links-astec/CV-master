@@ -3,32 +3,32 @@
     <Transition name="modal-fade">
       <div v-if="visible" class="modal-backdrop" @click.self="$emit('close')">
         <div class="modal wm" role="dialog" aria-modal="true">
-          <button class="icon-btn modal-close" @click="$emit('close')" aria-label="Close">
+          <button class="icon-btn modal-close" @click="$emit('close')" :aria-label="$t('Close')">
             <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
 
           <div class="wm-hd">
-            <h2>Download your CV</h2>
-            <p>Take a free copy with a watermark, or unlock the clean PDF for this CV.</p>
+            <h2>{{ $t('Download your CV') }}</h2>
+            <p>{{ $t('Take a free copy with a watermark, or unlock the clean PDF for this CV.') }}</p>
           </div>
 
           <button class="wm-opt featured" :disabled="freeDownloading" @click="$emit('unlock')">
             <div class="wm-opt-txt">
-              <div class="wm-opt-ttl">Clean PDF</div>
-              <div class="wm-opt-sub">No watermark · emailed and downloadable · re-send free, even after edits</div>
+              <div class="wm-opt-ttl">{{ $t('Clean PDF') }}</div>
+              <div class="wm-opt-sub">{{ $t('No watermark · emailed and downloadable · re-send free, even after edits') }}</div>
             </div>
-            <span class="wm-price">€0.99</span>
+            <span class="wm-price">{{ $t('€0.99') }}</span>
           </button>
 
           <button class="wm-opt" :disabled="freeDownloading" @click="downloadFree">
             <div class="wm-opt-txt">
-              <div class="wm-opt-ttl">Free preview PDF</div>
-              <div class="wm-opt-sub">{{ freeDownloading ? 'Preparing your PDF…' : 'Includes a “CVMaster” watermark across the page' }}</div>
+              <div class="wm-opt-ttl">{{ $t('Free preview PDF') }}</div>
+              <div class="wm-opt-sub">{{ $t(freeDownloading ? 'Preparing your PDF…' : 'Includes a “CVMaster” watermark across the page') }}</div>
             </div>
-            <span class="wm-price">Free</span>
+            <span class="wm-price">{{ $t('Free') }}</span>
           </button>
 
-          <p class="wm-foot">One-time payment per CV · No subscription · Referral credits accepted</p>
+          <p class="wm-foot">{{ $t('One-time payment per CV · No subscription · Referral credits accepted') }}</p>
         </div>
       </div>
     </Transition>

@@ -3,41 +3,41 @@
     <div class="view-inner">
       <div class="page-intro">
         <div>
-          <h1>Choose a layout</h1>
-          <p>{{ LAYOUTS.length }} layouts in 12 colours. Switch any time — your content moves with you.</p>
+          <h1>{{ $t('Choose a layout') }}</h1>
+          <p>{{ $t('{n} layouts in 12 colours. Switch any time — your content moves with you.', { n: LAYOUTS.length }) }}</p>
         </div>
         <div class="tp-colors">
-          <span class="tp-colors-lbl">Colour</span>
-          <button class="tp-auto" :class="{ active: theme === 'auto' }" @click="theme = 'auto'" title="Each layout in its own suggested colour">Suggested</button>
+          <span class="tp-colors-lbl">{{ $t('Colour') }}</span>
+          <button class="tp-auto" :class="{ active: theme === 'auto' }" @click="theme = 'auto'" :title="$t('Each layout in its own suggested colour')">{{ $t('Suggested') }}</button>
           <button v-for="t in THEMES" :key="t.id" class="tp-sw" :class="{ active: theme === t.id }"
-                  :style="{ '--sw': t.accent }" :title="t.name" :aria-label="t.name" @click="theme = t.id"></button>
+                  :style="{ '--sw': t.accent }" :title="$t(t.name)" :aria-label="$t(t.name)" @click="theme = t.id"></button>
         </div>
       </div>
 
       <div class="tp-filter">
         <div class="seg">
           <button v-for="f in FILTERS" :key="f.id" :class="{ active: filter === f.id }" @click="filter = f.id">
-            {{ f.label }} <span class="tp-count">{{ f.id === 'all' ? LAYOUTS.length : LAYOUTS.filter(l => l.kind === f.id).length }}</span>
+            {{ $t(f.label) }} <span class="tp-count">{{ f.id === 'all' ? LAYOUTS.length : LAYOUTS.filter(l => l.kind === f.id).length }}</span>
           </button>
         </div>
-        <p class="tp-filter-note">{{ filterNote }}</p>
+        <p class="tp-filter-note">{{ $t(filterNote) }}</p>
       </div>
 
       <div class="tp-grid">
         <button v-for="l in shown" :key="l.id" class="tp-card" :class="{ current: isCurrent(l) }" @click="pick(l)">
           <div class="tp-thumb">
             <CvThumb :template="tplFor(l)" :data="previewData" :fmt="store.fmt" />
-            <span v-if="isCurrent(l)" class="badge accent tp-cur">Current</span>
-            <span class="tp-hover"><span class="btn-primary accent">Use this layout</span></span>
+            <span v-if="isCurrent(l)" class="badge accent tp-cur">{{ $t('Current') }}</span>
+            <span class="tp-hover"><span class="btn-primary accent">{{ $t('Use this layout') }}</span></span>
           </div>
           <div class="tp-info">
-            <div class="tp-name">{{ l.name }} <span class="badge" :class="l.kind === 'ats' ? 'green' : 'accent'">{{ LAYOUT_KINDS[l.kind].name }}</span><span v-if="l.photo" class="badge">Photo</span></div>
-            <div class="tp-desc">{{ l.desc }}</div>
+            <div class="tp-name">{{ $t(l.name) }} <span class="badge" :class="l.kind === 'ats' ? 'green' : 'accent'">{{ $t(LAYOUT_KINDS[l.kind].name) }}</span><span v-if="l.photo" class="badge">{{ $t('Photo') }}</span></div>
+            <div class="tp-desc">{{ $t(l.desc) }}</div>
           </div>
         </button>
       </div>
 
-      <p class="tp-foot">Previews show {{ store.hasContent ? 'your CV' : 'an example CV' }}. Your photo appears in layouts tagged “Photo”; the others show your initials or no picture.</p>
+      <p class="tp-foot">{{ $t(store.hasContent ? 'Previews show your CV.' : 'Previews show an example CV.') }} {{ $t('Your photo appears in layouts tagged “Photo”; the others show your initials or no picture.') }}</p>
     </div>
     <JobOfferModal ref="jobOfferRef" />
   </div>
@@ -48,7 +48,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCvStore } from '../stores/cv.js'
 import { LAYOUTS, LAYOUT_KINDS, THEMES, parseTemplate, templateId } from '../composables/cvRenderer.js'
-import { SAMPLE_CV } from '../composables/sampleCv.js'
+import { sampleCv } from '../composables/sampleCv.js'
 import CvThumb from '../components/CvThumb.vue'
 import JobOfferModal from '../components/JobOfferModal.vue'
 
@@ -56,13 +56,13 @@ const store  = useCvStore()
 const router = useRouter()
 // 'auto' = show each layout in its own suggested colour
 const theme  = ref('auto')
-const previewData = computed(() => store.hasContent ? store.data : SAMPLE_CV)
+const previewData = computed(() => store.hasContent ? store.data : sampleCv())
 const FILTERS = [{ id: 'all', label: 'All' }, { id: 'ats', label: 'ATS-friendly' }, { id: 'creative', label: 'Creative' }]
 const filter = ref('all')
 const shown = computed(() => filter.value === 'all' ? LAYOUTS : LAYOUTS.filter(l => l.kind === filter.value))
 const filterNote = computed(() => filter.value === 'all'
   ? 'ATS-friendly layouts are for online applications. Creative ones are for print, in person, or sending straight to a person.'
-  : LAYOUT_KINDS[filter.value].desc + '.')
+  : LAYOUT_KINDS[filter.value].desc)
 const tplFor    = (l) => templateId(l.id, theme.value === 'auto' ? l.theme : theme.value)
 const isCurrent = (l) => store.hasContent && parseTemplate(store.template).layout === l.id
 

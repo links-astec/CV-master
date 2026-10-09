@@ -1,22 +1,22 @@
 <template>
   <div v-if="state !== 'hidden'" class="rv" :class="{ compact }">
     <template v-if="state === 'done'">
-      <div class="rv-done">Thank you — your review helps other job seekers find CVMaster.</div>
+      <div class="rv-done">{{ $t('Thank you — your review helps other job seekers find CVMaster.') }}</div>
     </template>
     <template v-else>
-      <div class="rv-q">{{ existing ? 'Your review' : 'How was CVMaster?' }}</div>
-      <div class="rv-stars" role="radiogroup" aria-label="Rating">
-        <button v-for="n in 5" :key="n" type="button" role="radio" :aria-checked="rating === n" :aria-label="`${n} star${n > 1 ? 's' : ''}`"
+      <div class="rv-q">{{ $t(existing ? 'Your review' : 'How was CVMaster?') }}</div>
+      <div class="rv-stars" role="radiogroup" :aria-label="$t('Rating')">
+        <button v-for="n in 5" :key="n" type="button" role="radio" :aria-checked="rating === n" :aria-label="$t(n > 1 ? '{n} stars' : '{n} star', { n })"
                 :class="{ on: n <= (hover || rating) }" @mouseenter="hover = n" @mouseleave="hover = 0" @click="rating = n">★</button>
       </div>
       <template v-if="rating">
         <textarea v-model="comment" class="f-ta rv-ta" rows="2" maxlength="600"
-          :placeholder="rating >= 4 ? 'What did you like? (optional — may appear on our homepage)' : 'What should we improve? (optional)'"></textarea>
+          :placeholder="$t(rating >= 4 ? 'What did you like? (optional — may appear on our homepage)' : 'What should we improve? (optional)')"></textarea>
         <div class="rv-row">
-          <span class="rv-note">Shown as your first name and initial.</span>
-          <button class="btn-primary accent btn-sm" :disabled="sending" @click="send">{{ sending ? 'Sending…' : existing ? 'Update review' : 'Send review' }}</button>
+          <span class="rv-note">{{ $t('Shown as your first name and initial.') }}</span>
+          <button class="btn-primary accent btn-sm" :disabled="sending" @click="send">{{ $t(sending ? 'Sending…' : existing ? 'Update review' : 'Send review') }}</button>
         </div>
-        <div v-if="error" class="rv-err">{{ error }}</div>
+        <div v-if="error" class="rv-err">{{ $t(error) }}</div>
       </template>
     </template>
   </div>

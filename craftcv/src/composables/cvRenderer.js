@@ -12,6 +12,7 @@
 // system are mapped onto the closest layout + colour, so existing CVs keep working.
 
 import { MORE_LAYOUTS, moreLayoutHtml, MORE_LAYOUT_CSS } from './cvLayoutsMore.js'
+import { t } from '../i18n/index.js'
 
 export const PAGE_W = 700
 export const PAGE_H = 990
@@ -111,7 +112,7 @@ export const getLayout = (id) => layoutById[id]
 export const getTheme  = (id) => themeById[id]
 export function templateLabel(id) {
   const { layout, theme } = parseTemplate(id)
-  return `${layoutById[layout].name} · ${themeById[theme].name}`
+  return `${t(layoutById[layout].name)} · ${t(themeById[theme].name)}`   // interface language
 }
 
 // ── i18n ──────────────────────────────────────────────────────────────────────

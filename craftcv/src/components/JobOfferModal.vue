@@ -6,28 +6,27 @@
           <div class="jo-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
           </div>
-          <div class="jo-title">Applying for a specific job?</div>
+          <div class="jo-title">{{ $t('Applying for a specific job?') }}</div>
           <div class="jo-sub">
-            Paste the job offer and we'll tailor your CV to it, then check how well it passes
-            applicant tracking systems (ATS) before you export. You can skip this and add it later.
+            {{ $t('Paste the job offer and we’ll tailor your CV to it, then check how well it passes applicant tracking systems (ATS) before you export. You can skip this and add it later.') }}
           </div>
 
-          <label class="f-lbl" for="jo-text">Job description</label>
+          <label class="f-lbl" for="jo-text">{{ $t('Job description') }}</label>
           <textarea
             id="jo-text"
             ref="textRef"
             v-model="text"
             class="jo-textarea"
             rows="8"
-            placeholder="Paste the full job advert here — title, responsibilities and requirements…"
+            :placeholder="$t('Paste the full job advert here — title, responsibilities and requirements…')"
           />
           <div class="jo-hint" :class="{ warn: tooShort }">
-            {{ tooShort ? 'Paste the full description — a few sentences at least.' : `${text.trim().length} characters` }}
+            {{ tooShort ? $t('Paste the full description — a few sentences at least.') : $t('{n} characters', { n: text.trim().length }) }}
           </div>
 
           <div class="jo-actions">
-            <button class="btn-secondary" @click="skip">{{ hadOffer ? 'Remove job offer' : 'No job offer — skip' }}</button>
-            <button class="btn-primary accent" :disabled="!text.trim() || tooShort" @click="save">Use this job offer →</button>
+            <button class="btn-secondary" @click="skip">{{ $t(hadOffer ? 'Remove job offer' : 'No job offer — skip') }}</button>
+            <button class="btn-primary accent" :disabled="!text.trim() || tooShort" @click="save">{{ $t('Use this job offer') }} →</button>
           </div>
         </div>
       </div>

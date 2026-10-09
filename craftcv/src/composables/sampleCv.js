@@ -1,4 +1,5 @@
 // Fictional example CV used for template thumbnails and the landing page.
+import { lang as uiLang } from '../i18n/index.js'
 export const SAMPLE_CV = {
   fn: 'Amara', ln: 'Mensah', title: 'Senior Product Manager',
   email: 'amara.mensah@email.com', phone: '+44 7700 900123', loc: 'London, UK',
@@ -21,3 +22,28 @@ export const SAMPLE_CV = {
   certifications: ['Professional Scrum Product Owner (PSPO I)'],
   languages: [{ name: 'English', level: 'Native' }, { name: 'French', level: 'Professional (B2)' }, { name: 'Twi', level: 'Native' }],
 }
+
+// The same example in French, shown while the app is in French
+export const SAMPLE_CV_FR = {
+  ...SAMPLE_CV,
+  title: 'Chef de produit senior', phone: '+33 6 12 34 56 78', loc: 'Paris, France', lang: 'fr',
+  sum: 'Chef de produit avec 8 ans d’expérience dans les logiciels SaaS B2B. Pilote des équipes pluridisciplinaires de la découverte au lancement, avec des décisions fondées sur les données et une communication claire.',
+  experiences: [
+    { id: 1, title: 'Chef de produit senior', company: 'Northwind Analytics', period: '2021 – Aujourd’hui',
+      desc: 'Responsable de la feuille de route des outils de reporting utilisés par 1 200 entreprises clientes\nPilotage de la découverte et du lancement de tableaux de bord en libre-service, avec 30 % de tickets de support en moins\nEncadrement d’une équipe de 7 développeurs et 2 designers' },
+    { id: 2, title: 'Chef de produit', company: 'Brightpath Software', period: '2018 – 2021',
+      desc: 'Lancement de l’application mobile, du premier prototype à 50 000 utilisateurs mensuels\nMise en place d’OKR trimestriels et d’un backlog d’expérimentations partagé' },
+    { id: 3, title: 'Business analyst', company: 'Kwame & Co Consulting', period: '2016 – 2018',
+      desc: 'Analyse des données opérationnelles de clients de la distribution et de la logistique, et recommandations présentées aux dirigeants' },
+  ],
+  skills: ['Stratégie produit', 'Feuille de route', 'Recherche utilisateur', 'SQL', 'Tests A/B', 'Gestion des parties prenantes', 'Agile / Scrum', 'Figma'],
+  education: [
+    { degree: 'Master en systèmes d’information', school: 'London School of Economics', year: '2016' },
+    { degree: 'Licence d’informatique', school: 'University of Ghana', year: '2014' },
+  ],
+  certifications: ['Professional Scrum Product Owner (PSPO I)'],
+  languages: [{ name: 'Anglais', level: 'Langue maternelle' }, { name: 'Français', level: 'Courant (B2)' }, { name: 'Twi', level: 'Langue maternelle' }],
+}
+
+// Example CV in the interface language
+export const sampleCv = () => (uiLang.value === 'fr' ? SAMPLE_CV_FR : SAMPLE_CV)

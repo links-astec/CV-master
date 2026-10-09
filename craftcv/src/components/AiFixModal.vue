@@ -3,51 +3,51 @@
     <Transition name="fade">
       <div v-if="open" class="fx-backdrop" @click.self="close">
         <div class="fx" role="dialog" aria-labelledby="fx-title">
-          <button class="icon-btn fx-x" @click="close" aria-label="Close">
+          <button class="icon-btn fx-x" @click="close" :aria-label="$t('Close')">
             <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
           <div class="fx-eyebrow">
             <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
-            AI fix
+            {{ $t('AI fix') }}
           </div>
           <h3 id="fx-title">{{ issueTitle }}</h3>
 
           <div v-if="loading" class="fx-loading">
             <div class="thinking-dots"><span></span><span></span><span></span></div>
-            <div>Working on it…</div>
+            <div>{{ $t('Working on it…') }}</div>
           </div>
 
           <div v-else-if="error" class="fx-error">
-            {{ error }}
-            <button class="btn-secondary btn-sm" @click="run">Try again</button>
+            {{ $t(error) }}
+            <button class="btn-secondary btn-sm" @click="run">{{ $t('Try again') }}</button>
           </div>
 
           <template v-else>
-            <p class="fx-sub">Check the suggestion, edit it if you like, then apply. Nothing changes until you do.</p>
+            <p class="fx-sub">{{ $t('Check the suggestion, edit it if you like, then apply. Nothing changes until you do.') }}</p>
             <div v-if="note" class="fx-note">{{ note }}</div>
-            <div v-if="!changes.length && !skills.length" class="fx-empty">The AI didn't find anything worth changing here.</div>
+            <div v-if="!changes.length && !skills.length" class="fx-empty">{{ $t('The AI didn’t find anything worth changing here.') }}</div>
 
             <div v-for="c in changes" :key="c.key" class="fx-change" :class="{ off: !c.checked }">
               <label class="fx-change-hd">
                 <input type="checkbox" v-model="c.checked" />
-                <span>{{ c.label }}</span>
+                <span>{{ fixLabel(c) }}</span>
               </label>
-              <div v-if="c.before" class="fx-before"><span>Before</span>{{ c.before }}</div>
-              <div class="fx-after-lbl">{{ c.before ? 'After — you can edit this' : 'New — you can edit this' }}</div>
+              <div v-if="c.before" class="fx-before"><span>{{ $t('Before') }}</span>{{ c.before }}</div>
+              <div class="fx-after-lbl">{{ $t(c.before ? 'After — you can edit this' : 'New — you can edit this') }}</div>
               <textarea v-model="c.after" class="f-ta fx-after" :rows="rowsFor(c.after)" :disabled="!c.checked"></textarea>
               <div v-if="c.checked && hasPlaceholder(c.after)" class="fx-fill">
-                <div class="fx-fill-h">Type your real numbers</div>
+                <div class="fx-fill-h">{{ $t('Type your real numbers') }}</div>
                 <div v-for="p in phList(c.after)" :key="p.at + p.ph" class="fx-fill-row">
                   <span class="fx-fill-ctx">…{{ p.before }}<mark>{{ p.ph }}</mark>{{ p.after }}…</span>
-                  <input class="f-inp" :placeholder="hintFor(p.ph)" @keydown.enter.prevent="fill(c, p, $event.target.value)" @change="fill(c, p, $event.target.value)" />
+                  <input class="f-inp" :placeholder="$t(hintFor(p.ph))" @keydown.enter.prevent="fill(c, p, $event.target.value)" @change="fill(c, p, $event.target.value)" />
                 </div>
-                <div class="fx-ph">Don’t know a figure? Edit the text above to take that part out.</div>
+                <div class="fx-ph">{{ $t('Don’t know a figure? Edit the text above to take that part out.') }}</div>
               </div>
             </div>
 
             <div v-if="skills.length" class="fx-skills">
-              <div class="fx-skills-lbl">Tick the skills you really have</div>
-              <div class="fx-skills-n" :class="{ ok: skillTotal >= 6 }">You’ll have {{ skillTotal }} skill{{ skillTotal === 1 ? '' : 's' }} — 6 or more is recommended.</div>
+              <div class="fx-skills-lbl">{{ $t('Tick the skills you really have') }}</div>
+              <div class="fx-skills-n" :class="{ ok: skillTotal >= 6 }">{{ $t(skillTotal === 1 ? 'You’ll have {n} skill — 6 or more is recommended.' : 'You’ll have {n} skills — 6 or more is recommended.', { n: skillTotal }) }}</div>
               <div class="fx-chips">
                 <label v-for="s in skills" :key="s.name" class="fx-chip" :class="{ on: s.checked }">
                   <input type="checkbox" v-model="s.checked" /> {{ s.name }}
@@ -56,9 +56,9 @@
             </div>
 
             <div class="fx-ft">
-              <button class="btn-ghost" @click="close">Cancel</button>
+              <button class="btn-ghost" @click="close">{{ $t('Cancel') }}</button>
               <button class="btn-primary accent" :disabled="!selected || blocked" @click="apply">
-                {{ blocked ? 'Fill in the numbers first' : `Apply ${selected || ''} change${selected === 1 ? '' : 's'}` }}
+                {{ blocked ? $t('Fill in the numbers first') : !selected ? $t('Apply changes') : $t(selected === 1 ? 'Apply {n} change' : 'Apply {n} changes', { n: selected }) }}
               </button>
             </div>
           </template>
@@ -71,6 +71,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useCvStore } from '../stores/cv.js'
+import { t, lang } from '../i18n/index.js'
 
 const emit  = defineEmits(['applied'])
 const store = useCvStore()
@@ -113,6 +114,14 @@ const blocked = computed(() => changes.value.some(c => c.checked && hasPlacehold
 const skillTotal = computed(() => (store.data.skills || []).length + skills.value.filter(s => s.checked).length)
 const selected = computed(() => changes.value.filter(c => c.checked && c.after.trim()).length + skills.value.filter(s => s.checked).length)
 
+// "Summary", "Headline" or "Role at Company", in the interface language
+function fixLabel(c) {
+  if (c.key === 'title') return t('cv|Headline')
+  if (c.key === 'sum') return t('Summary')
+  const e = store.data.experiences?.[Number(String(c.key).split(':')[1])]
+  return (e && [e.title, e.company].filter(Boolean).join(t(' at '))) || t('Experience')
+}
+
 // Opens the pop-up and asks the AI for a fix for one checklist issue
 function start(issueId, title, id = '') {
   issue.value = issueId
@@ -131,7 +140,7 @@ async function run() {
     const r = await fetch(apiUrl('/api/ai/fix'), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ issue: issue.value, cv }),
+      body: JSON.stringify({ issue: issue.value, cv, uiLang: lang.value }),
     })
     const j = await r.json().catch(() => ({}))
     if (!r.ok) throw new Error(j.error || 'The AI couldn’t fix this just now — please try again.')

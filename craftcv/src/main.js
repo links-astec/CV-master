@@ -2,6 +2,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router.js'
+import i18n from './i18n/index.js'
 
 // Self-hosted fonts (Latin + Latin Extended subsets only, to keep the render-blocking CSS small): Plus Jakarta Sans (brand + UI); DM Sans, DM Serif Display, Inter and Lora for CVs.
 // The server embeds the same files in PDFs, so preview and export measure identically.
@@ -91,4 +92,5 @@ import './style.css'
 const app = createApp(App)
 app.use(createPinia())
 app.use(router)
+app.use(i18n)
 app.mount('#app')

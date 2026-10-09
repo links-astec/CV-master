@@ -1,5 +1,26 @@
 # Changes
 
+## 2026-10-09 — The whole site in French, and the team on the legal pages
+
+- **English / Français switch:** in the homepage header, the app's top bar and Settings → Preferences.
+  - It's remembered per browser.
+  - The first visit follows the browser's language. `?lang=fr` also opens the French version.
+- **Everything the user sees is translated:**
+  - homepage, My CVs, Templates, Editor, Settings;
+  - sign-in and sign-up, payment, the download pop-up, the wizard and every step;
+  - Job match, the ATS check, the checklist, AI fixes, translation, feedback, reviews, notifications, the tour;
+  - the server's error messages.
+- **Translation setup:** `src/i18n`. The English text is the key, `fr/*.js` holds the French, and anything missing falls back to English, so nothing shows blank.
+- **AI explanations follow the interface language:** ATS gaps and tips, tailoring notes, the AI-fix note. Text written onto the CV still follows the CV's own language.
+- **New CVs start in the interface language**, so French users get French headings. An empty CV follows the switch. Saved CVs keep their language.
+- **The example CV** on the homepage, Templates and sign-in is shown in French too.
+- **Privacy policy and Terms:** full French versions. Both now name **Gabriel Quaye and Nisy Adjei Acheampong**, with no roles.
+- **SEO:**
+  - French titles and descriptions.
+  - `hreflang` en/fr/x-default on every page.
+  - The sitemap lists both versions (`?lang=fr`).
+  - `<html lang>` follows the switch.
+
 ## 2026-10-01 — Newsletter with consent
 
 - **Homepage newsletter form**, with a typo suggestion. It uses double opt-in: we email a confirmation link, and nobody is emailed until they click it.

@@ -2,37 +2,37 @@
   <div class="step-wrap">
     <div class="step-intro">
       <div class="step-icon">⚡</div>
-      <h3>Skills</h3>
-      <p>Add your core skills. AI can suggest relevant ones based on your role.</p>
+      <h3>{{ $t('Skills') }}</h3>
+      <p>{{ $t('Add your core skills. AI can suggest relevant ones based on your role.') }}</p>
     </div>
 
     <div class="skill-input-row">
       <input
         class="f-inp" v-model="newSkill"
-        placeholder="Type a skill and press Enter"
+        :placeholder="$t('Type a skill and press Enter')"
         @keydown.enter="addSkill"
         style="flex:1;"
       />
-      <button class="btn-add-skill" @click="addSkill">Add</button>
+      <button class="btn-add-skill" @click="addSkill">{{ $t('Add') }}</button>
     </div>
 
     <div class="skill-wrap" style="margin-top:12px;min-height:48px;">
       <TransitionGroup name="skill-tag">
         <span v-for="s in store.data.skills" :key="s" class="skill-tag">
           {{ s }}
-          <button class="skill-rm" @click="store.removeSkill(s)" :aria-label="`Remove ${s}`">×</button>
+          <button class="skill-rm" @click="store.removeSkill(s)" :aria-label="$t('Remove {name}', { name: s })">×</button>
         </span>
       </TransitionGroup>
-      <div v-if="!store.data.skills.length" class="empty-skills">No skills added yet</div>
+      <div v-if="!store.data.skills.length" class="empty-skills">{{ $t('No skills added yet') }}</div>
     </div>
 
     <div v-if="aiLoading" class="thinking" style="margin-top:14px;">
       <div class="thinking-dots"><span></span><span></span><span></span></div>
-      <div class="thinking-txt">Finding relevant skills for your role...</div>
+      <div class="thinking-txt">{{ $t('Finding relevant skills for your role…') }}</div>
     </div>
 
     <div v-if="suggested.length" class="suggested-block">
-      <div class="sug-label">💡 AI Suggestions — click to add</div>
+      <div class="sug-label">💡 {{ $t('AI Suggestions — click to add') }}</div>
       <div class="sug-chips">
         <button
           v-for="s in suggested" :key="s"
@@ -41,19 +41,19 @@
           @click="addSuggested(s)"
         >{{ s }}</button>
       </div>
-      <button class="btn-add-all" @click="addAll">Add all</button>
+      <button class="btn-add-all" @click="addAll">{{ $t('Add all') }}</button>
     </div>
 
     <button class="btn-ai" @click="suggestSkills" :disabled="aiLoading" style="margin-top:14px;">
       <svg viewBox="0 0 24 24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
-      {{ aiLoading ? 'Suggesting...' : 'Suggest Skills with AI' }}
+      {{ $t(aiLoading ? 'Suggesting…' : 'Suggest Skills with AI') }}
     </button>
 
     <div class="skill-count">
       <span :class="{ warn: store.data.skills.length < 5, ok: store.data.skills.length >= 5 }">
-        {{ store.data.skills.length }} skill{{ store.data.skills.length !== 1 ? 's' : '' }}
+        {{ $t(store.data.skills.length === 1 ? '{n} skill' : '{n} skills', { n: store.data.skills.length }) }}
       </span>
-      · 6–12 recommended
+      · {{ $t('6–12 recommended') }}
     </div>
   </div>
 </template>

@@ -8,12 +8,12 @@
             <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           </div>
           <div class="confirm-body">
-            <div class="confirm-title">{{ title }}</div>
-            <div class="confirm-msg">{{ message }}</div>
+            <div class="confirm-title">{{ $t(title) }}</div>
+            <div class="confirm-msg">{{ $t(message) }}</div>
           </div>
           <div class="confirm-actions">
-            <button class="confirm-cancel" @click="resolve(false)">{{ cancelLabel }}</button>
-            <button class="confirm-ok" :class="type === 'danger' ? 'ok-danger' : 'ok-warning'" @click="resolve(true)">{{ okLabel }}</button>
+            <button class="confirm-cancel" @click="resolve(false)">{{ $t(cancelLabel) }}</button>
+            <button class="confirm-ok" :class="type === 'danger' ? 'ok-danger' : 'ok-warning'" @click="resolve(true)">{{ $t(okLabel) }}</button>
           </div>
         </div>
       </div>

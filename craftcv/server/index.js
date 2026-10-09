@@ -1103,6 +1103,7 @@ app.post('/api/ai/fix', aiAccess, async (req, res) => {
     const payload = JSON.stringify(src);
     if (payload.length > 14000) return res.status(413).json({ error: 'This CV is too long to fix in one go.' });
     const language = cv.lang === 'fr' ? 'French' : 'British English';
+    const noteLanguage = req.body?.uiLang === 'fr' ? 'French' : 'English';   // the app's language, for the note
 
     const systemPrompt = `You improve one part of a CV. The user reviews every change before it is applied.
 Rules:
@@ -1110,7 +1111,7 @@ Rules:
 - Experience descriptions are bullet lines, each starting with "• " and an action verb, separated by newlines.
 - Keep each text in the language it is already written in. New text (no existing text) is written in ${language}.
 Reply with ONLY a JSON object, no markdown:
-{"changes":[{"key":"title|sum|exp:<i>","after":"new text"}],"skills":["..."],"note":"one short sentence for the user, optional"}`;
+{"changes":[{"key":"title|sum|exp:<i>","after":"new text"}],"skills":["..."],"note":"one short sentence for the user in ${noteLanguage}, optional"}`;
 
     const out = parseJsonObject(await callAi(`TASK: ${task}\n\nCV:\n${payload}`, AI_MODEL, systemPrompt, 3000, 'medium'));
     const exps = src.experiences;
@@ -1255,7 +1256,7 @@ Return JSON with exactly this shape:
   "experiences": [ { "index": 0, "desc": "rewritten description, one line per original point, each starting with '• '" } ],
   "skillsOrder": ["existing CV skills, most relevant to the offer first — only skills already in the CV"],
   "suggestedSkills": ["keywords from the offer NOT evidenced in the CV, max 8"],
-  "notes": ["max 3 short honest tips, e.g. which requirement the CV doesn't show"]
+  "notes": ["max 3 short honest tips, e.g. which requirement the CV doesn't show — written in ${req.body?.uiLang === 'fr' ? 'French' : 'English'} (the language the user reads the app in)"]
 }
 Only include experiences whose description you actually improved. Use the [index] numbers shown above.${boost ? `
 

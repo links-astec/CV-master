@@ -1,7 +1,7 @@
 <template>
   <div class="view-page">
     <div class="view-inner st">
-      <h1 class="st-h1">Settings</h1>
+      <h1 class="st-h1">{{ $t('Settings') }}</h1>
 
       <!-- Account -->
       <section v-if="auth.isLoggedIn" class="st-card">
@@ -10,41 +10,41 @@
           <div class="st-acct-txt">
             <div class="st-acct-name">{{ auth.user?.name }}</div>
             <div class="st-acct-mail">{{ auth.user?.email }}
-              <span v-if="auth.user?.emailVerified === false" class="st-unv">· not confirmed — <button class="st-link-btn" @click="resendVerification()">resend link</button></span>
-              <span v-else class="st-ver">· confirmed</span></div>
+              <span v-if="auth.user?.emailVerified === false" class="st-unv">· {{ $t('not confirmed') }} — <button class="st-link-btn" @click="resendVerification()">{{ $t('resend link') }}</button></span>
+              <span v-else class="st-ver">· {{ $t('confirmed') }}</span></div>
           </div>
-          <button class="btn-secondary btn-sm" @click="logout">Sign out</button>
+          <button class="btn-secondary btn-sm" @click="logout">{{ $t('Sign out') }}</button>
         </div>
 
         <div class="st-rows">
           <div class="st-row">
-            <label class="st-lbl" for="st-name">Display name</label>
+            <label class="st-lbl" for="st-name">{{ $t('Display name') }}</label>
             <input id="st-name" class="f-inp" v-model="name" :placeholder="auth.user?.name" />
           </div>
           <div class="st-row">
-            <label class="st-lbl" for="st-pw">Password</label>
-            <div v-if="!changingPw"><button class="btn-ghost btn-sm st-inline" @click="changingPw = true">Change password</button></div>
+            <label class="st-lbl" for="st-pw">{{ $t('Password') }}</label>
+            <div v-if="!changingPw"><button class="btn-ghost btn-sm st-inline" @click="changingPw = true">{{ $t('Change password') }}</button></div>
             <div v-else class="st-pw">
-              <input id="st-pw" class="f-inp" v-model="newPassword" :type="showPw ? 'text' : 'password'" placeholder="New password (8+ characters)" autocomplete="new-password" />
-              <button type="button" class="st-eye" :aria-label="showPw ? 'Hide password' : 'Show password'" @click="showPw = !showPw">{{ showPw ? 'Hide' : 'Show' }}</button>
+              <input id="st-pw" class="f-inp" v-model="newPassword" :type="showPw ? 'text' : 'password'" :placeholder="$t('New password (8+ characters)')" autocomplete="new-password" />
+              <button type="button" class="st-eye" :aria-label="$t(showPw ? 'Hide password' : 'Show password')" @click="showPw = !showPw">{{ $t(showPw ? 'Hide' : 'Show') }}</button>
             </div>
           </div>
         </div>
-        <div v-if="saveError" class="st-err">{{ saveError }}</div>
+        <div v-if="saveError" class="st-err">{{ $t(saveError) }}</div>
         <div class="st-actions">
-          <button class="btn-primary accent" :disabled="saving || !dirty" @click="saveProfile">{{ saving ? 'Saving…' : 'Save changes' }}</button>
+          <button class="btn-primary accent" :disabled="saving || !dirty" @click="saveProfile">{{ $t(saving ? 'Saving…' : 'Save changes') }}</button>
         </div>
       </section>
 
       <!-- Guest -->
       <section v-else class="st-card st-guest">
         <div>
-          <div class="st-card-t">You’re using CVMaster as a guest</div>
-          <p class="st-p">Your CV is saved in this browser only. Create a free account to keep it safe, use it on any device and export it.</p>
+          <div class="st-card-t">{{ $t('You’re using CVMaster as a guest') }}</div>
+          <p class="st-p">{{ $t('Your CV is saved in this browser only. Create a free account to keep it safe, use it on any device and export it.') }}</p>
         </div>
         <div class="st-btns">
-          <button class="btn-primary accent" @click="openAuth('register', 'save')">Create free account</button>
-          <button class="btn-secondary" @click="openAuth('signin')">Sign in</button>
+          <button class="btn-primary accent" @click="openAuth('register', 'save')">{{ $t('Create free account') }}</button>
+          <button class="btn-secondary" @click="openAuth('signin')">{{ $t('Sign in') }}</button>
         </div>
       </section>
 
@@ -52,55 +52,59 @@
       <section v-if="auth.isLoggedIn" class="st-card">
         <div class="st-card-hd">
           <div>
-            <div class="st-card-t">Invite friends</div>
-            <p class="st-p">They get <strong>{{ referralInfo?.welcomeAi || 25 }} extra AI requests</strong> when they join. When a friend gets their first clean CV, <strong>you get a free CV</strong>.</p>
+            <div class="st-card-t">{{ $t('Invite friends') }}</div>
+            <p class="st-p">{{ $t('They get {n} extra AI requests when they join. When a friend gets their first clean CV, you get a free CV.', { n: referralInfo?.welcomeAi || 25 }) }}</p>
           </div>
         </div>
 
-        <div v-if="referralLoading" class="st-muted">Loading…</div>
+        <div v-if="referralLoading" class="st-muted">{{ $t('Loading…') }}</div>
         <template v-else-if="referralInfo">
           <div class="st-stats">
-            <div><span>{{ referralInfo.count }}</span>joined</div>
-            <div><span>{{ referralInfo.rewarded ?? 0 }}</span>got their CV</div>
-            <div class="hl"><span>{{ referralInfo.credits }}</span>free CV{{ referralInfo.credits === 1 ? '' : 's' }} to use</div>
+            <div><span>{{ referralInfo.count }}</span>{{ $t('joined') }}</div>
+            <div><span>{{ referralInfo.rewarded ?? 0 }}</span>{{ $t('got their CV') }}</div>
+            <div class="hl"><span>{{ referralInfo.credits }}</span>{{ $t(referralInfo.credits === 1 ? 'free CV to use' : 'free CVs to use') }}</div>
           </div>
-          <p v-if="referralInfo.credits > 0" class="st-note">Use a free CV at export — choose “Use a referral credit”.</p>
+          <p v-if="referralInfo.credits > 0" class="st-note">{{ $t('Use a free CV at export — choose “Use a referral credit”.') }}</p>
 
           <div class="st-link">
-            <input class="f-inp" :value="referralInfo.link" readonly aria-label="Your invite link" @focus="$event.target.select()" />
-            <button class="btn-primary accent" @click="copyLink">{{ copied ? 'Copied ✓' : 'Copy link' }}</button>
+            <input class="f-inp" :value="referralInfo.link" readonly :aria-label="$t('Your invite link')" @focus="$event.target.select()" />
+            <button class="btn-primary accent" @click="copyLink">{{ $t(copied ? 'Copied ✓' : 'Copy link') }}</button>
           </div>
           <div class="st-share">
-            <span>Share on</span>
+            <span>{{ $t('Share on') }}</span>
             <button class="st-share-btn" @click="shareWhatsApp">WhatsApp</button>
             <button class="st-share-btn" @click="shareLinkedIn">LinkedIn</button>
             <button class="st-share-btn" @click="shareTwitter">X</button>
-            <button class="st-share-btn" @click="shareEmail">Email</button>
+            <button class="st-share-btn" @click="shareEmail">{{ $t('Email') }}</button>
           </div>
         </template>
-        <div v-else class="st-muted">Couldn’t load your invite link — try refreshing.</div>
+        <div v-else class="st-muted">{{ $t('Couldn’t load your invite link — try refreshing.') }}</div>
       </section>
 
       <!-- AI requests -->
       <section class="st-card">
         <div class="st-card-hd">
           <div>
-            <div class="st-card-t">AI requests</div>
-            <p class="st-p">{{ aiQuota?.tier === 'verified' ? '30 free every day' : '5 free a day — 30 once your email is confirmed' }}, reset at midnight (UTC). Extra requests never expire.</p>
+            <div class="st-card-t">{{ $t('AI requests') }}</div>
+            <p class="st-p">{{ $t(aiQuota?.tier === 'verified' ? '30 free every day, reset at midnight (UTC). Extra requests never expire.' : '5 free a day — 30 once your email is confirmed. Reset at midnight (UTC). Extra requests never expire.') }}</p>
           </div>
-          <button class="btn-secondary btn-sm" @click="openAiAllowance()">Get 100 more — €0.50</button>
+          <button class="btn-secondary btn-sm" @click="openAiAllowance()">{{ $t('Get 100 more — €0.50') }}</button>
         </div>
         <template v-if="aiQuota">
           <div class="st-meter"><div :style="{ width: (aiQuota.freeLeft / aiQuota.limit * 100) + '%' }"></div></div>
-          <div class="st-meter-txt"><strong>{{ aiQuota.freeLeft }}</strong> of {{ aiQuota.limit }} free left today<template v-if="aiQuota.credits"> · <strong>{{ aiQuota.credits }}</strong> extra</template></div>
+          <div class="st-meter-txt">{{ $t('{n} of {limit} free left today', { n: aiQuota.freeLeft, limit: aiQuota.limit }) }}<template v-if="aiQuota.credits"> · {{ $t('{n} extra', { n: aiQuota.credits }) }}</template></div>
         </template>
       </section>
 
       <!-- Preferences -->
       <section class="st-card">
-        <div class="st-card-t">Preferences</div>
+        <div class="st-card-t">{{ $t('Preferences') }}</div>
         <div class="st-pref">
-          <div><div class="st-pref-t">Dark mode</div><div class="st-pref-s">Easier on the eyes at night</div></div>
+          <div><div class="st-pref-t">{{ $t('Language') }}</div><div class="st-pref-s">{{ $t('The language of CVMaster itself. Your CV’s language is set in the editor.') }}</div></div>
+          <LangSwitch />
+        </div>
+        <div class="st-pref">
+          <div><div class="st-pref-t">{{ $t('Dark mode') }}</div><div class="st-pref-s">{{ $t('Easier on the eyes at night') }}</div></div>
           <label class="toggle-switch">
             <input type="checkbox" v-model="store.darkMode" />
             <div class="toggle-track"><div class="toggle-thumb"></div></div>
@@ -108,8 +112,8 @@
         </div>
         <div v-if="auth.isLoggedIn" class="st-pref">
           <div>
-            <div class="st-pref-t">Email newsletter</div>
-            <div class="st-pref-s">{{ nlStatus === 'pending' ? 'Starts once you confirm your email address' : 'CV tips and CVMaster news — a couple of emails a month at most' }}</div>
+            <div class="st-pref-t">{{ $t('Email newsletter') }}</div>
+            <div class="st-pref-s">{{ $t(nlStatus === 'pending' ? 'Starts once you confirm your email address' : 'CV tips and CVMaster news — a couple of emails a month at most') }}</div>
           </div>
           <label class="toggle-switch">
             <input type="checkbox" :checked="nlStatus === 'subscribed' || nlStatus === 'pending'" :disabled="nlStatus === null || nlSaving" @change="setNewsletter($event.target.checked)" />
@@ -117,8 +121,8 @@
           </label>
         </div>
         <div class="st-pref">
-          <div><div class="st-pref-t">Quick tour</div><div class="st-pref-s">A one-minute walkthrough of building, tailoring and exporting</div></div>
-          <button class="btn-secondary btn-sm" @click="restartTour">Start tour</button>
+          <div><div class="st-pref-t">{{ $t('Quick tour') }}</div><div class="st-pref-s">{{ $t('A one-minute walkthrough of building, tailoring and exporting') }}</div></div>
+          <button class="btn-secondary btn-sm" @click="restartTour">{{ $t('Start tour') }}</button>
         </div>
       </section>
 
@@ -127,12 +131,12 @@
 
       <!-- Help -->
       <section class="st-card">
-        <div class="st-card-t">Help &amp; feedback</div>
+        <div class="st-card-t">{{ $t('Help & feedback') }}</div>
         <div class="st-help">
-          <button @click="openFeedback('suggestion')"><strong>Send feedback</strong><span>Ideas or something that isn’t working</span></button>
-          <button @click="openFeedback('complaint')"><strong>Make a complaint</strong><span>We reply to every complaint</span></button>
-          <RouterLink to="/privacy"><strong>Privacy policy</strong><span>What we collect and why</span></RouterLink>
-          <RouterLink to="/terms"><strong>Terms of service</strong><span>Payments, refunds and complaints</span></RouterLink>
+          <button @click="openFeedback('suggestion')"><strong>{{ $t('Send feedback') }}</strong><span>{{ $t('Ideas or something that isn’t working') }}</span></button>
+          <button @click="openFeedback('complaint')"><strong>{{ $t('Make a complaint') }}</strong><span>{{ $t('We reply to every complaint') }}</span></button>
+          <RouterLink to="/privacy"><strong>{{ $t('Privacy policy') }}</strong><span>{{ $t('What we collect and why') }}</span></RouterLink>
+          <RouterLink to="/terms"><strong>{{ $t('Terms of service') }}</strong><span>{{ $t('Payments, refunds and complaints') }}</span></RouterLink>
         </div>
       </section>
     </div>
@@ -145,6 +149,8 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { useCvStore } from '../stores/cv.js'
 import ReviewPrompt from '../components/ReviewPrompt.vue'
+import LangSwitch from '../components/LangSwitch.vue'
+import { t } from '../i18n/index.js'
 
 const apiUrl    = (p) => (import.meta.env.VITE_API_URL || '') + p
 const auth      = useAuthStore()
@@ -250,13 +256,13 @@ async function copyLink() {
     await navigator.clipboard.writeText(link)
     copied.value = true
     setTimeout(() => { copied.value = false }, 2500)
-  } catch { prompt('Copy your invite link:', link) }
+  } catch { prompt(t('Copy your invite link:'), link) }
 }
-const shareMsg = () => `I’ve been using CVMaster to build my CV — it tailors it to the job and checks it against ATS. Sign up with my link and get ${referralInfo.value?.welcomeAi || 25} extra AI requests: ${referralInfo.value?.link || ''}`
+const shareMsg = () => t('I’ve been using CVMaster to build my CV — it tailors it to the job and checks it against ATS. Sign up with my link and get {n} extra AI requests: {link}', { n: referralInfo.value?.welcomeAi || 25, link: referralInfo.value?.link || '' })
 function shareWhatsApp() { window.open(`https://wa.me/?text=${encodeURIComponent(shareMsg())}`, '_blank') }
 function shareTwitter()  { window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareMsg())}`, '_blank') }
 function shareLinkedIn() { window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(referralInfo.value?.link || '')}`, '_blank') }
-function shareEmail()    { window.location.href = `mailto:?subject=${encodeURIComponent('Try CVMaster for your CV')}&body=${encodeURIComponent(shareMsg())}` }
+function shareEmail()    { window.location.href = `mailto:?subject=${encodeURIComponent(t('Try CVMaster for your CV'))}&body=${encodeURIComponent(shareMsg())}` }
 
 onMounted(() => { loadAiQuota(); if (auth.isLoggedIn) { loadReferral(); loadNewsletter() } })
 watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota() } })

@@ -1,51 +1,51 @@
 <template>
   <div class="ck">
     <div class="ck-hd">
-      <div class="ck-ttl">{{ todo.length ? `${todo.length} thing${todo.length === 1 ? '' : 's'} to fix` : 'Your CV is complete' }}</div>
-      <div class="ck-count">{{ passed.length }}/{{ rules.length }} checks passed</div>
+      <div class="ck-ttl">{{ todo.length ? $t(todo.length === 1 ? '{n} thing to fix' : '{n} things to fix', { n: todo.length }) : $t('Your CV is complete') }}</div>
+      <div class="ck-count">{{ $t('{n}/{total} checks passed', { n: passed.length, total: rules.length }) }}</div>
     </div>
     <div class="ck-bar"><div :style="{ width: (passed.length / rules.length * 100) + '%' }"></div></div>
 
     <div v-if="lastFix" class="ck-fixed" :class="{ still: lastFix.still }">
-      <span v-if="!lastFix.still">✓ Fixed: {{ lastFix.title }}</span>
-      <span v-else>Changes applied, but this still needs you: {{ lastFix.still }}</span>
-      <button class="btn-ghost btn-sm" @click="undoFix">Undo</button>
+      <span v-if="!lastFix.still">✓ {{ $t('Fixed: {item}', { item: $t(lastFix.title) }) }}</span>
+      <span v-else>{{ $t('Changes applied, but this still needs you: {item}', { item: $t(lastFix.still) }) }}</span>
+      <button class="btn-ghost btn-sm" @click="undoFix">{{ $t('Undo') }}</button>
     </div>
 
     <div v-if="!todo.length" class="ck-good">
       <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-      Every check passed — contact details, summary, experience, skills and education are all in place.
+      {{ $t('Every check passed — contact details, summary, experience, skills and education are all in place.') }}
     </div>
 
     <div v-for="r in todo" :key="r.id" class="ck-item" :class="r.severity">
       <span class="ck-dot"></span>
       <div class="ck-body">
-        <div class="ck-item-ttl">{{ r.title }}</div>
-        <div class="ck-item-txt">{{ r.text }}</div>
+        <div class="ck-item-ttl">{{ $t(r.title) }}</div>
+        <div class="ck-item-txt">{{ $t(r.text) }}</div>
       </div>
       <div class="ck-acts">
-        <button v-if="r.id === 'date-order'" class="btn-secondary btn-sm" @click="sortAll">Sort by date</button>
-        <button v-else-if="aiFix(r)" class="btn-secondary btn-sm ck-ai" @click="fixRef.start(aiFix(r), r.title, r.id)">
+        <button v-if="r.id === 'date-order'" class="btn-secondary btn-sm" @click="sortAll">{{ $t('Sort by date') }}</button>
+        <button v-else-if="aiFix(r)" class="btn-secondary btn-sm ck-ai" @click="fixRef.start(aiFix(r), $t(r.title), r.id)">
           <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
-          Fix with AI
+          {{ $t('Fix with AI') }}
         </button>
-        <button v-else-if="r.stepIndex !== undefined" class="btn-secondary btn-sm" @click="fixStep(r.stepIndex)">Add</button>
-        <button v-if="r.severity === 'warn'" class="ck-ignore" title="Hide this suggestion for this CV" @click="ignore(r.id)">Ignore</button>
+        <button v-else-if="r.stepIndex !== undefined" class="btn-secondary btn-sm" @click="fixStep(r.stepIndex)">{{ $t('Add') }}</button>
+        <button v-if="r.severity === 'warn'" class="ck-ignore" :title="$t('Hide this suggestion for this CV')" @click="ignore(r.id)">{{ $t('Ignore') }}</button>
       </div>
     </div>
 
     <AiFixModal ref="fixRef" @applied="onFixed" />
 
     <button v-if="passed.length" class="ck-toggle" @click="showPassed = !showPassed">
-      {{ showPassed ? 'Hide' : 'Show' }} the {{ passed.length }} passed check{{ passed.length === 1 ? '' : 's' }}
+      {{ $t(showPassed ? (passed.length === 1 ? 'Hide the {n} passed check' : 'Hide the {n} passed checks') : (passed.length === 1 ? 'Show the {n} passed check' : 'Show the {n} passed checks'), { n: passed.length }) }}
     </button>
     <ul v-if="showPassed" class="ck-passed">
       <li v-for="r in passed" :key="r.id">
-        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ r.title }}
+        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ $t(r.title) }}
       </li>
     </ul>
     <div v-if="ignoredList.length" class="ck-ignored">
-      Ignored: <span v-for="r in ignoredList" :key="r.id">{{ r.title }} <button @click="unignore(r.id)">Undo</button></span>
+      {{ $t('Ignored:') }} <span v-for="r in ignoredList" :key="r.id">{{ $t(r.title) }} <button @click="unignore(r.id)">{{ $t('Undo') }}</button></span>
     </div>
   </div>
 </template>
@@ -55,6 +55,7 @@ import { ref, computed, inject } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
 import AiFixModal from '../AiFixModal.vue'
 import { isOutOfOrder, sortByDate } from '../../composables/reorder.js'
+import { t } from '../../i18n/index.js'
 
 const store = useCvStore()
 defineEmits(['next'])
@@ -118,7 +119,7 @@ const rules = computed(() => {
       id: 'summary-exists', cat: 'Summary', points: 10,
       severity: d.sum?.length > 20 ? 'pass' : 'error',
       title: d.sum?.length > 20 ? 'Summary present' : 'Summary missing',
-      text: d.sum?.length > 20 ? 'Good opening — recruiters read this first.' : 'Add a 2–3 sentence professional summary. It\'s the first thing read.',
+      text: d.sum?.length > 20 ? 'Good opening — recruiters read this first.' : 'Add a 2–3 sentence professional summary. It’s the first thing read.',
       stepIndex: 1,
     },
     {
@@ -134,7 +135,7 @@ const rules = computed(() => {
       id: 'exp-count', cat: 'Experience', points: 15,
       severity: exp.filter(e => e.title || e.company).length >= 1 ? 'pass' : 'error',
       title: exp.filter(e => e.title || e.company).length >= 1 ? 'Experience entries present' : 'No experience added',
-      text: exp.filter(e => e.title || e.company).length >= 1 ? `${exp.filter(e => e.title||e.company).length} experience ${exp.filter(e=>e.title||e.company).length===1?'entry':'entries'} found.` : 'Add at least one work experience entry.',
+      text: exp.filter(e => e.title || e.company).length >= 1 ? t(exp.filter(e => e.title || e.company).length === 1 ? '{n} experience entry found.' : '{n} experience entries found.', { n: exp.filter(e => e.title || e.company).length }) : 'Add at least one work experience entry.',
       stepIndex: 2,
     },
     {
@@ -167,7 +168,7 @@ const rules = computed(() => {
       return {
         id: 'date-order', cat: 'Experience', points: 5,
         severity: bad.length ? 'warn' : 'pass',
-        title: bad.length ? `${bad.length === 2 ? 'Experience and education aren’t' : bad[0] === 'experience' ? 'Experience isn’t' : 'Education isn’t'} in date order` : 'Entries are in date order',
+        title: bad.length ? (bad.length === 2 ? 'Experience and education aren’t in date order' : bad[0] === 'experience' ? 'Experience isn’t in date order' : 'Education isn’t in date order') : 'Entries are in date order',
         text: bad.length ? 'Put the most recent first — recruiters and ATS expect reverse-chronological order. Sort it here, or drag entries in the editor.' : 'Most recent first, as recruiters expect.',
         stepIndex: bad[0] === 'education' ? 4 : 2,
       }
@@ -181,7 +182,7 @@ const rules = computed(() => {
       return {
         id: 'placeholders', cat: 'Experience', points: 10,
         severity: found.length ? 'error' : 'pass',
-        title: found.length ? `Placeholders to fill in: ${found.slice(0, 4).join(' ')}` : 'No placeholders left',
+        title: found.length ? t('Placeholders to fill in: {list}', { list: found.slice(0, 4).join(' ') }) : 'No placeholders left',
         text: found.length ? 'Replace these with your real numbers, or delete them — they will print on your CV as they are.' : 'Every figure on your CV is filled in.',
         stepIndex: 2,
       }
@@ -191,7 +192,7 @@ const rules = computed(() => {
     {
       id: 'skills-count', cat: 'Skills', points: 10,
       severity: skills.length >= 6 ? 'pass' : skills.length >= 3 ? 'warn' : 'error',
-      title: skills.length >= 6 ? `${skills.length} skills listed` : skills.length >= 3 ? 'Too few skills' : 'Skills section empty',
+      title: skills.length >= 6 ? t('{n} skills listed', { n: skills.length }) : skills.length >= 3 ? 'Too few skills' : 'Skills section empty',
       text: skills.length >= 6 ? 'Good skills coverage for ATS matching.' : skills.length >= 3 ? 'Add at least 6 skills. ATS systems match job keywords against your skills.' : 'Add 6–12 relevant skills. This is critical for ATS filtering.',
       tip: 'Mix technical and soft skills. Mirror keywords from job descriptions.',
       stepIndex: 3,

@@ -1,7 +1,7 @@
 <template>
   <div class="step-wrap">
-    <h3 class="step-title">Import Existing CV</h3>
-    <p class="step-sub">Upload your CV and AI will extract all the information and pre-fill every section.</p>
+    <h3 class="step-title">{{ $t('Import Existing CV') }}</h3>
+    <p class="step-sub">{{ $t('Upload your CV and AI will extract all the information and pre-fill every section.') }}</p>
 
     <div v-if="!uploaded && !uploading">
       <div class="upload-zone" :class="{ dragging }"
@@ -13,16 +13,16 @@
         <div class="upload-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>
         </div>
-        <div class="upload-ttl">{{ dragging ? 'Drop your CV here' : 'Drop your CV here or click to browse' }}</div>
-        <div class="upload-sub">PDF, DOCX or TXT · Max 10MB</div>
+        <div class="upload-ttl">{{ $t(dragging ? 'Drop your CV here' : 'Drop your CV here or click to browse') }}</div>
+        <div class="upload-sub">{{ $t('PDF, DOCX or TXT · Max 10MB') }}</div>
       </div>
     </div>
 
     <!-- Uploading state -->
     <div v-if="uploading" class="upload-progress">
       <div class="up-spinner"></div>
-      <div class="up-title">Extracting your CV with AI...</div>
-      <div class="up-sub">Reading {{ uploadingFile }}...</div>
+      <div class="up-title">{{ $t('Extracting your CV with AI…') }}</div>
+      <div class="up-sub">{{ $t('Reading {file}…', { file: uploadingFile }) }}</div>
     </div>
 
     <!-- Success state -->
@@ -32,23 +32,23 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
         <div>
-          <div class="success-title">Extraction complete</div>
-          <div class="success-sub">{{ resultMessage }}</div>
+          <div class="success-title">{{ $t('Extraction complete') }}</div>
+          <div class="success-sub">{{ $t(resultMessage) }}</div>
         </div>
       </div>
       <div class="extracted-preview">
-        <div class="ep-row" v-if="store.data.fn"><span class="ep-lbl">Name</span><span class="ep-val">{{ store.data.fn }} {{ store.data.ln }}</span></div>
-        <div class="ep-row" v-if="store.data.title"><span class="ep-lbl">Title</span><span class="ep-val">{{ store.data.title }}</span></div>
-        <div class="ep-row" v-if="store.data.email"><span class="ep-lbl">Email</span><span class="ep-val">{{ store.data.email }}</span></div>
-        <div class="ep-row" v-if="store.data.skills?.length"><span class="ep-lbl">Skills</span><span class="ep-val">{{ store.data.skills.slice(0,4).join(', ') }}{{ store.data.skills.length > 4 ? ` +${store.data.skills.length - 4} more` : '' }}</span></div>
-        <div class="ep-row" v-if="store.data.experiences?.length"><span class="ep-lbl">Roles</span><span class="ep-val">{{ store.data.experiences.length }} position{{ store.data.experiences.length !== 1 ? 's' : '' }} found</span></div>
+        <div class="ep-row" v-if="store.data.fn"><span class="ep-lbl">{{ $t('Name') }}</span><span class="ep-val">{{ store.data.fn }} {{ store.data.ln }}</span></div>
+        <div class="ep-row" v-if="store.data.title"><span class="ep-lbl">{{ $t('Title') }}</span><span class="ep-val">{{ store.data.title }}</span></div>
+        <div class="ep-row" v-if="store.data.email"><span class="ep-lbl">{{ $t('Email') }}</span><span class="ep-val">{{ store.data.email }}</span></div>
+        <div class="ep-row" v-if="store.data.skills?.length"><span class="ep-lbl">{{ $t('Skills') }}</span><span class="ep-val">{{ store.data.skills.slice(0,4).join(', ') }}{{ store.data.skills.length > 4 ? ' ' + $t('+{n} more', { n: store.data.skills.length - 4 }) : '' }}</span></div>
+        <div class="ep-row" v-if="store.data.experiences?.length"><span class="ep-lbl">{{ $t('Roles') }}</span><span class="ep-val">{{ $t(store.data.experiences.length === 1 ? '{n} position found' : '{n} positions found', { n: store.data.experiences.length }) }}</span></div>
       </div>
       <button class="re-upload-btn" @click="uploaded = false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
-        Upload a different file
+        {{ $t('Upload a different file') }}
       </button>
       <button class="btn-primary accent" @click="$emit('next')" style="width:100%;justify-content:center;margin-top:10px;">
-        Review Extracted Details
+        {{ $t('Review Extracted Details') }}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:13px;height:13px;"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </button>
     </div>
@@ -56,16 +56,16 @@
     <!-- Error state -->
     <div v-if="uploadError" class="upload-error">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      {{ uploadError }}
+      {{ $t(uploadError) }}
     </div>
 
     <div v-if="!uploaded" class="skip-section">
-      <button class="skip-btn" @click="$emit('next')">Skip — I'll fill in manually</button>
+      <button class="skip-btn" @click="$emit('next')">{{ $t('Skip — I’ll fill it in myself') }}</button>
     </div>
 
     <div class="format-note">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px;flex-shrink:0;color:var(--c-text3);"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <div class="fn-txt">For best results use a text-based PDF (not a scanned image). AI reads the text content and structures it into your CV.</div>
+      <div class="fn-txt">{{ $t('For best results use a text-based PDF (not a scanned image). AI reads the text content and structures it into your CV.') }}</div>
     </div>
   </div>
 </template>
@@ -74,6 +74,7 @@
 const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
 import { ref } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
+import { t } from '../../i18n/index.js'
 
 const store  = useCvStore()
 const emit   = defineEmits(['next', 'ai-thinking'])
@@ -115,7 +116,7 @@ async function processFile(file) {
       store.applyExtracted(data.extracted)
       await store.saveDraft()
     }
-    resultMessage.value = data.message || `Extracted from "${file.name}" successfully.`
+    resultMessage.value = data.message || t('Extracted from “{file}” successfully.', { file: file.name })
     uploaded.value = true
   } catch (e) {
     uploadError.value = e.message || 'Failed to extract CV. Try a different file or fill in manually.'
