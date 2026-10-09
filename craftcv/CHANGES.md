@@ -1,5 +1,16 @@
 # Changes
 
+## 2026-10-09 — Email templates, "made a CV but haven't bought it" audience, personalisation
+
+- **16 built-in templates**, picked from one grouped menu.
+  - **Newsletter (subscribers):** Welcome, Finish your CV, Tailor before you send, Product update, New templates, ATS tips, Interview tips, Invite friends, Ask for a review, We miss you, CVMaster in French.
+  - **Important notices (every user):** Terms update, Privacy policy update, Planned maintenance, Price change, Security notice.
+  - Each sets its own subject and audience.
+- **New audience: "Subscribers who made a CV but haven't bought one".** Newsletter subscribers who have a saved CV and no paid export. The Finish your CV and Tailor templates use it.
+- **Personalisation:** `{{first_name}}` and `{{name}}` in a subject or email become each recipient's name ("there" when unknown). Names are escaped in the HTML. The preview and test emails use a sample name.
+- **Save as template:** saves the current email, its subject and audience as a template, shared by every admin and listed under "Saved by you". A loaded template can be updated or deleted. New `email_templates` table.
+- **Newsletters now come from `support@cvmaster.live`** (sender name "CVMaster"), the address with the Google profile picture. Set `NEWSLETTER_FROM` to change it.
+
 ## 2026-10-09 — Admin inbox shows every kind of email; exact email preview
 
 - **Admin Inbox:**

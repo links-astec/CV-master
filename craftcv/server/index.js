@@ -423,7 +423,7 @@ async function rewardReferrer(userId) {
 // Every newsletter carries a one-click unsubscribe link (also as List-Unsubscribe headers),
 // and we keep when and where each person agreed.
 const API_PUBLIC_URL  = process.env.API_PUBLIC_URL || (IS_PROD ? 'https://api.cvmaster.live' : `http://localhost:${process.env.PORT || 3001}`);
-const NEWSLETTER_FROM = process.env.NEWSLETTER_FROM || 'CVMaster <news@cvmaster.live>';
+const NEWSLETTER_FROM = process.env.NEWSLETTER_FROM || 'CVMaster <support@cvmaster.live>';
 let _nlTable = null;
 function ensureNewsletterTable() {
   if (!_nlTable) {
@@ -2832,7 +2832,8 @@ app.delete('/api/admin/users/:id', adminAuthMiddleware, async (req, res) => {
 });
 
 // Adds the unsubscribe footer to a newsletter and the one-click unsubscribe headers
-function newsletterMail(to, token, subject, body) {
+function newsletterMail(to, token, subject, body, name = '') {
+  subject = personalize(subject, name, false); body = personalize(body, name);
   const url = `${API_PUBLIC_URL}/api/newsletter/unsubscribe?t=${token}`;
   const foot = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:18px 24px 28px;text-align:center;color:#8A8AA3;font-size:12px;line-height:1.6">
     You’re getting this because you subscribed to CVMaster news.<br>
@@ -2841,16 +2842,26 @@ function newsletterMail(to, token, subject, body) {
   return { to, from: NEWSLETTER_FROM, subject, html,
     headers: { 'List-Unsubscribe': `<${url}>, <mailto:${SUPPORT_REPLY_TO}?subject=unsubscribe>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } };
 }
+const UNPAID_SQL = `EXISTS (SELECT 1 FROM drafts d WHERE d.user_id = u.id)
+  AND NOT EXISTS (SELECT 1 FROM payments pay WHERE pay.user_id = u.id AND pay.paid AND pay.product = 'email_export')`;
 function subscriberRecipientsSql(plan) {
   const p = [];
-  let sql = `SELECT s.email, s.token FROM newsletter_subscribers s LEFT JOIN users u ON u.id = s.user_id WHERE s.status = 'subscribed'`;
-  if (plan && plan !== 'all') { p.push(plan); sql += ` AND u.plan = $${p.length}`; }
+  let sql = `SELECT s.email, s.token, u.name FROM newsletter_subscribers s LEFT JOIN users u ON u.id = s.user_id WHERE s.status = 'subscribed'`;
+  if (plan === 'unpaid') sql += ` AND u.id IS NOT NULL AND ${UNPAID_SQL}`;
+  else if (plan && plan !== 'all') { p.push(plan); sql += ` AND u.plan = $${p.length}`; }
   return [sql, p];
+}
+// {{first_name}} and {{name}} in a subject or email, filled in per recipient
+function personalize(text, name, html = true) {
+  const full = String(name || '').trim().slice(0, 80), first = full.split(/\s+/)[0] || 'there';
+  const e = html ? escHtml : (s) => s;   // subjects are plain text, bodies are HTML
+  return String(text).replace(/\{\{\s*first_name\s*\}\}/gi, e(first)).replace(/\{\{\s*name\s*\}\}/gi, e(full || first));
 }
 
 // Important notices go to every account holder (no consent needed for service messages:
 // changes to the Terms or prices, security, problems with accounts or payments — never marketing)
-function noticeMail(to, subject, body) {
+function noticeMail(to, subject, body, name = '') {
+  subject = personalize(subject, name, false); body = personalize(body, name);
   const foot = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:18px 24px 28px;text-align:center;color:#8A8AA3;font-size:12px;line-height:1.6">
     You’re receiving this important message because you have a CVMaster account. It isn’t marketing — we only send these when something affects your account.<br>
     Questions? Just reply, or write to <a href="mailto:${SUPPORT_REPLY_TO}" style="color:#8A8AA3">${SUPPORT_REPLY_TO}</a> · <a href="https://www.cvmaster.live/privacy" style="color:#8A8AA3;text-decoration:underline">Privacy</a></div>`;
@@ -2909,10 +2920,10 @@ app.post('/api/admin/email/send', adminAuthMiddleware, async (req, res) => {
     if (audience === 'all_users' && req.body?.important !== true) {
       return res.status(400).json({ error: 'Emails to every user must be important service messages — tick the box to confirm.' });
     }
-    const make = (to, token) => audience === 'all_users' ? noticeMail(to, subject, body) : newsletterMail(to, token, subject, body);
+    const make = (to, token, name) => audience === 'all_users' ? noticeMail(to, subject, body, name) : newsletterMail(to, token, subject, body, name);
     if (test_email) {
       if (!isEmail(test_email)) return res.status(400).json({ error: 'Enter a valid test address.' });
-      const m = make(test_email.trim(), 'test');
+      const m = make(test_email.trim(), 'test', req.body?.test_name || 'Alex Martin');
       await sendMail({ ...m, subject: `[TEST] ${m.subject}` });
       return res.json({ ok: true, sent: 1, test: true });
     }
@@ -2920,8 +2931,9 @@ app.post('/api/admin/email/send', adminAuthMiddleware, async (req, res) => {
     let rows;
     if (audience === 'all_users') {
       const p = [];
-      let sql = `SELECT DISTINCT LOWER(email) AS email FROM users WHERE email IS NOT NULL AND email <> ''`;
+      let sql = `SELECT DISTINCT ON (LOWER(email)) LOWER(email) AS email, name FROM users WHERE email IS NOT NULL AND email <> ''`;
       if (plan_filter && plan_filter !== 'all') { p.push(plan_filter); sql += ` AND plan = $1`; }
+      sql += ' ORDER BY LOWER(email)';
       rows = (await query(sql, p)).rows;
     } else {
       await ensureNewsletterTable();
@@ -2935,7 +2947,7 @@ app.post('/api/admin/email/send', adminAuthMiddleware, async (req, res) => {
       [String(subject).slice(0, 200), audience, plan_filter || 'all', rows.length, req.admin?.email || null])).rows[0];
     res.json({ ok: true, queued: rows.length, id: log.id });
 
-    sendBulk(rows.map(r => make(r.email, r.token)))
+    sendBulk(rows.map(r => make(r.email, r.token, r.name)))
       .then(({ sent, failed }) => query(`UPDATE email_broadcasts SET sent = $1, failed = $2, status = 'done' WHERE id = $3`, [sent, failed, log.id]))
       .catch(e => { console.error('[broadcast]', e.message); return query(`UPDATE email_broadcasts SET status = 'failed' WHERE id = $1`, [log.id]); })
       .catch(() => {});
@@ -2949,8 +2961,55 @@ app.post('/api/admin/email/send', adminAuthMiddleware, async (req, res) => {
 app.post('/api/admin/email/preview', adminAuthMiddleware, (req, res) => {
   const body = String(req.body?.body || '');
   const subject = String(req.body?.subject || '').slice(0, 200) || '(no subject)';
-  const m = req.body?.audience === 'all_users' ? noticeMail('someone@example.com', subject, body) : newsletterMail('someone@example.com', 'preview', subject, body);
+  const m = req.body?.audience === 'all_users' ? noticeMail('someone@example.com', subject, body, 'Alex Martin') : newsletterMail('someone@example.com', 'preview', subject, body, 'Alex Martin');
   res.json({ html: m.html, from: m.from, subject: m.subject, replyTo: SUPPORT_REPLY_TO });
+});
+
+let _tplTable = null;
+function ensureTemplateTable() {
+  if (!_tplTable) {
+    _tplTable = query(`CREATE TABLE IF NOT EXISTS email_templates (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(), name TEXT NOT NULL, subject TEXT NOT NULL DEFAULT '',
+      audience TEXT NOT NULL DEFAULT 'all', blocks JSONB NOT NULL DEFAULT '[]', created_by TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`)
+      .catch(e => { _tplTable = null; throw e; });
+  }
+  return _tplTable;
+}
+const tplFields = (b) => {
+  const blocks = Array.isArray(b?.blocks) ? b.blocks.slice(0, 80) : null;
+  if (!blocks || JSON.stringify(blocks).length > 400000) return null;
+  return { name: String(b.name || '').trim().slice(0, 100), subject: String(b.subject || '').slice(0, 200),
+    audience: ['all', 'free', 'pro', 'unpaid', 'users'].includes(b.audience) ? b.audience : 'all', blocks };
+};
+app.get('/api/admin/email/templates', adminAuthMiddleware, async (req, res) => {
+  try { await ensureTemplateTable(); res.json({ items: (await query('SELECT * FROM email_templates ORDER BY updated_at DESC')).rows }); }
+  catch (e) { res.status(500).json({ error: 'Could not load templates.' }); }
+});
+app.post('/api/admin/email/templates', adminAuthMiddleware, async (req, res) => {
+  try {
+    const f = tplFields(req.body);
+    if (!f || !f.name) return res.status(400).json({ error: 'Give the template a name and some content.' });
+    await ensureTemplateTable();
+    const row = (await query(`INSERT INTO email_templates (name, subject, audience, blocks, created_by) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [f.name, f.subject, f.audience, JSON.stringify(f.blocks), req.admin?.email || null])).rows[0];
+    res.json(row);
+  } catch (e) { res.status(500).json({ error: 'Could not save the template.' }); }
+});
+app.put('/api/admin/email/templates/:id', adminAuthMiddleware, async (req, res) => {
+  try {
+    const f = tplFields(req.body);
+    if (!f || !f.name) return res.status(400).json({ error: 'Give the template a name and some content.' });
+    await ensureTemplateTable();
+    const row = (await query(`UPDATE email_templates SET name = $1, subject = $2, audience = $3, blocks = $4, updated_at = NOW() WHERE id = $5 RETURNING *`,
+      [f.name, f.subject, f.audience, JSON.stringify(f.blocks), req.params.id])).rows[0];
+    if (!row) return res.status(404).json({ error: 'Not found.' });
+    res.json(row);
+  } catch (e) { res.status(500).json({ error: 'Could not save the template.' }); }
+});
+app.delete('/api/admin/email/templates/:id', adminAuthMiddleware, async (req, res) => {
+  try { await ensureTemplateTable(); await query('DELETE FROM email_templates WHERE id = $1', [req.params.id]); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: 'Could not delete the template.' }); }
 });
 
 app.get('/api/admin/email/history', adminAuthMiddleware, async (req, res) => {
@@ -2973,7 +3032,8 @@ app.get('/api/admin/newsletter/subscribers', adminAuthMiddleware, async (req, re
     const byPlan = (await query(`SELECT COALESCE(u.plan, 'none') AS plan, COUNT(*)::int AS n FROM newsletter_subscribers s
       LEFT JOIN users u ON u.id = s.user_id WHERE s.status = 'subscribed' GROUP BY 1`)).rows;
     const allUsers = (await query(`SELECT COUNT(DISTINCT LOWER(email))::int AS n FROM users WHERE email IS NOT NULL AND email <> ''`)).rows[0].n;
-    res.json({ items, counts, byPlan: Object.fromEntries(byPlan.map(r => [r.plan, r.n])), allUsers });
+    const unpaid = (await query(`SELECT COUNT(*)::int AS n FROM newsletter_subscribers s JOIN users u ON u.id = s.user_id WHERE s.status = 'subscribed' AND ${UNPAID_SQL}`)).rows[0].n;
+    res.json({ items, counts, byPlan: Object.fromEntries(byPlan.map(r => [r.plan, r.n])), allUsers, unpaid });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 app.patch('/api/admin/newsletter/subscribers/:id', adminAuthMiddleware, async (req, res) => {

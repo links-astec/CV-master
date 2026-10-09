@@ -148,6 +148,18 @@ CREATE TABLE IF NOT EXISTS email_broadcasts (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- EMAIL TEMPLATES saved from the admin email builder (shared by all admins)
+CREATE TABLE IF NOT EXISTS email_templates (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name       TEXT NOT NULL,
+  subject    TEXT NOT NULL DEFAULT '',
+  audience   TEXT NOT NULL DEFAULT 'all',
+  blocks     JSONB NOT NULL DEFAULT '[]',
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- NEWSLETTER (also created on demand): only people who agreed; double opt-in from the homepage
 CREATE TABLE IF NOT EXISTS newsletter_subscribers (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),

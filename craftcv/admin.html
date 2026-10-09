@@ -251,6 +251,8 @@ input[type=range]{flex:1;accent-color:var(--ac)}
 .form-label{font-size:12.5px;font-weight:600;color:var(--t2)}
 .btn-default{}
 .alert-success{background:var(--green-lt);color:var(--green)}
+.tpl-sel{width:100%;margin:2px 0 8px}
+.tpl-acts{display:flex;flex-wrap:wrap;gap:6px}
 .notice-box{margin-top:8px;padding:10px 12px;border-radius:9px;background:var(--amber-lt);color:var(--t1);font-size:12.5px;line-height:1.55}
 .notice-check{display:flex;gap:8px;align-items:flex-start;margin-top:8px;font-weight:600;cursor:pointer}
 .notice-check input{margin-top:3px}
@@ -418,7 +420,7 @@ async function go(p) {
   if (p === 'users' && !S.users.length) await loadUsers(1)
   if (p === 'reviews') await loadReviews()
   if (p === 'subscribers' || p === 'newsletter') await loadSubs()
-  if (p === 'newsletter') loadHistory()
+  if (p === 'newsletter') { loadHistory(); loadMyTemplates() }
   if (p === 'settings') await Promise.all([loadConfig(), S.stats ? null : loadStats()])
   if (p === 'overview' || !S.stats) loadCounts()
 }
@@ -983,31 +985,129 @@ function clearBlocks() {
   S.blocks=[]; render(); refreshPreview();
 }
 
-function loadTemplate(t) {
-  S.blocks=[];
-  if(t==='welcome') {
-    S.blocks=[
-      {id:uid(),type:'logo',align:'center'},
-      {id:uid(),type:'heading',text:'Welcome to CVMaster! 🎉',align:'center',size:28,color:'#1a1a1a',bold:true},
-      {id:uid(),type:'text',text:'We\'re thrilled to have you on board. CVMaster helps you create professional CVs that stand out. Here\'s what you can do:',align:'center',size:15,color:'#555'},
-      {id:uid(),type:'divider',color:'#e5e5e5',thickness:1},
-      {id:uid(),type:'columns',col1:'✅ 50 templates\n\nATS-friendly and creative designs, in 12 colours.',col2:'🤖 AI-powered writing\n\nLet AI enhance your experience and skills sections.'},
-      {id:uid(),type:'spacer',height:16},
-      {id:uid(),type:'button',text:'Build My CV Now',url:'https://www.cvmaster.live',align:'center',bgColor:'#4338CA',textColor:'#ffffff',radius:8},
-      {id:uid(),type:'spacer',height:8},
-      {id:uid(),type:'text',text:'If you have any questions, just reply to this email. We\'re here to help!',align:'center',size:13,color:'#999'},
-    ];
-  } else if(t==='update') {
-    S.blocks=[
-      {id:uid(),type:'logo',align:'left'},
-      {id:uid(),type:'heading',text:'New update — what\'s new in CVMaster',align:'left',size:26,color:'#1a1a1a',bold:true},
-      {id:uid(),type:'text',text:'Here\'s a roundup of what we\'ve shipped this month.',align:'left',size:15,color:'#333'},
-      {id:uid(),type:'divider',color:'#e5e5e5',thickness:1},
-      {id:uid(),type:'quote',text:'The best CV is the one that gets you the interview.',author:'CVMaster team',color:'#4338CA'},
-      {id:uid(),type:'button',text:'See What\'s New',url:'https://www.cvmaster.live',align:'center',bgColor:'#1a1a1a',textColor:'#ffffff',radius:8},
-    ];
-  }
-  render(); refreshPreview();
+// ── TEMPLATES ─────────────────────────────────────────────────────────────────
+// Built-in emails (newsletter ones go to subscribers; "important" ones to every user), plus
+// templates saved from this page. {{first_name}} becomes each recipient's first name.
+const SITE = 'https://www.cvmaster.live'
+const mk = (type, props = {}) => ({ id: uid(), type, ...JSON.parse(JSON.stringify(BLOCK_DEFS[type].defaults)), ...props })
+const H = (text, props = {}) => mk('heading', { text, size: 26, color: '#14142B', ...props })
+const T = (text, props = {}) => mk('text', { text, color: '#333333', ...props })
+const BTN = (text, url = SITE) => mk('button', { text, url, bgColor: '#4338CA', textColor: '#ffffff', radius: 10, align: 'center' })
+const LIST = (items) => mk('list', { items, color: '#4338CA' })
+const SIGN = () => T('— The CVMaster team', { size: 14, color: '#666666' })
+const BUILTIN = {
+  welcome: { group: 'Newsletter', name: 'Welcome', audience: 'all', subject: 'Welcome to CVMaster, {{first_name}} 👋', blocks: () => [
+    mk('logo'), H('Welcome to CVMaster, {{first_name}}!', { align: 'center' }),
+    T('Thanks for joining. CVMaster helps you build a clean, one-page CV, tailor it to each job and check how well it matches — in English or French.', { align: 'center' }),
+    LIST(['**50 layouts** — ATS-friendly for online applications, creative for print', '**Tailor to any job** — paste the offer and AI rewords your CV, you approve every change', '**ATS check** — see your match score and exactly which keywords are missing']),
+    BTN('Build my CV'), T('Questions? Just reply to this email — a real person reads it.', { align: 'center', size: 13, color: '#888888' }) ] },
+  finish: { group: 'Newsletter', name: 'Finish your CV (not bought yet)', audience: 'unpaid', subject: '{{first_name}}, your CV is almost ready', blocks: () => [
+    mk('logo', { align: 'left' }), H('Your CV is almost ready, {{first_name}}'),
+    T('You’ve already done the hard part — your CV is saved in your account. When you’re happy with it, get the clean PDF and start applying.'),
+    LIST(['A **clean, one-page PDF** with no watermark', '**Emailed to you and downloadable** straight away', '**Free re-sends**, even after you edit it — all for **€0.99**, no subscription']),
+    BTN('Finish my CV'),
+    mk('callout', { text: 'Applying for a specific job? Open **Job match**, paste the offer, and check your ATS score before you export.', icon: '💡', bgColor: '#eef2ff', borderColor: '#4338CA' }),
+    SIGN() ] },
+  tailor: { group: 'Newsletter', name: 'Tailor before you send (not bought yet)', audience: 'unpaid', subject: 'Before you send your CV, {{first_name}} — one quick check', blocks: () => [
+    mk('logo', { align: 'left' }), H('One quick check before you apply'),
+    T('Hi {{first_name}}, most companies run CVs through an applicant tracking system (ATS) before a person reads them. Two minutes in CVMaster can make a real difference:'),
+    LIST(['Paste the job offer in **Job match**', 'Let AI reword your CV using the job’s own keywords — nothing invented, you approve every change', 'Check your **ATS score** and add any skills you really have']),
+    BTN('Check my CV against a job'), SIGN() ] },
+  update: { group: 'Newsletter', name: 'Product update', audience: 'all', subject: 'What’s new in CVMaster', blocks: () => [
+    mk('logo', { align: 'left' }), H('What’s new in CVMaster'),
+    T('Hi {{first_name}}, here’s what we’ve been working on:'),
+    LIST(['**New feature** — describe it in one line', '**Improvement** — what got better for you', '**Fix** — something that works properly now']),
+    BTN('Try it now'), SIGN() ] },
+  layouts: { group: 'Newsletter', name: 'New templates', audience: 'all', subject: 'Fresh CV layouts to try', blocks: () => [
+    mk('logo'), H('New layouts are here 🎨', { align: 'center' }),
+    T('Pick a plain ATS-friendly layout for online applications, or a creative one for print and in person. Switching keeps all your content.', { align: 'center' }),
+    BTN('See the templates', SITE + '/templates'), SIGN() ] },
+  ats: { group: 'Newsletter', name: 'Tips: get past the ATS', audience: 'all', subject: '5 ways to get your CV past the robots', blocks: () => [
+    mk('logo', { align: 'left' }), H('5 ways to get your CV past the ATS'),
+    T('Hi {{first_name}}, applicant tracking systems filter CVs before anyone reads them. These help:'),
+    LIST(['**Use the job’s own words** — if it says “stakeholder management”, say that', '**Standard headings** — Experience, Education, Skills', '**No text in images or tables** for key information', '**Put the job title in your headline** if it’s true for you', '**One clean PDF** — no columns of tiny text']),
+    BTN('Check my ATS score'), SIGN() ] },
+  interview: { group: 'Newsletter', name: 'Tips: the interview', audience: 'all', subject: 'Your CV got you the interview — now what?', blocks: () => [
+    mk('logo', { align: 'left' }), H('Your CV got you the interview — now what?'),
+    T('Congratulations, {{first_name}}! A few things that help on the day:'),
+    LIST(['Re-read the job offer and your CV — every line on it is fair game', 'Prepare one short story for each key skill: the situation, what you did, the result', 'Have two questions ready about the team and the role']),
+    T('Good luck — you’ve got this.'), SIGN() ] },
+  referral: { group: 'Newsletter', name: 'Invite friends', audience: 'all', subject: 'Help a friend with their CV (and get one free)', blocks: () => [
+    mk('logo'), H('Know someone job hunting?', { align: 'center' }),
+    T('Share your invite link: your friend gets **25 extra AI requests**, and when they get their first clean CV, **you get a free one**.', { align: 'center' }),
+    BTN('Get my invite link', SITE + '/settings'), SIGN() ] },
+  review: { group: 'Newsletter', name: 'Ask for a review', audience: 'all', subject: 'How did CVMaster do, {{first_name}}?', blocks: () => [
+    mk('logo', { align: 'left' }), H('How did we do?'),
+    T('Hi {{first_name}}, if CVMaster helped with your applications, a quick rating helps other job seekers find us — and if something annoyed you, we really want to know.'),
+    BTN('Leave a rating', SITE + '/settings'), SIGN() ] },
+  comeback: { group: 'Newsletter', name: 'We miss you', audience: 'all', subject: 'Still job hunting, {{first_name}}?', blocks: () => [
+    mk('logo', { align: 'left' }), H('Still job hunting?'),
+    T('Hi {{first_name}}, your CVs are still saved in your account. Paste a new job offer and tailor your CV to it in a couple of minutes.'),
+    BTN('Open my CVs'), SIGN() ] },
+  french: { group: 'Newsletter', name: 'CVMaster in French', audience: 'all', subject: 'CVMaster now speaks French 🇫🇷', blocks: () => [
+    mk('logo'), H('CVMaster parle français 🇫🇷', { align: 'center' }),
+    T('The whole site is now available in French — switch with **EN | FR** at the top. Your CV’s own language is set separately in Design.', { align: 'center' }),
+    BTN('Try it in French', SITE + '/?lang=fr'), SIGN() ] },
+
+  terms: { group: 'Important notice', name: 'Terms update', audience: 'users', subject: 'An update to our Terms of Service', blocks: () => [
+    mk('logo', { align: 'left' }), H('We’re updating our Terms of Service', { size: 22 }),
+    T('Hi {{first_name}}, we’re making changes to our Terms of Service, which apply from **[date]**.'),
+    LIST(['**What’s changing:** [one line]', '**Why:** [one line]']),
+    T('You don’t need to do anything. If you keep using CVMaster after [date], the new terms apply. You can read them in full here:'),
+    BTN('Read the Terms', SITE + '/terms'), SIGN() ] },
+  privacy: { group: 'Important notice', name: 'Privacy policy update', audience: 'users', subject: 'An update to our Privacy Policy', blocks: () => [
+    mk('logo', { align: 'left' }), H('We’ve updated our Privacy Policy', { size: 22 }),
+    T('Hi {{first_name}}, we’ve updated how we describe what data we collect and why. The main change: **[one line]**. It applies from **[date]**.'),
+    BTN('Read the Privacy Policy', SITE + '/privacy'), T('Questions about your data? Just reply to this email.', { size: 13, color: '#888888' }), SIGN() ] },
+  maintenance: { group: 'Important notice', name: 'Planned maintenance', audience: 'users', subject: 'CVMaster will be briefly unavailable on [date]', blocks: () => [
+    mk('logo', { align: 'left' }), H('Planned maintenance', { size: 22 }),
+    T('Hi {{first_name}}, CVMaster will be unavailable on **[date] from [time] to [time] (Paris time)** while we make improvements.'),
+    T('Your CVs are safe and nothing changes in your account. If you need a PDF before then, download it from My CVs now.'),
+    BTN('Open my CVs'), SIGN() ] },
+  price: { group: 'Important notice', name: 'Price change', audience: 'users', subject: 'A change to CVMaster’s prices', blocks: () => [
+    mk('logo', { align: 'left' }), H('A change to our prices', { size: 22 }),
+    T('Hi {{first_name}}, from **[date]**, the clean PDF of a CV will cost **[new price]** (currently €0.99).'),
+    T('CVs you’ve already paid for stay unlocked, with free re-sends as before. Building and previewing stays free.'),
+    BTN('See pricing', SITE + '/#pricing'), SIGN() ] },
+  security: { group: 'Important notice', name: 'Security notice', audience: 'users', subject: 'Important: a security notice about your account', blocks: () => [
+    mk('logo', { align: 'left' }), H('A security notice', { size: 22 }),
+    T('Hi {{first_name}}, [what happened, in one or two plain sentences].'),
+    mk('callout', { text: '**What to do:** [for example, change your password in Settings]. If you use the same password elsewhere, change it there too.', icon: '🔒', bgColor: '#fff8e1', borderColor: '#f59e0b' }),
+    BTN('Go to Settings', SITE + '/settings'), T('We’re sorry for the trouble. Reply to this email if you have any questions.', { size: 13, color: '#888888' }), SIGN() ] },
+}
+
+function loadTemplate(key) {
+  const saved = (S.myTemplates || []).find(x => 'my:' + x.id === key)
+  const tpl = saved ? { name: saved.name, subject: saved.subject, audience: saved.audience, blocks: () => saved.blocks.map(b => ({ ...b, id: uid() })) } : BUILTIN[key]
+  if (!tpl) return
+  if (S.blocks.length && !confirm(`Replace the current email with “${tpl.name}”?`)) { render(); return }
+  S.blocks = tpl.blocks()
+  S.email.subject = tpl.subject || S.email.subject
+  S.email.plan = tpl.audience || 'all'
+  S.email.important = false
+  S.tplCurrent = saved ? { id: saved.id, name: saved.name } : null
+  render(); refreshPreview()
+}
+async function loadMyTemplates() {
+  try { S.myTemplates = (await api('GET', '/email/templates')).items; render() } catch { S.myTemplates = [] }
+}
+async function saveTemplate(update) {
+  if (!S.blocks.length) { toast('Add some content first.'); return }
+  const subject = $('e-subject')?.value || S.email.subject
+  const plan = $('e-plan-sel')?.value || S.email.plan
+  const name = update ? S.tplCurrent.name : prompt('Name this template:', subject || 'My template')
+  if (!name || !name.trim()) return
+  const payload = { name: name.trim(), subject, audience: plan, blocks: S.blocks }
+  try {
+    const row = update ? await api('PUT', '/email/templates/' + S.tplCurrent.id, payload) : await api('POST', '/email/templates', payload)
+    S.tplCurrent = { id: row.id, name: row.name }
+    toast(update ? 'Template updated' : `Saved as “${row.name}”`)
+    await loadMyTemplates()
+  } catch (e) { toast(e.message) }
+}
+async function deleteTemplate() {
+  if (!S.tplCurrent || !confirm(`Delete the template “${S.tplCurrent.name}”? Emails already sent aren’t affected.`)) return
+  try { await api('DELETE', '/email/templates/' + S.tplCurrent.id); S.tplCurrent = null; toast('Template deleted'); await loadMyTemplates() } catch (e) { toast(e.message) }
 }
 
 // ── DRAG AND DROP ─────────────────────────────────────────────────────────────
@@ -1032,6 +1132,9 @@ document.addEventListener('click', (e) => {
   else if (a === 'move') moveBlock(Number(t.dataset.bid), Number(t.dataset.dir))
   else if (a === 'remove') removeBlock(Number(t.dataset.bid))
   else if (a === 'copy') copyHtml()
+  else if (a === 'save-tpl') saveTemplate(false)
+  else if (a === 'update-tpl') saveTemplate(true)
+  else if (a === 'delete-tpl') deleteTemplate()
 })
 const blockOf = (e) => e.target.closest?.('.block-wrap[data-id]')
 document.addEventListener('dragstart', (e) => { const w = blockOf(e); if (w) onDragStart(e, Number(w.dataset.id)) })
@@ -1174,13 +1277,15 @@ function renderEmail() {
     <!-- Meta -->
     <div class="card">
       <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
-        <div class="form-group"><label class="form-label">Subject line</label><input class="inp" id="e-subject" placeholder="e.g. New templates just dropped! 🎨" value="${esc(S.email.subject)}" /></div>
+        <div class="form-group"><label class="form-label">Subject line</label><input class="inp" id="e-subject" placeholder="e.g. New templates just dropped! 🎨" value="${esc(S.email.subject)}" />
+          <div class="muted" style="font-size:12px;margin-top:5px">Tip: write <code>{{first_name}}</code> in the subject or text — each person sees their own first name (or “there”).</div></div>
         <div class="form-group"><label class="form-label">Send to</label>
           <select class="inp" id="e-plan-sel">
             <optgroup label="Newsletter — people who subscribed">
               <option value="all"${S.email.plan==='all'?' selected':''}>All subscribers${S.subs ? ' (' + fmt(S.subs.counts.subscribed) + ')' : ''}</option>
               <option value="free"${S.email.plan==='free'?' selected':''}>Subscribers on the free plan${S.subs ? ' (' + fmt(S.subs.byPlan.free || 0) + ')' : ''}</option>
               <option value="pro"${S.email.plan==='pro'?' selected':''}>Subscribers on Pro${S.subs ? ' (' + fmt(S.subs.byPlan.pro || 0) + ')' : ''}</option>
+              <option value="unpaid"${S.email.plan==='unpaid'?' selected':''}>Subscribers who made a CV but haven’t bought one${S.subs?.unpaid != null ? ' (' + fmt(S.subs.unpaid) + ')' : ''}</option>
             </optgroup>
             <optgroup label="Important notice — every account">
               <option value="users"${S.email.plan==='users'?' selected':''}>Every user${S.subs?.allUsers != null ? ' (' + fmt(S.subs.allUsers) + ')' : ''}</option>
@@ -1200,11 +1305,17 @@ function renderEmail() {
       <span class="tb-label">Add</span>
       ${Object.entries(BLOCK_DEFS).map(([k,v])=>`<button class="tb-btn" data-nl="add" data-type="${k}" title="${v.label}">${v.icon} ${v.label}</button>`).join('')}
       <div class="tb-sep"></div>
-      <span class="tb-label">Template</span>
-      <button class="tb-btn" data-nl="tpl" data-t="welcome">Welcome</button>
-      <button class="tb-btn" data-nl="tpl" data-t="update">Update</button>
-      <div class="tb-sep"></div>
-      <button class="tb-btn" data-nl="clear">Clear</button>
+      <span class="tb-label">Templates</span>
+      <select class="inp tpl-sel" id="tpl-sel">
+        <option value="">Start from a template…</option>
+        ${['Newsletter', 'Important notice'].map(g => `<optgroup label="${g === 'Newsletter' ? 'Newsletter (subscribers)' : 'Important notices (every user)'}">${Object.entries(BUILTIN).filter(([, t]) => t.group === g).map(([k, t]) => `<option value="${k}">${esc(t.name)}</option>`).join('')}</optgroup>`).join('')}
+        ${(S.myTemplates || []).length ? `<optgroup label="Saved by you">${S.myTemplates.map(t => `<option value="my:${t.id}">${esc(t.name)}</option>`).join('')}</optgroup>` : ''}
+      </select>
+      <div class="tpl-acts">
+        <button class="tb-btn" data-nl="save-tpl">💾 Save as template</button>
+        ${S.tplCurrent ? `<button class="tb-btn" data-nl="update-tpl">Update “${esc(S.tplCurrent.name)}”</button><button class="tb-btn" data-nl="delete-tpl">Delete template</button>` : ''}
+        <button class="tb-btn" data-nl="clear">Clear</button>
+      </div>
     </div>
 
     <!-- Blocks -->
@@ -1319,6 +1430,7 @@ function bind() {
   if ($('e-preview')) refreshPreview()   // also picks up a change of audience (newsletter vs important notice)
   $('e-plan-sel')?.addEventListener('change', e => { S.email.plan = e.target.value; S.email.important = false; render() })
   $('e-important')?.addEventListener('change', e => { S.email.important = e.target.checked })
+  $('tpl-sel')?.addEventListener('change', e => { if (e.target.value) loadTemplate(e.target.value) })
   $('e-test')?.addEventListener('input', e => { S.email.testTo = e.target.value })
   $('sub-f')?.addEventListener('change', (e) => { S.subFilter = e.target.value; render() })
   $('sub-q')?.addEventListener('change', (e) => { S.subQ = e.target.value.trim(); render() })
@@ -1330,7 +1442,7 @@ function bind() {
       const n = S.subs?.allUsers
       if (!confirm('Send this important notice to EVERY user' + (n != null ? ' (' + n + ')' : '') + ' now? This can’t be undone.')) return
     } else {
-      const n = S.subs ? (plan === 'all' ? S.subs.counts.subscribed : (S.subs.byPlan[plan] || 0)) : null
+      const n = S.subs ? (plan === 'all' ? S.subs.counts.subscribed : plan === 'unpaid' ? S.subs.unpaid : (S.subs.byPlan[plan] || 0)) : null
       if (n === 0) { toast('No subscribers to send to yet.'); return }
       if (!confirm('Send this newsletter to ' + (n == null ? 'your subscribers' : n + ' subscriber' + (n === 1 ? '' : 's')) + ' now?')) return
     }
