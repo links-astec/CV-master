@@ -48,7 +48,7 @@
     "puppeteer": "^25.0.2",
     "resend": "^6.12.3",
     "stripe": "^14.11.0",
-    "uuid": "^9.0.0",
+    "uuid": "^11.1.1",
     "vue": "^3.4.0",
     "vue-router": "^4.2.5"
   },
@@ -57,5 +57,12 @@
     "@vitejs/plugin-vue": "^6.0.6",
     "concurrently": "^8.2.2",
     "vite": "^8.0.10"
+  },
+  "overrides": {
+    "qs": "^6.16.0",
+    "uuid": "$uuid",
+    "mammoth": {
+      "argparse": "^2.0.1"
+    }
   }
 }

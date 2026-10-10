@@ -1005,7 +1005,7 @@ export default {
   "This CV was paid for under another person’s name. A CV for someone else needs its own payment. Start a new CV for them.": "这份简历是以他人名义付款的。为他人制作的简历需要单独付款。请为对方新建一份简历。",
   "This download expired, click Download again.": "此下载已过期，请再次点击“下载”。",
   "This item can’t be fixed automatically.": "此项无法自动修复。",
-  "This page is available in English and French only. The English version is shown.": "此页面仅提供英文和法文版本，当前显示的是英文版。",
+  "This is a translation for convenience. If it differs from the English version, the English version applies.": "此译文仅供参考。如与英文版本有出入，以英文版本为准。",
   "This payment belongs to a different account.": "此笔付款属于另一个账号。",
   "This payment has not completed.": "此笔付款尚未完成。",
   "This reset link is incomplete. Request a new one.": "此重置链接不完整。请求一个新的链接。",

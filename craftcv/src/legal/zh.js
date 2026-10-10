@@ -1,0 +1,97 @@
+// Simplified Chinese translation of the Privacy policy and the Terms (same sections and ids as the
+// English in src/views/Legal.vue). If the two differ, the English version applies.
+export const UPDATED = '2026 年 10 月 9 日'
+
+export default ({ mail }) => {
+  const TEAM = 'Gabriel Quaye 和 Nisy Adjei Acheampong'
+  return [
+    {
+      id: 'privacy', tab: '隐私政策', title: '隐私政策',
+      summary: [
+        '我们绝不出售您的数据，也不向您展示广告。',
+        '您的简历属于您。您可以随时删除它，或删除整个账号。',
+        '银行卡信息直接提交给 Stripe，我们从不查看或保存。',
+        '只使用一个登录 Cookie，不使用任何跟踪或广告 Cookie。',
+      ],
+      sections: [
+        { id: 'who', title: '我们是谁', html: `<p>CVMaster（“我们”）是一款 AI 辅助的简历制作工具，网址为 cvmaster.live，由 ${TEAM} 在法国运营，他们是您个人数据的控制者。联系方式：${mail}。</p>` },
+        { id: 'collect', title: '我们收集哪些数据', html: `<ul>
+          <li><strong>账号信息</strong>：您的姓名、电子邮箱和密码（仅以安全哈希形式存储）。</li>
+          <li><strong>您的简历</strong>：您填写的全部内容。未注册时，简历只保存在您的浏览器中，直到您注册。</li>
+          <li><strong>职位信息</strong>：您为定制简历而粘贴的职位描述，与该简历一起保存。</li>
+          <li><strong>付款</strong>：由 Stripe 处理。我们只记录某份简历已付款，从不保存您的银行卡信息。</li>
+          <li><strong>您发给我们的消息</strong>：反馈和投诉，以及您留下的用于回复的邮箱。</li>
+          <li><strong>技术数据</strong>：基本的服务器日志（IP 地址、时间），用于安全和排查问题。</li>
+        </ul>` },
+        { id: 'use', title: '我们如何使用这些数据', html: `<ul>
+          <li>运营您的账号并保存您的简历。</li>
+          <li>提供您选择使用的 AI 功能（写作帮助、针对职位定制、ATS 检查、岗位匹配检查、翻译）。</li>
+          <li>根据您注册时的回答和您的其他简历，为您本人名下的简历个性化 AI 建议。您为他人制作的简历不会使用这些信息，您也可以在设置中关闭此功能。</li>
+          <li>通过邮件向您发送简历和账号消息，例如重置密码。</li>
+          <li>通过 Stripe 收取付款。</li>
+          <li>回复您的反馈和投诉，并改进 CVMaster。</li>
+        </ul>` },
+        { id: 'newsletter', title: '邮件通讯', html: `<p>只有在您主动订阅时，我们才会发送邮件通讯（简历小贴士和 CVMaster 动态）：在首页订阅、创建账号时勾选可选框，或在设置中开启。若您在首页订阅，我们会先发送一封确认邮件。法律依据是您的同意。</p><p>我们会保存您的邮箱、您同意的时间和方式，以及您退订的时间。每封通讯都带有一键退订链接；您也可以在设置中关闭，或发送邮件至 ${mail}。我们会立即停止发送。与您的账号和购买相关的邮件不受影响。</p>` },
+        { id: 'share', title: '我们与谁共享数据', html: `<p>我们不出售您的数据，只与支撑 CVMaster 运行的服务共享：</p><ul>
+          <li><strong>Anthropic（Claude）和 Groq</strong>：AI 服务商。使用 AI 功能时，相关的简历文本和职位信息会发送给它们以生成结果。</li>
+          <li><strong>Stripe</strong>：付款。</li>
+          <li><strong>Resend</strong>：发送邮件，包括您导出的简历 PDF。</li>
+          <li><strong>Google</strong>：仅在您使用 Google 登录时。</li>
+          <li><strong>Vercel、Render 和 Neon</strong>：托管服务以及存储您数据的数据库。</li>
+        </ul><p>其中部分服务商位于美国或在美国处理数据。数据离开欧盟时，受 GDPR 要求的保障措施保护，例如欧盟委员会的标准合同条款或欧盟–美国数据隐私框架。</p>` },
+        { id: 'keep', title: '我们保存多久', html: `<p>我们会保存您的账号和简历，直到您删除它们或要求我们删除。反馈和投诉会在处理所需的期限内保存。法律有要求时，付款记录可能会保存更久。</p>` },
+        { id: 'rights', title: '您的权利', html: `<p>根据英国和欧盟的数据保护法律，您可以要求查看、更正、导出或删除您的个人数据，或反对我们使用这些数据。请发送邮件至 ${mail}，我们会在一个月内回复。</p><p>如果您对我们处理数据的方式不满意，可以向法国数据保护机构 CNIL（cnil.fr）投诉，或向您所在国家或地区的数据保护机构投诉。</p>` },
+        { id: 'cookies', title: 'Cookie', html: `<p>我们使用一个 Cookie 来保持您的登录状态，不使用任何跟踪或广告 Cookie。如果您未注册就使用 CVMaster，浏览器的本地存储会保存您的简历以及您的偏好设置（语言、深色模式）。</p>` },
+        { id: 'security', title: '安全', html: `<p>密码使用 bcrypt 进行哈希处理，所有数据都通过 HTTPS 传输，银行卡付款完全由 Stripe 处理。</p>` },
+        { id: 'changes', title: '本政策的变更', html: `<p>如果我们修改本政策，会更新上方的日期；如有重大变更，我们会通过邮件通知您。</p>` },
+      ],
+    },
+    {
+      id: 'terms', tab: '服务条款', title: '服务条款',
+      summary: [
+        '制作和预览简历完全免费。',
+        '无水印 PDF 每份简历 €0.99，一次性付费，无需订阅。',
+        '您写的内容归您所有。发送简历前请检查 AI 的建议。',
+        '遇到问题？请告诉我们。如果您的简历从未送达，我们会重新发送或退款。',
+      ],
+      sections: [
+        { id: 'accept', title: '使用 CVMaster', html: `<p>使用 CVMaster 即表示您同意本条款。如果您不同意，请不要使用本服务。您必须年满 16 周岁。</p>` },
+        { id: 'service', title: '服务内容', html: `<p>CVMaster 让您可以在可选的 AI 帮助下创建、编辑、定制和导出简历。我们努力保持服务稳定运行，但服务按“现状”提供，偶尔可能无法使用。</p>` },
+        { id: 'account', title: '您的账号', html: `<ul>
+          <li>注册时请提供真实准确的信息。</li>
+          <li>请妥善保管您的密码。您需对账号中的活动负责。</li>
+        </ul>` },
+        { id: 'payments', title: '付款', html: `<ul>
+          <li>一份简历的无水印 PDF 为一次性付费 <strong>€0.99</strong>，包含邮件发送、直接下载，以及该简历不限次数的重新发送和下载，修改后同样适用。</li>
+          <li>带水印的预览 PDF 免费。</li>
+          <li>AI 功能为已确认邮箱的账号提供<strong>每天 30 次免费请求</strong>（访客和未确认的账号为 5 次），每天 UTC 午夜重置。<strong>100 次额外请求</strong>的套餐售价 <strong>€0.50</strong>；额外请求永不过期，只在当天免费次数用完后使用，且不具有现金价值。</li>
+          <li>推荐：通过您的邀请链接注册的用户可获得 25 次额外 AI 请求。当对方购买第一份无水印 PDF 时，您将获得一个推荐积分，可解锁一份简历的无水印 PDF。积分不具有现金价值。</li>
+          <li>付款由 Stripe 处理。</li>
+          <li><strong>撤回权：</strong>通常您有 14 天时间取消网上购买。由于您的 PDF（或 AI 请求）会立即交付，您在付款时要求我们立即开始，并确认交付完成后即放弃此权利，这是欧盟消费者法所允许的（在法国为《消费法典》（Code de la consommation）第 L221-28 条）。</li>
+          <li>如果您的简历从未送达，或付款出现问题，请在 14 天内联系我们，我们会重新发送或退款。</li>
+        </ul>` },
+        { id: 'complaints', title: '投诉', html: `<p>如果您对任何方面不满意，无论是服务、付款还是我们对待您的方式，请告诉我们：</p><ul>
+          <li>使用<strong>反馈 → 投诉</strong>（位于侧栏、设置或本页底部），或发送邮件至 ${mail}。</li>
+          <li>请说明发生了什么、发生的时间，以及您账号或付款所用的邮箱。</li>
+          <li>您会收到一个参考编号。我们力争在 5 个工作日内回复，并在 14 天内解决投诉。</li>
+        </ul>` },
+        { id: 'use', title: '合理使用', html: `<p>请不要：</p><ul>
+          <li>将 CVMaster 用于任何违法或误导性用途；</li>
+          <li>试图绕过付款，或不付费使用付费功能；</li>
+          <li>复制、逆向工程或转售本服务或其模板；</li>
+          <li>上传违法、有害或侵犯他人权利的内容。</li>
+        </ul>` },
+        { id: 'ai', title: 'AI 生成的内容', html: `<p>AI 的建议可能有误。CVMaster 不会在未经您同意的情况下添加任何内容，但在发送简历前，您有责任确认简历上的所有内容都真实无误。</p>` },
+        { id: 'ip', title: '权利归属', html: `<p>您简历的内容归您所有。CVMaster 平台及其设计和模板归我们所有。</p>` },
+        { id: 'liability', title: '责任', html: `<p>我们不对间接或后果性损失负责，包括任何求职申请的结果。本条款中的任何内容均不限制您依据消费者法享有的权利。</p>` },
+        { id: 'law', title: '适用法律', html: `<p>本条款受法国法律管辖。如果您是消费者，您同时享有您居住国强制性消费者保护法律的保护，并可在当地法院提起诉讼。</p>` },
+        { id: 'notice', title: '法律声明', html: `<ul>
+          <li><strong>发布者：</strong>${TEAM}，法国，${mail}</li>
+          <li><strong>网站托管：</strong>Vercel Inc.（vercel.com）</li>
+          <li><strong>应用托管：</strong>Render Services, Inc.（render.com）</li>
+          <li><strong>数据库：</strong>Neon（neon.tech）</li>
+        </ul>` },
+      ],
+    },
+  ]
+}

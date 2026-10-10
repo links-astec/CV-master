@@ -1006,7 +1006,7 @@ export default {
   "This CV was paid for under another person’s name. A CV for someone else needs its own payment. Start a new CV for them.": "Este currículo foi pago em nome de outra pessoa. Um currículo para outra pessoa precisa de pagamento próprio. Crie um novo currículo para ela.",
   "This download expired, click Download again.": "Este download expirou, clique em Baixar novamente.",
   "This item can’t be fixed automatically.": "Este item não pode ser corrigido automaticamente.",
-  "This page is available in English and French only. The English version is shown.": "Esta página está disponível apenas em inglês e francês. A versão em inglês está exibida.",
+  "This is a translation for convenience. If it differs from the English version, the English version applies.": "Esta tradução é oferecida para sua conveniência. Se houver diferenças, prevalece a versão em inglês.",
   "This payment belongs to a different account.": "Este pagamento pertence a outra conta.",
   "This payment has not completed.": "Este pagamento não foi concluído.",
   "This reset link is incomplete. Request a new one.": "Este link de redefinição está incompleto. Solicite um novo.",

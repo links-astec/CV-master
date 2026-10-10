@@ -21,7 +21,6 @@
     <section class="lp-hero">
       <div class="lp-wrap lp-hero-in">
         <div class="lp-hero-copy">
-          <p class="lp-eyebrow">{{ $t('Free AI CV builder') }}</p>
           <h1>{{ $t('A CV that gets you') }}{{ wordSpace }}<span class="lp-hl">{{ $t('the interview.') }}</span></h1>
           <p class="lp-lead">{{ $t('Build it in minutes, tailor it to the job, and see how well it matches, before you apply.') }}</p>
           <div class="lp-cta">
@@ -31,9 +30,6 @@
             </button>
             <button class="btn-ghost btn-lg" @click="go('#templates')">{{ $t('See templates') }}</button>
           </div>
-          <ul class="lp-trust">
-            <li v-for="t in TRUST" :key="t"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ $t(t) }}</li>
-          </ul>
         </div>
 
         <div class="lp-hero-art" aria-hidden="true" inert>
@@ -226,7 +222,6 @@ function go(sel) {
 onMounted(() => rootEl.value?.addEventListener('scroll', onScroll, { passive: true }))
 onUnmounted(() => rootEl.value?.removeEventListener('scroll', onScroll))
 
-const TRUST  = ['No account needed to start', 'Available in 7 languages']
 const CHECKS = ['Keywords from the job', 'One A4 page', 'Readable by ATS']
 
 const STEPS = [
@@ -271,20 +266,18 @@ const FAQ = [
 .lp-nav-cta{display:flex;gap:6px;align-items:center}
 
 /* Hero */
-.lp-hero{padding:64px 0 80px;background:linear-gradient(180deg,var(--c-accent-lt) 0%,var(--c-surface) 85%)}
-.lp-hero-in{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center}
-.lp-hero-copy h1{font-size:clamp(38px,5vw,60px);line-height:1.03;letter-spacing:-.04em;font-weight:800;margin-bottom:18px}
+.lp-hero{padding:96px 0 104px;background:linear-gradient(180deg,var(--c-accent-lt) 0%,var(--c-surface) 85%)}
+.lp-hero-in{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:80px;align-items:center}
+.lp-hero-copy{max-width:520px}
+.lp-hero-copy h1{font-size:clamp(36px,4.4vw,54px);line-height:1.08;letter-spacing:-.03em;font-weight:700;margin-bottom:22px;hyphens:auto;overflow-wrap:break-word}
 .lp-hl{color:var(--c-accent)}
-.lp-lead{font-size:19px;line-height:1.55;color:var(--c-text2);max-width:480px}
-.lp-cta{display:flex;gap:8px;margin-top:30px;flex-wrap:wrap}
+.lp-lead{font-size:18px;line-height:1.6;color:var(--c-text2);max-width:440px}
+.lp-cta{display:flex;align-items:center;gap:12px;margin-top:36px;flex-wrap:wrap}
 .lp-cta svg{width:17px;height:17px}
-.lp-trust{list-style:none;display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:22px;padding:0}
-.lp-trust li{display:flex;align-items:center;gap:7px;font-size:14px;color:var(--c-text2);font-weight:500}
-.lp-trust svg{width:16px;height:16px;fill:none;stroke:var(--c-pass);stroke-width:2.6}
 
-.lp-hero-art{position:relative;max-width:420px;margin-left:auto;width:100%}
-.lp-page{border-radius:8px;overflow:hidden;background:#fff;box-shadow:0 2px 4px rgba(20,20,43,.05),0 28px 60px rgba(20,20,43,.16);transform:rotate(1.5deg)}
-.lp-check{position:absolute;left:-44px;bottom:28px;width:210px;background:var(--c-surface);border:1px solid var(--c-border);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow-lg)}
+.lp-hero-art{position:relative;max-width:400px;margin-left:auto;width:100%}
+.lp-page{border-radius:6px;overflow:hidden;background:#fff;border:1px solid var(--c-border);box-shadow:0 1px 2px rgba(20,20,43,.04),0 18px 40px rgba(20,20,43,.10)}
+.lp-check{position:absolute;left:-36px;bottom:36px;width:210px;background:var(--c-surface);border:1px solid var(--c-border);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow-lg)}
 .lp-check-score{font-size:12.5px;color:var(--c-text3);margin-bottom:8px}
 .lp-check-score span{display:block;font-size:30px;font-weight:800;letter-spacing:-.03em;color:var(--c-pass);line-height:1.1}
 .lp-check-row{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;padding:3px 0}
@@ -353,7 +346,6 @@ const FAQ = [
 .lp-final-in{display:flex;flex-direction:column;align-items:center;gap:20px;text-align:center}
 .lp-final h2{font-size:clamp(26px,3.2vw,36px);letter-spacing:-.035em;font-weight:800}
 
-.lp-eyebrow{display:inline-block;margin:0 0 14px;padding:4px 11px;border-radius:999px;background:var(--c-accent-lt,#EEF0FF);color:var(--c-accent,#4338CA);font-size:13px;font-weight:600;letter-spacing:.01em}
 .lp-foot{padding:26px 0;border-top:1px solid var(--c-border)}
 .lp-foot-in{display:flex;align-items:center;gap:18px;font-size:13.5px;color:var(--c-text3)}
 .lp-foot nav{margin-left:auto;display:flex;flex-wrap:wrap;justify-content:center;gap:8px 20px}
@@ -362,7 +354,9 @@ const FAQ = [
 
 @media (max-width:900px){
   .lp-links{display:none}
-  .lp-hero-in{grid-template-columns:1fr;gap:40px}
+  .lp-hero{padding:64px 0 72px}
+  .lp-hero-in{grid-template-columns:minmax(0,1fr);gap:48px}
+  .lp-hero-copy{max-width:none}
   .lp-hero-art{margin:0 auto;max-width:360px}
   .lp-check{left:-18px}
   .lp-steps,.lp-prices,.lp-reviews{grid-template-columns:1fr}
@@ -370,10 +364,17 @@ const FAQ = [
   .lp-tpls{grid-template-columns:1fr 1fr}
   .lp-step{padding:8px 4px}
 }
+@media (max-width:440px){
+  /* the hero's own button is right below, and longer languages don't fit beside the logo */
+  .lp-nav-cta .btn-primary{display:none}
+}
 @media (max-width:560px){
   .lp-nav-cta .btn-ghost{display:none}
   .lp-nav-cta{gap:8px}
-  .lp-hero{padding:36px 0 56px}
+  .lp-hero{padding:40px 0 56px}
+  .lp-cta{margin-top:28px;flex-direction:column;align-items:stretch;gap:6px}
+  .lp-cta .btn-lg{white-space:normal;text-align:center}
+  .lp-cta .btn-lg{width:100%;justify-content:center}
   .lp-check{position:relative;left:auto;bottom:auto;width:auto;margin-top:-30px;margin-left:16px;margin-right:16px}
   .lp-sec{padding:60px 0}
   .lp-foot-in{flex-direction:column;gap:10px;text-align:center}

@@ -121,6 +121,16 @@ const LABELS = {
         projects: 'Projects', languages: 'Languages', certifications: 'Certifications', contact: 'Contact' },
   fr: { profile: 'Profil', experience: 'Expérience professionnelle', education: 'Formation', skills: 'Compétences',
         projects: 'Projets', languages: 'Langues', certifications: 'Certifications', contact: 'Contact' },
+  es: { profile: 'Perfil', experience: 'Experiencia profesional', education: 'Formación', skills: 'Competencias',
+        projects: 'Proyectos', languages: 'Idiomas', certifications: 'Certificaciones', contact: 'Contacto' },
+  de: { profile: 'Profil', experience: 'Berufserfahrung', education: 'Ausbildung', skills: 'Kenntnisse',
+        projects: 'Projekte', languages: 'Sprachen', certifications: 'Zertifikate', contact: 'Kontakt' },
+  it: { profile: 'Profilo', experience: 'Esperienza professionale', education: 'Formazione', skills: 'Competenze',
+        projects: 'Progetti', languages: 'Lingue', certifications: 'Certificazioni', contact: 'Contatti' },
+  pt: { profile: 'Perfil', experience: 'Experiência profissional', education: 'Formação', skills: 'Competências',
+        projects: 'Projetos', languages: 'Idiomas', certifications: 'Certificações', contact: 'Contato' },
+  zh: { profile: '个人简介', experience: '工作经历', education: '教育背景', skills: '技能',
+        projects: '项目经历', languages: '语言能力', certifications: '证书', contact: '联系方式' },
 }
 const PLACEHOLDERS = {
   en: { name: 'Your Name', title: 'Job title', email: 'you@email.com', phone: '+44 7700 900000', loc: 'City, Country',
@@ -131,6 +141,26 @@ const PLACEHOLDERS = {
         sum: 'Un court résumé professionnel : qui vous êtes, vos points forts et ce que vous recherchez.',
         expTitle: 'Intitulé du poste', expCompany: 'Entreprise', expPeriod: '2021 – Présent',
         expDesc: 'Vos missions et réalisations dans ce poste.', degree: 'Diplôme', school: 'Établissement', skills: ['Compétence', 'Compétence', 'Compétence'] },
+  es: { name: 'Tu nombre', title: 'Puesto', email: 'tu@email.com', phone: '+34 600 000 000', loc: 'Ciudad, País',
+        sum: 'Un breve resumen profesional: quién eres, en qué destacas y qué buscas.',
+        expTitle: 'Puesto', expCompany: 'Empresa', expPeriod: '2021 – Actualidad',
+        expDesc: 'Tus funciones y logros en este puesto.', degree: 'Titulación', school: 'Universidad', skills: ['Competencia', 'Competencia', 'Competencia'] },
+  de: { name: 'Ihr Name', title: 'Berufsbezeichnung', email: 'sie@email.com', phone: '+49 151 00000000', loc: 'Stadt, Land',
+        sum: 'Ein kurzes Profil: wer Sie sind, was Sie besonders gut können und was Sie suchen.',
+        expTitle: 'Berufsbezeichnung', expCompany: 'Unternehmen', expPeriod: '2021 – heute',
+        expDesc: 'Ihre Aufgaben und Erfolge in dieser Position.', degree: 'Abschluss', school: 'Hochschule', skills: ['Kenntnis', 'Kenntnis', 'Kenntnis'] },
+  it: { name: 'Il tuo nome', title: 'Ruolo', email: 'tu@email.com', phone: '+39 320 000 0000', loc: 'Città, Paese',
+        sum: 'Un breve profilo professionale: chi sei, in cosa eccelli e cosa cerchi.',
+        expTitle: 'Ruolo', expCompany: 'Azienda', expPeriod: '2021 – oggi',
+        expDesc: 'Le tue attività e i risultati ottenuti in questo ruolo.', degree: 'Titolo di studio', school: 'Università', skills: ['Competenza', 'Competenza', 'Competenza'] },
+  pt: { name: 'Seu nome', title: 'Cargo', email: 'voce@email.com', phone: '+351 910 000 000', loc: 'Cidade, País',
+        sum: 'Um breve resumo profissional: quem você é, em que se destaca e o que procura.',
+        expTitle: 'Cargo', expCompany: 'Empresa', expPeriod: '2021 – Atual',
+        expDesc: 'Suas funções e conquistas neste cargo.', degree: 'Formação', school: 'Universidade', skills: ['Competência', 'Competência', 'Competência'] },
+  zh: { name: '您的姓名', title: '职位', email: 'you@email.com', phone: '+86 138 0000 0000', loc: '城市，国家',
+        sum: '简短的个人简介：您是谁、擅长什么、在寻找怎样的机会。',
+        expTitle: '职位', expCompany: '公司', expPeriod: '2021 – 至今',
+        expDesc: '您在该职位上的职责和成果。', degree: '学位', school: '学校', skills: ['技能', '技能', '技能'] },
 }
 
 // ── escaping ──────────────────────────────────────────────────────────────────
@@ -171,7 +201,12 @@ const urlHtml = (u) => displayUrl(u).split('/').map(part => `<span class="nw">${
 // ("LinkedIn", "github.com/name", the bare domain, or "Website"). The link itself keeps the
 // full address, so it still opens the right page from the PDF.
 const LINK_MAX = 30
-const LINK_LABELS = { en: { site: 'Website', project: 'View project' }, fr: { site: 'Site web', project: 'Voir le projet' } }
+const LINK_LABELS = {
+  en: { site: 'Website', project: 'View project' }, fr: { site: 'Site web', project: 'Voir le projet' },
+  es: { site: 'Sitio web', project: 'Ver proyecto' }, de: { site: 'Website', project: 'Projekt ansehen' },
+  it: { site: 'Sito web', project: 'Vedi progetto' }, pt: { site: 'Site', project: 'Ver projeto' },
+  zh: { site: '个人网站', project: '查看项目' },
+}
 const HOSTED = /\.(vercel\.app|netlify\.app|github\.io|herokuapp\.com|web\.app|pages\.dev|onrender\.com)$/i
 function linkText(raw, kind, lang, full = false) {
   const d = displayUrl(raw)
@@ -198,7 +233,7 @@ const toBullets = (desc) =>
 // exports never contain placeholders.
 function buildModel(raw, preview, fullLinks = false) {
   const d    = raw || {}
-  const lang = d.lang === 'fr' ? 'fr' : 'en'
+  const lang = LABELS[d.lang] ? d.lang : 'en'
   const P    = PLACEHOLDERS[lang]
   const ph   = (t) => (preview ? `<span class="ph">${esc(t)}</span>` : '')
 

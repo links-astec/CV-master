@@ -3,7 +3,7 @@ export default {
   'Language': 'Langue',
   'Not now': 'Plus tard',
   'Select and copy your invite link.': 'Sélectionnez et copiez votre lien d’invitation.',
-  'This page is available in English and French only. The English version is shown.': 'Cette page n’existe qu’en anglais et en français.',
+  'This is a translation for convenience. If it differs from the English version, the English version applies.': 'Cette traduction est fournie pour votre confort. En cas de différence, la version anglaise prévaut.',
   'We’ll be right back': 'Nous revenons très vite',
   'CVMaster is being updated. Your CVs are safe. Please check again in a few minutes.': 'CVMaster est en cours de mise à jour. Vos CV sont en sécurité. Revenez dans quelques minutes.',
   'CVMaster home': 'Accueil CVMaster',

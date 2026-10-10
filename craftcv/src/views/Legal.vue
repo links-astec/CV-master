@@ -5,7 +5,7 @@
         <span class="lg-eyebrow">{{ $t('Legal') }}</span>
         <h1>{{ doc.title }}</h1>
         <p>{{ $t('Written in plain language. Last updated {date}.', { date: updated }) }}</p>
-        <p v-if="lang !== 'en' && lang !== 'fr'" class="lg-only">{{ $t('This page is available in English and French only. The English version is shown.') }}</p>
+        <p v-if="translated" class="lg-only">{{ $t('This is a translation for convenience. If it differs from the English version, the English version applies.') }}</p>
         <div class="seg lg-tabs" role="tablist">
           <button v-for="d in docs" :key="d.id" role="tab" :aria-selected="tab === d.id" :class="{ active: tab === d.id }" @click="setTab(d.id)">{{ d.tab }}</button>
         </div>
@@ -96,7 +96,7 @@ const DOCS = [
         <li>To take payments through Stripe.</li>
         <li>To answer your feedback and complaints, and to improve CVMaster.</li>
       </ul>` },
-      { id: 'newsletter', title: 'Newsletter', html: `<p>We only send our newsletter (CV tips and CVMaster news) if you ask for it. On the homepage, with the optional box when you create an account, or in Settings. When you sign up on the homepage we first email you a link to confirm. The legal basis is your consent.</p><p>We keep your email address, when and where you agreed, and when you unsubscribed. Every newsletter has a one-click unsubscribe link, and you can also switch it off in Settings or email ${mail}. We stop sending straight away. Emails about your account and purchases are not affected.</p>` },
+      { id: 'newsletter', title: 'Newsletter', html: `<p>We only send our newsletter (CV tips and CVMaster news) if you ask for it: on the homepage, with the optional box when you create an account, or in Settings. When you sign up on the homepage we first email you a link to confirm. The legal basis is your consent.</p><p>We keep your email address, when and where you agreed, and when you unsubscribed. Every newsletter has a one-click unsubscribe link, and you can also switch it off in Settings or email ${mail}. We stop sending straight away. Emails about your account and purchases are not affected.</p>` },
       { id: 'share', title: 'Who we share it with', html: `<p>We do not sell your data. We only share it with the services that make CVMaster work:</p><ul>
         <li><strong>Anthropic (Claude) and Groq</strong>: AI providers. The CV text and any job offer involved in an AI feature are sent to them to produce the result.</li>
         <li><strong>Stripe</strong>: payments.</li>
@@ -105,7 +105,7 @@ const DOCS = [
         <li><strong>Vercel, Render and Neon</strong>: hosting and the database where your data is stored.</li>
       </ul><p>Some of these providers are based in, or process data in, the United States. Where data leaves the EU, it is protected by the safeguards the GDPR requires, such as the European Commission’s standard contractual clauses or the EU–US Data Privacy Framework.</p>` },
       { id: 'keep', title: 'How long we keep it', html: `<p>We keep your account and CVs until you delete them or ask us to. Feedback and complaints are kept for as long as we need them to deal with the matter. Payment records may be kept longer where the law requires it.</p>` },
-      { id: 'rights', title: 'Your rights', html: `<p>Under UK and EU data protection law you can ask to see, correct, export or delete your personal data, or object to how we use it. Email ${mail} and we will respond within one month.</p><p>If you are unhappy with how we handle your data, you can complain to the CNIL (cnil.fr), the French data protection authority, or to the authority where you live. For example the ICO (ico.org.uk) in the UK.</p>` },
+      { id: 'rights', title: 'Your rights', html: `<p>Under UK and EU data protection law you can ask to see, correct, export or delete your personal data, or object to how we use it. Email ${mail} and we will respond within one month.</p><p>If you are unhappy with how we handle your data, you can complain to the CNIL (cnil.fr), the French data protection authority, or to the authority where you live, for example the ICO (ico.org.uk) in the UK.</p>` },
       { id: 'cookies', title: 'Cookies', html: `<p>We use one cookie to keep you signed in. We do not use tracking or advertising cookies. Your browser’s local storage holds your CV if you use CVMaster without an account, and your preferences (language, dark mode).</p>` },
       { id: 'security', title: 'Security', html: `<p>Passwords are hashed with bcrypt, everything travels over HTTPS, and card payments are handled entirely by Stripe.</p>` },
       { id: 'changes', title: 'Changes to this policy', html: `<p>If we change this policy we will update the date above, and tell you by email for significant changes.</p>` },
@@ -135,7 +135,7 @@ const DOCS = [
         <li><strong>Right of withdrawal:</strong> you normally have 14 days to cancel an online purchase. Because your PDF (or AI requests) are delivered immediately, at checkout you ask us to start straight away and confirm that you lose this right once delivery has happened, as allowed by EU consumer law (in France, article L221-28 of the Code de la consommation).</li>
         <li>If your CV never arrived, or something went wrong with a payment, contact us within 14 days and we will resend it or refund you.</li>
       </ul>` },
-      { id: 'complaints', title: 'Complaints', html: `<p>If you are unhappy with anything. The service, a payment or how we treated you, please tell us:</p><ul>
+      { id: 'complaints', title: 'Complaints', html: `<p>If you are unhappy with anything, whether the service, a payment or how we treated you, please tell us:</p><ul>
         <li>Use <strong>Feedback → Complaint</strong> (in the sidebar, Settings, or at the bottom of this page), or email ${mail}.</li>
         <li>Include what happened, when, and the email on your account or payment.</li>
         <li>You’ll get a reference number. We aim to reply within 5 working days and to resolve complaints within 14 days.</li>
@@ -189,7 +189,7 @@ const DOCS_FR = [
         <li>Pour encaisser les paiements via Stripe.</li>
         <li>Pour répondre à vos avis et réclamations, et pour améliorer CVMaster.</li>
       </ul>` },
-      { id: 'newsletter', title: 'Newsletter', html: `<p>Nous n’envoyons notre newsletter (conseils CV et actualités CVMaster) que si vous la demandez. Sur la page d’accueil, avec la case facultative lors de la création de votre compte, ou dans les Paramètres. Si vous vous inscrivez depuis la page d’accueil, nous vous envoyons d’abord un lien de confirmation. La base légale est votre consentement.</p><p>Nous conservons votre adresse e-mail, la date et le lieu de votre accord, et la date de votre désinscription. Chaque newsletter contient un lien de désinscription en un clic ; vous pouvez aussi la désactiver dans les Paramètres ou écrire à ${mail}. Les envois s’arrêtent immédiatement. Les e-mails concernant votre compte et vos achats ne sont pas concernés.</p>` },
+      { id: 'newsletter', title: 'Newsletter', html: `<p>Nous n’envoyons notre newsletter (conseils CV et actualités CVMaster) que si vous la demandez : sur la page d’accueil, avec la case facultative lors de la création de votre compte, ou dans les Paramètres. Si vous vous inscrivez depuis la page d’accueil, nous vous envoyons d’abord un lien de confirmation. La base légale est votre consentement.</p><p>Nous conservons votre adresse e-mail, la date et le lieu de votre accord, et la date de votre désinscription. Chaque newsletter contient un lien de désinscription en un clic ; vous pouvez aussi la désactiver dans les Paramètres ou écrire à ${mail}. Les envois s’arrêtent immédiatement. Les e-mails concernant votre compte et vos achats ne sont pas concernés.</p>` },
       { id: 'share', title: 'Avec qui nous les partageons', html: `<p>Nous ne vendons pas vos données. Nous les partageons uniquement avec les services qui font fonctionner CVMaster :</p><ul>
         <li><strong>Anthropic (Claude) et Groq</strong>: fournisseurs d’IA. Le texte du CV et l’éventuelle offre d’emploi concernés par une fonctionnalité d’IA leur sont envoyés pour produire le résultat.</li>
         <li><strong>Stripe</strong>: paiements.</li>
@@ -198,7 +198,7 @@ const DOCS_FR = [
         <li><strong>Vercel, Render et Neon</strong>: hébergement et base de données où vos données sont stockées.</li>
       </ul><p>Certains de ces prestataires sont établis aux États-Unis ou y traitent des données. Lorsque des données quittent l’UE, elles sont protégées par les garanties exigées par le RGPD, comme les clauses contractuelles types de la Commission européenne ou le cadre de protection des données UE–États-Unis (Data Privacy Framework).</p>` },
       { id: 'keep', title: 'Durée de conservation', html: `<p>Nous conservons votre compte et vos CV jusqu’à ce que vous les supprimiez ou nous le demandiez. Les avis et réclamations sont conservés le temps nécessaire pour traiter la demande. Les justificatifs de paiement peuvent être conservés plus longtemps lorsque la loi l’exige.</p>` },
-      { id: 'rights', title: 'Vos droits', html: `<p>Conformément au RGPD et à la loi Informatique et Libertés, vous pouvez demander à accéder à vos données personnelles, à les rectifier, à les exporter ou à les supprimer, ou vous opposer à leur utilisation. Écrivez à ${mail} : nous répondrons dans un délai d’un mois.</p><p>Si vous n’êtes pas satisfait de la manière dont nous traitons vos données, vous pouvez adresser une réclamation à la CNIL (cnil.fr), l’autorité française de protection des données, ou à l’autorité du pays où vous vivez. Par exemple l’ICO (ico.org.uk) au Royaume-Uni.</p>` },
+      { id: 'rights', title: 'Vos droits', html: `<p>Conformément au RGPD et à la loi Informatique et Libertés, vous pouvez demander à accéder à vos données personnelles, à les rectifier, à les exporter ou à les supprimer, ou vous opposer à leur utilisation. Écrivez à ${mail} : nous répondrons dans un délai d’un mois.</p><p>Si vous n’êtes pas satisfait de la manière dont nous traitons vos données, vous pouvez adresser une réclamation à la CNIL (cnil.fr), l’autorité française de protection des données, ou à l’autorité du pays où vous vivez, par exemple l’ICO (ico.org.uk) au Royaume-Uni.</p>` },
       { id: 'cookies', title: 'Cookies', html: `<p>Nous utilisons un seul cookie pour vous garder connecté. Nous n’utilisons aucun cookie de suivi ou publicitaire. Le stockage local de votre navigateur conserve votre CV si vous utilisez CVMaster sans compte, ainsi que vos préférences (langue, mode sombre).</p>` },
       { id: 'security', title: 'Sécurité', html: `<p>Les mots de passe sont hachés avec bcrypt, toutes les communications passent par HTTPS, et les paiements par carte sont entièrement gérés par Stripe.</p>` },
       { id: 'changes', title: 'Modifications de cette politique', html: `<p>Si nous modifions cette politique, nous mettrons à jour la date ci-dessus et vous préviendrons par e-mail en cas de changement important.</p>` },
@@ -228,7 +228,7 @@ const DOCS_FR = [
         <li><strong>Droit de rétractation :</strong> vous disposez normalement de 14 jours pour annuler un achat en ligne. Comme votre PDF (ou vos requêtes IA) est fourni immédiatement, vous nous demandez au moment du paiement de commencer tout de suite et reconnaissez perdre ce droit une fois la fourniture effectuée, comme le permet le droit européen de la consommation (en France, article L221-28 du Code de la consommation).</li>
         <li>Si votre CV n’est jamais arrivé, ou si un paiement a posé problème, contactez-nous dans les 14 jours : nous vous le renverrons ou vous rembourserons.</li>
       </ul>` },
-      { id: 'complaints', title: 'Réclamations', html: `<p>Si quelque chose ne vous convient pas. Le service, un paiement ou la façon dont nous vous avons traité, dites-le-nous :</p><ul>
+      { id: 'complaints', title: 'Réclamations', html: `<p>Si quelque chose ne vous convient pas, qu’il s’agisse du service, d’un paiement ou de la façon dont nous vous avons traité, dites-le-nous :</p><ul>
         <li>Utilisez <strong>Avis → Réclamation</strong> (dans la barre latérale, les Paramètres ou en bas de cette page), ou écrivez à ${mail}.</li>
         <li>Indiquez ce qui s’est passé, quand, et l’adresse e-mail de votre compte ou de votre paiement.</li>
         <li>Vous recevrez un numéro de référence. Nous visons une réponse sous 5 jours ouvrés et une résolution sous 14 jours.</li>
@@ -253,8 +253,22 @@ const DOCS_FR = [
   },
 ]
 
-const docs = computed(() => (lang.value === 'fr' ? DOCS_FR : DOCS))
-const updated = computed(() => UPDATED[lang.value] || UPDATED.en)
+// Other languages load on demand (src/legal/<code>.js); the English shows until they arrive
+const LOADERS = {
+  es: () => import('../legal/es.js'), de: () => import('../legal/de.js'), it: () => import('../legal/it.js'),
+  pt: () => import('../legal/pt.js'), zh: () => import('../legal/zh.js'),
+}
+const loaded = ref({})
+watch(lang, async (code) => {
+  if (!LOADERS[code] || loaded.value[code]) return
+  try {
+    const m = await LOADERS[code]()
+    loaded.value = { ...loaded.value, [code]: { docs: m.default({ mail }), updated: m.UPDATED } }
+  } catch {}
+}, { immediate: true })
+const translated = computed(() => !!loaded.value[lang.value])
+const docs = computed(() => (lang.value === 'fr' ? DOCS_FR : loaded.value[lang.value]?.docs || DOCS))
+const updated = computed(() => UPDATED[lang.value] || loaded.value[lang.value]?.updated || UPDATED.en)
 const tab = ref(route.query.tab === 'terms' ? 'terms' : 'privacy')
 const doc = computed(() => docs.value.find(d => d.id === tab.value))
 const active = ref('')

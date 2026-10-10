@@ -1,5 +1,18 @@
 # Changes
 
+## 2026-10-10: Calmer homepage hero, example CV and legal pages in every language, 0 audit warnings
+
+- **Homepage hero:**
+  - Removed the "Free AI CV builder" label and the "No account needed to start" / "Available in 7 languages" ticks.
+  - More space around the headline, a slightly lighter headline, and the CV preview sits flat with a softer shadow.
+  - On phones the two buttons stack, and long words (German) hyphenate instead of widening the page. The header button hides below 440px, where the hero's own button is right below it.
+- **Example CV** (homepage, templates, sign-in, dashboard) is shown in the visitor's language. CVs can now carry Spanish, German, Italian, Portuguese and Chinese section headings, empty-field hints and link labels (`LABELS`, `PLACEHOLDERS`, `LINK_LABELS` in cvRenderer.js).
+- **Privacy policy and Terms** are translated into Spanish, German, Italian, Portuguese and Chinese (`src/legal/<code>.js`, loaded only when needed). Translations say the English version applies if they differ.
+- Fixed three legal sentences, in English and French, broken by the em-dash clean-up (complaints, newsletter consent, data-protection authority).
+- **npm audit: 0 vulnerabilities.**
+  - uuid is upgraded to 11.1.1.
+  - Overrides: qs ^6.16.0 for Express and Stripe, and argparse 2 for mammoth, which uses it only in its command-line tool.
+
 ## 2026-10-10: Portuguese and Chinese
 
 - **Portuguese and Chinese** are complete (1,185 strings each, plus server messages) and in the language menu, so the site now has all 7 languages. Devices set to either language open the site in it.
