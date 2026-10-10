@@ -6,6 +6,7 @@
 import { useSyncExternalStore } from 'react'
 import { getLocales } from 'expo-localization'
 import * as SecureStore from 'expo-secure-store'
+import EXTRA from './extra.json'
 
 const KEY = 'cvmaster-lang'
 export const LANGS = [
@@ -26,12 +27,12 @@ type DictModule = { default?: Dict; PATTERNS?: Pattern[] }
 // The website's files are plain JavaScript; their shape is { default: Dict, PATTERNS: [RegExp, string][] }
 const as = (p: Promise<unknown>) => p as Promise<DictModule>
 const LOADERS: Record<string, () => Promise<DictModule>> = {
-  fr: () => as(import('../../../craftcv/src/i18n/fr.js')),
-  es: () => as(import('../../../craftcv/src/i18n/es.js')),
-  de: () => as(import('../../../craftcv/src/i18n/de.js')),
-  it: () => as(import('../../../craftcv/src/i18n/it.js')),
-  pt: () => as(import('../../../craftcv/src/i18n/pt.js')),
-  zh: () => as(import('../../../craftcv/src/i18n/zh.js')),
+  fr: () => as(import('@web/i18n/fr.js')),
+  es: () => as(import('@web/i18n/es.js')),
+  de: () => as(import('@web/i18n/de.js')),
+  it: () => as(import('@web/i18n/it.js')),
+  pt: () => as(import('@web/i18n/pt.js')),
+  zh: () => as(import('@web/i18n/zh.js')),
 }
 
 let current: LangCode = 'en'
@@ -70,7 +71,8 @@ export async function setLang(code: string, { explicit = true } = {}) {
   else {
     try {
       const m = await LOADERS[code]()
-      dict = m.default || {}
+      // App-only texts (src/i18n/extra.json) on top of the website's dictionary
+      dict = { ...(m.default || {}), ...((EXTRA as Record<string, Dict>)[code] || {}) }
       patterns = m.PATTERNS || []
     } catch { return }
   }

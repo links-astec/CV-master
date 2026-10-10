@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { WebView } from 'react-native-webview'
-import { render, PAGE_W, PAGE_H } from '../../../craftcv/src/composables/cvRenderer.js'
+import { render, PAGE_W, PAGE_H } from '@web/composables/cvRenderer.js'
 import { useColors } from '@/lib/theme'
 
 // The CV fonts. Loaded from Google Fonts for now; Phase 2 bundles them so previews work offline.
