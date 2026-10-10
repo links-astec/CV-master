@@ -38,7 +38,16 @@
         }
       ],
       "expo-secure-store",
-      "expo-localization"
+      "expo-localization",
+      "expo-asset",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "CVMaster uses the photo you choose only as the picture on your CV.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

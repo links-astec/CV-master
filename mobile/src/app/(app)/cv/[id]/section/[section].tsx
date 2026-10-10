@@ -1,4 +1,5 @@
 // Editing one section of a CV. Every change goes into the open CV and is saved automatically.
+import { useState } from 'react'
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { Stack, useLocalSearchParams } from 'expo-router'
 import { useOpenCv } from '@/lib/useOpenCv'
@@ -6,9 +7,17 @@ import { setField, update } from '@/lib/editor'
 import { isSection, SECTION_TITLE, type Section } from '@/lib/sections'
 import { Button, Card, ChipInput, Field, SmallAction } from '@/components/ui'
 import { SaveStatus } from '@/components/SaveStatus'
+import { PhotoField } from '@/components/PhotoField'
 import { useLang } from '@/i18n'
 import { useColors } from '@/lib/theme'
 import type { CvData } from '@/lib/cv'
+import { errorText, improveBullets, suggestSkills, writeSummary } from '@/lib/ai'
+import { AiButton, AiSuggestion } from '@/components/AiSuggestion'
+
+function ErrorText({ text }: { text: string }) {
+  const c = useColors()
+  return text ? <Text style={{ color: c.danger, fontSize: 13.5 }} accessibilityLiveRegion="polite">{text}</Text> : null
+}
 
 type T = (s: string, p?: Record<string, unknown>) => string
 
@@ -36,6 +45,7 @@ function ItemActions({ i, count, onMove, onRemove, t }: { i: number; count: numb
 function Personal({ d, t }: { d: CvData; t: T }) {
   return (
     <Card>
+      <PhotoField photo={d.photo} initials={[d.fn, d.ln].map(x => x.trim()[0] || '').join('').toUpperCase()} />
       <Field label={t('First Name')} value={d.fn} onChangeText={v => setField('fn', v)} placeholder={t('Alexandra')} autoComplete="given-name" textContentType="givenName" />
       <Field label={t('Last Name')} value={d.ln} onChangeText={v => setField('ln', v)} placeholder={t('Morrison')} autoComplete="family-name" textContentType="familyName" />
       <Field label={t('Job Title')} value={d.title} onChangeText={v => setField('title', v)} placeholder={t('Senior Product Manager')} textContentType="jobTitle" />
@@ -49,6 +59,14 @@ function Personal({ d, t }: { d: CvData; t: T }) {
 }
 
 function Summary({ d, t }: { d: CvData; t: T }) {
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState('')
+  const [error, setError] = useState('')
+  async function generate() {
+    setBusy(true); setError(''); setResult('')
+    try { setResult((await writeSummary(d)).result) } catch (e) { setError(errorText(e)) }
+    setBusy(false)
+  }
   return (
     <Card>
       <Field
@@ -56,12 +74,27 @@ function Summary({ d, t }: { d: CvData; t: T }) {
         placeholder={t('Results-driven professional with X years experience in…')}
         hint={t('Aim for 40–60 words. Focus on value, not just experience.')}
       />
+      <AiButton label={t('Generate with AI')} busyLabel={t('Writing…')} busy={busy} onPress={generate} />
+      <ErrorText text={error} />
+      {!!result && <AiSuggestion title={t('AI Suggestion')} text={result} onUse={() => { setField('sum', result); setResult('') }} onDismiss={() => setResult('')} />}
     </Card>
   )
 }
 
 function Experience({ d, t }: { d: CvData; t: T }) {
   const list = d.experiences
+  const [busyIdx, setBusyIdx] = useState<number | null>(null)
+  const [results, setResults] = useState<Record<number, string>>({})
+  const [errors, setErrors] = useState<Record<number, string>>({})
+  async function quantify(i: number, id: number) {
+    setBusyIdx(i); setErrors(x => ({ ...x, [id]: '' }))
+    try {
+      const { result } = await improveBullets(d, i)
+      setResults(x => ({ ...x, [id]: result }))
+    } catch (e) { setErrors(x => ({ ...x, [id]: errorText(e) })) }
+    setBusyIdx(null)
+  }
+  const clear = (id: number) => setResults(({ [id]: _, ...rest }) => rest)
   const edit = (i: number, patch: Partial<CvData['experiences'][number]>) =>
     update(x => ({ ...x, experiences: x.experiences.map((e, k) => (k === i ? { ...e, ...patch } : e)) }))
   return (
@@ -75,6 +108,14 @@ function Experience({ d, t }: { d: CvData; t: T }) {
             label={t('Description / Achievements')} value={e.desc} onChangeText={v => edit(i, { desc: v })} multiline
             hint={t('Tip: start each line with • for bullet points on your CV')}
           />
+          <AiButton label={t('Quantify with AI')} busyLabel={t('Enhancing…')} busy={busyIdx === i} disabled={busyIdx !== null} onPress={() => quantify(i, e.id)} />
+          <ErrorText text={errors[e.id] || ''} />
+          {!!results[e.id] && (
+            <AiSuggestion
+              title={t('Enhanced version. With bullet points & metrics')} text={results[e.id]}
+              onUse={() => { edit(i, { desc: results[e.id] }); clear(e.id) }} onDismiss={() => clear(e.id)}
+            />
+          )}
           <ItemActions
             i={i} count={list.length} t={t}
             onMove={dir => update(x => ({ ...x, experiences: moved(x.experiences, i, dir) }))}
@@ -156,6 +197,39 @@ function Projects({ d, t }: { d: CvData; t: T }) {
   )
 }
 
+function Skills({ d, t }: { d: CvData; t: T }) {
+  const c = useColors()
+  const [busy, setBusy] = useState(false)
+  const [suggested, setSuggested] = useState<string[]>([])
+  const [error, setError] = useState('')
+  const have = new Set(d.skills.map(s => s.toLowerCase()))
+  const open = suggested.filter(s => !have.has(s.toLowerCase()))
+  async function suggest() {
+    setBusy(true); setError('')
+    try { setSuggested((await suggestSkills(d)).skills) } catch (e) { setError(errorText(e)) }
+    setBusy(false)
+  }
+  return (
+    <Card>
+      <ChipInput items={d.skills} onChange={v => setField('skills', v)} placeholder={t('Type a skill and press Enter')} addLabel={t('Add')} />
+      <Hint text={t('6–12 recommended')} />
+      <AiButton label={t('Suggest Skills with AI')} busyLabel={t('Suggesting…')} busy={busy} onPress={suggest} />
+      <ErrorText text={error} />
+      {open.length > 0 && (
+        <View style={{ gap: 8 }}>
+          <Text style={{ color: c.text2, fontSize: 13, fontWeight: '600' }}>{t('AI Suggestions, click to add')}</Text>
+          <View style={styles.chips}>
+            {open.map(s => (
+              <SmallAction key={s} label={`+ ${s}`} onPress={() => setField('skills', [...d.skills, s])} />
+            ))}
+          </View>
+          <SmallAction label={t('Add all')} onPress={() => setField('skills', [...d.skills, ...open])} />
+        </View>
+      )}
+    </Card>
+  )
+}
+
 function Hint({ text }: { text: string }) {
   const c = useColors()
   return <Text style={{ fontSize: 12.5, color: c.text3 }}>{text}</Text>
@@ -169,13 +243,7 @@ function SectionBody({ section, d, t }: { section: Section; d: CvData; t: T }) {
     case 'education': return <Education d={d} t={t} />
     case 'languages': return <Languages d={d} t={t} />
     case 'projects': return <Projects d={d} t={t} />
-    case 'skills':
-      return (
-        <Card>
-          <ChipInput items={d.skills} onChange={v => setField('skills', v)} placeholder={t('Type a skill and press Enter')} addLabel={t('Add')} />
-          <Hint text={t('6–12 recommended')} />
-        </Card>
-      )
+    case 'skills': return <Skills d={d} t={t} />
     case 'certifications':
       return (
         <Card>
@@ -209,4 +277,5 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   body: { padding: 16, gap: 14, paddingBottom: 48 },
   itemActions: { flexDirection: 'row', alignItems: 'center', gap: 18, paddingTop: 4 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 16, rowGap: 10 },
 })

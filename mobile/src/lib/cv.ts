@@ -82,6 +82,22 @@ export function normalise(saved: Record<string, any> | null | undefined): { data
   return { data, fmt: { ...defaultFmt(), ...(fmt && typeof fmt === 'object' ? fmt : {}) } }
 }
 
+// Something the AI can work with: anything beyond the name, contact details and photo.
+// Same rule as the website (hasCvContent) and the server (cvHasContent).
+export function hasCvContent(d: Partial<CvData> | null | undefined): boolean {
+  if (!d) return false
+  const s = (v: unknown) => typeof v === 'string' && v.trim() !== ''
+  const list = <X,>(v: unknown): X[] => (Array.isArray(v) ? (v as X[]) : [])
+  return Boolean(
+    s(d.title) || s(d.sum) ||
+    list<string>(d.skills).some(s) || list<string>(d.certifications).some(s) ||
+    list<Experience>(d.experiences).some(e => s(e?.title) || s(e?.company) || s(e?.desc)) ||
+    list<Education>(d.education).some(e => s(e?.degree) || s(e?.school)) ||
+    list<Project>(d.projects).some(p => s(p?.name) || s(p?.desc)) ||
+    list<LanguageItem>(d.languages).some(l => s(l?.name))
+  )
+}
+
 // The draft's title, built like the website's: "Name · Job title"
 export function draftTitle(d: CvData) {
   const name = [d.fn, d.ln].map(s => s.trim()).filter(Boolean).join(' ')

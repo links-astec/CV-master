@@ -20,6 +20,7 @@ export default function AppLayout() {
       <Stack.Screen name="cv/[id]/section/[section]" options={{ title: '' }} />
       <Stack.Screen name="cv/[id]/design" options={{ title: t('Design') }} />
       <Stack.Screen name="cv/[id]/preview" options={{ title: '' }} />
+      <Stack.Screen name="cv/[id]/job" options={{ title: '' }} />
     </Stack>
   )
 }

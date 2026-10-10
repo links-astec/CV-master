@@ -12,6 +12,9 @@ const APP_I18N = path.resolve(__dirname, 'src/i18n/index.ts')
 
 config.watchFolders = [...(config.watchFolders || []), WEB_SRC]
 
+// The CV fonts are bundled as files (assets/cv-fonts, see scripts/copy-cv-fonts.mjs)
+if (!config.resolver.assetExts.includes('woff2')) config.resolver.assetExts.push('woff2')
+
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   const fromWebsite = path.resolve(context.originModulePath).startsWith(WEB_SRC)
   const name = fromWebsite && /(^|\/)i18n\/index\.js$/.test(moduleName) ? APP_I18N : moduleName

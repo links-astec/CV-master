@@ -1,8 +1,32 @@
 {
-  "fr": { "Preview": "Aperçu" },
-  "es": { "Preview": "Vista previa" },
-  "de": { "Preview": "Vorschau" },
-  "it": { "Preview": "Anteprima" },
-  "pt": { "Preview": "Pré-visualizar" },
-  "zh": { "Preview": "预览" }
+  "fr": {
+    "Preview": "Aperçu",
+    "Choose a photo": "Choisir une photo",
+    "Change photo": "Changer de photo"
+  },
+  "es": {
+    "Preview": "Vista previa",
+    "Choose a photo": "Elegir una foto",
+    "Change photo": "Cambiar foto"
+  },
+  "de": {
+    "Preview": "Vorschau",
+    "Choose a photo": "Foto auswählen",
+    "Change photo": "Foto ändern"
+  },
+  "it": {
+    "Preview": "Anteprima",
+    "Choose a photo": "Scegli una foto",
+    "Change photo": "Cambia foto"
+  },
+  "pt": {
+    "Preview": "Pré-visualizar",
+    "Choose a photo": "Escolher uma foto",
+    "Change photo": "Trocar foto"
+  },
+  "zh": {
+    "Preview": "预览",
+    "Choose a photo": "选择照片",
+    "Change photo": "更换照片"
+  }
 }

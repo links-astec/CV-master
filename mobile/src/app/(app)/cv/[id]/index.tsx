@@ -31,6 +31,20 @@ export default function CvOverview() {
       </Pressable>
 
       <Pressable
+        onPress={() => router.push({ pathname: '/cv/[id]/job', params: { id } })}
+        accessibilityRole="button"
+        style={({ pressed }) => [styles.row, { backgroundColor: c.surface, borderColor: c.border, opacity: pressed ? 0.85 : 1 }]}>
+        <Text style={{ fontSize: 18, color: c.accent }}>✦</Text>
+        <View style={styles.rowText}>
+          <Text style={[styles.rowTitle, { color: c.text }]}>{t('ATS Job Match')}</Text>
+          <Text style={[styles.rowSub, { color: cv.data.jobOffer ? c.text3 : c.accent }]} numberOfLines={1}>
+            {cv.data.jobOffer ? ([cv.data.jobTarget?.title, cv.data.jobTarget?.company].filter(Boolean).join(' · ') || t('Job offer')) : t('Match your CV to a job')}
+          </Text>
+        </View>
+        <Text style={[styles.chev, { color: c.text3 }]}>›</Text>
+      </Pressable>
+
+      <Pressable
         onPress={() => router.push({ pathname: '/cv/[id]/design', params: { id } })}
         accessibilityRole="button"
         style={({ pressed }) => [styles.row, { backgroundColor: c.surface, borderColor: c.border, opacity: pressed ? 0.85 : 1 }]}>
