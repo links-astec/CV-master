@@ -2,8 +2,10 @@
 // The server does the reading (same endpoints as the website); the result becomes a new draft.
 import { BRAND } from '@/brand'
 import { api, ApiError, type Draft } from '@/lib/api'
-import { defaultFmt, draftTitle, emptyData, type CvData } from '@/lib/cv'
+import { defaultFmt, draftTitle, emptyData, type CvData, type CvFmt } from '@/lib/cv'
 import { lang, t } from '@/i18n'
+import { setCurrentCv } from '@/lib/editor'
+import { GUEST_ID, newGuest } from '@/lib/guest'
 import { DEFAULT_TEMPLATE } from '@web/composables/cvRenderer.js'
 
 type Ext = Record<string, any>
@@ -35,8 +37,8 @@ export function fromExtracted(ext: Ext): CvData {
   return d
 }
 
-export async function createDraft(data: CvData = emptyData()): Promise<Draft> {
-  return api<Draft>('/api/drafts', { body: { title: draftTitle(data), data: { ...data, fmt: defaultFmt() }, template: DEFAULT_TEMPLATE } })
+export async function createDraft(data: CvData = emptyData(), fmt: CvFmt = defaultFmt(), template: string = DEFAULT_TEMPLATE): Promise<Draft> {
+  return api<Draft>('/api/drafts', { body: { title: draftTitle(data), data: { ...data, fmt }, template } })
 }
 
 // Upload a PDF, Word or text CV; the server extracts it with AI (counts as one AI request)
@@ -53,6 +55,19 @@ export async function importCv(file: { uri: string; name: string; mimeType?: str
   const j = await res.json().catch(() => ({}))
   if (!res.ok) throw new ApiError(t(j?.error || 'Failed to extract CV. Try a different file or fill in manually.'), res.status, j?.code)
   return fromExtracted(j.extracted || {})
+}
+
+// A new CV for whoever is using the app: an account CV, or the guest CV on this phone.
+// It becomes the CV the Editor tab shows.
+export async function startCv(signedIn: boolean, data: CvData = emptyData(), template: string = DEFAULT_TEMPLATE): Promise<Draft | null> {
+  if (signedIn) {
+    const d = await createDraft(data, defaultFmt(), template)
+    setCurrentCv(d.id)
+    return d
+  }
+  newGuest(data, template)
+  setCurrentCv(GUEST_ID)
+  return null
 }
 
 export type StoryAnswer = { q: string; a: string }

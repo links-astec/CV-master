@@ -2,14 +2,12 @@
 // keywords, and tailoring with AI where the user approves every change. Same server checks as
 // the website, and the same saved fields (jobOffer, jobFit, jobTarget, jobTailored).
 import { useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native'
-import { Stack, useLocalSearchParams } from 'expo-router'
-import { useOpenCv } from '@/lib/useOpenCv'
-import { setField, update } from '@/lib/editor'
+import { ActivityIndicator, Pressable, StyleSheet, Switch, View } from 'react-native'
+import { Text } from '@/components/AppText'
+import { setField, update, type OpenCv } from '@/lib/editor'
 import { atsCheck, errorText, fitCheck, fitKey, tailor, type AtsResult, type TailorResult } from '@/lib/ai'
 import { hasCvContent, type CvData } from '@/lib/cv'
 import { Button, Card, Field, SmallAction } from '@/components/ui'
-import { SaveStatus } from '@/components/SaveStatus'
 import { useLang } from '@/i18n'
 import { useColors } from '@/lib/theme'
 
@@ -272,17 +270,11 @@ function TailorCard({ d, ats, onApplied }: { d: CvData; ats: AtsResult | null; o
   )
 }
 
-export default function JobMatch() {
-  const { id } = useLocalSearchParams<{ id: string }>()
-  const { cv, loading } = useOpenCv(id)
-  const { t } = useLang()
-  const c = useColors()
+export function JobMatchPanel({ cv }: { cv: OpenCv }) {
   const [ats, setAts] = useState<AtsResult | null>(null)
-  if (loading || !cv) return <ActivityIndicator style={styles.center} color={c.accent} />
   const d = cv.data
   return (
-    <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
-      <Stack.Screen options={{ title: t('ATS Job Match'), headerRight: () => <SaveStatus state={cv.save} /> }} />
+    <View style={{ gap: 14 }}>
       <JobOffer d={d} key={d.jobOffer ? 'set' : 'empty'} />
       {!!d.jobOffer && (
         <>
@@ -291,10 +283,9 @@ export default function JobMatch() {
           <TailorCard d={d} ats={ats} onApplied={() => setAts(null)} />
         </>
       )}
-    </ScrollView>
+    </View>
   )
 }
-
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   body: { padding: 16, gap: 14, paddingBottom: 48 },

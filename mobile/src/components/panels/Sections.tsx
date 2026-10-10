@@ -1,14 +1,13 @@
-// Editing one section of a CV. Every change goes into the open CV and is saved automatically.
+// The form for each section of a CV (inside the Edit CV sheet's Content tab). Every change goes
+// into the open CV and is saved automatically.
 import { useState } from 'react'
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native'
-import { Stack, useLocalSearchParams } from 'expo-router'
-import { useOpenCv } from '@/lib/useOpenCv'
+import { StyleSheet, View } from 'react-native'
+import { Text } from '@/components/AppText'
 import { setField, update } from '@/lib/editor'
-import { isSection, SECTION_TITLE, type Section } from '@/lib/sections'
+import { type Section } from '@/lib/sections'
 import { Button, Card, ChipInput, Field, SmallAction } from '@/components/ui'
-import { SaveStatus } from '@/components/SaveStatus'
 import { PhotoField } from '@/components/PhotoField'
-import { useLang } from '@/i18n'
+import { GroupLabel } from '@/components/kit'
 import { useColors } from '@/lib/theme'
 import type { CvData } from '@/lib/cv'
 import { errorText, improveBullets, suggestSkills, writeSummary } from '@/lib/ai'
@@ -44,17 +43,19 @@ function ItemActions({ i, count, onMove, onRemove, t }: { i: number; count: numb
 
 function Personal({ d, t }: { d: CvData; t: T }) {
   return (
-    <Card>
+    <View style={{ gap: 14 }}>
       <PhotoField photo={d.photo} initials={[d.fn, d.ln].map(x => x.trim()[0] || '').join('').toUpperCase()} />
+      <GroupLabel>{t('Name')}</GroupLabel>
       <Field label={t('First Name')} value={d.fn} onChangeText={v => setField('fn', v)} placeholder={t('Alexandra')} autoComplete="given-name" textContentType="givenName" />
       <Field label={t('Last Name')} value={d.ln} onChangeText={v => setField('ln', v)} placeholder={t('Morrison')} autoComplete="family-name" textContentType="familyName" />
       <Field label={t('Job Title')} value={d.title} onChangeText={v => setField('title', v)} placeholder={t('Senior Product Manager')} textContentType="jobTitle" />
+      <GroupLabel>{t('Contact')}</GroupLabel>
       <Field label={t('Email')} value={d.email} onChangeText={v => setField('email', v)} placeholder="you@email.com" keyboardType="email-address" autoCapitalize="none" autoComplete="email" textContentType="emailAddress" />
       <Field label={t('Phone')} value={d.phone} onChangeText={v => setField('phone', v)} placeholder={t('+44 7712 000 000')} keyboardType="phone-pad" autoComplete="tel" textContentType="telephoneNumber" />
       <Field label={t('Location')} value={d.loc} onChangeText={v => setField('loc', v)} placeholder={t('London, UK')} textContentType="addressCityAndState" />
       <Field label={t('LinkedIn URL')} value={d.li} onChangeText={v => setField('li', v)} placeholder={t('linkedin.com/in/you')} autoCapitalize="none" keyboardType="url" />
       <Field label={t('Website / Portfolio')} value={d.website} onChangeText={v => setField('website', v)} placeholder="yourportfolio.com" autoCapitalize="none" keyboardType="url" />
-    </Card>
+    </View>
   )
 }
 
@@ -68,7 +69,7 @@ function Summary({ d, t }: { d: CvData; t: T }) {
     setBusy(false)
   }
   return (
-    <Card>
+    <View style={{ gap: 14 }}>
       <Field
         label={t('Professional Summary')} value={d.sum} onChangeText={v => setField('sum', v)} multiline
         placeholder={t('Results-driven professional with X years experience in…')}
@@ -77,7 +78,7 @@ function Summary({ d, t }: { d: CvData; t: T }) {
       <AiButton label={t('Generate with AI')} busyLabel={t('Writing…')} busy={busy} onPress={generate} />
       <ErrorText text={error} />
       {!!result && <AiSuggestion title={t('AI Suggestion')} text={result} onUse={() => { setField('sum', result); setResult('') }} onDismiss={() => setResult('')} />}
-    </Card>
+    </View>
   )
 }
 
@@ -210,7 +211,7 @@ function Skills({ d, t }: { d: CvData; t: T }) {
     setBusy(false)
   }
   return (
-    <Card>
+    <View style={{ gap: 14 }}>
       <ChipInput items={d.skills} onChange={v => setField('skills', v)} placeholder={t('Type a skill and press Enter')} addLabel={t('Add')} />
       <Hint text={t('6–12 recommended')} />
       <AiButton label={t('Suggest Skills with AI')} busyLabel={t('Suggesting…')} busy={busy} onPress={suggest} />
@@ -226,7 +227,7 @@ function Skills({ d, t }: { d: CvData; t: T }) {
           <SmallAction label={t('Add all')} onPress={() => setField('skills', [...d.skills, ...open])} />
         </View>
       )}
-    </Card>
+    </View>
   )
 }
 
@@ -235,7 +236,7 @@ function Hint({ text }: { text: string }) {
   return <Text style={{ fontSize: 12.5, color: c.text3 }}>{text}</Text>
 }
 
-function SectionBody({ section, d, t }: { section: Section; d: CvData; t: T }) {
+export function SectionBody({ section, d, t }: { section: Section; d: CvData; t: T }) {
   switch (section) {
     case 'personal': return <Personal d={d} t={t} />
     case 'summary': return <Summary d={d} t={t} />
@@ -245,37 +246,12 @@ function SectionBody({ section, d, t }: { section: Section; d: CvData; t: T }) {
     case 'projects': return <Projects d={d} t={t} />
     case 'skills': return <Skills d={d} t={t} />
     case 'certifications':
-      return (
-        <Card>
-          <ChipInput items={d.certifications} onChange={v => setField('certifications', v)} placeholder={t('e.g. AWS Certified, PMP, PSPO II')} addLabel={t('Add')} />
-        </Card>
-      )
+      return <ChipInput items={d.certifications} onChange={v => setField('certifications', v)} placeholder={t('e.g. AWS Certified, PMP, PSPO II')} addLabel={t('Add')} />
   }
 }
 
-export default function SectionScreen() {
-  const { id, section } = useLocalSearchParams<{ id: string; section: string }>()
-  const { cv, loading } = useOpenCv(id)
-  const { t } = useLang()
-  const c = useColors()
-  if (!isSection(section)) return null
-  if (loading || !cv) return <ActivityIndicator style={styles.center} color={c.accent} />
-
-  return (
-    <ScrollView
-      contentContainerStyle={styles.body}
-      keyboardShouldPersistTaps="handled"
-      automaticallyAdjustKeyboardInsets
-      keyboardDismissMode="interactive">
-      <Stack.Screen options={{ title: t(SECTION_TITLE[section]), headerRight: () => <SaveStatus state={cv.save} /> }} />
-      <SectionBody section={section} d={cv.data} t={t} />
-    </ScrollView>
-  )
-}
 
 const styles = StyleSheet.create({
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  body: { padding: 16, gap: 14, paddingBottom: 48 },
   itemActions: { flexDirection: 'row', alignItems: 'center', gap: 18, paddingTop: 4 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 16, rowGap: 10 },
 })

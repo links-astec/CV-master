@@ -1,15 +1,14 @@
 // The CV checklist with "Fix with AI": the same checks as the website. AI fixes are shown as
 // before/after suggestions the user can edit, untick, apply or undo.
 import { useState } from 'react'
-import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
-import { Stack, router, useLocalSearchParams } from 'expo-router'
-import { useOpenCv } from '@/lib/useOpenCv'
-import { setField, update } from '@/lib/editor'
+import { StyleSheet, Switch, View } from 'react-native'
+import { Text, TextInput } from '@/components/AppText'
+import { setField, update, type OpenCv } from '@/lib/editor'
+import type { Section } from '@/lib/sections'
 import { aiFix, errorText, type FixResult } from '@/lib/ai'
 import { PLACEHOLDER, aiFixFor, rules, sortByDate, type Rule } from '@/lib/checklist'
 import type { CvData } from '@/lib/cv'
 import { Button, Card, SmallAction } from '@/components/ui'
-import { SaveStatus } from '@/components/SaveStatus'
 import { useLang } from '@/i18n'
 import { useColors } from '@/lib/theme'
 
@@ -63,8 +62,8 @@ function FixReview({ r, setR, onApply, onCancel }: { r: Review; setR: (r: Review
   )
 }
 
-function Item({ rule, d, id, review, setReview, busy, onFix, onIgnore }: {
-  rule: Rule; d: CvData; id: string; review: Review | null; setReview: (r: Review | null) => void
+function Item({ rule, d, onAdd, review, setReview, busy, onFix, onIgnore }: {
+  rule: Rule; d: CvData; onAdd: (s: Section) => void; review: Review | null; setReview: (r: Review | null) => void
   busy: boolean; onFix: (issue: string) => void; onIgnore: () => void
 }) {
   const { t } = useLang()
@@ -85,7 +84,7 @@ function Item({ rule, d, id, review, setReview, busy, onFix, onIgnore }: {
           {issue && <SmallAction label={busy ? '…' : `✦ ${t('Fix with AI')}`} onPress={() => onFix(issue)} disabled={busy} />}
           {rule.id === 'date-order'
             ? <SmallAction label={t('Sort by date')} onPress={() => update(x => ({ ...x, experiences: sortByDate(x.experiences, 'period'), education: sortByDate(x.education, 'year') }))} />
-            : rule.section && <SmallAction label={t('Add')} onPress={() => router.push({ pathname: '/cv/[id]/section/[section]', params: { id, section: rule.section! } })} />}
+            : rule.section && <SmallAction label={t('Add')} onPress={() => onAdd(rule.section!)} />}
           {rule.severity === 'warn' && <SmallAction label={t('Ignore')} color={c.text3} onPress={onIgnore} />}
         </View>
       )}
@@ -116,17 +115,13 @@ function Item({ rule, d, id, review, setReview, busy, onFix, onIgnore }: {
   )
 }
 
-export default function Checklist() {
-  const { id } = useLocalSearchParams<{ id: string }>()
-  const { cv, loading } = useOpenCv(id)
+export function ChecklistPanel({ cv, onAdd }: { cv: OpenCv; onAdd: (s: Section) => void }) {
   const { t } = useLang()
   const c = useColors()
   const [review, setReview] = useState<Review | null>(null)
   const [busyId, setBusyId] = useState('')
   const [error, setError] = useState('')
   const [showPassed, setShowPassed] = useState(false)
-  if (loading || !cv) return <ActivityIndicator style={styles.center} color={c.accent} />
-
   const d = cv.data
   const all = rules(d)
   const ignored = new Set(d.checkIgnored)
@@ -150,8 +145,7 @@ export default function Checklist() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
-      <Stack.Screen options={{ title: t('Before you export'), headerRight: () => <SaveStatus state={cv.save} /> }} />
+    <View style={{ gap: 12 }}>
       <View style={{ gap: 6 }}>
         <Text style={{ color: c.text, fontSize: 17, fontWeight: '700' }}>
           {todo.length ? t(todo.length === 1 ? '{n} thing to fix' : '{n} things to fix', { n: todo.length }) : t('Your CV is complete')}
@@ -163,7 +157,7 @@ export default function Checklist() {
       {!todo.length && <Card><Text style={{ color: c.text }}>{t('Every check passed. Contact details, summary, experience, skills and education are all in place.')}</Text></Card>}
       {todo.map(r => (
         <Item
-          key={r.id} rule={r} d={d} id={id} review={review} setReview={setReview} busy={busyId === r.id}
+          key={r.id} rule={r} d={d} onAdd={onAdd} review={review} setReview={setReview} busy={busyId === r.id}
           onFix={issue => fix(r, issue)} onIgnore={() => setField('checkIgnored', [...new Set([...d.checkIgnored, r.id])])}
         />
       ))}
@@ -182,7 +176,7 @@ export default function Checklist() {
         />
       )}
       {showPassed && passed.map(r => <Text key={r.id} style={{ color: c.text2, fontSize: 13.5 }}>✓  {t(r.title.key, r.title.params)}</Text>)}
-    </ScrollView>
+    </View>
   )
 }
 

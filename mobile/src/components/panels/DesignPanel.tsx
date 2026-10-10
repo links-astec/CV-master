@@ -1,9 +1,7 @@
-// Layout and colour. The same 50 layouts and 12 colours as the website; switching keeps all the content.
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
-import { Stack, router, useLocalSearchParams } from 'expo-router'
-import { useOpenCv } from '@/lib/useOpenCv'
-import { setTemplate } from '@/lib/editor'
-import { SaveStatus } from '@/components/SaveStatus'
+// Design tab of the Edit CV sheet: CV language, colour and layout. The same 50 layouts and 12 colours as the website; switching keeps all the content.
+import { Pressable, StyleSheet, View } from 'react-native'
+import { Text } from '@/components/AppText'
+import { setTemplate, type OpenCv } from '@/lib/editor'
 import { LANGS, useLang } from '@/i18n'
 import { useColors } from '@/lib/theme'
 import { LAYOUTS, LAYOUT_KINDS, THEMES, parseTemplate, templateId } from '@web/composables/cvRenderer.js'
@@ -11,38 +9,22 @@ import { LAYOUTS, LAYOUT_KINDS, THEMES, parseTemplate, templateId } from '@web/c
 type Layout = { id: string; kind: 'ats' | 'creative'; name: string; desc: string; photo?: boolean }
 type Theme = { id: string; name: string; accent: string }
 
-export default function Design() {
-  const { id } = useLocalSearchParams<{ id: string }>()
-  const { cv, loading } = useOpenCv(id)
+export function DesignPanel({ cv, onLanguage }: { cv: OpenCv; onLanguage: () => void }) {
   const { t } = useLang()
   const c = useColors()
-  if (loading || !cv) return <ActivityIndicator style={styles.center} color={c.accent} />
-
   const { layout, theme } = parseTemplate(cv.template)
   const kinds: ('ats' | 'creative')[] = ['ats', 'creative']
 
   return (
-    <ScrollView contentContainerStyle={styles.body}>
-      <Stack.Screen options={{
-        headerRight: () => (
-          <View style={styles.headerRight}>
-            <SaveStatus state={cv.save} />
-            <Pressable onPress={() => router.push({ pathname: '/cv/[id]/preview', params: { id } })} hitSlop={8} accessibilityRole="button">
-              <Text style={{ color: c.accent, fontSize: 15, fontWeight: '600' }}>{t('Preview')}</Text>
-            </Pressable>
-          </View>
-        ),
-      }} />
-
+    <View style={{ gap: 18 }}>
       <Pressable
-        onPress={() => router.push({ pathname: '/cv/[id]/language', params: { id } })}
+        onPress={onLanguage}
         accessibilityRole="button"
         style={({ pressed }) => [styles.langRow, { backgroundColor: c.surface, borderColor: c.border, opacity: pressed ? 0.85 : 1 }]}>
         <Text style={{ flex: 1, color: c.text, fontSize: 15.5, fontWeight: '600' }}>{t('CV language')}</Text>
         <Text style={{ color: c.text3, fontSize: 14 }}>{LANGS.find(l => l.code === cv.data.lang)?.label || 'English'}</Text>
         <Text style={{ color: c.text3, fontSize: 22, marginLeft: 6 }}>›</Text>
       </Pressable>
-
       <Text style={[styles.h, { color: c.text }]}>{t('Colour')}</Text>
       <View style={styles.colours}>
         {(THEMES as Theme[]).map(th => {
@@ -81,7 +63,7 @@ export default function Design() {
           </View>
         </View>
       ))}
-    </ScrollView>
+    </View>
   )
 }
 

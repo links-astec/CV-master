@@ -1,11 +1,16 @@
 // Tell your story: the user writes about their career (the keyboard's dictation works too), the AI
 // asks follow-up questions for what's missing (up to the server's limit of rounds), then builds the CV.
 import { useState } from 'react'
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native'
-import { Stack, router } from 'expo-router'
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native'
+import { Text } from '@/components/AppText'
+import { router } from 'expo-router'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { ChevronLeft } from '@/components/icons'
+import { IconBtn, Txt } from '@/components/kit'
 import { useQueryClient } from '@tanstack/react-query'
 import type { Draft } from '@/lib/api'
-import { createDraft, fromExtracted, tellStory, type StoryAnswer } from '@/lib/start'
+import { fromExtracted, startCv, tellStory, type StoryAnswer } from '@/lib/start'
+import { useAuth } from '@/lib/auth'
 import { errorText } from '@/lib/ai'
 import { Button, Card, Field } from '@/components/ui'
 import { useLang } from '@/i18n'
@@ -14,7 +19,9 @@ import { useColors } from '@/lib/theme'
 export default function Story() {
   const { t } = useLang()
   const c = useColors()
+  const insets = useSafeAreaInsets()
   const qc = useQueryClient()
+  const { user } = useAuth()
   const [story, setStory] = useState('')
   const [questions, setQuestions] = useState<{ q: string; hint: string }[]>([])
   const [answers, setAnswers] = useState<StoryAnswer[]>([])
@@ -35,10 +42,11 @@ export default function Story() {
         setAnswers(all); setQuestions(r.questions); setDraftAnswers(r.questions.map(() => ''))
         setRound(r.round); setMaxRounds(r.maxRounds)
       } else {
-        const d = await createDraft(fromExtracted(r.cv))
-        qc.setQueryData<Draft[]>(['drafts'], list => [d, ...(list || [])])
-        router.dismissAll()   // back to My CVs, then open the new CV
-        router.push({ pathname: '/cv/[id]', params: { id: d.id } })
+        const d = await startCv(!!user, fromExtracted(r.cv))
+        if (d) qc.setQueryData<Draft[]>(['drafts'], list => [d, ...(list || [])])
+        else qc.invalidateQueries({ queryKey: ['guest'] })
+        router.back()
+        router.navigate('/editor')
       }
     } catch (e) { setError(errorText(e)) }
     setBusy(false)
@@ -47,7 +55,10 @@ export default function Story() {
   const tooShort = story.trim().split(/\s+/).filter(Boolean).length < 15
   return (
     <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">
-      <Stack.Screen options={{ title: t('Tell your story') }} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: insets.top + 4 }}>
+        <IconBtn icon={ChevronLeft} onPress={() => router.back()} label={t('Back')} />
+        <Txt w={700} size={20}>{t('Tell your story')}</Txt>
+      </View>
       {!questions.length ? (
         <Card>
           <Field

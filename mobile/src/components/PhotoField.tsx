@@ -1,7 +1,8 @@
 // Profile photo: picked from the library, cropped square, resized to 600px and saved as a JPEG
 // data URL, which is how the website stores it (the renderer only accepts data:image/... URLs).
 import { useState } from 'react'
-import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Image, StyleSheet, View } from 'react-native'
+import { Text } from '@/components/AppText'
 import * as ImagePicker from 'expo-image-picker'
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
 import { setField } from '@/lib/editor'

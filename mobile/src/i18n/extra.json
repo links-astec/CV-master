@@ -10,7 +10,11 @@
     "Type your email address to confirm.": "Saisissez votre adresse e-mail pour confirmer.",
     "Email {email} from this address and we’ll delete your account and CVs.": "Écrivez à {email} depuis cette adresse et nous supprimerons votre compte et vos CV.",
     "Already have an account?": "Vous avez déjà un compte ?",
-    "Don’t have an account?": "Pas encore de compte ?"
+    "Don’t have an account?": "Pas encore de compte ?",
+    "You’re using CVMaster as a guest. Your CV is saved on this phone.": "Vous utilisez CVMaster en tant qu’invité. Votre CV est enregistré sur ce téléphone.",
+    "This CV is only on this phone.": "Ce CV n’est que sur ce téléphone.",
+    "Your CV is saved on this phone only. Create a free account to keep it safe, use it on any device and export it.": "Votre CV n’est enregistré que sur ce téléphone. Créez un compte gratuit pour le garder en sécurité, l’utiliser sur tous vos appareils et l’exporter.",
+    "Tap “Edit CV” to change the content and watch the page update. The Job match tab tailors your CV to the job offer and gives you an ATS score.": "Touchez « Modifier le CV » pour changer le contenu et voir la page se mettre à jour. L’onglet Adéquation au poste adapte votre CV à l’offre et vous donne un score ATS."
   },
   "es": {
     "Preview": "Vista previa",
@@ -23,7 +27,11 @@
     "Type your email address to confirm.": "Escribe tu correo electrónico para confirmar.",
     "Email {email} from this address and we’ll delete your account and CVs.": "Escribe a {email} desde esta dirección y eliminaremos tu cuenta y tus CV.",
     "Already have an account?": "¿Ya tienes cuenta?",
-    "Don’t have an account?": "¿No tienes cuenta?"
+    "Don’t have an account?": "¿No tienes cuenta?",
+    "You’re using CVMaster as a guest. Your CV is saved on this phone.": "Estás usando CVMaster como invitado. Tu CV se guarda en este teléfono.",
+    "This CV is only on this phone.": "Este CV solo está en este teléfono.",
+    "Your CV is saved on this phone only. Create a free account to keep it safe, use it on any device and export it.": "Tu CV solo se guarda en este teléfono. Crea una cuenta gratuita para tenerlo a salvo, usarlo en cualquier dispositivo y exportarlo.",
+    "Tap “Edit CV” to change the content and watch the page update. The Job match tab tailors your CV to the job offer and gives you an ATS score.": "Toca «Editar CV» para cambiar el contenido y ver cómo se actualiza la página. La pestaña de encaje con la oferta adapta tu CV a la oferta y te da una puntuación ATS."
   },
   "de": {
     "Preview": "Vorschau",
@@ -36,7 +44,11 @@
     "Type your email address to confirm.": "Geben Sie zur Bestätigung Ihre E-Mail-Adresse ein.",
     "Email {email} from this address and we’ll delete your account and CVs.": "Schreiben Sie von dieser Adresse an {email}, dann löschen wir Ihr Konto und Ihre Lebensläufe.",
     "Already have an account?": "Schon ein Konto?",
-    "Don’t have an account?": "Noch kein Konto?"
+    "Don’t have an account?": "Noch kein Konto?",
+    "You’re using CVMaster as a guest. Your CV is saved on this phone.": "Sie nutzen CVMaster als Gast. Ihr Lebenslauf wird auf diesem Telefon gespeichert.",
+    "This CV is only on this phone.": "Dieser Lebenslauf ist nur auf diesem Telefon.",
+    "Your CV is saved on this phone only. Create a free account to keep it safe, use it on any device and export it.": "Ihr Lebenslauf ist nur auf diesem Telefon gespeichert. Erstellen Sie ein kostenloses Konto, um ihn zu sichern, auf jedem Gerät zu nutzen und zu exportieren.",
+    "Tap “Edit CV” to change the content and watch the page update. The Job match tab tailors your CV to the job offer and gives you an ATS score.": "Tippen Sie auf „Lebenslauf bearbeiten“, um den Inhalt zu ändern und die Seite live zu sehen. Der Tab Stellenabgleich passt Ihren Lebenslauf an die Stelle an und zeigt Ihren ATS-Score."
   },
   "it": {
     "Preview": "Anteprima",
@@ -49,7 +61,11 @@
     "Type your email address to confirm.": "Scrivi il tuo indirizzo email per confermare.",
     "Email {email} from this address and we’ll delete your account and CVs.": "Scrivi a {email} da questo indirizzo ed elimineremo il tuo account e i tuoi CV.",
     "Already have an account?": "Hai già un account?",
-    "Don’t have an account?": "Non hai un account?"
+    "Don’t have an account?": "Non hai un account?",
+    "You’re using CVMaster as a guest. Your CV is saved on this phone.": "Stai usando CVMaster come ospite. Il tuo CV è salvato su questo telefono.",
+    "This CV is only on this phone.": "Questo CV è solo su questo telefono.",
+    "Your CV is saved on this phone only. Create a free account to keep it safe, use it on any device and export it.": "Il tuo CV è salvato solo su questo telefono. Crea un account gratuito per tenerlo al sicuro, usarlo su qualsiasi dispositivo ed esportarlo.",
+    "Tap “Edit CV” to change the content and watch the page update. The Job match tab tailors your CV to the job offer and gives you an ATS score.": "Tocca «Modifica CV» per cambiare il contenuto e vedere la pagina aggiornarsi. La scheda Corrispondenza con l’offerta adatta il CV all’offerta e ti dà un punteggio ATS."
   },
   "pt": {
     "Preview": "Pré-visualizar",
@@ -62,7 +78,11 @@
     "Type your email address to confirm.": "Digite seu e-mail para confirmar.",
     "Email {email} from this address and we’ll delete your account and CVs.": "Envie um e-mail para {email} a partir deste endereço e excluiremos sua conta e seus currículos.",
     "Already have an account?": "Já tem uma conta?",
-    "Don’t have an account?": "Não tem uma conta?"
+    "Don’t have an account?": "Não tem uma conta?",
+    "You’re using CVMaster as a guest. Your CV is saved on this phone.": "Você está usando o CVMaster como visitante. Seu currículo fica salvo neste telefone.",
+    "This CV is only on this phone.": "Este currículo está só neste telefone.",
+    "Your CV is saved on this phone only. Create a free account to keep it safe, use it on any device and export it.": "Seu currículo fica salvo só neste telefone. Crie uma conta gratuita para mantê-lo seguro, usá-lo em qualquer dispositivo e exportá-lo.",
+    "Tap “Edit CV” to change the content and watch the page update. The Job match tab tailors your CV to the job offer and gives you an ATS score.": "Toque em “Editar currículo” para alterar o conteúdo e ver a página atualizar. A aba Compatibilidade com a vaga adapta seu currículo à vaga e mostra uma pontuação ATS."
   },
   "zh": {
     "Preview": "预览",
@@ -75,6 +95,10 @@
     "Type your email address to confirm.": "请输入您的邮箱地址以确认。",
     "Email {email} from this address and we’ll delete your account and CVs.": "请用此邮箱发送邮件至 {email}，我们会删除您的账号和简历。",
     "Already have an account?": "已有账号？",
-    "Don’t have an account?": "还没有账号？"
+    "Don’t have an account?": "还没有账号？",
+    "You’re using CVMaster as a guest. Your CV is saved on this phone.": "您正在以访客身份使用 CVMaster。您的简历保存在此手机上。",
+    "This CV is only on this phone.": "这份简历只保存在此手机上。",
+    "Your CV is saved on this phone only. Create a free account to keep it safe, use it on any device and export it.": "您的简历仅保存在此手机上。创建免费账号，即可安全保存、在任何设备上使用并导出。",
+    "Tap “Edit CV” to change the content and watch the page update. The Job match tab tailors your CV to the job offer and gives you an ATS score.": "点按“编辑简历”修改内容，页面会实时更新。“职位匹配”标签会根据职位信息定制您的简历，并给出 ATS 得分。"
   }
 }

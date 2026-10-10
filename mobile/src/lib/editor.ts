@@ -1,16 +1,23 @@
-// The CV being edited. Every screen of the editor reads and changes the same copy; changes are
-// saved to the account a moment after the last edit (and straight away when the app goes to
-// the background), the same draft the website shows.
+// The CV being edited: an account CV (saved to the server like the website's drafts) or the guest
+// CV (saved on the phone). Every editor screen reads and changes this one copy; changes are saved
+// a moment after the last edit, and straight away when the app goes to the background.
+// The open CV is remembered, so the Editor tab reopens it.
 import { useEffect, useSyncExternalStore } from 'react'
 import { AppState } from 'react-native'
+import * as SecureStore from 'expo-secure-store'
 import type { QueryClient } from '@tanstack/react-query'
 import { api, type Draft } from '@/lib/api'
 import { draftTitle, normalise, type CvData, type CvFmt } from '@/lib/cv'
+import { GUEST_ID, writeGuest, type GuestCv } from '@/lib/guest'
 
 export type SaveState = 'saved' | 'saving' | 'unsaved' | 'error'
-type Open = { id: string; data: CvData; fmt: CvFmt; template: string; save: SaveState; savedAt: number }
+export type OpenCv = { id: string; data: CvData; fmt: CvFmt; template: string; save: SaveState; savedAt: number }
 
-let open: Open | null = null
+const CURRENT_KEY = 'cvmaster-current-cv'
+let open: OpenCv | null = null
+// The CV the Editor tab shows (remembered between launches)
+let current: string | null = null
+export const currentReady: Promise<void> = SecureStore.getItemAsync(CURRENT_KEY).then(v => { current = v || null }).catch(() => {})
 let timer: ReturnType<typeof setTimeout> | null = null
 let inFlight: Promise<void> | null = null
 let dirty = false
@@ -21,14 +28,46 @@ const subscribe = (fn: () => void) => { listeners.add(fn); return () => { listen
 
 export function setEditorQueryClient(qc: QueryClient) { queryClient = qc }
 
-// Open a draft for editing (keeps unsaved edits if it's already open)
+function setOpen(next: OpenCv) {
+  open = next
+  dirty = false
+  if (current !== next.id) { current = next.id; SecureStore.setItemAsync(CURRENT_KEY, next.id).catch(() => {}) }
+  emit()
+}
+
+// Open an account CV (keeps unsaved edits if it's already open)
 export function openDraft(d: Draft) {
   if (open?.id === d.id) return
-  flush()
+  void flush()
   const { data, fmt } = normalise(d.data)
-  open = { id: d.id, data, fmt, template: d.template, save: 'saved', savedAt: Date.parse(d.updatedAt) || Date.now() }
-  dirty = false
+  setOpen({ id: d.id, data, fmt, template: d.template, save: 'saved', savedAt: Date.parse(d.updatedAt) || Date.now() })
+}
+
+// Open the guest CV kept on the phone
+export function openGuestCv(g: GuestCv) {
+  if (open?.id === GUEST_ID) return
+  void flush()
+  const { data, fmt } = normalise({ ...g.data, fmt: g.fmt })
+  setOpen({ id: GUEST_ID, data, fmt, template: g.template, save: 'saved', savedAt: Date.parse(g.updatedAt) || Date.now() })
+}
+
+export function closeEditor() {
+  void flush()
+  open = null
+  current = null
+  SecureStore.deleteItemAsync(CURRENT_KEY).catch(() => {})
   emit()
+}
+
+// Make this CV the one the Editor tab opens (e.g. a guest CV that just moved into the account)
+export function setCurrentCv(id: string) {
+  if (open && open.id !== id) { void flush(); open = null }
+  current = id
+  SecureStore.setItemAsync(CURRENT_KEY, id).catch(() => {})
+  emit()
+}
+export function useCurrentCvId() {
+  return useSyncExternalStore(subscribe, () => current)
 }
 
 export function useEditor() {
@@ -73,15 +112,16 @@ export async function flush(): Promise<void> {
   emit()
   inFlight = (async () => {
     try {
-      const saved = await api<Draft>(`/api/drafts/${snap.id}`, {
-        method: 'PUT',
-        body: { title: draftTitle(snap.data) || undefined, data: { ...snap.data, fmt: snap.fmt }, template: snap.template },
-      })
-      queryClient?.setQueryData<Draft[]>(['drafts'], list => {
-        if (!list) return list
-        const rest = list.filter(x => x.id !== saved.id)
-        return [saved, ...rest]
-      })
+      if (snap.id === GUEST_ID) {
+        writeGuest({ data: snap.data, fmt: snap.fmt, template: snap.template })
+        queryClient?.invalidateQueries({ queryKey: ['guest'] })
+      } else {
+        const saved = await api<Draft>(`/api/drafts/${snap.id}`, {
+          method: 'PUT',
+          body: { title: draftTitle(snap.data) || undefined, data: { ...snap.data, fmt: snap.fmt }, template: snap.template },
+        })
+        queryClient?.setQueryData<Draft[]>(['drafts'], list => (list ? [saved, ...list.filter(x => x.id !== saved.id)] : list))
+      }
       if (open?.id === snap.id) open = { ...open, save: dirty ? 'unsaved' : 'saved', savedAt: Date.now() }
     } catch {
       dirty = true
@@ -94,7 +134,6 @@ export async function flush(): Promise<void> {
   if (dirty && open?.save !== 'error') return flush()
 }
 
-// Save when the app is backgrounded, and keep the editor in step with the drafts list
 export function useEditorLifecycle() {
   useEffect(() => {
     const sub = AppState.addEventListener('change', s => { if (s !== 'active') void flush() })

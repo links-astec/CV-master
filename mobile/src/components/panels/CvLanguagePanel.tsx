@@ -1,14 +1,12 @@
 // The CV's own language (separate from the app's). Headings switch for any of the 7 languages;
 // for English ↔ French the AI can also translate the content, shown field by field to keep or not.
 import { useState } from 'react'
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native'
-import { Stack, router, useLocalSearchParams } from 'expo-router'
-import { useOpenCv } from '@/lib/useOpenCv'
-import { setField, update } from '@/lib/editor'
+import { ActivityIndicator, Pressable, StyleSheet, Switch, View } from 'react-native'
+import { Text } from '@/components/AppText'
+import { setField, update, type OpenCv } from '@/lib/editor'
 import { errorText, translateCv, TRANSLATABLE, type TranslateResult } from '@/lib/ai'
 import { hasCvContent, type CvData } from '@/lib/cv'
 import { Button, Card } from '@/components/ui'
-import { SaveStatus } from '@/components/SaveStatus'
 import { LANGS, useLang } from '@/i18n'
 import { useColors } from '@/lib/theme'
 
@@ -51,23 +49,20 @@ function itemsFrom(d: CvData, r: TranslateResult, t: (s: string, p?: Record<stri
   return out
 }
 
-export default function CvLanguage() {
-  const { id } = useLocalSearchParams<{ id: string }>()
-  const { cv, loading } = useOpenCv(id)
+export function CvLanguagePanel({ cv, onDone }: { cv: OpenCv; onDone: () => void }) {
   const { t } = useLang()
   const c = useColors()
   const [target, setTarget] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [items, setItems] = useState<Item[] | null>(null)
-  if (loading || !cv) return <ActivityIndicator style={styles.center} color={c.accent} />
   const d = cv.data
 
   async function choose(code: string) {
     setError(''); setItems(null)
     if (code === d.lang) return
     const canTranslate = TRANSLATABLE.includes(code) && TRANSLATABLE.includes(d.lang) && hasCvContent(d)
-    if (!canTranslate) { setField('lang', code); router.back(); return }
+    if (!canTranslate) { setField('lang', code); onDone(); return }
     setTarget(code); setBusy(true)
     try { setItems(itemsFrom(d, await translateCv(d, code as 'en' | 'fr'), t)) } catch (e) { setError(errorText(e)) }
     setBusy(false)
@@ -80,13 +75,12 @@ export default function CvLanguage() {
       if (withContent && items) for (const it of items) if (it.on) out = { ...it.apply(out), lang: target }
       return out
     })
-    router.back()
+    onDone()
   }
 
   const selected = items?.filter(i => i.on).length || 0
   return (
-    <ScrollView contentContainerStyle={styles.body}>
-      <Stack.Screen options={{ title: t('CV language'), headerRight: () => <SaveStatus state={cv.save} /> }} />
+    <View style={{ gap: 12 }}>
       {!target && (
         <View style={[styles.group, { backgroundColor: c.surface, borderColor: c.border }]}>
           {LANGS.map((l, i) => (
@@ -124,7 +118,7 @@ export default function CvLanguage() {
           <Button kind="ghost" title={t('Cancel')} onPress={() => { setTarget(null); setItems(null); setError('') }} disabled={busy} />
         </Card>
       )}
-    </ScrollView>
+    </View>
   )
 }
 

@@ -1,5 +1,6 @@
 // An AI result the user can take or leave: "Use this" replaces the text, "Dismiss" drops it.
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
+import { Text } from '@/components/AppText'
 import { SmallAction } from '@/components/ui'
 import { useLang } from '@/i18n'
 import { useColors } from '@/lib/theme'

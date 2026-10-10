@@ -1,5 +1,6 @@
 // "Saving…", "Saved" or a retry button, shown in the editor's header
-import { ActivityIndicator, Pressable, Text } from 'react-native'
+import { ActivityIndicator, Pressable } from 'react-native'
+import { Text } from '@/components/AppText'
 import { flush, type SaveState } from '@/lib/editor'
 import { useLang } from '@/i18n'
 import { useColors } from '@/lib/theme'

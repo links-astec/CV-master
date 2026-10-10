@@ -15,10 +15,16 @@ const files = []
   }
 })(path.join(root, 'src'))
 
-// t('...') with single-quoted text
+// t('...') with single-quoted text, plus texts kept in lists and passed to t() later
+// (tour steps, welcome screens, section titles: { title: '…', desc: '…', tip: '…', t: '…', d: '…' })
 const keys = new Set()
 for (const f of files) {
-  for (const m of fs.readFileSync(f, 'utf8').matchAll(/\bt\(\s*'((?:[^'\\]|\\.)*)'/g)) keys.add(m[1].replace(/\\'/g, "'"))
+  const src = fs.readFileSync(f, 'utf8')
+  for (const m of src.matchAll(/\bt\(\s*'((?:[^'\\]|\\.)*)'/g)) keys.add(m[1].replace(/\\'/g, "'"))
+  for (const m of src.matchAll(/\b(?:title|desc|tip|t|d):\s*'((?:[^'\\]|\\.)*)'/g)) {
+    const k = m[1].replace(/\\'/g, "'")
+    if (/^[A-Z0-9€]/.test(k) && /[a-z]/.test(k) && /\s/.test(k + ' ') && !k.startsWith('/')) keys.add(k)
+  }
 }
 
 const web = path.join(root, '..', 'craftcv', 'src', 'i18n')
