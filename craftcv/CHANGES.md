@@ -1,5 +1,14 @@
 # Changes
 
+## 2026-10-10: No AI calls for an empty CV
+
+- **An empty CV never reaches the AI.** "Empty" means nothing beyond name, contact details and photo. This covers writing help (summary, skills, bullets), the job-fit check, Fix with AI, translation, tailoring and the ATS check.
+  - **Browser:** the fetch wrapper in App.vue answers these requests itself (`CV_EMPTY`, with a message in the interface language) and sends nothing.
+  - **Server:** `needsCvContent` refuses them before the AI allowance is counted, so nobody loses a request.
+  - **Same rule in both places:** `hasCvContent` in src/stores/cv.js and `cvHasContent` in server/index.js.
+- The standalone ATS check no longer runs on its own for an empty CV. The job-fit check already waited for content.
+- Unchanged: "Tell your story" and importing a PDF/Word CV, which build a CV from text you give them.
+
 ## 2026-10-10: Calmer homepage hero, example CV and legal pages in every language, 0 audit warnings
 
 - **Homepage hero:**

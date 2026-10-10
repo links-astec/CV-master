@@ -72,6 +72,23 @@ export function hasDraftableContent(d) {
   )
 }
 
+// Something the AI can work with: anything beyond the name, contact details and photo.
+// The AI is never called for a CV without it (see the fetch guard in App.vue and
+// cvHasContent in server/index.js, which use the same rule).
+export function hasCvContent(d) {
+  if (!d || typeof d !== 'object') return false
+  const s = (v) => typeof v === 'string' && v.trim() !== ''
+  const list = (v) => (Array.isArray(v) ? v : [])
+  return Boolean(
+    s(d.title) || s(d.sum) ||
+    list(d.skills).some(s) || list(d.certifications).some(s) ||
+    list(d.experiences).some(e => s(e?.title) || s(e?.company) || s(e?.desc)) ||
+    list(d.education).some(e => s(e?.degree) || s(e?.school)) ||
+    list(d.projects).some(p => s(p?.name) || s(p?.desc)) ||
+    list(d.languages).some(l => s(l?.name))
+  )
+}
+
 // Saved data (localStorage or a server draft) → a complete, well-formed CV object
 function normaliseData(saved) {
   // Saved CVs without a language were made before French existed, so they are English;

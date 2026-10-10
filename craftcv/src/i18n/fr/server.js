@@ -1,6 +1,7 @@
 // Messages that come from the server (errors, limits, notifications) and are shown as they are.
 // Admin-only and developer messages are left in English.
 export default {
+  'Your CV is empty. Add a few details first (a job title, some experience or skills), then the AI can help.': 'Votre CV est vide. Ajoutez d’abord quelques informations (un intitulé de poste, une expérience ou des compétences), puis l’IA pourra vous aider.',
   'Email is not configured on the server.': 'L’envoi d’e-mails n’est pas configuré sur le serveur.',
   'CVMaster is currently under maintenance. Please check back shortly.': 'CVMaster est en maintenance. Revenez dans un instant.',
   'Too many AI requests, wait a minute.': 'Trop de requêtes IA, patientez une minute.',

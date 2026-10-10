@@ -371,6 +371,28 @@ async function useAiAllowance(req) {
   return { ok: false, tier };
 }
 
+// An empty CV (nothing beyond name, contact details and photo) gives the AI nothing to work
+// with, so CV-based AI features refuse it before any AI request is counted or made.
+// Same rule as hasCvContent in src/stores/cv.js.
+function cvHasContent(d) {
+  if (!d || typeof d !== 'object') return false;
+  const s = (v) => typeof v === 'string' && v.trim() !== '';
+  const list = (v) => (Array.isArray(v) ? v : []);
+  return Boolean(
+    s(d.title) || s(d.sum) ||
+    list(d.skills).some(s) || list(d.certifications).some(s) ||
+    list(d.experiences).some(e => s(e?.title) || s(e?.company) || s(e?.desc)) ||
+    list(d.education).some(e => s(e?.degree) || s(e?.school)) ||
+    list(d.projects).some(p => s(p?.name) || s(p?.desc)) ||
+    list(d.languages).some(l => s(l?.name))
+  );
+}
+const CV_EMPTY_MSG = 'Your CV is empty. Add a few details first (a job title, some experience or skills), then the AI can help.';
+function needsCvContent(req, res, next) {
+  if (!cvHasContent(req.body?.cv)) return res.status(400).json({ code: 'CV_EMPTY', error: CV_EMPTY_MSG });
+  next();
+}
+
 async function aiAccess(req, res, next) {
   req.user = await userFromToken(tokenOf(req)).catch(() => null);
   try {
@@ -1361,7 +1383,7 @@ app.post('/api/ai/job-brief', async (req, res) => {
 });
 
 // POST /api/ai/ats. Score a CV against a job offer (only the first analysis of a job uses AI)
-app.post('/api/ai/ats', rateLimit({ windowMs: 60 * 1000, max: 30 }), async (req, res) => {
+app.post('/api/ai/ats', rateLimit({ windowMs: 60 * 1000, max: 30 }), needsCvContent, async (req, res) => {
   req.user = await userFromToken(tokenOf(req)).catch(() => null);
   try {
     const cv = cvFromBody(req.body);
@@ -1430,7 +1452,7 @@ async function personalContext(req, cv) {
 // ── IS THIS ROLE A GOOD FIT? ──────────────────────────────────────────────────
 // After a job offer is added: an honest heads-up when the role looks like a poor match
 // for the person on the CV, with the reasons and what would help.
-app.post('/api/ai/fit', aiAccess, async (req, res) => {
+app.post('/api/ai/fit', needsCvContent, aiAccess, async (req, res) => {
   try {
     const cv = cvFromBody(req.body);
     if (!cv) return res.status(413).json({ error: 'This CV is too long to check in one go.' });
@@ -1476,7 +1498,7 @@ Write in ${outLang} and address ${who}.`;
 
 // POST /api/ai/write, the editor's AI helpers, with the job offer as context.
 //   summary { tone } · skills · bullets { index }
-app.post('/api/ai/write', aiAccess, async (req, res) => {
+app.post('/api/ai/write', needsCvContent, aiAccess, async (req, res) => {
   try {
     const cv = cvFromBody(req.body);
     if (!cv) return res.status(413).json({ error: 'This CV is too long to work on in one go.' });
@@ -1606,7 +1628,7 @@ const FIX_TASKS = {
   skills:       'The CV lists too few skills. Suggest 6-10 concrete skills (tools, methods, domain knowledge, and at most 2 soft skills) that the CV clearly shows the person has or used. Do not repeat skills already listed. Return them in "skills".',
 };
 
-app.post('/api/ai/fix', aiAccess, async (req, res) => {
+app.post('/api/ai/fix', needsCvContent, aiAccess, async (req, res) => {
   try {
     const { issue, cv = {} } = req.body || {};
     const task = FIX_TASKS[issue];
@@ -1658,7 +1680,7 @@ Reply with ONLY a JSON object, no markdown:
 
 // ── TRANSLATE A CV (EN ↔ FR) ──────────────────────────────────────────────────
 // Returns proposals only; the client shows before/after and the user applies them.
-app.post('/api/ai/translate', aiAccess, async (req, res) => {
+app.post('/api/ai/translate', needsCvContent, aiAccess, async (req, res) => {
   try {
     const { cv = {}, to } = req.body || {};
     if (to !== 'fr' && to !== 'en') return res.status(400).json({ error: 'Unsupported language.' });
@@ -1715,7 +1737,7 @@ app.post('/api/ai/translate', aiAccess, async (req, res) => {
 // ── TAILOR CV TO A JOB OFFER ──────────────────────────────────────────────────
 // Returns *proposals* only. The client shows a before/after and the user picks
 // what to apply. The model may rephrase and reorder, never invent facts.
-app.post('/api/ai/tailor', aiAccess, async (req, res) => {
+app.post('/api/ai/tailor', needsCvContent, aiAccess, async (req, res) => {
   try {
     const { cv = {}, jobOffer = '', ats = null } = req.body || {};
     const job = normJob(jobOffer).slice(0, 12000);

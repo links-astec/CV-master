@@ -109,7 +109,7 @@ const atsCache = new Map()
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useCvStore } from '../stores/cv.js'
+import { useCvStore, hasCvContent } from '../stores/cv.js'
 import { lang, locale } from '../i18n/index.js'
 
 const props   = defineProps({ embedded: Boolean })
@@ -207,7 +207,7 @@ async function analyse() {
 // Standalone: score straight away when there's a job offer. Embedded in the Job match
 // panel: only show a result already worked out for this exact CV. The user starts the check.
 onMounted(() => {
-  if (jobDesc.value.trim().length < 40) return
+  if (jobDesc.value.trim().length < 40 || !hasCvContent(store.data)) return   // never an AI request for an empty CV
   if (!props.embedded || atsCache.has(cacheKey())) runScore({ fresh: false })
 })
 

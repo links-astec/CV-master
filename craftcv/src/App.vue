@@ -124,7 +124,7 @@
 import { ref, reactive, computed, watch, provide, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth.js'
-import { useCvStore } from './stores/cv.js'
+import { useCvStore, hasCvContent } from './stores/cv.js'
 import { useNotifStore } from './stores/notifications.js'
 import LandingPage from './views/Landing.vue'
 import AuthModal from './components/auth/AuthModal.vue'
@@ -224,11 +224,23 @@ provide('showHome', showHome)
 // AI allowance: any AI call refused for the daily limit opens the "get more" pop-up.
 // Watching fetch here means every AI feature gets this without its own handling.
 const aiLimitRef = ref(null)
+const CV_EMPTY_MSG = 'Your CV is empty. Add a few details first (a job title, some experience or skills), then the AI can help.'
 provide('openAiAllowance', () => aiLimitRef.value?.show('info'))
 if (!window.__aiLimitWatch) {
   window.__aiLimitWatch = true
   const _fetch = window.fetch.bind(window)
+  // AI features that work on the CV: never call them for an empty CV (nothing to work
+  // with, and it would use up an AI request). Answered here, no request is sent.
+  const CV_AI = /\/api\/ai\/(write|fit|fix|translate|tailor|ats)\b/
   window.fetch = async (...args) => {
+    const url0 = String(args[0]?.url || args[0] || '')
+    if (CV_AI.test(url0) && typeof args[1]?.body === 'string') {
+      let cv = null
+      try { cv = JSON.parse(args[1].body)?.cv } catch {}
+      if (cv && !hasCvContent(cv)) {
+        return new Response(JSON.stringify({ code: 'CV_EMPTY', error: CV_EMPTY_MSG }), { status: 400, headers: { 'Content-Type': 'application/json' } })
+      }
+    }
     const res = await _fetch(...args)
     if (res.status === 429) {
       const url = String(args[0]?.url || args[0] || '')
