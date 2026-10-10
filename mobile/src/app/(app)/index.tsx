@@ -4,7 +4,6 @@ import { Stack, router } from 'expo-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { useDrafts } from '@/lib/drafts'
 import { api, type Draft } from '@/lib/api'
-import { useAuth } from '@/lib/auth'
 import { useLang } from '@/i18n'
 import { useColors } from '@/lib/theme'
 import { templateLabel } from '@web/composables/cvRenderer.js'
@@ -18,7 +17,6 @@ function ago(iso: string, t: (s: string, p?: Record<string, unknown>) => string)
 }
 
 export default function MyCvs() {
-  const { user, signOut } = useAuth()
   const { t } = useLang()
   const c = useColors()
   const qc = useQueryClient()
@@ -42,6 +40,11 @@ export default function MyCvs() {
   return (
     <View style={[styles.flex, { backgroundColor: c.bg }]}>
       <Stack.Screen options={{
+        headerLeft: () => (
+          <Pressable onPress={() => router.push('/settings')} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('Settings')}>
+            <Text style={{ color: c.accent, fontSize: 15 }}>{t('Settings')}</Text>
+          </Pressable>
+        ),
         headerRight: () => (
           <Pressable onPress={() => router.push('/new')} hitSlop={10} accessibilityRole="button">
             <Text style={{ color: c.accent, fontSize: 15, fontWeight: '600' }}>{t('New CV')}</Text>
@@ -75,14 +78,6 @@ export default function MyCvs() {
               </Text>
             </Pressable>
           )}
-          ListFooterComponent={
-            <View style={styles.footer}>
-              <Text style={{ color: c.text3, fontSize: 13 }}>{user?.email}</Text>
-              <Pressable onPress={signOut} hitSlop={8} accessibilityRole="button">
-                <Text style={{ color: c.accent, fontSize: 14, fontWeight: '600' }}>{t('Sign out')}</Text>
-              </Pressable>
-            </View>
-          }
         />
       )}
     </View>
@@ -97,5 +92,4 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 12, padding: 16, gap: 4 },
   cardTitle: { fontSize: 16, fontWeight: '600' },
   cardMeta: { fontSize: 13 },
-  footer: { marginTop: 24, alignItems: 'center', gap: 8 },
 })

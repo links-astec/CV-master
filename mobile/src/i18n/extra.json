@@ -2,31 +2,79 @@
   "fr": {
     "Preview": "Aperçu",
     "Choose a photo": "Choisir une photo",
-    "Change photo": "Changer de photo"
+    "Change photo": "Changer de photo",
+    "Account": "Compte",
+    "Delete account": "Supprimer le compte",
+    "Delete your account?": "Supprimer votre compte ?",
+    "Your account and all your CVs will be deleted permanently. This can’t be undone.": "Votre compte et tous vos CV seront supprimés définitivement. Cette action est irréversible.",
+    "Type your email address to confirm.": "Saisissez votre adresse e-mail pour confirmer.",
+    "Email {email} from this address and we’ll delete your account and CVs.": "Écrivez à {email} depuis cette adresse et nous supprimerons votre compte et vos CV.",
+    "Already have an account?": "Vous avez déjà un compte ?",
+    "Don’t have an account?": "Pas encore de compte ?"
   },
   "es": {
     "Preview": "Vista previa",
     "Choose a photo": "Elegir una foto",
-    "Change photo": "Cambiar foto"
+    "Change photo": "Cambiar foto",
+    "Account": "Cuenta",
+    "Delete account": "Eliminar cuenta",
+    "Delete your account?": "¿Eliminar tu cuenta?",
+    "Your account and all your CVs will be deleted permanently. This can’t be undone.": "Tu cuenta y todos tus CV se eliminarán de forma permanente. No se puede deshacer.",
+    "Type your email address to confirm.": "Escribe tu correo electrónico para confirmar.",
+    "Email {email} from this address and we’ll delete your account and CVs.": "Escribe a {email} desde esta dirección y eliminaremos tu cuenta y tus CV.",
+    "Already have an account?": "¿Ya tienes cuenta?",
+    "Don’t have an account?": "¿No tienes cuenta?"
   },
   "de": {
     "Preview": "Vorschau",
     "Choose a photo": "Foto auswählen",
-    "Change photo": "Foto ändern"
+    "Change photo": "Foto ändern",
+    "Account": "Konto",
+    "Delete account": "Konto löschen",
+    "Delete your account?": "Konto löschen?",
+    "Your account and all your CVs will be deleted permanently. This can’t be undone.": "Ihr Konto und alle Ihre Lebensläufe werden endgültig gelöscht. Das kann nicht rückgängig gemacht werden.",
+    "Type your email address to confirm.": "Geben Sie zur Bestätigung Ihre E-Mail-Adresse ein.",
+    "Email {email} from this address and we’ll delete your account and CVs.": "Schreiben Sie von dieser Adresse an {email}, dann löschen wir Ihr Konto und Ihre Lebensläufe.",
+    "Already have an account?": "Schon ein Konto?",
+    "Don’t have an account?": "Noch kein Konto?"
   },
   "it": {
     "Preview": "Anteprima",
     "Choose a photo": "Scegli una foto",
-    "Change photo": "Cambia foto"
+    "Change photo": "Cambia foto",
+    "Account": "Account",
+    "Delete account": "Elimina account",
+    "Delete your account?": "Eliminare il tuo account?",
+    "Your account and all your CVs will be deleted permanently. This can’t be undone.": "Il tuo account e tutti i tuoi CV verranno eliminati definitivamente. Non si può annullare.",
+    "Type your email address to confirm.": "Scrivi il tuo indirizzo email per confermare.",
+    "Email {email} from this address and we’ll delete your account and CVs.": "Scrivi a {email} da questo indirizzo ed elimineremo il tuo account e i tuoi CV.",
+    "Already have an account?": "Hai già un account?",
+    "Don’t have an account?": "Non hai un account?"
   },
   "pt": {
     "Preview": "Pré-visualizar",
     "Choose a photo": "Escolher uma foto",
-    "Change photo": "Trocar foto"
+    "Change photo": "Trocar foto",
+    "Account": "Conta",
+    "Delete account": "Excluir conta",
+    "Delete your account?": "Excluir sua conta?",
+    "Your account and all your CVs will be deleted permanently. This can’t be undone.": "Sua conta e todos os seus currículos serão excluídos permanentemente. Não é possível desfazer.",
+    "Type your email address to confirm.": "Digite seu e-mail para confirmar.",
+    "Email {email} from this address and we’ll delete your account and CVs.": "Envie um e-mail para {email} a partir deste endereço e excluiremos sua conta e seus currículos.",
+    "Already have an account?": "Já tem uma conta?",
+    "Don’t have an account?": "Não tem uma conta?"
   },
   "zh": {
     "Preview": "预览",
     "Choose a photo": "选择照片",
-    "Change photo": "更换照片"
+    "Change photo": "更换照片",
+    "Account": "账号",
+    "Delete account": "删除账号",
+    "Delete your account?": "删除您的账号？",
+    "Your account and all your CVs will be deleted permanently. This can’t be undone.": "您的账号和所有简历将被永久删除，且无法恢复。",
+    "Type your email address to confirm.": "请输入您的邮箱地址以确认。",
+    "Email {email} from this address and we’ll delete your account and CVs.": "请用此邮箱发送邮件至 {email}，我们会删除您的账号和简历。",
+    "Already have an account?": "已有账号？",
+    "Don’t have an account?": "还没有账号？"
   }
 }

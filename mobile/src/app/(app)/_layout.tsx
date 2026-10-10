@@ -25,6 +25,7 @@ export default function AppLayout() {
       <Stack.Screen name="cv/[id]/language" options={{ title: '' }} />
       <Stack.Screen name="new" options={{ title: '' }} />
       <Stack.Screen name="story" options={{ title: '' }} />
+      <Stack.Screen name="settings" options={{ title: '' }} />
     </Stack>
   )
 }

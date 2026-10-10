@@ -922,6 +922,31 @@ app.post('/api/auth/logout', (req, res) => {
   res.json({ ok: true });
 });
 
+// ── DELETE MY ACCOUNT ─────────────────────────────────────────────────────────
+// Users can delete their own account (the App Store requires it in the app). Email accounts
+// confirm with their password; Google accounts, which have none, by typing their email.
+// CVs, notifications and the rest go with the account (ON DELETE CASCADE); payment records
+// stay, without the account, as the law requires.
+app.post('/api/auth/delete-account', rateLimit({ windowMs: 15 * 60 * 1000, max: 5 }), authMiddleware, async (req, res) => {
+  try {
+    const u = (await query('SELECT * FROM users WHERE id = $1', [req.user.sub])).rows[0];
+    if (!u) return res.status(404).json({ error: 'Account not found.' });
+    if (u.hash) {
+      const ok = await bcrypt.compare(String(req.body?.password || '').slice(0, 200), u.hash);
+      if (!ok) return res.status(403).json({ error: 'Your current password is incorrect.' });
+    } else if (String(req.body?.confirmEmail || '').trim().toLowerCase() !== String(u.email).toLowerCase()) {
+      return res.status(400).json({ error: 'Type your email address to confirm.' });
+    }
+    await query('DELETE FROM newsletter_subscribers WHERE LOWER(email) = LOWER($1)', [u.email]).catch(() => {});
+    await query('DELETE FROM users WHERE id = $1', [u.id]);
+    res.clearCookie('token', { domain: IS_PROD ? '.cvmaster.live' : undefined });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[delete-account]', e.message);
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
+  }
+});
+
 // ── ME ────────────────────────────────────────────────────────────────────────
 app.get('/api/auth/me', authMiddleware, async (req, res) => {
   try {
