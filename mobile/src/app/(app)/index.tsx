@@ -1,5 +1,4 @@
 // My CVs: the same list as the website's dashboard, newest first.
-import { useState } from 'react'
 import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native'
 import { Stack, router } from 'expo-router'
 import { useQueryClient } from '@tanstack/react-query'
@@ -8,8 +7,7 @@ import { api, type Draft } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useLang } from '@/i18n'
 import { useColors } from '@/lib/theme'
-import { emptyData, defaultFmt } from '@/lib/cv'
-import { DEFAULT_TEMPLATE, templateLabel } from '@web/composables/cvRenderer.js'
+import { templateLabel } from '@web/composables/cvRenderer.js'
 
 function ago(iso: string, t: (s: string, p?: Record<string, unknown>) => string) {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000)
@@ -25,20 +23,6 @@ export default function MyCvs() {
   const c = useColors()
   const qc = useQueryClient()
   const { data, isLoading, error, refetch, isRefetching } = useDrafts()
-  const [creating, setCreating] = useState(false)
-
-  async function newCv() {
-    if (creating) return
-    setCreating(true)
-    try {
-      const d = await api<Draft>('/api/drafts', { body: { title: '', data: { ...emptyData(), fmt: defaultFmt() }, template: DEFAULT_TEMPLATE } })
-      qc.setQueryData<Draft[]>(['drafts'], list => [d, ...(list || [])])
-      router.push({ pathname: '/cv/[id]', params: { id: d.id } })
-    } catch (e) {
-      Alert.alert(t('Something went wrong. Please try again.'), e instanceof Error ? e.message : '')
-    }
-    setCreating(false)
-  }
 
   function askDelete(d: Draft) {
     Alert.alert(t('Delete this CV?'), t('It will be permanently deleted from your account.'), [
@@ -59,8 +43,8 @@ export default function MyCvs() {
     <View style={[styles.flex, { backgroundColor: c.bg }]}>
       <Stack.Screen options={{
         headerRight: () => (
-          <Pressable onPress={newCv} hitSlop={10} accessibilityRole="button" disabled={creating}>
-            {creating ? <ActivityIndicator color={c.accent} /> : <Text style={{ color: c.accent, fontSize: 15, fontWeight: '600' }}>{t('New CV')}</Text>}
+          <Pressable onPress={() => router.push('/new')} hitSlop={10} accessibilityRole="button">
+            <Text style={{ color: c.accent, fontSize: 15, fontWeight: '600' }}>{t('New CV')}</Text>
           </Pressable>
         ),
       }} />
