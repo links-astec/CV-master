@@ -6,6 +6,7 @@ import { SaveStatus } from '@/components/SaveStatus'
 import { useLang } from '@/i18n'
 import { useColors } from '@/lib/theme'
 import { SECTIONS, SECTION_TITLE, summaryOf } from '@/lib/sections'
+import { rules } from '@/lib/checklist'
 import { getTheme, parseTemplate, templateLabel } from '@web/composables/cvRenderer.js'
 
 export default function CvOverview() {
@@ -29,6 +30,25 @@ export default function CvOverview() {
         style={({ pressed }) => [styles.preview, { backgroundColor: c.accent, opacity: pressed ? 0.85 : 1 }]}>
         <Text style={[styles.previewText, { color: c.accentText }]}>{t('Preview')}</Text>
       </Pressable>
+
+      {(() => {
+        const todo = rules(cv.data).filter(r => r.severity !== 'pass' && !(r.severity === 'warn' && cv.data.checkIgnored.includes(r.id))).length
+        return (
+          <Pressable
+            onPress={() => router.push({ pathname: '/cv/[id]/check', params: { id } })}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.row, { backgroundColor: c.surface, borderColor: c.border, opacity: pressed ? 0.85 : 1 }]}>
+            <Text style={{ fontSize: 18, color: todo ? '#D97706' : c.success }}>{todo ? '!' : '✓'}</Text>
+            <View style={styles.rowText}>
+              <Text style={[styles.rowTitle, { color: c.text }]}>{t('Before you export')}</Text>
+              <Text style={[styles.rowSub, { color: c.text3 }]} numberOfLines={1}>
+                {todo ? t(todo === 1 ? '{n} thing to fix' : '{n} things to fix', { n: todo }) : t('Your CV is complete')}
+              </Text>
+            </View>
+            <Text style={[styles.chev, { color: c.text3 }]}>›</Text>
+          </Pressable>
+        )
+      })()}
 
       <Pressable
         onPress={() => router.push({ pathname: '/cv/[id]/job', params: { id } })}

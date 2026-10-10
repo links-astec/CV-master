@@ -4,7 +4,7 @@ import { Stack, router, useLocalSearchParams } from 'expo-router'
 import { useOpenCv } from '@/lib/useOpenCv'
 import { setTemplate } from '@/lib/editor'
 import { SaveStatus } from '@/components/SaveStatus'
-import { useLang } from '@/i18n'
+import { LANGS, useLang } from '@/i18n'
 import { useColors } from '@/lib/theme'
 import { LAYOUTS, LAYOUT_KINDS, THEMES, parseTemplate, templateId } from '@web/composables/cvRenderer.js'
 
@@ -33,6 +33,15 @@ export default function Design() {
           </View>
         ),
       }} />
+
+      <Pressable
+        onPress={() => router.push({ pathname: '/cv/[id]/language', params: { id } })}
+        accessibilityRole="button"
+        style={({ pressed }) => [styles.langRow, { backgroundColor: c.surface, borderColor: c.border, opacity: pressed ? 0.85 : 1 }]}>
+        <Text style={{ flex: 1, color: c.text, fontSize: 15.5, fontWeight: '600' }}>{t('CV language')}</Text>
+        <Text style={{ color: c.text3, fontSize: 14 }}>{LANGS.find(l => l.code === cv.data.lang)?.label || 'English'}</Text>
+        <Text style={{ color: c.text3, fontSize: 22, marginLeft: 6 }}>›</Text>
+      </Pressable>
 
       <Text style={[styles.h, { color: c.text }]}>{t('Colour')}</Text>
       <View style={styles.colours}>
@@ -80,6 +89,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   body: { padding: 16, gap: 18, paddingBottom: 48 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  langRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14 },
   h: { fontSize: 17, fontWeight: '700' },
   kindDesc: { fontSize: 13, marginTop: -4 },
   colours: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },

@@ -43,6 +43,23 @@ export type TailorResult = {
 export const tailor = (d: CvData, ats?: AtsResult | null) =>
   ai<TailorResult>('/api/ai/tailor', d, { jobOffer: d.jobOffer, ats: ats ? { score: ats.score, missing: ats.missing, gaps: ats.gaps.map(g => t(g.key, g.params)) } : null })
 
+// "Fix with AI" for one checklist issue: proposed changes the user reviews before applying
+export type FixResult = { changes: { key: string; label: string; before: string; after: string }[]; skills: string[]; note: string }
+export const aiFix = (d: CvData, issue: string) => ai<FixResult>('/api/ai/fix', d, { issue, jobOffer: d.jobOffer })
+
+// Translating a CV's content (the server supports English ↔ French). Proposals only.
+export type TranslateResult = {
+  title: string; sum: string
+  experiences: { i: number; title: string; period: string; desc: string }[]
+  education: { i: number; degree: string; year: string }[]
+  projects: { i: number; desc: string }[]
+  skills: string[]
+  languages: { i: number; name: string; level: string }[]
+  certifications: string[]
+}
+export const TRANSLATABLE = ['en', 'fr']
+export const translateCv = (d: CvData, to: 'en' | 'fr') => ai<TranslateResult>('/api/ai/translate', d, { to })
+
 // Same key as the website's Job match (JobMatch.vue fitKey), so a fit check done on either
 // side is reused by the other for the same job and person
 export function fitKey(d: CvData) {
