@@ -8,12 +8,17 @@ import { api, ApiError, type User } from '@/lib/api'
 import { hasExplicitChoice, lang, setLang } from '@/i18n'
 import { closeEditor } from '@/lib/editor'
 import { clearReferral } from '@/lib/referral'
+import { googleSignOut } from '@/lib/google'
+import { disablePush, refreshPush } from '@/lib/push'
+import { flushEvents, setTracking, track } from '@/lib/track'
 
 type AuthState = {
   user: User | null
   ready: boolean
   signIn: (email: string, password: string) => Promise<void>
   register: (p: { name: string; email: string; password: string; newsletter: boolean; referredBy?: string }) => Promise<void>
+  signInWithGoogle: (p: { idToken: string; newsletter?: boolean; referredBy?: string }) => Promise<void>
+  adoptUser: (u: User) => void
   forgotPassword: (email: string) => Promise<void>
   deleteAccount: (confirm: { password?: string; confirmEmail?: string }) => Promise<void>
   signOut: () => Promise<void>
@@ -40,6 +45,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .catch(() => setUser(null))
       .finally(() => setReady(true))
   }, [])
+
+  // Personalisation from activity follows the account's setting; "app open" marks a visit
+  const personal = !!user && user.personalizeActivity !== false
+  useEffect(() => {
+    setTracking(personal)
+    if (!personal) return
+    let last = 0
+    const open = () => { if (Date.now() - last > 30 * 60 * 1000) { last = Date.now(); track('app_open') } }
+    open()
+    const sub = AppState.addEventListener('change', st => { if (st === 'active') open(); else flushEvents() })
+    return () => sub.remove()
+  }, [personal])
+  // Pushes: register this phone again for whoever is signed in (if they turned pushes on)
+  const userId = user?.id
+  useEffect(() => { if (userId) refreshPush() }, [userId])
 
   const signedOut = useCallback(() => {
     closeEditor()
@@ -82,25 +102,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signedIn({ ...u, uiLang: lang.value })
   }, [signedIn])
 
+  // Google: the phone's Google sign-in gives an ID token the server checks, like the website's button
+  const signInWithGoogle = useCallback(async (p: { idToken: string; newsletter?: boolean; referredBy?: string }) => {
+    const { user: u } = await api<{ user: User }>('/api/auth/google', { body: { credential: p.idToken, newsletter: !!p.newsletter, referredBy: p.referredBy || undefined } })
+    clearReferral()
+    if (!u.uiLang) api('/api/auth/settings', { method: 'PATCH', body: { uiLang: lang.value } }).catch(() => {})
+    signedIn(u.uiLang ? u : { ...u, uiLang: lang.value })
+  }, [signedIn])
+
+  // Signed in another way (e.g. setting a new password from a reset link)
+  const adoptUser = useCallback((u: User) => signedIn(u), [signedIn])
+
   const forgotPassword = useCallback(async (email: string) => {
     await api('/api/auth/forgot-password', { body: { email: email.trim() } })
   }, [])
 
   const signOut = useCallback(async () => {
+    await flushEvents()
+    await disablePush({ remember: false })   // this phone stops getting the account's pushes
+    await googleSignOut()
     await api('/api/auth/logout', { method: 'POST' }).catch(() => {})
     signedOut()
   }, [signedOut])
 
   const deleteAccount = useCallback(async (confirm: { password?: string; confirmEmail?: string }) => {
-    await api('/api/auth/delete-account', { body: confirm })
+    await api('/api/auth/delete-account', { body: confirm })   // the server forgets the phone too
+    await disablePush({ remember: false })
+    await googleSignOut()
     signedOut()
   }, [signedOut])
 
   const markOnboarded = useCallback(() => setUser(u => (u ? { ...u, onboarded: true } : u)), [])
   const patchUser = useCallback((p: Partial<User>) => setUser(u => (u ? { ...u, ...p } : u)), [])
 
-  const value = useMemo(() => ({ user, ready, signIn, register, forgotPassword, deleteAccount, signOut, markOnboarded, patchUser, refresh }),
-    [user, ready, signIn, register, forgotPassword, deleteAccount, signOut, markOnboarded, patchUser, refresh])
+  const value = useMemo(() => ({ user, ready, signIn, register, signInWithGoogle, adoptUser, forgotPassword, deleteAccount, signOut, markOnboarded, patchUser, refresh }),
+    [user, ready, signIn, register, signInWithGoogle, adoptUser, forgotPassword, deleteAccount, signOut, markOnboarded, patchUser, refresh])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 

@@ -2,7 +2,7 @@
 // invite friends, AI requests, AI personalisation, preferences (language, dark mode, newsletter,
 // quick tour), the review, help and feedback, and deleting the account. Everything is saved to the
 // account, so it is the same on the website.
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Linking, Modal, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -19,6 +19,8 @@ import { api, type User } from '@/lib/api'
 import { useQuota } from '@/lib/quota'
 import { errorText } from '@/lib/ai'
 import { startTour } from '@/lib/onboarding'
+import { disablePush, enablePush, pushPreference, pushSupported } from '@/lib/push'
+import { track } from '@/lib/track'
 import { useLang } from '@/i18n'
 import { useTheme } from '@/lib/theme'
 import { BRAND } from '@/brand'
@@ -111,6 +113,25 @@ export default function Settings() {
     } catch (e) { toast(errorText(e)) }
   }
 
+  // ── Push notifications (this phone) ──
+  const [push, setPush] = useState(false)
+  useEffect(() => { pushPreference().then(p => setPush(p === 'on')) }, [])
+  async function togglePush(on: boolean) {
+    setPush(on)
+    if (on) {
+      const ok = await enablePush().catch(() => false)
+      setPush(ok)
+      if (!ok) toast(t('Notifications are off for CVMaster in your phone’s settings. Turn them on there first.'))
+    } else await disablePush()
+  }
+
+  // ── Personalise with my activity (turning it off deletes what was kept) ──
+  async function setPersonal(on: boolean) {
+    patchUser({ personalizeActivity: on })
+    try { await api('/api/auth/settings', { method: 'PATCH', body: { personalizeActivity: on } }); toast(t('Saved')) }
+    catch (e) { patchUser({ personalizeActivity: !on }); toast(errorText(e)) }
+  }
+
   // ── Newsletter ──
   async function setNewsletter(on: boolean) {
     try {
@@ -124,7 +145,7 @@ export default function Settings() {
   const r = referral.data
   const shareMsg = () => t('I’ve been using CVMaster to build my CV. It tailors it to the job and checks it against ATS. Sign up with my link and get {n} extra AI requests: {link}', { n: r?.welcomeAi || 25, link: r?.link || '' })
   const open = (url: string) => Linking.openURL(url).catch(() => toast(t('Something went wrong. Please try again.')))
-  async function copyLink() { if (r?.link) { await Clipboard.setStringAsync(r.link); toast(t('Copied ✓')) } }
+  async function copyLink() { if (r?.link) { await Clipboard.setStringAsync(r.link); track('invite_shared', { channel: 'copy' }); toast(t('Copied ✓')) } }
 
   // ── Delete account ──
   const [deleting, setDeleting] = useState(false)
@@ -199,7 +220,7 @@ export default function Settings() {
               </View>
               <View style={styles.row}>
                 <Btn title={t('Copy link')} size="sm" onPress={copyLink} />
-                <Btn title={t('Share')} kind="secondary" size="sm" onPress={() => Share.share({ message: shareMsg() })} />
+                <Btn title={t('Share')} kind="secondary" size="sm" onPress={() => { track('invite_shared', { channel: 'share' }); Share.share({ message: shareMsg() }) }} />
               </View>
               <View style={styles.shareRow}>
                 <Txt size={13} color={c.text3}>{t('Share on')}</Txt>
@@ -209,7 +230,7 @@ export default function Settings() {
                   ['X', `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareMsg())}`],
                   [t('Email'), `mailto:?subject=${encodeURIComponent(t('Try CVMaster for your CV'))}&body=${encodeURIComponent(shareMsg())}`],
                 ].map(([label, url]) => (
-                  <Pressable key={label} onPress={() => open(url)} style={[styles.sharePill, { borderColor: c.border, backgroundColor: c.surface }]}>
+                  <Pressable key={label} onPress={() => { track('invite_shared', { channel: label === 'X' ? 'x' : label.toLowerCase() }); open(url) }} style={[styles.sharePill, { borderColor: c.border, backgroundColor: c.surface }]}>
                     <Txt w={600} size={13} color={c.text2}>{label}</Txt>
                   </Pressable>
                 ))}
@@ -258,6 +279,12 @@ export default function Settings() {
             title={t('Email newsletter')}
             desc={t(nl === 'pending' ? 'Starts once you confirm your email address' : 'CV tips and CVMaster news. A couple of emails a month at most')}
             right={<Toggle value={nl === 'subscribed' || nl === 'pending'} onChange={setNewsletter} label={t('Email newsletter')} />} />
+          {pushSupported() && (
+            <SettingRow title={t('Push notifications')} desc={t('A free CV earned with your link, reminders about where you left off, and news. At most a few a month.')}
+              right={<Toggle value={push} onChange={togglePush} label={t('Push notifications')} />} />
+          )}
+          <SettingRow title={t('Personalise with my activity')} desc={t('Suggests your next step and reminds you where you left off, from what you do in CVMaster. Kept on our servers only, never shared. Turning it off deletes it.')}
+            right={<Toggle value={user?.personalizeActivity !== false} onChange={setPersonal} label={t('Personalise with my activity')} />} />
           <SettingRow title={t('Quick tour')} desc={t('A one-minute walkthrough of building, tailoring and exporting')} right={<Btn title={t('Start tour')} kind="secondary" size="sm" onPress={startTour} />} />
         </Card>
 

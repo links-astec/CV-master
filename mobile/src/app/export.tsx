@@ -6,7 +6,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleShe
 import { router } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Check, X } from '@/components/icons'
-import { Btn, Card, Field, IconBtn, LinkBtn, Toggle, Txt } from '@/components/kit'
+import { Btn, Card, Field, IconBtn, LinkBtn, Toggle, Txt, useTopSpace } from '@/components/kit'
 import { toast } from '@/components/dialogs'
 import { useAuth } from '@/lib/auth'
 import { flush, setField, useCurrentCvId } from '@/lib/editor'
@@ -27,6 +27,7 @@ export default function Export() {
   const { c } = useTheme()
   const { user } = useAuth()
   const insets = useSafeAreaInsets()
+  const top = useTopSpace(12, { sheet: true })
   const id = useCurrentCvId()
   const { cv } = useOpenCv(id)
   const [state, setState] = useState<State>('checking')
@@ -108,7 +109,7 @@ export default function Export() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.surface }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={[styles.body, { paddingTop: Platform.OS === 'android' ? insets.top + 12 : 20, paddingBottom: insets.bottom + 32 }]} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.body, { paddingTop: top, paddingBottom: insets.bottom + 32 }]} keyboardShouldPersistTaps="handled">
         <View style={{ alignItems: 'flex-end' }}>
           <IconBtn icon={X} onPress={() => router.back()} label={t('Close')} color={c.text3} />
         </View>

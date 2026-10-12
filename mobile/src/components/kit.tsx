@@ -5,8 +5,19 @@ import {
   ActivityIndicator, Pressable, StyleSheet, Switch, Text, TextInput, View,
   type StyleProp, type TextInputProps, type TextProps, type TextStyle, type ViewStyle,
 } from 'react-native'
+import { Platform } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { LucideIcon } from '@/components/icons'
 import { FONT, useTheme, type Weight } from '@/lib/theme'
+
+// ── Top spacing ──────────────────────────────────────────────────────────────
+// Full screens start under the status bar (and the iPhone's notch or Dynamic Island), so they
+// leave its height. Pop-up screens open as a sheet on iPhone, already below it; on Android they
+// fill the screen, so they leave it too.
+export function useTopSpace(extra: number, { sheet = false } = {}) {
+  const insets = useSafeAreaInsets()
+  return sheet && Platform.OS === 'ios' ? extra : insets.top + extra
+}
 
 // ── Text ─────────────────────────────────────────────────────────────────────
 type TxtProps = TextProps & { w?: Weight; size?: number; color?: string; style?: StyleProp<TextStyle> }

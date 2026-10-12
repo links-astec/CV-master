@@ -8,6 +8,7 @@ import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, 
 import { Mic, Square } from '@/components/icons'
 import { Txt } from '@/components/kit'
 import { BRAND } from '@/brand'
+import { CLIENT_HEADERS } from '@/lib/api'
 import { lang, useLang } from '@/i18n'
 import { useTheme } from '@/lib/theme'
 
@@ -17,7 +18,7 @@ async function transcribe(uri: string): Promise<string> {
   const form = new FormData()
   form.append('audio', { uri, name: 'speech.m4a', type: 'audio/m4a' } as unknown as Blob)
   form.append('lang', lang.value)
-  const res = await fetch(BRAND.api + '/api/ai/transcribe', { method: 'POST', credentials: 'include', body: form })
+  const res = await fetch(BRAND.api + '/api/ai/transcribe', { method: 'POST', credentials: 'include', headers: CLIENT_HEADERS, body: form })
   const j = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(j?.error || 'We could not understand the recording. Please try again.')
   return String(j.text || '')

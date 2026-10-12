@@ -9,6 +9,7 @@ import { Check, Download, FileText, LayoutGrid, PenLine, Plus, Users, type Lucid
 import { Btn, Txt } from '@/components/kit'
 import { endTour, useTourOpen } from '@/lib/onboarding'
 import { measureTarget, type Rect } from '@/lib/tourTargets'
+import { track } from '@/lib/track'
 import { useLang } from '@/i18n'
 import { useTheme } from '@/lib/theme'
 
@@ -96,7 +97,7 @@ export function Tour() {
           <View style={styles.actions}>
             {i > 0 && <Btn title={t('Back')} kind="secondary" size="sm" onPress={() => setI(i - 1)} />}
             <View style={{ flex: 1 }} />
-            <Btn title={t(last ? 'Done!' : 'Next')} size="sm" onPress={() => (last ? close() : setI(i + 1))} />
+            <Btn title={t(last ? 'Done!' : 'Next')} size="sm" onPress={() => { if (last) { track('tour_done'); close() } else setI(i + 1) }} />
           </View>
         </View>
       </View>

@@ -9,7 +9,11 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "live.cvmaster.app",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "associatedDomains": [
+        "applinks:www.cvmaster.live",
+        "applinks:cvmaster.live"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +21,39 @@
         "foregroundImage": "./assets/images/icon.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "live.cvmaster.app"
+      "package": "live.cvmaster.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "www.cvmaster.live",
+              "pathPrefix": "/invite/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.cvmaster.live",
+              "path": "/reset-password"
+            },
+            {
+              "scheme": "https",
+              "host": "cvmaster.live",
+              "pathPrefix": "/invite/"
+            },
+            {
+              "scheme": "https",
+              "host": "cvmaster.live",
+              "path": "/reset-password"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "output": "single",
@@ -53,6 +89,13 @@
         "expo-audio",
         {
           "microphonePermission": "CVMaster uses the microphone only while you record your career story, to turn your words into text."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#4338CA",
+          "defaultChannel": "default"
         }
       ]
     ],

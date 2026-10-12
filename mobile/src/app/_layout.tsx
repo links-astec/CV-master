@@ -12,9 +12,10 @@ import { i18nReady, useLang } from '@/i18n'
 import { AuthProvider, useAuth } from '@/lib/auth'
 import { currentReady, setEditorQueryClient, useEditorLifecycle } from '@/lib/editor'
 import { ThemeProvider, useTheme } from '@/lib/theme'
-import { onboardingReady, useWelcomeDone } from '@/lib/onboarding'
+import { onboardingReady, useTourOpen, useWelcomeDone } from '@/lib/onboarding'
 import { Tour } from '@/components/Tour'
-import { DialogHost } from '@/components/dialogs'
+import { DialogHost, confirm } from '@/components/dialogs'
+import { enablePush, markAsked, pushPreference, pushSupported, usePushTaps, wasAsked } from '@/lib/push'
 import { useReferralLinks } from '@/lib/referral'
 
 SplashScreen.preventAutoHideAsync()
@@ -34,6 +35,9 @@ function RootNavigator() {
   useLang()
   useEditorLifecycle()
   useReferralLinks()
+  usePushTaps(!!user)
+  const { t } = useLang()
+  const tourOpen = useTourOpen()
   const welcomeDone = useWelcomeDone()
   const [langReady, setLangReady] = useState(false)
   const [fonts] = useFonts({ PlusJakartaSans_400Regular, PlusJakartaSans_500Medium, PlusJakartaSans_600SemiBold, PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold })
@@ -50,6 +54,24 @@ function RootNavigator() {
       setTimeout(() => router.push('/onboard'), 300)
     }
   }, [allReady, user])
+
+  // Notifications: asked once, after the onboarding questions and the tour, with our own words first
+  const onboarded = !!user?.onboarded
+  useEffect(() => {
+    if (!allReady || !onboarded || tourOpen || !pushSupported()) return
+    let live = true
+    const timer = setTimeout(async () => {
+      if (!live || (await wasAsked()) || (await pushPreference())) return
+      markAsked()
+      const yes = await confirm({
+        title: t('Turn on notifications?'),
+        message: t('We’ll tell you when a friend gets their CV with your link, and remind you where you left off. At most a few a month.'),
+        ok: t('Turn on'), cancel: t('Not now'),
+      })
+      if (yes) enablePush().catch(() => {})
+    }, 2500)
+    return () => { live = false; clearTimeout(timer) }
+  }, [allReady, onboarded, tourOpen, t])
 
   if (!allReady) return null
   return (
@@ -73,6 +95,9 @@ function RootNavigator() {
           <Stack.Screen name="story" />
           <Stack.Screen name="onboard" options={{ presentation: 'modal', gestureEnabled: false }} />
         </Stack.Protected>
+        {/* Opened from links (https://www.cvmaster.live/...), signed in or not */}
+        <Stack.Screen name="reset-password" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="invite/[code]" />
       </Stack>
       <Tour />
       <DialogHost />

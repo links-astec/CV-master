@@ -32,7 +32,7 @@ await p.setRequestInterception(true)
 p.on('request', r => {
   const u = new URL(r.url())
   if (!u.host.includes('cvmaster.live')) return r.continue()
-  const headers = { 'Access-Control-Allow-Origin': site, 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE' }
+  const headers = { 'Access-Control-Allow-Origin': site, 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type, X-CVMaster-Client', 'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE' }
   if (r.method() === 'OPTIONS') return r.respond({ status: 204, headers })
   const signed = mode !== 'signedout'
   let status = 200, body = {}
@@ -45,6 +45,8 @@ p.on('request', r => {
   else if (u.pathname === '/api/payment/paid-drafts') body = { draftIds: ['22222222-2222-2222-2222-222222222222'], legacyAll: false }
   else if (u.pathname.startsWith('/api/payment/status/')) body = { paid: false }
   else if (u.pathname === '/api/reviews/mine') body = { review: null, canReview: true }
+  else if (u.pathname === '/api/me/next') body = { key: 'job', title: 'Match your CV to a job', body: 'Paste a job offer to see your ATS score and what’s missing.', action: 'job', draftId: drafts[0].id, favLayout: 'sidebar', personal: true }
+  else if (u.pathname === '/api/events') body = { ok: true, kept: 1 }
   else if (u.pathname.startsWith('/api/drafts/')) body = drafts[0]
   r.respond({ status, contentType: 'application/json', headers, body: JSON.stringify(body) })
 })

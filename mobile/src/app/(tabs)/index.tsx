@@ -20,6 +20,7 @@ import { rules } from '@/lib/checklist'
 import { shareCleanPdf, sharePreviewPdf } from '@/lib/pdf'
 import { errorText } from '@/lib/ai'
 import { startTour } from '@/lib/onboarding'
+import { goNext, NEXT_LABEL, useNextStep } from '@/lib/next'
 import { useLang } from '@/i18n'
 import { useColors } from '@/lib/theme'
 import { templateLabel } from '@web/composables/cvRenderer.js'
@@ -99,6 +100,7 @@ export default function MyCvs() {
   const qc = useQueryClient()
   const current = useCurrentCvId()
   const drafts = useDrafts(true)
+  const next = useNextStep()
   const paid = useQuery({ queryKey: ['paid-drafts'], queryFn: () => api<{ draftIds: string[]; legacyAll: boolean }>('/api/payment/paid-drafts') })
   const [reviewLater, setReviewLater] = useState<number | null>(null)
   const [reviewShown, setReviewShown] = useState(false)
@@ -128,9 +130,19 @@ export default function MyCvs() {
       <TopBar title={t('My CVs')} />
       <ScrollView
         contentContainerStyle={styles.body}
-        refreshControl={<RefreshControl refreshing={drafts.isRefetching} onRefresh={() => { drafts.refetch(); paid.refetch() }} tintColor={c.accent} />}>
+        refreshControl={<RefreshControl refreshing={drafts.isRefetching} onRefresh={() => { drafts.refetch(); paid.refetch(); next.refetch() }} tintColor={c.accent} />}>
         <PageTitle title={t('My CVs')} sub={t('Open a CV to edit it, or download and send it.')} />
         <Btn title={t('New CV')} icon={Plus} onPress={() => router.push('/new')} />
+
+        {/* The next step, like the website's card (from the CV, and the activity if allowed) */}
+        {!!next.data && !empty && (
+          <Card style={{ borderLeftWidth: 3, borderLeftColor: c.accent, gap: 8 }}>
+            <Txt w={700} size={11.5} color={c.accent} style={{ letterSpacing: 0.8, textTransform: 'uppercase' }}>{t('Your next step')}</Txt>
+            <Txt w={700} size={17}>{t(next.data.title)}</Txt>
+            <Txt size={14.5} color={c.text2} style={{ lineHeight: 21 }}>{t(next.data.body)}</Txt>
+            <Btn title={t(NEXT_LABEL[next.data.action] || 'Continue')} size="sm" onPress={() => goNext(next.data!)} style={{ marginTop: 4 }} />
+          </Card>
+        )}
 
         {list.map(d => <CvCard key={d.id} draft={d} paid={isPaid(d.id)} onDelete={() => askDelete(d.id)} />)}
         {drafts.error && (

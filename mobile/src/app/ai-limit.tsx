@@ -5,7 +5,7 @@ import { ScrollView, StyleSheet, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MessageSquareText, X } from '@/components/icons'
-import { Btn, IconBtn, Toggle, Txt } from '@/components/kit'
+import { Btn, IconBtn, Toggle, Txt, useTopSpace } from '@/components/kit'
 import { useAuth } from '@/lib/auth'
 import { api } from '@/lib/api'
 import { useQuota } from '@/lib/quota'
@@ -20,6 +20,7 @@ export default function AiLimit() {
   const { c } = useTheme()
   const { user } = useAuth()
   const insets = useSafeAreaInsets()
+  const top = useTopSpace(12, { sheet: true })
   const quota = useQuota()
   const [consent, setConsent] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -38,7 +39,7 @@ export default function AiLimit() {
   }
 
   return (
-    <ScrollView style={{ backgroundColor: c.surface }} contentContainerStyle={[styles.body, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 30 }]}>
+    <ScrollView style={{ backgroundColor: c.surface }} contentContainerStyle={[styles.body, { paddingTop: top, paddingBottom: insets.bottom + 30 }]}>
       <View style={{ alignItems: 'flex-end' }}><IconBtn icon={X} onPress={() => router.back()} label={t('Close')} color={c.text3} /></View>
       <View style={[styles.icon, { backgroundColor: c.accentSoft }]}><MessageSquareText size={24} color={c.accent} /></View>
       <Txt w={700} size={21} style={{ textAlign: 'center' }}>{t(limit ? 'You’ve used today’s free AI' : 'Your AI requests')}</Txt>

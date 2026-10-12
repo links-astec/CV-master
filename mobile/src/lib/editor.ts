@@ -116,6 +116,7 @@ export async function flush(): Promise<void> {
         body: { title: draftTitle(snap.data) || undefined, data: { ...snap.data, fmt: snap.fmt }, template: snap.template },
       })
       queryClient?.setQueryData<Draft[]>(['drafts'], list => (list ? [saved, ...list.filter(x => x.id !== saved.id)] : list))
+      queryClient?.invalidateQueries({ queryKey: ['next'] })
       if (open?.id === snap.id) open = { ...open, save: dirty ? 'unsaved' : 'saved', savedAt: Math.max(Date.now(), Date.parse(saved.updatedAt) || 0) }
     } catch {
       dirty = true

@@ -5,7 +5,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View
 import { router, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { X } from '@/components/icons'
-import { Btn, Field, IconBtn, Txt } from '@/components/kit'
+import { Btn, Field, IconBtn, Txt, useTopSpace } from '@/components/kit'
 import { useAuth } from '@/lib/auth'
 import { api } from '@/lib/api'
 import { errorText } from '@/lib/ai'
@@ -32,6 +32,7 @@ export default function Feedback() {
   const { c } = useTheme()
   const { user } = useAuth()
   const insets = useSafeAreaInsets()
+  const top = useTopSpace(12, { sheet: true })
   const [kind, setKind] = useState<Kind>(KINDS.some(k => k.id === params.kind) ? params.kind as Kind : 'suggestion')
   const [message, setMessage] = useState('')
   const [email, setEmail] = useState(user?.email || '')
@@ -50,7 +51,7 @@ export default function Feedback() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.surface }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={[styles.body, { paddingTop: Platform.OS === 'android' ? insets.top + 12 : 20, paddingBottom: insets.bottom + 32 }]} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.body, { paddingTop: top, paddingBottom: insets.bottom + 32 }]} keyboardShouldPersistTaps="handled">
         <View style={styles.head}>
           <Txt w={700} size={21} style={{ flex: 1 }}>{t(ref ? 'Thanks, we’ve got it' : 'Feedback & complaints')}</Txt>
           <IconBtn icon={X} onPress={() => router.back()} label={t('Close')} color={c.text3} />

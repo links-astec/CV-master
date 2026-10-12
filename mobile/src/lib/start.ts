@@ -1,7 +1,7 @@
 // Starting a CV: empty, imported from a PDF/Word/text file, or built from the user's story.
 // The server does the reading (same endpoints as the website); the result becomes a new draft.
 import { BRAND } from '@/brand'
-import { api, ApiError, showAiLimit, type Draft } from '@/lib/api'
+import { api, ApiError, CLIENT_HEADERS, showAiLimit, type Draft } from '@/lib/api'
 import { defaultFmt, draftTitle, emptyData, type CvData, type CvFmt } from '@/lib/cv'
 import { lang, t } from '@/i18n'
 import { setCurrentCv } from '@/lib/editor'
@@ -47,7 +47,7 @@ export async function importCv(file: { uri: string; name: string; mimeType?: str
   form.append('cv', { uri: file.uri, name: file.name, type: file.mimeType || 'application/octet-stream' } as unknown as Blob)
   let res: Response
   try {
-    res = await fetch(BRAND.api + '/api/cv/upload', { method: 'POST', credentials: 'include', body: form })
+    res = await fetch(BRAND.api + '/api/cv/upload', { method: 'POST', credentials: 'include', headers: CLIENT_HEADERS, body: form })
   } catch {
     throw new ApiError(t('Connection error. Please try again.'), 0)
   }

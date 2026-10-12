@@ -5,7 +5,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollVie
 import { router, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Check, ChevronDown, ChevronUp } from '@/components/icons'
-import { Btn, Segmented, Txt } from '@/components/kit'
+import { Btn, Segmented, Txt, useTopSpace } from '@/components/kit'
 import { SaveStatus } from '@/components/SaveStatus'
 import { SectionBody } from '@/components/panels/Sections'
 import { DesignPanel } from '@/components/panels/DesignPanel'
@@ -72,6 +72,7 @@ export default function EditSheet() {
   const { t } = useLang()
   const { c } = useTheme()
   const insets = useSafeAreaInsets()
+  const top = useTopSpace(16, { sheet: true })
   const id = useCurrentCvId()
   const { cv, loading } = useOpenCv(id)
   const [tab, setTab] = useState<Tab>(params.tab === 'design' || params.tab === 'job' ? params.tab : 'content')
@@ -83,7 +84,7 @@ export default function EditSheet() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={[styles.head, { backgroundColor: c.surface, borderBottomColor: c.border, paddingTop: Platform.OS === 'android' ? insets.top + 10 : 16 }]}>
+      <View style={[styles.head, { backgroundColor: c.surface, borderBottomColor: c.border, paddingTop: top }]}>
         <Txt w={600} size={18} style={{ flex: 1 }}>{t('Edit CV')}</Txt>
         {cv && <SaveStatus state={cv.save} />}
         <Btn title={t('Done')} size="sm" onPress={() => router.back()} />

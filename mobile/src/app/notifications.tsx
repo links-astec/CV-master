@@ -3,7 +3,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-n
 import { router } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { X } from '@/components/icons'
-import { IconBtn, LinkBtn, Txt } from '@/components/kit'
+import { IconBtn, LinkBtn, Txt, useTopSpace } from '@/components/kit'
 import { useMarkRead, useNotifications, type Notification } from '@/lib/notifications'
 import { useLang } from '@/i18n'
 import { useTheme } from '@/lib/theme'
@@ -24,6 +24,7 @@ export default function Notifications() {
   const { t } = useLang()
   const { c } = useTheme()
   const insets = useSafeAreaInsets()
+  const top = useTopSpace(10, { sheet: true })
   const q = useNotifications()
   const mark = useMarkRead()
   const list = q.data || []
@@ -37,7 +38,7 @@ export default function Notifications() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <View style={[styles.head, { paddingTop: insets.top + 10, backgroundColor: c.surface, borderBottomColor: c.border }]}>
+      <View style={[styles.head, { paddingTop: top, backgroundColor: c.surface, borderBottomColor: c.border }]}>
         <Txt w={700} size={19} style={{ flex: 1 }}>{t('Notifications')}</Txt>
         {unread > 0 && <LinkBtn title={t('Mark all read')} onPress={mark.all} />}
         <IconBtn icon={X} onPress={() => router.back()} label={t('Close')} />

@@ -7,7 +7,7 @@ import * as Sharing from 'expo-sharing'
 import * as WebBrowser from 'expo-web-browser'
 import * as Linking from 'expo-linking'
 import { BRAND } from '@/brand'
-import { api, ApiError } from '@/lib/api'
+import { api, ApiError, CLIENT_HEADERS } from '@/lib/api'
 import { flush } from '@/lib/editor'
 import { t } from '@/i18n'
 
@@ -16,7 +16,7 @@ async function postPdf(path: string, body: unknown): Promise<Uint8Array> {
   try {
     res = await fetch(BRAND.api + path, {
       method: 'POST', credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...CLIENT_HEADERS },
       body: JSON.stringify(body),
     })
   } catch {

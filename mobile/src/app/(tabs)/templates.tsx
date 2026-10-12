@@ -12,6 +12,7 @@ import { toast } from '@/components/dialogs'
 import { setCurrentCv, setTemplate, useCurrentCvId } from '@/lib/editor'
 import { useOpenCv } from '@/lib/useOpenCv'
 import { createDraft } from '@/lib/start'
+import { useNextStep } from '@/lib/next'
 import { emptyData, hasCvContent } from '@/lib/cv'
 import { errorText } from '@/lib/ai'
 import type { Draft } from '@/lib/api'
@@ -35,7 +36,13 @@ export default function Templates() {
   const [busy, setBusy] = useState(false)
 
   const layouts = LAYOUTS as Layout[]
-  const shown = useMemo(() => layouts.filter(l => kind === 'all' || l.kind === kind), [layouts, kind])
+  // The layout this person picks most comes first (personalisation, if they allow it)
+  const fav = useNextStep().data?.favLayout || null
+  const shown = useMemo(() => {
+    const list = layouts.filter(l => kind === 'all' || l.kind === kind)
+    const i = fav ? list.findIndex(l => l.id === fav) : -1
+    return i > 0 ? [list[i], ...list.slice(0, i), ...list.slice(i + 1)] : list
+  }, [layouts, kind, fav])
   const counts = { all: layouts.length, ats: layouts.filter(l => l.kind === 'ats').length, creative: layouts.filter(l => l.kind === 'creative').length }
   const mine = !!cv && hasCvContent(cv.data)
   const data = mine ? cv!.data : null

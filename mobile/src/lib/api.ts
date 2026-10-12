@@ -2,8 +2,12 @@
 // session cookie the server sets at sign-in; the phone's networking keeps it like a browser.
 // Server error messages are English keys, translated with the website's dictionaries.
 import { BRAND } from '@/brand'
+import { Platform } from 'react-native'
 import { router } from 'expo-router'
 import { t } from '@/i18n'
+
+// Which app is calling (the server notes it with the user's activity; the website sends nothing)
+export const CLIENT_HEADERS: Record<string, string> = { 'X-CVMaster-Client': Platform.OS }
 
 // A request was refused because today's free AI is used up: show the AI requests screen (once)
 let limitShownAt = 0
@@ -29,7 +33,7 @@ export async function api<T = unknown>(path: string, init: { method?: string; bo
     res = await fetch(BRAND.api + path, {
       method: init.method || (init.body ? 'POST' : 'GET'),
       credentials: 'include',
-      headers: init.body ? { 'Content-Type': 'application/json' } : undefined,
+      headers: init.body ? { 'Content-Type': 'application/json', ...CLIENT_HEADERS } : CLIENT_HEADERS,
       body: init.body ? JSON.stringify(init.body) : undefined,
     })
   } catch {
@@ -46,7 +50,7 @@ export async function api<T = unknown>(path: string, init: { method?: string; bo
 export type User = {
   id: string; email: string; name: string; plan: string; onboarded: boolean
   avatar?: string | null; provider?: string; uiLang?: string | null; emailVerified?: boolean
-  hasPassword?: boolean; aiPersonalize?: boolean; industry?: string | null; goal?: string | null; experience?: string | null
+  hasPassword?: boolean; personalizeActivity?: boolean; aiPersonalize?: boolean; industry?: string | null; goal?: string | null; experience?: string | null
 }
 
 export type Draft = {

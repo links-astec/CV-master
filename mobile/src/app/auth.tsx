@@ -7,10 +7,11 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as WebBrowser from 'expo-web-browser'
 import { X } from '@/components/icons'
-import { Btn, Field, IconBtn, Toggle, Txt } from '@/components/kit'
+import { Btn, Field, IconBtn, Toggle, Txt, useTopSpace } from '@/components/kit'
 import { Mark } from '@/components/Logo'
 import { useAuth } from '@/lib/auth'
 import { referrerName, savedReferral } from '@/lib/referral'
+import { googleAvailable, googleIdToken } from '@/lib/google'
 import { useLang } from '@/i18n'
 import { useTheme } from '@/lib/theme'
 import { BRAND } from '@/brand'
@@ -19,11 +20,12 @@ type Mode = 'signin' | 'signup' | 'forgot'
 
 export default function Auth() {
   const params = useLocalSearchParams<{ mode?: string; reason?: string }>()
-  const { signIn, register, forgotPassword } = useAuth()
+  const { signIn, register, forgotPassword, signInWithGoogle } = useAuth()
   const { t, lang } = useLang()
   const { c } = useTheme()
   const insets = useSafeAreaInsets()
-  const [mode, setMode] = useState<Mode>(params.mode === 'signin' ? 'signin' : 'signup')
+  const top = useTopSpace(16)   // a full screen (from the welcome screens), so below the notch on iPhone
+  const [mode, setMode] = useState<Mode>(params.mode === 'signin' || params.mode === 'forgot' ? params.mode : 'signup')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -68,12 +70,26 @@ export default function Auth() {
     setBusy(false)
   }
 
+  // Same Google account as on the website. Creating an account this way needs the Terms too.
+  async function google() {
+    setError('')
+    if (mode === 'signup' && !agree) { setError(t('Please agree to the Terms and Privacy Policy first.')); return }
+    setBusy(true)
+    try {
+      const idToken = await googleIdToken()
+      if (idToken) await signInWithGoogle({ idToken, newsletter: mode === 'signup' && newsletter, referredBy: refCode.trim() })
+    } catch (e) {
+      setError(e instanceof Error && e.message ? e.message : t('Google sign-in failed, please try again.'))
+    }
+    setBusy(false)
+  }
+
   const title = mode === 'signin' ? t('Welcome back') : mode === 'signup' ? t('Create your free account') : t('Reset your password')
   const sub = mode === 'signin' ? t('Sign in to see your saved CVs.') : mode === 'signup' ? t('Free to build. Pay only when you export.') : t('Enter your email and we’ll send you a reset link.')
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.surface }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={[styles.body, { paddingTop: Platform.OS === 'android' ? insets.top + 16 : 24, paddingBottom: insets.bottom + 32 }]} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.body, { paddingTop: top, paddingBottom: insets.bottom + 32 }]} keyboardShouldPersistTaps="handled">
         <View style={styles.head}>
           <Mark size={44} />
           <IconBtn icon={X} onPress={() => router.back()} label={t('Close')} color={c.text3} />
@@ -140,6 +156,21 @@ export default function Auth() {
           onPress={submit} busy={busy} size="lg" full style={{ marginTop: 6 }}
         />
 
+        {googleAvailable && mode !== 'forgot' && (
+          <>
+            <View style={styles.or}>
+              <View style={[styles.orLine, { backgroundColor: c.border }]} />
+              <Txt size={13} color={c.text3}>{t('or')}</Txt>
+              <View style={[styles.orLine, { backgroundColor: c.border }]} />
+            </View>
+            <Pressable onPress={google} disabled={busy} accessibilityRole="button"
+              style={({ pressed }) => [styles.google, { borderColor: c.border2, backgroundColor: c.surface, opacity: busy ? 0.6 : pressed ? 0.85 : 1 }]}>
+              <Txt w={800} size={18} color="#4285F4">G</Txt>
+              <Txt w={600} size={16}>{t('Continue with Google')}</Txt>
+            </Pressable>
+          </>
+        )}
+
         <View style={{ alignItems: 'center', marginTop: 8 }}>
           {mode === 'signin' && (
             <Txt size={15} color={c.text2}>{t('Don’t have an account?')} <Txt w={600} size={15} color={c.accent} onPress={() => go('signup')}>{t('Create account')}</Txt></Txt>
@@ -159,4 +190,7 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   switchRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   ref: { borderRadius: 12, padding: 12 },
+  or: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 4 },
+  orLine: { flex: 1, height: StyleSheet.hairlineWidth },
+  google: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderWidth: 1, borderRadius: 10, paddingVertical: 14 },
 })
