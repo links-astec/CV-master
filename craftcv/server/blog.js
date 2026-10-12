@@ -112,7 +112,8 @@ export async function listPosts({ lang = 'en', category = null, limit = 20, offs
 const publicCard = (r) => ({
   slug: r.slug, lang: r.lang, title: r.title, excerpt: r.excerpt, cover: r.cover_url, category: r.category,
   sourceName: r.source_name, sourceUrl: r.source_url, publishedAt: r.published_at, readingMin: readingMin(r.body_md),
-  author: r.author || 'CVMaster team', url: `${SITE}/blog/${r.slug}`,
+  // Shared articles are credited to where they come from, not to us
+  author: r.category === 'link' ? (r.source_name || 'CVMaster team') : (r.author || 'CVMaster team'), url: `${SITE}/blog/${r.slug}`,
 });
 
 async function postBySlug(slug) {
@@ -353,6 +354,8 @@ async function articlePage(post, versions, { app, theme, subscribed }) {
   const LANG_NAME = { en: 'English', fr: 'Français', es: 'Español', de: 'Deutsch', it: 'Italiano', pt: 'Português', zh: '中文' };
   const { html, toc } = renderArticle(post.body_md);
   const author = post.author || TEAM;
+  // A shared article is credited to its source (Prospects, TARGETjobs…), not to the CVMaster team
+  const byName = post.category === 'link' ? (post.source_name || (post.source_url ? new URL(post.source_url).hostname : TEAM)) : author;
   const minRead = t['{n} min read'];
   const host = post.source_url ? (() => { try { return new URL(post.source_url).hostname; } catch { return ''; } })() : '';
   const source = post.category === 'link' && post.source_url
@@ -373,7 +376,7 @@ async function articlePage(post, versions, { app, theme, subscribed }) {
   <header class="in art-h"><div class="hd">
     <nav class="crumbs"><a href="${SITE}/blog?lang=${esc(L)}">${esc(t.Blog)}</a><span>›</span><a class="kicker" href="${SITE}/blog?lang=${esc(L)}&amp;category=${esc(post.category)}">${esc(cats[post.category] || cats.article)}</a></nav>
     <h1>${esc(post.title)}</h1>${post.excerpt ? `<p class="dek">${esc(post.excerpt)}</p>` : ''}
-    <div class="byline"><div class="who">${avatar(author)}<div><b>${esc(author)}</b><span><time datetime="${isoDate(post.published_at)}">${esc(fmtDate(post.published_at, L))}</time> · ${esc(minRead.replace('{n}', readingMin(post.body_md)))}</span></div></div>${share}</div>
+    <div class="byline"><div class="who">${avatar(byName)}<div><b>${esc(byName)}</b><span><time datetime="${isoDate(post.published_at)}">${esc(fmtDate(post.published_at, L))}</time> · ${esc(minRead.replace('{n}', readingMin(post.body_md)))}</span></div></div>${share}</div>
   </div></header>
   ${post.cover_url ? `<div class="in cover"><img src="${esc(post.cover_url)}" alt="" fetchpriority="high"></div>` : ''}
   <div class="in art"><article>
