@@ -133,5 +133,7 @@ function undoTranslate() {
 .dp-seg{display:flex;width:100%}
 .dp-seg button{flex:1;padding:0 6px}
 .dp-grid{display:grid;grid-template-columns:1fr;gap:18px}
-@media (max-width:420px){ .dp-layouts{grid-template-columns:repeat(4,1fr);gap:8px} .dp-swatches{grid-template-columns:repeat(6,1fr);max-width:260px} }
+/* Phones: two big previews per row so people can see what each layout really looks like */
+@media (max-width:640px){ .dp-layouts{grid-template-columns:repeat(2,1fr);gap:14px 12px} .dp-layout{font-size:13px} }
+@media (max-width:420px){ .dp-swatches{grid-template-columns:repeat(6,1fr);max-width:260px} }
 </style>

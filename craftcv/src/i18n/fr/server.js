@@ -1,6 +1,12 @@
 // Messages that come from the server (errors, limits, notifications) and are shown as they are.
 // Admin-only and developer messages are left in English.
 export default {
+  'Type your email address to confirm.': 'Saisissez votre adresse e-mail pour confirmer.',
+  'Voice input is not available right now. Please type instead.': 'La saisie vocale n’est pas disponible pour le moment. Écrivez plutôt votre texte.',
+  'No recording received. Please try again.': 'Aucun enregistrement reçu. Veuillez réessayer.',
+  'That recording format is not supported.': 'Ce format d’enregistrement n’est pas pris en charge.',
+  'We could not understand the recording. Please try again.': 'Nous n’avons pas pu comprendre l’enregistrement. Veuillez réessayer.',
+  'This account signs in with Google. Use the Google button, or “Forgot password?” to set a password.': 'Ce compte se connecte avec Google. Utilisez le bouton Google, ou « Mot de passe oublié ? » pour définir un mot de passe.',
   'Your CV is empty. Add a few details first (a job title, some experience or skills), then the AI can help.': 'Votre CV est vide. Ajoutez d’abord quelques informations (un intitulé de poste, une expérience ou des compétences), puis l’IA pourra vous aider.',
   'Email is not configured on the server.': 'L’envoi d’e-mails n’est pas configuré sur le serveur.',
   'CVMaster is currently under maintenance. Please check back shortly.': 'CVMaster est en maintenance. Revenez dans un instant.',

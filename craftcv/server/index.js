@@ -420,6 +420,8 @@ function publicUser(row) {
     uiLang: row.ui_lang || null,
     // Google accounts are verified by Google; email accounts confirm by link
     emailVerified: row.provider === 'google' || !!row.email_verified,
+    // Google accounts may have set a password too (through "Forgot password?")
+    hasPassword: !!row.hash,
   };
 }
 
@@ -773,7 +775,10 @@ app.post('/api/auth/login', async (req, res) => {
     const user = rows[0];
     // Compare against a dummy hash when there's no account, so timing doesn't reveal which emails exist
     const ok = await bcrypt.compare(password.slice(0, 200), user?.hash || DUMMY_HASH);
-    if (!user || !user.hash || !ok) return res.status(401).json({ error: 'Invalid email or password.' });
+    // A Google account without a password: say how to get in (the email exists either way,
+    // since Google sign-in already shows it, so this reveals nothing new)
+    if (user && !user.hash) return res.status(401).json({ code: 'GOOGLE_ACCOUNT', error: 'This account signs in with Google. Use the Google button, or “Forgot password?” to set a password.' });
+    if (!user || !ok) return res.status(401).json({ error: 'Invalid email or password.' });
     setAuthCookie(res, signToken(user.id, user.token_version));
     res.json({ user: publicUser(user) });
   } catch (e) { console.error(e); res.status(500).json({ error: 'Login failed.' }); }
@@ -840,8 +845,9 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     if (!email) return res.status(400).json({ error: 'Email required.' });
     const { rows } = await query('SELECT * FROM users WHERE email = $1', [email.toLowerCase().trim()]);
     const user = rows[0];
-    // Always return 200. Never reveal whether an email exists
-    if (!user || user.provider === 'google') return res.json({ ok: true });
+    // Always return 200. Never reveal whether an email exists. Google accounts get the link too:
+    // it lets them set a password (e.g. to sign in on the phone app with email and password)
+    if (!user) return res.json({ ok: true });
 
     const token    = randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
@@ -920,6 +926,31 @@ app.get('/api/auth/reset-password/:token', async (req, res) => {
 app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('token', { domain: IS_PROD ? '.cvmaster.live' : undefined });
   res.json({ ok: true });
+});
+
+// ── DELETE MY ACCOUNT ─────────────────────────────────────────────────────────
+// Users can delete their own account (the App Store requires it in the app). Accounts with a
+// password confirm with it; Google accounts without one confirm by typing their email.
+// CVs, notifications and the rest go with the account (ON DELETE CASCADE); payment records
+// stay, without the account, as the law requires.
+app.post('/api/auth/delete-account', rateLimit({ windowMs: 15 * 60 * 1000, max: 5 }), authMiddleware, async (req, res) => {
+  try {
+    const u = (await query('SELECT * FROM users WHERE id = $1', [req.user.sub])).rows[0];
+    if (!u) return res.status(404).json({ error: 'Account not found.' });
+    if (u.hash) {
+      const ok = await bcrypt.compare(String(req.body?.password || '').slice(0, 200), u.hash);
+      if (!ok) return res.status(403).json({ error: 'Your current password is incorrect.' });
+    } else if (String(req.body?.confirmEmail || '').trim().toLowerCase() !== String(u.email).toLowerCase()) {
+      return res.status(400).json({ error: 'Type your email address to confirm.' });
+    }
+    await query('DELETE FROM newsletter_subscribers WHERE LOWER(email) = LOWER($1)', [u.email]).catch(() => {});
+    await query('DELETE FROM users WHERE id = $1', [u.id]);
+    res.clearCookie('token', { domain: IS_PROD ? '.cvmaster.live' : undefined });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[delete-account]', e.message);
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
+  }
 });
 
 // ── ME ────────────────────────────────────────────────────────────────────────
@@ -1543,6 +1574,41 @@ app.post('/api/ai/write', needsCvContent, aiAccess, async (req, res) => {
   } catch (e) {
     console.error('[ai/write]', e.message);
     res.status(500).json({ error: 'AI is unavailable right now. Please try again in a moment.' });
+  }
+});
+
+// ── SPEECH TO TEXT (phone app) ────────────────────────────────────────────────
+// The website uses the browser's own speech recognition; the app records a short clip and
+// sends it here. Like the browser's, it does not use up AI requests, so it needs an account
+// and has its own limit. Groq's Whisper does the transcription.
+const TRANSCRIBE_LANGS = ['en', 'fr', 'es', 'de', 'it', 'pt', 'zh'];
+const audioUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
+app.post('/api/ai/transcribe', rateLimit({ windowMs: 60 * 60 * 1000, max: 60 }), authMiddleware, audioUpload.single('audio'), async (req, res) => {
+  try {
+    if (!GROQ_KEY) return res.status(503).json({ error: 'Voice input is not available right now. Please type instead.' });
+    const f = req.file;
+    if (!f?.buffer?.length) return res.status(400).json({ error: 'No recording received. Please try again.' });
+    if (!/^(audio|video)\//.test(f.mimetype || '') && !/\.(m4a|mp4|mp3|wav|webm|ogg|aac|caf|3gp)$/i.test(f.originalname || '')) {
+      return res.status(400).json({ error: 'That recording format is not supported.' });
+    }
+    const form = new FormData();
+    form.append('file', new Blob([f.buffer], { type: f.mimetype || 'audio/m4a' }), f.originalname || 'speech.m4a');
+    form.append('model', process.env.GROQ_STT_MODEL || 'whisper-large-v3-turbo');
+    form.append('response_format', 'json');
+    const lang = String(req.body?.lang || '').slice(0, 2);
+    if (TRANSCRIBE_LANGS.includes(lang)) form.append('language', lang);
+    const r = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      method: 'POST', headers: { Authorization: `Bearer ${GROQ_KEY}` }, body: form, signal: AbortSignal.timeout(60000),
+    });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      console.error('[transcribe]', r.status, JSON.stringify(body).slice(0, 300));
+      return res.status(502).json({ error: 'We could not understand the recording. Please try again.' });
+    }
+    res.json({ text: String(body.text || '').trim() });
+  } catch (e) {
+    console.error('[transcribe]', e.message);
+    res.status(500).json({ error: 'We could not understand the recording. Please try again.' });
   }
 });
 

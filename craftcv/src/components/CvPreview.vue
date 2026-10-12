@@ -6,11 +6,11 @@
       <div class="cvp-notice-txt">
         <template v-if="!fitAccepted">
           <strong>{{ $t('Your CV is {n}% longer than one A4 page.', { n: overPct }) }}</strong>
-          {{ $t('Remove something (such as what you just added), or shrink it to fit.') }}
+          <span class="cvp-notice-more">{{ $t('Remove something (such as what you just added), or shrink it to fit.') }}</span>
         </template>
         <template v-else-if="page.zoom < SMALL_TEXT_ZOOM">
           <strong>{{ $t('Shrunk to fit one page. Text is at {n}%, which is getting small.', { n: zoomPct }) }}</strong>
-          {{ $t('Trimming a few lines will make it easier to read.') }}
+          <span class="cvp-notice-more">{{ $t('Trimming a few lines will make it easier to read.') }}</span>
         </template>
         <template v-else>
           {{ $t('Shrunk to fit one page, text at {n}%.', { n: zoomPct }) }}
@@ -21,7 +21,7 @@
     </div>
 
     <div class="cvp-stage" :style="{ width: 700 * scale + 'px', height: stageHeight * scale + 'px' }">
-      <div class="cvp-page" :style="{ zoom: scale }" :class="{ 'is-long': showBreak }">
+      <div class="cvp-page" :style="{ zoom: scale, '--cvp-z': scale }" :class="{ 'is-long': showBreak }">
         <div v-html="shownHtml"></div>
         <template v-if="showBreak">
           <div class="cvp-over" :style="{ top: PAGE_H + 'px', height: (page.height - PAGE_H) + 'px' }"></div>
@@ -112,8 +112,10 @@ defineExpose({ page })
   box-shadow:0 1px 2px rgba(17,24,39,.06),0 8px 28px rgba(17,24,39,.10);overflow:hidden}
 .cvp-over{position:absolute;left:0;right:0;pointer-events:none;
   background:repeating-linear-gradient(-45deg,rgba(220,38,38,.05) 0 10px,rgba(220,38,38,.09) 10px 20px)}
-.cvp-break{position:absolute;left:0;right:0;height:0;border-top:2px dashed #dc2626;pointer-events:none}
-.cvp-break span{position:absolute;right:10px;top:-11px;background:#dc2626;color:#fff;font:600 11px/20px Inter,sans-serif;padding:0 8px;border-radius:6px}
+/* The page is zoomed to fit the screen, so the marker is divided by that zoom to stay readable on a phone */
+.cvp-break{position:absolute;left:0;right:0;height:0;border-top:calc(2px / var(--cvp-z,1)) dashed #dc2626;pointer-events:none}
+.cvp-break span{position:absolute;right:calc(10px / var(--cvp-z,1));top:calc(-11px / var(--cvp-z,1));background:#dc2626;color:#fff;white-space:nowrap;
+  font:600 calc(11px / var(--cvp-z,1))/calc(22px / var(--cvp-z,1)) Inter,sans-serif;padding:0 calc(8px / var(--cvp-z,1));border-radius:calc(6px / var(--cvp-z,1))}
 
 .cvp-notice{width:100%;max-width:700px;margin-left:auto;margin-right:auto;display:flex;align-items:center;gap:10px;padding:10px 12px 10px 14px;margin-bottom:14px;
   border-radius:12px;font-size:13px;line-height:1.45;border:1px solid transparent}
@@ -123,4 +125,10 @@ defineExpose({ page })
 .cvp-notice.warn{background:var(--c-amber-lt);color:var(--c-amber);border-color:color-mix(in srgb,var(--c-amber) 20%,transparent)}
 .cvp-notice.calm{background:var(--c-surface);color:var(--c-text2);border-color:var(--c-border)}
 .cvp-notice .btn-primary{background:var(--c-amber);color:#fff}
+@media (max-width:560px){
+  .cvp-notice{gap:8px;padding:8px 8px 8px 10px;margin-bottom:10px;font-size:12px;line-height:1.35;border-radius:10px}
+  .cvp-notice svg{width:16px;height:16px}
+  .cvp-notice-more{display:none}
+  .cvp-notice .btn-sm{white-space:nowrap}
+}
 </style>
