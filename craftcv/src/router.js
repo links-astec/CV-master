@@ -16,6 +16,8 @@ const routes = [
   { path: '/privacy',        redirect: '/legal?tab=privacy' },
   { path: '/terms',          redirect: '/legal?tab=terms' },
   { path: '/reset-password', redirect: to => ({ path: '/', query: to.query }) },
+  // Invite links (they open the phone app when it's installed): same as ?ref=CODE
+  { path: '/invite/:code',   redirect: to => ({ path: '/', query: { ref: to.params.code } }) },
   { path: '/export-success', redirect: to => ({ path: '/', query: to.query }) },
   { path: '/download-clean', redirect: to => ({ path: '/', query: to.query }) },
   { path: '/:pathMatch(.*)*', redirect: '/'       },

@@ -19,6 +19,16 @@
         <button class="btn-primary accent btn-sm" @click="openAuth('register', 'save')">{{ $t('Create account') }}</button>
       </div>
 
+      <!-- The user's next step (from their CV and, if they allow it, what they've done so far) -->
+      <div v-if="next" class="db-next card">
+        <div class="db-next-txt">
+          <div class="db-next-k">{{ $t('Your next step') }}</div>
+          <div class="db-next-t">{{ $t(next.title) }}</div>
+          <p>{{ $t(next.body) }}</p>
+        </div>
+        <button class="btn-primary accent btn-sm" @click="doNext">{{ $t(NEXT_LABEL[next.action] || 'Continue') }}</button>
+      </div>
+
       <div v-if="loading" class="db-grid">
         <div v-for="n in 3" :key="n" class="db-card db-skel"></div>
       </div>
@@ -194,6 +204,25 @@ onUnmounted(() => window.removeEventListener('cv-paid', onPaid))
 watch(() => auth.isLoggedIn, loadDrafts)
 watch(() => store.currentDraftId, (id) => { if (id && !drafts.value.some(d => d.id === id)) loadDrafts() })
 
+// ── Next step ────────────────────────────────────────────────────────────────
+const next = ref(null)
+const NEXT_LABEL = { new: 'Start', edit: 'Continue', job: 'Match to a job', export: 'Get my PDF' }
+async function loadNext() {
+  if (!auth.isLoggedIn) { next.value = null; return }
+  try { const r = await fetch(apiUrl('/api/me/next'), { credentials: 'include' }); next.value = r.ok ? await r.json() : null } catch {}
+}
+function doNext() {
+  const n = next.value
+  if (!n) return
+  if (n.action === 'new') return newCV()
+  const d = drafts.value.find(x => x.id === n.draftId)
+  if (d && d.id !== store.currentDraftId) store.loadDraft(d)
+  router.push({ path: '/editor', query: n.action === 'job' ? { tab: 'job' } : {} })
+  if (n.action === 'export') setTimeout(() => openPaywall(), 300)
+}
+onMounted(loadNext)
+watch(() => auth.isLoggedIn, loadNext)
+
 function open(c) {
   if (c.id && c.id !== store.currentDraftId) store.loadDraft(drafts.value.find(d => d.id === c.id))
   router.push('/editor')
@@ -301,6 +330,12 @@ async function remove(c) {
 
 <style scoped>
 .db-guest{margin-bottom:22px;align-items:center}
+.db-next{display:flex;align-items:center;gap:16px;margin-bottom:22px;padding:16px 18px;border-left:3px solid var(--c-accent)}
+.db-next-txt{flex:1;min-width:0}
+.db-next-k{font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--c-accent)}
+.db-next-t{font-size:15.5px;font-weight:700;color:var(--c-text);margin-top:2px}
+.db-next p{font-size:13.5px;color:var(--c-text2);line-height:1.5;margin-top:2px}
+@media (max-width:560px){ .db-next{flex-direction:column;align-items:stretch} }
 .db-review{position:relative;margin-top:22px;padding:18px 20px}
 .db-review :deep(.rv){border:none;padding:0;background:none}
 .db-review-later{position:absolute;top:14px;right:16px;font-size:12.5px}

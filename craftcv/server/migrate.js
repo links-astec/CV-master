@@ -219,6 +219,31 @@ CREATE TABLE IF NOT EXISTS feedback (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- PUSH NOTIFICATIONS: the phone app's Expo push tokens (also created on demand, server/push.js)
+CREATE TABLE IF NOT EXISTS push_tokens (
+  token        TEXT PRIMARY KEY,
+  user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  platform     TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS push_tokens_user ON push_tokens(user_id);
+
+-- ACTIVITY for personalisation, first-party only (also created on demand, server/activity.js)
+CREATE TABLE IF NOT EXISTS user_events (
+  id         BIGSERIAL PRIMARY KEY,
+  user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  props      JSONB NOT NULL DEFAULT '{}',
+  platform   TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS user_events_user ON user_events(user_id, created_at DESC);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS personalize_activity BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS nudged_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS nudge_count INT NOT NULL DEFAULT 0;
+
 CREATE TABLE IF NOT EXISTS admins (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email         TEXT UNIQUE NOT NULL,

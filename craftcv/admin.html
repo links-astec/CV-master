@@ -378,6 +378,7 @@ let _toastT;
 function toast(msg) { S.toast = msg; render(); clearTimeout(_toastT); _toastT = setTimeout(() => { S.toast = ''; render() }, 3200) }
 
 const ICON = {
+  app: '<rect x="7" y="2" width="10" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/>',
   overview: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
   inbox: '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/>',
   users: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>',
@@ -425,6 +426,7 @@ const PAGES = {
   reviews:    ['Reviews', 'Ratings from people who made a CV. Approve comments for the homepage'],
   newsletter: ['Email', 'Newsletters to subscribers, and important notices to every user'],
   subscribers:['Subscribers', 'People who agreed to get the newsletter'],
+  app:        ['App & activity', 'Who is active, phones with notifications, and push messages to the app'],
   settings:   ['Settings', 'Maintenance mode and setup status'],
 }
 async function go(p) {
@@ -439,6 +441,7 @@ async function go(p) {
   if (p === 'subscribers' || p === 'newsletter') await loadSubs()
   if (p === 'newsletter') { loadHistory(); loadMyTemplates() }
   if (p === 'settings') await Promise.all([loadConfig(), S.stats ? null : loadStats()])
+  if (p === 'app') await loadActivity()
   if (p === 'overview' || !S.stats) loadCounts()
 }
 // Unread emails + open site messages for the nav badge
@@ -499,6 +502,59 @@ function renderOverview() {
         <div class="pay-who"><div>${esc(p.name || p.email)}</div><div class="muted" style="font-size:12px">${esc(p.email)} · ${fmtDate(p.created_at)}</div></div>
         <span class="badge ${p.source === 'stripe' ? 'b-ac' : 'b-gray'}">${esc(PRODUCT[p.product] || p.product)}${p.source !== 'stripe' ? ' · ' + esc(p.source) : ''}</span>
         <div class="pay-amt">${p.source === 'stripe' ? eur(PRICE[p.product] || 0) : '—'}</div></div>`).join('')}
+  </div>`
+}
+
+// ── App & activity ────────────────────────────────────────────────────────────
+// Activity is first-party only (users can switch it off in Settings); pushes go to every phone
+// that has the app with notifications on, written here in your own words.
+const EVENT_LABEL = { app_open: 'App opened', cv_created: 'CVs created', template_chosen: 'Layout changes', ai_used: 'AI requests', job_match: 'Job matches', export: 'Exports', invite_shared: 'Invites shared', tour_done: 'Tours finished', notification_open: 'Notifications opened' }
+async function loadActivity() {
+  try { S.act = await api('GET', '/activity'); render() } catch (e) { toast(e.message) }
+}
+async function sendAppPush(test) {
+  const title = $('p-title')?.value.trim() || '', body = $('p-body')?.value.trim() || '', link = $('p-link')?.value || '/'
+  if (!title || !body) { toast('Write a title and a message.'); return }
+  if (!test) {
+    const n = S.act?.phones?.devices
+    if (!(await ask({ title: 'Send to every phone?', message: `This goes right away to ${n != null ? n + ' phone' + (n === 1 ? '' : 's') : 'every phone'} with notifications on. It can’t be undone.`, ok: 'Send now' }))) return
+  }
+  S.pushBusy = true; render()
+  try {
+    const r = await api('POST', '/push', { title, body, link, test })
+    toast(r.devices ? `Sent to ${r.sent} of ${r.devices} phone${r.devices === 1 ? '' : 's'}` : 'No phones to send to yet')
+    if (!test) { S.push = { title: '', body: '' } }
+  } catch (e) { toast(e.message) }
+  S.pushBusy = false; render()
+}
+function renderAppPage() {
+  const a = S.act
+  if (!a) return `<div class="loading"><div class="spinner"></div></div>`
+  const P = S.push || (S.push = { title: '', body: '' })
+  const rows = (list, label, val) => list.length ? list.map(x => `<div class="pay-row"><div class="pay-who"><div>${esc(label(x))}</div></div><div class="pay-amt">${fmt(val(x))}</div></div>`).join('') : `<div class="empty"><strong>Nothing yet</strong>It fills in as people use CVMaster.</div>`
+  return `
+  <div class="kpis">
+    <div class="card kpi"><div class="kpi-l">Active today</div><div class="kpi-v">${fmt(a.active.day)}</div><div class="kpi-s"><b>${fmt(a.active.week)}</b> this week · ${fmt(a.active.month)} this month</div></div>
+    <div class="card kpi"><div class="kpi-l">Phones with notifications</div><div class="kpi-v">${fmt(a.phones.devices)}</div><div class="kpi-s">${fmt(a.phones.ios)} iPhone · ${fmt(a.phones.android)} Android</div></div>
+    <div class="card kpi"><div class="kpi-l">Personalisation off</div><div class="kpi-v">${fmt(a.active.opted_out)}</div><div class="kpi-s">accounts that switched it off</div></div>
+  </div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-hd"><h3>Send a push notification</h3></div>
+    <div class="card-bd" style="display:flex;flex-direction:column;gap:12px">
+      <div><label class="lbl" for="p-title">Title</label><input class="inp" id="p-title" maxlength="80" value="${esc(P.title)}" placeholder="New: tailor your CV in one tap"></div>
+      <div><label class="lbl" for="p-body">Message</label><textarea class="inp" id="p-body" rows="3" maxlength="240" placeholder="Paste a job offer and CVMaster rewrites your CV for it.">${esc(P.body)}</textarea></div>
+      <div><label class="lbl" for="p-link">Opens</label><select class="inp" id="p-link"><option value="/">My CVs</option><option value="/templates">Templates</option><option value="/editor">Editor</option><option value="/settings">Settings</option></select></div>
+      <p class="muted" style="font-size:12.5px;margin:0">Sent as written (not translated), to everyone with the app and notifications on. Keep it useful and rare.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-sm" data-act="push-test" ${S.pushBusy ? 'disabled' : ''}>Send a test to my phone</button>
+        <button class="btn btn-primary btn-sm" data-act="push-send" ${S.pushBusy ? 'disabled' : ''}>Send to everyone</button>
+      </div>
+    </div>
+  </div>
+  <div class="ov-grid">
+    <div class="card"><div class="card-hd"><h3>Last 30 days</h3></div>${rows(a.events, x => EVENT_LABEL[x.name] || x.name, x => x.n)}</div>
+    <div class="card"><div class="card-hd"><h3>Where people use it</h3></div>${rows(a.platforms, x => ({ web: 'Website', ios: 'iPhone app', android: 'Android app' })[x.platform] || x.platform, x => x.users)}
+      <div class="card-hd"><h3>Favourite layouts</h3></div>${rows(a.layouts, x => x.layout, x => x.n)}</div>
   </div>`
 }
 
@@ -1466,8 +1522,8 @@ function renderLogin() {
 function renderApp() {
   const [title, sub] = PAGES[S.page]
   const inboxCount = (S.stats?.inbox_unread || 0) + (S.stats?.feedback_open || 0)
-  const nav = [['overview', 'Overview'], ['inbox', 'Inbox', inboxCount], ['users', 'Users'], ['reviews', 'Reviews', S.rv?.pending], ['newsletter', 'Email'], ['subscribers', 'Subscribers'], ['settings', 'Settings']]
-  const body = { overview: renderOverview, inbox: renderInbox, users: renderUsers, reviews: renderReviews, newsletter: renderEmail, subscribers: renderSubs, settings: renderSettings }[S.page]()
+  const nav = [['overview', 'Overview'], ['inbox', 'Inbox', inboxCount], ['users', 'Users'], ['reviews', 'Reviews', S.rv?.pending], ['newsletter', 'Email'], ['subscribers', 'Subscribers'], ['app', 'App & activity'], ['settings', 'Settings']]
+  const body = { overview: renderOverview, inbox: renderInbox, users: renderUsers, reviews: renderReviews, newsletter: renderEmail, subscribers: renderSubs, app: renderAppPage, settings: renderSettings }[S.page]()
   return `<div class="app">
     <aside class="sb">
       <div class="sb-head"><span class="sb-mark">${MARK}</span><span class="sb-name">CV<span>Master</span></span><span class="sb-tag">Admin</span></div>
@@ -1509,6 +1565,8 @@ function bind() {
     S.email.sent = false; sendEmail(false)
   })
   $('ib-reply')?.addEventListener('input', e => { S.inbox.reply = e.target.value })
+  $('p-title')?.addEventListener('input', e => { S.push.title = e.target.value })
+  $('p-body')?.addEventListener('input', e => { S.push.body = e.target.value })
   document.querySelectorAll('.block-body input,.block-body textarea,.block-body select').forEach(el => {
     el.addEventListener('input', refreshPreview); el.addEventListener('change', refreshPreview)
   })
@@ -1537,6 +1595,8 @@ document.addEventListener('click', (e) => {
   else if (a === 'inbox-refresh') loadInbox()
   else if (a === 'inbox-back') { S.inbox.sel = null; S.inbox.detail = null; render() }
   else if (a === 'reply') sendReply()
+  else if (a === 'push-test') sendAppPush(true)
+  else if (a === 'push-send') sendAppPush(false)
   else if (a === 'done') setItemStatus(true)
   else if (a === 'reopen') setItemStatus(false)
   else if (a === 'delete') deleteItem()

@@ -1,6 +1,6 @@
 // Portuguese translation of the Privacy policy and the Terms (same sections and ids as the English
 // in src/views/Legal.vue). If the two differ, the English version applies.
-export const UPDATED = '9 de outubro de 2026'
+export const UPDATED = '12 de outubro de 2026'
 
 export default ({ mail }) => {
   const TEAM = 'Gabriel Quaye e Nisy Adjei Acheampong'
@@ -31,6 +31,7 @@ export default ({ mail }) => {
           <li>Para receber pagamentos pela Stripe.</li>
           <li>Para responder a comentários e reclamações e para melhorar o CVMaster.</li>
         </ul>` },
+        { id: 'personal', title: 'Personalização, notificações e voz', html: `<p>Quando tem sessão iniciada, guardamos um registo breve do que faz no CVMaster, no site e no app: por exemplo, que criou um currículo, escolheu um layout, usou uma função de IA, comparou um currículo com uma vaga ou o exportou. Usamo-lo apenas para personalizar o CVMaster para si: sugerir o próximo passo, mostrar primeiro os layouts de que gosta e lembrá-lo, no máximo uma vez por semana, de onde parou. Fica nos nossos próprios servidores, nunca é vendido nem partilhado e nunca é usado para publicidade. É apagado ao fim de 13 meses, e com a sua conta.</p><p>Pode desligar isto a qualquer momento nas Definições (“Personalizar com a minha atividade”); o que guardámos é então apagado. Baseamo-nos no nosso interesse legítimo em tornar o CVMaster útil para si, e o seu direito de oposição aplica-se sempre.</p><p><strong>Notificações push</strong> (app para telemóvel): se as permitir, enviamos notificações, por exemplo um currículo grátis ganho com o seu link de convite, e os lembretes acima. Para isso guardamos um identificador de notificações do seu telemóvel; as notificações são entregues através da Expo, da Apple e da Google. Desligue-as nas Definições do app ou do telemóvel.</p><p><strong>Entrada por voz</strong> (app para telemóvel): se gravar a sua história, a gravação é enviada à Groq para ser transformada em texto. Não guardamos a gravação.</p>` },
         { id: 'newsletter', title: 'Newsletter', html: `<p>Só enviamos nossa newsletter (dicas de currículo e novidades do CVMaster) se você pedir: na página inicial, com a caixa opcional ao criar sua conta, ou em Configurações. Se você se inscrever pela página inicial, primeiro enviamos um link de confirmação. A base legal é o seu consentimento.</p><p>Guardamos seu e-mail, quando e onde você deu o consentimento e quando cancelou a inscrição. Toda newsletter tem um link para cancelar com um clique; você também pode desativá-la em Configurações ou escrever para ${mail}. Paramos de enviar imediatamente. E-mails sobre sua conta e suas compras não são afetados.</p>` },
         { id: 'share', title: 'Com quem compartilhamos', html: `<p>Não vendemos seus dados. Só os compartilhamos com os serviços que fazem o CVMaster funcionar:</p><ul>
           <li><strong>Anthropic (Claude) e Groq</strong>: provedores de IA. O texto do currículo e a vaga usados numa função de IA são enviados a eles para gerar o resultado.</li>
