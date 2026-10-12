@@ -19,6 +19,8 @@ import { shareCleanPdf, sharePreviewPdf } from '@/lib/pdf'
 import { errorText } from '@/lib/ai'
 import { startTour } from '@/lib/onboarding'
 import { goNext, NEXT_LABEL, useNextStep } from '@/lib/next'
+import { usePosts } from '@/lib/blog'
+import { PostCard } from '@/components/PostCard'
 import { useLang } from '@/i18n'
 import { useColors } from '@/lib/theme'
 import { templateLabel } from '@web/composables/cvRenderer.js'
@@ -90,6 +92,26 @@ function CvCard({ draft, paid, onDelete }: { draft: Draft; paid: boolean; onDele
   )
 }
 
+// "From the blog": the three latest posts (only once there are posts)
+function LatestPosts() {
+  const { t, lang } = useLang()
+  const q = usePosts(lang, null, 3)
+  if (!q.data?.length) return null
+  return (
+    <View style={{ gap: 10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Txt w={700} size={18} style={{ flex: 1 }}>{t('From the blog')}</Txt>
+        <LinkBtn title={t('Read the blog')} onPress={() => router.push('/blog')} />
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }} style={{ marginHorizontal: -16 }}>
+        <View style={{ width: 4 }} />
+        {q.data.map(p => <PostCard key={p.slug} p={p} compact />)}
+        <View style={{ width: 4 }} />
+      </ScrollView>
+    </View>
+  )
+}
+
 export default function MyCvs() {
   const { t } = useLang()
   const c = useColors()
@@ -138,6 +160,8 @@ export default function MyCvs() {
           <Card><Txt color={c.text2}>{drafts.error.message}</Txt><LinkBtn title={t('Try again')} onPress={() => drafts.refetch()} /></Card>
         )}
 
+
+        <LatestPosts />
 
         {empty && (
           <Card style={{ gap: 18 }}>

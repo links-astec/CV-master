@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as WebBrowser from 'expo-web-browser'
 import type { ComponentProps } from 'react'
 import type { Tabs } from 'expo-router'
-import { Bell, Check, ChevronDown, FileText, Globe, LayoutGrid, Menu as MenuIcon, Moon, PenLine, Plus, Settings, Sun, X } from '@/components/icons'
+import { Bell, BookOpen, Check, ChevronDown, FileText, Globe, LayoutGrid, Menu as MenuIcon, Moon, PenLine, Plus, Settings, Sun, X } from '@/components/icons'
 import { BRAND } from '@/brand'
 import { LANGS, useLang } from '@/i18n'
 import { useAuth } from '@/lib/auth'
@@ -127,6 +127,11 @@ function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
                 </Pressable>
               )
             })}
+            <Pressable onPress={() => go('/blog')} accessibilityRole="button"
+              style={({ pressed }) => [styles.navItem, (path.startsWith('/blog') || pressed) && { backgroundColor: c.accentSoft }]}>
+              <BookOpen size={21} color={path.startsWith('/blog') ? c.accent : c.text2} strokeWidth={1.8} />
+              <Txt w={path.startsWith('/blog') ? 600 : 500} size={16} color={path.startsWith('/blog') ? c.accent : c.text}>{t('Blog')}</Txt>
+            </Pressable>
           </ScrollView>
           {!!user && (
             <View style={styles.menuUser}>

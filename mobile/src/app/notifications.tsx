@@ -32,7 +32,7 @@ export default function Notifications() {
 
   function open(n: Notification) {
     if (!n.read) mark.one(n.id)
-    const to = n.link && APP_ROUTE[n.link]
+    const to = n.link?.startsWith('/blog/') ? n.link : n.link && APP_ROUTE[n.link]
     if (to) { router.back(); setTimeout(() => router.navigate(to as never), 50) }
   }
 

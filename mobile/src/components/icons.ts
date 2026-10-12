@@ -3,6 +3,7 @@
 export type { LucideIcon } from 'lucide-react-native'
 export { default as ArrowRight } from 'lucide-react-native/icons/arrow-right'
 export { default as Bell } from 'lucide-react-native/icons/bell'
+export { default as BookOpen } from 'lucide-react-native/icons/book-open'
 export { default as Check } from 'lucide-react-native/icons/check'
 export { default as ChevronDown } from 'lucide-react-native/icons/chevron-down'
 export { default as ChevronLeft } from 'lucide-react-native/icons/chevron-left'

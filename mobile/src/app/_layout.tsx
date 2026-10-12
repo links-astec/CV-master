@@ -95,6 +95,8 @@ function RootNavigator() {
           <Stack.Screen name="ai-limit" options={{ presentation: 'modal' }} />
           <Stack.Screen name="story" />
           <Stack.Screen name="onboard" options={{ presentation: 'modal', gestureEnabled: false }} />
+          <Stack.Screen name="blog/index" />
+          <Stack.Screen name="blog/[slug]" />
         </Stack.Protected>
         {/* Opened from links (https://www.cvmaster.live/...), signed in or not */}
         <Stack.Screen name="reset-password" options={{ presentation: 'modal' }} />

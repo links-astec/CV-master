@@ -19,7 +19,6 @@ export function ReviewPrompt({ onlyIfNew, onShown }: { onlyIfNew?: boolean; onSh
   const [comment, setComment] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [waiting, setWaiting] = useState(false)   // their edit waits for approval; the published review stays meanwhile
 
   useEffect(() => {
     let live = true
@@ -27,7 +26,7 @@ export function ReviewPrompt({ onlyIfNew, onShown }: { onlyIfNew?: boolean; onSh
       if (!live || !j.canReview) return
       if (j.review) {
         if (onlyIfNew) return
-        setExisting(true); setRating(j.review.rating); setComment(j.review.comment || ''); setWaiting(!!j.review.awaitingApproval)
+        setExisting(true); setRating(j.review.rating); setComment(j.review.comment || '')
       }
       setState('ask'); onShown?.()
     }).catch(() => {})
@@ -38,14 +37,14 @@ export function ReviewPrompt({ onlyIfNew, onShown }: { onlyIfNew?: boolean; onSh
   async function send() {
     setBusy(true); setError('')
     try {
-      const r = await api<{ awaitingApproval?: boolean }>('/api/reviews', { body: { rating, comment } })
-      setWaiting(!!(r.awaitingApproval && existing)); setState('done')
+      await api('/api/reviews', { body: { rating, comment } })
+      setState('done')
     } catch (e) { setError(errorText(e)) }
     setBusy(false)
   }
 
   if (state === 'hidden') return null
-  if (state === 'done') return <Txt w={600} size={14.5} color={c.green} style={{ lineHeight: 21 }}>{t(waiting ? 'Thanks. Your updated review shows once we’ve checked it. Your current one stays up until then.' : 'Thank you. Your review helps other job seekers find CVMaster.')}</Txt>
+  if (state === 'done') return <Txt w={600} size={14.5} color={c.green} style={{ lineHeight: 21 }}>{t('Thank you. Your review helps other job seekers find CVMaster.')}</Txt>
   return (
     <View style={{ gap: 8 }}>
       <Txt w={700} size={16}>{t(existing ? 'Your review' : 'How was CVMaster?')}</Txt>

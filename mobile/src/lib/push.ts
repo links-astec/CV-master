@@ -78,7 +78,7 @@ export function usePushTaps(signedIn: boolean) {
     if (!signedIn || !last || Platform.OS === 'web') return
     const data = (last.notification.request.content.data || {}) as { link?: string; type?: string }
     track('notification_open', { type: data.type || '' })
-    const to = data.link ? ROUTES[data.link] : null
+    const to = data.link?.startsWith('/blog/') ? data.link : data.link ? ROUTES[data.link] : null
     if (to) setTimeout(() => router.navigate(to as never), 300)
     Notifications.clearLastNotificationResponse()
   }, [last, signedIn])
