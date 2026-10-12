@@ -16,7 +16,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { Resend } from 'resend';
 import nodemailer from 'nodemailer';
 import { query } from './db.js';
-import { ensurePushTable, isPushToken, registerToken, removeToken, sendPush } from './push.js';
+import { ensurePushTable, isPushToken, pushHealth, registerToken, removeToken, sendPush } from './push.js';
 import { ensureActivity, nextStep, personalNudges, recordEvents, setPersonalize } from './activity.js';
 import { ensureAppleCols, keepAppleRefreshToken, revokeApple, verifyAppleToken } from './apple.js';
 import { createRequire } from 'module';
@@ -92,20 +92,23 @@ async function sendViaSmtp({ to, subject, html, attachments }) {
   console.log('[mailer] SMTP: sent to', to);
 }
 
+// The last email sent and the last failure (admin → Settings → Status)
+const mailHealth = { okAt: null, errAt: null, error: '' };
 async function sendMail(opts) {
   const errors = [];
   if (resend) {
-    try { return await sendViaResend(opts); }
+    try { const r = await sendViaResend(opts); mailHealth.okAt = new Date(); return r; }
     catch (e) { errors.push('Resend: ' + e.message); console.warn('[mailer] Resend failed:', e.message); }
   }
   if (smtpTransport) {
-    try { return await sendViaSmtp(opts); }
+    try { const r = await sendViaSmtp(opts); mailHealth.okAt = new Date(); return r; }
     catch (e) { errors.push('SMTP: ' + e.message); console.warn('[mailer] SMTP failed:', e.message); }
   }
   if (!errors.length) {
     console.log('[mailer] No mail provider configured, email skipped. To:', opts.to);
     throw new Error('Email is not configured on the server.');
   }
+  Object.assign(mailHealth, { errAt: new Date(), error: errors.join(' | ').slice(0, 300) });
   throw new Error(errors.join(' | '));
 }
 
@@ -255,13 +258,24 @@ async function runReminders() {
   const personal = await personalNudges(notify).catch(e => { console.warn('[reminders] personal:', e.message); return 0; });
   console.log(`[reminders] unpaid nudges ${unpaid.length}, review nudges ${toAsk.length}, review emails ${toEmail.length}, personal nudges ${personal}`);
 }
+const jobHealth = { at: null, ok: null, error: '' };
 app.use((req, res, next) => {
   if (!_jobsRunning && Date.now() - _jobsAt > 6 * 60 * 60 * 1000 && process.env.DISABLE_REMINDERS !== 'true') {
     _jobsAt = Date.now(); _jobsRunning = true;
-    setTimeout(() => runReminders().catch(e => console.warn('[reminders]', e.message)).finally(() => { _jobsRunning = false; }), 5000);
+    setTimeout(() => runReminders()
+      .then(() => Object.assign(jobHealth, { at: new Date(), ok: true, error: '' }))
+      .catch(e => { console.warn('[reminders]', e.message); Object.assign(jobHealth, { at: new Date(), ok: false, error: e.message }); })
+      .finally(() => { _jobsRunning = false; }), 5000);
+  }
+  // Health checks (and an email to the admin when something breaks or recovers), at most every 30 minutes
+  if (!_statusRunning && Date.now() - _statusAt > 30 * 60 * 1000 && process.env.DISABLE_REMINDERS !== 'true') {
+    _statusAt = Date.now(); _statusRunning = true;
+    setTimeout(() => runStatus().then(statusAlerts).catch(e => console.warn('[status]', e.message)).finally(() => { _statusRunning = false; }), 8000);
   }
   next();
 });
+let _statusAt = 0, _statusRunning = false;
+const SERVER_STARTED = new Date();
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
 app.use('/api/',      rateLimit({ windowMs: 15*60*1000, max: 200, standardHeaders: true, legacyHeaders: false }));
@@ -3019,6 +3033,17 @@ app.get('/admin', (req, res) => {
   }
 });
 
+// The admin as an app on a phone's home screen (Add to Home Screen)
+app.get('/admin-icon.png', (req, res) => res.sendFile(_join(_dirname, '../public/apple-touch-icon.png')));
+app.get('/admin-icon-512.png', (req, res) => res.sendFile(_join(_dirname, '../public/icon-512.png')));
+app.get('/admin.webmanifest', (req, res) => {
+  res.type('application/manifest+json').send(JSON.stringify({
+    name: 'CVMaster Admin', short_name: 'CVM Admin', start_url: '/admin', scope: '/', display: 'standalone',
+    background_color: '#14142B', theme_color: '#14142B',
+    icons: [{ src: '/admin-icon.png', sizes: '180x180', type: 'image/png' }, { src: '/admin-icon-512.png', sizes: '512x512', type: 'image/png' }],
+  }));
+});
+
 // ── ADMIN AUTH ────────────────────────────────────────────────────────────────
 const ADMIN_JWT_SECRET    = secretFromEnv('ADMIN_JWT_SECRET', 'admin-change-this-secret');
 const adminLoginAttempts  = new Map(); // ip → { count, lockedUntil }
@@ -3057,8 +3082,10 @@ app.post('/api/admin/login', async (req, res) => {
     }
     adminLoginAttempts.delete(ip);
     await query('UPDATE admins SET last_login = NOW() WHERE id = $1', [admin.id]).catch(() => {});
-    const token = jwt.sign({ id: admin.id, email: admin.email, role: admin.role }, ADMIN_JWT_SECRET, { expiresIn: '8h' });
-    res.cookie('admin_token', token, { httpOnly: true, secure: IS_PROD, sameSite: 'strict', maxAge: 8 * 60 * 60 * 1000 });
+    // "Keep me signed in on this device": 30 days (e.g. the admin on a phone's home screen), otherwise 8 hours
+    const days = req.body?.remember === true ? 30 : 0;
+    const token = jwt.sign({ id: admin.id, email: admin.email, role: admin.role }, ADMIN_JWT_SECRET, { expiresIn: days ? `${days}d` : '8h' });
+    res.cookie('admin_token', token, { httpOnly: true, secure: IS_PROD, sameSite: 'strict', maxAge: days ? days * 864e5 : 8 * 60 * 60 * 1000 });
     res.json({ ok: true, email: admin.email, role: admin.role });
   } catch (e) {
     console.error('[admin/login]', e.message);
@@ -3125,6 +3152,160 @@ app.get('/api/admin/activity', adminAuthMiddleware, async (req, res) => {
         WHERE name = 'template_chosen' AND created_at > NOW() - INTERVAL '30 days' GROUP BY 1 ORDER BY 2 DESC LIMIT 8`)).rows;
     res.json({ active, phones, events, platforms, layouts });
   } catch (e) { console.error('[admin/activity]', e.message); res.status(500).json({ error: 'Could not load activity.' }); }
+});
+
+// ── STATUS: is everything working? ─────────────────────────────────────────────
+// Every part of CVMaster the website and the phone app rely on, checked live. Each check is
+// ok / warn (works, but something needs doing) / down (broken). The admin sees them in
+// Settings; when one goes down (or comes back) the admin is emailed. If the whole server is
+// down nothing here can run, which is why an outside monitor on /api/health is advised too.
+const withTimeout = (p, ms = 8000) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timed out')), ms))]);
+const ago = (d) => { if (!d) return 'never'; const m = Math.round((Date.now() - new Date(d).getTime()) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`; };
+async function httpOk(url, init = {}) {
+  const r = await withTimeout(fetch(url, { ...init, signal: AbortSignal.timeout(8000) }));
+  return { ok: r.ok, status: r.status, text: r.ok ? await r.text().catch(() => '') : '' };
+}
+let _statusCache = null;
+async function runStatus() {
+  const C = [];
+  const check = async (group, key, name, fn) => {
+    try { const r = await withTimeout(fn(), 10000); C.push({ group, key, name, ...r }); }
+    catch (e) { C.push({ group, key, name, state: 'down', detail: e.message.slice(0, 200) }); }
+  };
+  const site = IS_PROD ? FRONTEND_URL : 'https://www.cvmaster.live';
+  await Promise.all([
+    // ── Website & server
+    check('Website & server', 'server', 'API server', async () => ({
+      state: maintenanceMode ? 'warn' : 'ok',
+      detail: `${maintenanceMode ? 'Maintenance mode is ON. ' : ''}Running since ${SERVER_STARTED.toISOString().slice(0, 16).replace('T', ' ')} UTC${process.env.RENDER_GIT_COMMIT ? ` · version ${process.env.RENDER_GIT_COMMIT.slice(0, 7)}` : ''}`,
+    })),
+    check('Website & server', 'database', 'Database', async () => {
+      const t = Date.now(); await query('SELECT 1');
+      const ms = Date.now() - t;
+      return { state: ms > 3000 ? 'warn' : 'ok', detail: `Answering in ${ms} ms` };
+    }),
+    check('Website & server', 'website', 'Website (cvmaster.live)', async () => {
+      const r = await httpOk(site);
+      return r.ok && /<div id="app"/.test(r.text) ? { state: 'ok', detail: 'Online' } : { state: 'down', detail: `Answered ${r.status}` };
+    }),
+    check('Website & server', 'secrets', 'Security keys', async () => {
+      const missing = ['JWT_SECRET', 'ADMIN_JWT_SECRET'].filter(k => !process.env[k]);
+      return missing.length && IS_PROD ? { state: 'down', detail: `${missing.join(', ')} not set: sign-ins reset whenever the server restarts` } : { state: 'ok', detail: 'Session keys set' };
+    }),
+    // ── AI
+    check('AI', 'ai-claude', 'AI writing (Claude)', async () => {
+      if (!ANTHROPIC_KEY) return { state: GROQ_KEY ? 'warn' : 'down', detail: GROQ_KEY ? 'No Claude key: Groq does all AI' : 'No AI key set' };
+      const r = await httpOk('https://api.anthropic.com/v1/models', { headers: { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' } });
+      if (!r.ok) return { state: GROQ_KEY ? 'warn' : 'down', detail: `Claude key refused (${r.status})${GROQ_KEY ? ', Groq is used instead' : ''}` };
+      return { state: aiLast.claudeError ? 'warn' : 'ok', detail: `Model ${ANTHROPIC_MODEL}${aiLast.claudeError ? ` · last error ${ago(aiLast.at)}: ${aiLast.claudeError}` : ''}` };
+    }),
+    check('AI', 'ai-groq', 'AI backup and voice input (Groq)', async () => {
+      if (!GROQ_KEY) return { state: 'down', detail: 'GROQ_API_KEY not set: no AI backup, and the app’s microphone can’t work' };
+      const r = await httpOk('https://api.groq.com/openai/v1/models', { headers: { Authorization: `Bearer ${GROQ_KEY}` } });
+      if (!r.ok) return { state: 'down', detail: `Groq key refused (${r.status})` };
+      const stt = process.env.GROQ_STT_MODEL || 'whisper-large-v3-turbo';
+      return r.text.includes(stt) ? { state: 'ok', detail: `Backup model ${AI_MODEL} · voice ${stt}` } : { state: 'warn', detail: `Voice model ${stt} not offered by Groq any more` };
+    }),
+    check('AI', 'pdf', 'PDF engine', async () => (
+      pdfEngine.status === 'ready' ? { state: 'ok', detail: `Chrome ready${pdfEngine.lastMs ? ` · last PDF in ${pdfEngine.lastMs} ms` : ''}` }
+        : { state: pdfEngine.status === 'starting' ? 'warn' : 'down', detail: `Status: ${pdfEngine.status}${pdfEngine.error ? ` · ${pdfEngine.error}` : ''}` })),
+    // ── Email
+    check('Email', 'mail', 'Sending email', async () => {
+      if (!(resend || smtpTransport)) return { state: 'down', detail: 'No email provider configured' };
+      if (mailHealth.errAt && (!mailHealth.okAt || mailHealth.errAt > mailHealth.okAt)) return { state: 'down', detail: `Last email failed ${ago(mailHealth.errAt)}: ${mailHealth.error}` };
+      return { state: 'ok', detail: `Sending as ${RESEND_FROM}${mailHealth.okAt ? ` · last sent ${ago(mailHealth.okAt)}` : ''}` };
+    }),
+    check('Email', 'inbound', 'Support inbox', async () => (process.env.RESEND_INBOUND_SECRET
+      ? { state: 'ok', detail: 'Emails to support@cvmaster.live arrive in the Inbox' }
+      : { state: 'warn', detail: 'Receiving is not set up (RESEND_INBOUND_SECRET)' })),
+    // ── Payments
+    check('Payments', 'stripe', 'Card payments (Stripe)', async () => {
+      const stripe = await getStripe();
+      if (!stripe) return { state: FREE_EXPORTS ? 'warn' : 'down', detail: FREE_EXPORTS ? 'No Stripe key: exports are free (demo mode)' : 'STRIPE_SECRET_KEY not set' };
+      await withTimeout(stripe.balance.retrieve());
+      const mode = STRIPE_KEY.startsWith('sk_live') ? 'live' : 'test';
+      if (!process.env.STRIPE_WEBHOOK_SECRET) return { state: 'warn', detail: `Connected (${mode}) · webhook secret missing (STRIPE_WEBHOOK_SECRET)` };
+      return { state: mode === 'live' ? 'ok' : 'warn', detail: `Connected in ${mode} mode · webhook secret set` };
+    }),
+    // ── Sign-in
+    check('Sign-in', 'google', 'Google sign-in (website and app)', async () => (GOOGLE_CLIENT_ID
+      ? { state: 'ok', detail: `Client set${process.env.GOOGLE_APP_CLIENT_IDS ? ' · extra app clients set' : ''}` }
+      : { state: 'down', detail: 'GOOGLE_CLIENT_ID not set' })),
+    check('Sign-in', 'apple', 'Sign in with Apple (iPhone app)', async () => {
+      const r = await httpOk('https://appleid.apple.com/auth/keys');
+      if (!r.ok) return { state: 'down', detail: `Apple’s keys unreachable (${r.status})` };
+      const revoke = process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY;
+      return revoke ? { state: 'ok', detail: 'Apple reachable · account deletion revokes Apple sign-in' }
+        : { state: 'warn', detail: 'Works · before the App Store release, add APPLE_TEAM_ID, APPLE_KEY_ID and APPLE_PRIVATE_KEY so deleting an account revokes Apple sign-in' };
+    }),
+    // ── Phone app
+    check('Phone app', 'push', 'Push notifications', async () => {
+      await ensurePushTable();
+      const n = (await query(`SELECT COUNT(*)::int AS n, COUNT(*) FILTER (WHERE platform = 'ios')::int AS ios, COUNT(*) FILTER (WHERE platform = 'android')::int AS android FROM push_tokens`)).rows[0];
+      const r = await httpOk('https://exp.host/--/api/v2/push/getReceipts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [] }) });
+      if (!r.ok) return { state: 'down', detail: `Expo’s push service unreachable (${r.status})` };
+      if (pushHealth.errAt && (!pushHealth.okAt || pushHealth.errAt > pushHealth.okAt)) return { state: 'warn', detail: `Last push failed ${ago(pushHealth.errAt)}: ${pushHealth.error} · ${n.n} phones` };
+      return { state: 'ok', detail: `${n.n} phone${n.n === 1 ? '' : 's'} (${n.ios} iPhone, ${n.android} Android)${pushHealth.okAt ? ` · last push ${ago(pushHealth.okAt)}` : ''}` };
+    }),
+    check('Phone app', 'applinks-android', 'Links open the Android app', async () => {
+      const r = await httpOk(`${site}/.well-known/assetlinks.json`);
+      return r.ok && r.text.includes('live.cvmaster.app') ? { state: 'ok', detail: 'assetlinks.json is online' } : { state: 'warn', detail: 'assetlinks.json missing on the website (mobile/scripts/app-links.mjs)' };
+    }),
+    check('Phone app', 'applinks-ios', 'Links open the iPhone app', async () => {
+      const r = await httpOk(`${site}/.well-known/apple-app-site-association`);
+      return r.ok && r.text.includes('live.cvmaster.app') ? { state: 'ok', detail: 'apple-app-site-association is online' } : { state: 'warn', detail: 'Waiting for the Apple Team ID (mobile/scripts/app-links.mjs)' };
+    }),
+    check('Phone app', 'app-use', 'App use (last 7 days)', async () => {
+      await ensureActivity();
+      const r = (await query(`SELECT COUNT(DISTINCT user_id) FILTER (WHERE platform = 'ios')::int AS ios, COUNT(DISTINCT user_id) FILTER (WHERE platform = 'android')::int AS android
+          FROM user_events WHERE created_at > NOW() - INTERVAL '7 days'`)).rows[0];
+      return { state: 'ok', detail: `${r.ios} people on iPhone, ${r.android} on Android` };
+    }),
+    // ── Background jobs
+    check('Background jobs', 'jobs', 'Reminders and review requests', async () => {
+      if (process.env.DISABLE_REMINDERS === 'true') return { state: 'warn', detail: 'Switched off (DISABLE_REMINDERS)' };
+      if (jobHealth.ok === false) return { state: 'down', detail: `Last run failed ${ago(jobHealth.at)}: ${jobHealth.error}` };
+      return { state: 'ok', detail: jobHealth.at ? `Last run ${ago(jobHealth.at)}` : 'Runs every few hours while people use CVMaster' };
+    }),
+  ]);
+  const order = ['Website & server', 'AI', 'Email', 'Payments', 'Sign-in', 'Phone app', 'Background jobs'];
+  C.sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group));
+  _statusCache = { at: new Date().toISOString(), checks: C };
+  return _statusCache;
+}
+
+// Email the admin when a check goes down, and when it is back
+let _statusTable = null;
+async function statusAlerts({ checks }) {
+  if (!_statusTable) _statusTable = query('CREATE TABLE IF NOT EXISTS status_state (key TEXT PRIMARY KEY, state TEXT NOT NULL, changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW())').catch(e => { _statusTable = null; throw e; });
+  await _statusTable;
+  const before = Object.fromEntries((await query('SELECT key, state FROM status_state')).rows.map(r => [r.key, r.state]));
+  const broke = [], fixed = [];
+  for (const c of checks) {
+    const was = before[c.key];
+    if (was !== c.state) await query(`INSERT INTO status_state (key, state) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET state = $2, changed_at = NOW()`, [c.key, c.state]);
+    if (c.state === 'down' && was !== 'down') broke.push(c);
+    if (was === 'down' && c.state !== 'down') fixed.push(c);
+  }
+  const to = process.env.ADMIN_EMAIL || FEEDBACK_TO;
+  if (!to || (!broke.length && !fixed.length)) return;
+  const li = (c) => `<li><b>${escHtml(c.name)}</b>: ${escHtml(c.detail || '')}</li>`;
+  await sendMail({
+    to, subject: broke.length ? `CVMaster: ${broke.map(c => c.name).join(', ')} ${broke.length === 1 ? 'is' : 'are'} down` : `CVMaster: ${fixed.map(c => c.name).join(', ')} working again`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:560px;padding:24px;color:#14142B">
+      ${broke.length ? `<h2 style="color:#DC2626;margin:0 0 10px">Something is down</h2><ul>${broke.map(li).join('')}</ul>` : ''}
+      ${fixed.length ? `<h2 style="color:#16A34A;margin:16px 0 10px">Working again</h2><ul>${fixed.map(li).join('')}</ul>` : ''}
+      <p><a href="https://api.cvmaster.live/admin#settings">Open the status page</a></p></div>`,
+  }).catch(e => console.warn('[status] alert email:', e.message));
+}
+
+app.get('/api/admin/status', adminAuthMiddleware, async (req, res) => {
+  try {
+    const fresh = req.query.refresh === '1' || !_statusCache || Date.now() - Date.parse(_statusCache.at) > 60 * 1000;
+    const st = fresh ? await runStatus() : _statusCache;
+    if (fresh) statusAlerts(st).catch(e => console.warn('[status]', e.message));
+    res.json({ ...st, alertsTo: process.env.ADMIN_EMAIL || FEEDBACK_TO || null });
+  } catch (e) { console.error('[admin/status]', e.message); res.status(500).json({ error: 'Could not check the status.' }); }
 });
 
 app.get('/api/admin/stats', adminAuthMiddleware, async (req, res) => {
@@ -3244,6 +3425,15 @@ function personalize(text, name, html = true) {
 
 // Important notices go to every account holder (no consent needed for service messages:
 // changes to the Terms or prices, security, problems with accounts or payments, never marketing)
+// An email to particular people (chosen in the admin), from support so replies come back to us
+function directMail(to, subject, body, name = '') {
+  subject = personalize(subject, name, false); body = personalize(body, name);
+  const foot = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;padding:18px 24px 28px;text-align:center;color:#8A8AA3;font-size:12px;line-height:1.6">
+    You’re receiving this because you have a CVMaster account. Questions? Just reply, or write to <a href="mailto:${SUPPORT_REPLY_TO}" style="color:#8A8AA3">${SUPPORT_REPLY_TO}</a> · <a href="https://www.cvmaster.live/privacy" style="color:#8A8AA3;text-decoration:underline">Privacy</a></div>`;
+  const html = /<\/body>/i.test(body) ? body.replace(/<\/body>/i, foot + '</body>') : body + foot;
+  return { to, from: SUPPORT_FROM, subject, html };
+}
+
 function noticeMail(to, subject, body, name = '') {
   subject = personalize(subject, name, false); body = personalize(body, name);
   const foot = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;padding:18px 24px 28px;text-align:center;color:#8A8AA3;font-size:12px;line-height:1.6">
@@ -3298,13 +3488,14 @@ function ensureBroadcastTable() {
 app.post('/api/admin/email/send', adminAuthMiddleware, async (req, res) => {
   try {
     const { subject, body, plan_filter, test_email } = req.body || {};
-    const audience = req.body?.audience === 'all_users' ? 'all_users' : 'subscribers';
+    const audience = ['all_users', 'people'].includes(req.body?.audience) ? req.body.audience : 'subscribers';
     if (!subject || !body) return res.status(400).json({ error: 'subject and body required.' });
     if (String(subject).length > 200) return res.status(400).json({ error: 'The subject is too long.' });
     if (audience === 'all_users' && req.body?.important !== true) {
       return res.status(400).json({ error: 'Emails to every user must be important service messages. Tick the box to confirm.' });
     }
-    const make = (to, token, name) => audience === 'all_users' ? noticeMail(to, subject, body, name) : newsletterMail(to, token, subject, body, name);
+    const make = (to, token, name) => audience === 'all_users' ? noticeMail(to, subject, body, name)
+      : audience === 'people' ? directMail(to, subject, body, name) : newsletterMail(to, token, subject, body, name);
     if (test_email) {
       if (!isEmail(test_email)) return res.status(400).json({ error: 'Enter a valid test address.' });
       const m = make(test_email.trim(), 'test', req.body?.test_name || 'Alex Martin');
@@ -3313,7 +3504,15 @@ app.post('/api/admin/email/send', adminAuthMiddleware, async (req, res) => {
     }
 
     let rows;
-    if (audience === 'all_users') {
+    if (audience === 'people') {
+      // Chosen accounts only (by email); addresses without an account are skipped and reported
+      const wanted = [...new Set((Array.isArray(req.body?.recipients) ? req.body.recipients : []).map(e => String(e).trim().toLowerCase()).filter(isEmail))].slice(0, 500);
+      if (!wanted.length) return res.status(400).json({ error: 'Add at least one person to send to.' });
+      rows = (await query(`SELECT DISTINCT ON (LOWER(email)) LOWER(email) AS email, name FROM users WHERE LOWER(email) = ANY($1) ORDER BY LOWER(email)`, [wanted])).rows;
+      const found = new Set(rows.map(r => r.email));
+      const missing = wanted.filter(e => !found.has(e));
+      if (missing.length) return res.status(400).json({ error: `No account for: ${missing.slice(0, 5).join(', ')}${missing.length > 5 ? ` and ${missing.length - 5} more` : ''}.` });
+    } else if (audience === 'all_users') {
       const p = [];
       let sql = `SELECT DISTINCT ON (LOWER(email)) LOWER(email) AS email, name FROM users WHERE email IS NOT NULL AND email <> ''`;
       if (plan_filter && plan_filter !== 'all') { p.push(plan_filter); sql += ` AND plan = $1`; }
@@ -3345,7 +3544,9 @@ app.post('/api/admin/email/send', adminAuthMiddleware, async (req, res) => {
 app.post('/api/admin/email/preview', adminAuthMiddleware, (req, res) => {
   const body = String(req.body?.body || '');
   const subject = String(req.body?.subject || '').slice(0, 200) || '(no subject)';
-  const m = req.body?.audience === 'all_users' ? noticeMail('someone@example.com', subject, body, 'Alex Martin') : newsletterMail('someone@example.com', 'preview', subject, body, 'Alex Martin');
+  const m = req.body?.audience === 'all_users' ? noticeMail('someone@example.com', subject, body, 'Alex Martin')
+    : req.body?.audience === 'people' ? directMail('someone@example.com', subject, body, 'Alex Martin')
+    : newsletterMail('someone@example.com', 'preview', subject, body, 'Alex Martin');
   res.json({ html: m.html, from: m.from, subject: m.subject, replyTo: SUPPORT_REPLY_TO });
 });
 

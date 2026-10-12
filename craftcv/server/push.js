@@ -56,6 +56,9 @@ export async function removeToken(token) {
   await query('DELETE FROM push_tokens WHERE token = $1', [token]);
 }
 
+// The last push that went out and the last failure (admin → Settings → Status)
+export const pushHealth = { okAt: null, errAt: null, error: '' };
+
 // ── Sending ──
 // to: a list of user ids, or 'all' (every phone with the app). text: { title, body, link, type }.
 // translate: false for texts an admin wrote themselves (sent as written).
@@ -90,17 +93,18 @@ export async function sendPush(to, { title, body, link = null, type = null }, { 
       });
       const j = await r.json().catch(() => ({}));
       const tickets = Array.isArray(j.data) ? j.data : [];
-      if (!r.ok || !tickets.length) { failed += chunk.length; console.warn('[push]', r.status, JSON.stringify(j).slice(0, 200)); continue; }
+      if (!r.ok || !tickets.length) { failed += chunk.length; Object.assign(pushHealth, { errAt: new Date(), error: `Expo answered ${r.status}` }); console.warn('[push]', r.status, JSON.stringify(j).slice(0, 200)); continue; }
       for (let k = 0; k < chunk.length; k++) {
         const t = tickets[k];
-        if (t?.status === 'ok') sent++;
+        if (t?.status === 'ok') { sent++; pushHealth.okAt = new Date(); }
         else {
           failed++;
+          if (t?.details?.error && t.details.error !== 'DeviceNotRegistered') Object.assign(pushHealth, { errAt: new Date(), error: String(t.details.error) });
           // The app was removed from that phone, or the token is no longer valid
           if (t?.details?.error === 'DeviceNotRegistered') await removeToken(chunk[k].to).catch(() => {});
         }
       }
-    } catch (e) { failed += chunk.length; console.warn('[push]', e.message); }
+    } catch (e) { failed += chunk.length; Object.assign(pushHealth, { errAt: new Date(), error: e.message }); console.warn('[push]', e.message); }
   }
   return { sent, failed, devices: rows.length };
 }
