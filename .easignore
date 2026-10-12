@@ -1,0 +1,43 @@
+# What EAS Build uploads (replaces .gitignore for the build archive, so those rules are repeated).
+# The app (mobile/) also uses the website's src/ folder (CV renderer, dictionaries); the rest of
+# the website is left out to keep uploads small.
+
+# Everywhere
+node_modules/
+.DS_Store
+.env
+.env*.local
+*.local
+.cache/
+.expo/
+dist/
+web-build/
+
+# Website parts the app doesn't use
+craftcv/server/
+craftcv/public/
+craftcv/brand/
+craftcv/docs/
+craftcv/api/
+craftcv/scripts/
+craftcv/admin.html
+craftcv/venv/
+craftcv/.venv/
+craftcv/.vercel
+craftcv/i18n-export/
+craftcv/patch_*.cjs
+craftcv/_srvtest/
+
+# App: local-only files
+mobile/dist-web/
+mobile/ios/
+mobile/android/
+mobile/.kotlin/
+mobile/*.jks
+mobile/*.p8
+mobile/*.p12
+mobile/*.key
+mobile/*.mobileprovision
+mobile/*.pem
+mobile/expo-env.d.ts
+mobile/.metro-health-check*

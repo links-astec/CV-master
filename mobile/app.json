@@ -102,6 +102,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "81eaefa1-6407-482c-9b68-3788584ee4ec"
+      }
+    },
+    "owner": "gabbyquaye"
   }
 }
