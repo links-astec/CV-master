@@ -22,13 +22,15 @@ export async function maybeAskForStoreReview() {
   try {
     const first = Number(await SecureStore.getItemAsync(FIRST)) || Date.now()
     const asked = Number(await SecureStore.getItemAsync(ASKED)) || 0
-    if (Date.now() - first < 2 * DAY || Date.now() - asked < 120 * DAY) return
+    // While testing (Expo Go / dev builds) the sheet is offered every time, so it can be seen
+    if (!__DEV__ && (Date.now() - first < 2 * DAY || Date.now() - asked < 120 * DAY)) return
     if (!(await StoreReview.isAvailableAsync()) || !(await StoreReview.hasAction())) return
     await SecureStore.setItemAsync(ASKED, String(Date.now()))
     setTimeout(() => { StoreReview.requestReview().catch(() => {}) }, 1200)   // after the success screen has shown
   } catch {}
 }
 
-// "Rate CVMaster" in Settings: the app's page in the store (once it's published there)
+// "Rate CVMaster" in Settings: the app's page in the store, from app.json (android.playStoreUrl;
+// ios.appStoreUrl to add once the App Store gives the app its number)
 export const storePageUrl = (): string | null => (Platform.OS === 'web' ? null : StoreReview.storeUrl())
 export const openStorePage = () => { const u = storePageUrl(); if (u) Linking.openURL(u).catch(() => {}) }

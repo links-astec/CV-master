@@ -23,6 +23,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "live.cvmaster.app",
+      "playStoreUrl": "https://play.google.com/store/apps/details?id=live.cvmaster.app",
       "intentFilters": [
         {
           "action": "VIEW",
