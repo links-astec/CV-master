@@ -1,33 +1,57 @@
 <template>
-  <span class="brand" :class="[{ 'brand-sm': small, 'brand-lg': large }, { 'brand-dark': dark }]" role="img" aria-label="CVMaster">
-    <!-- The mark: a CV page with a tick (same drawing as brand/cvmaster-mark.svg) -->
-    <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
-      <rect width="64" height="64" rx="15" fill="#4338CA"/>
-      <path d="M21 11h15l11 11v27a4 4 0 0 1-4 4H21a4 4 0 0 1-4-4V15a4 4 0 0 1 4-4z" fill="#FFFFFF"/>
-      <path d="M36 11v7.5a3.5 3.5 0 0 0 3.5 3.5H47z" fill="#A5B4FC"/>
-      <path d="M23 19.5h8" stroke="#C7D2FE" stroke-width="3" stroke-linecap="round"/>
-      <path d="M23.5 37.5l6.5 6.5 12-12.5" fill="none" stroke="#4338CA" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <span class="brand" :class="[size, { 'on-dark': dark, 'on-blue': onBlue, animate, 'mark-only': markOnly }]" role="img" aria-label="CVMaster">
+    <svg :viewBox="markOnly ? MARK_BOX : LOCKUP_BOX" aria-hidden="true">
+      <defs>
+        <linearGradient :id="gid" gradientUnits="userSpaceOnUse" x1="30" y1="0" x2="104" y2="0">
+          <stop offset=".3" class="b-from" /><stop offset="1" class="b-to" />
+        </linearGradient>
+      </defs>
+      <g :transform="markOnly ? null : 'translate(0 3)'">
+        <path class="b-stroke" :d="MARK_PATH" pathLength="1" fill="none" :stroke="`url(#${gid})`" :stroke-width="MARK_STROKE" stroke-linecap="round" stroke-linejoin="round" />
+      </g>
+      <template v-if="!markOnly">
+        <path class="b-word b-cv" :d="WORD_CV" />
+        <path class="b-word b-master" :d="WORD_MASTER" />
+      </template>
     </svg>
-    <span v-if="!markOnly" class="brand-name" aria-hidden="true"><span class="brand-cv">CV</span>Master</span>
   </span>
 </template>
 
 <script setup>
-defineProps({ small: Boolean, large: Boolean, markOnly: Boolean, dark: Boolean })
+// The CVMaster logo (mark + "CV master"), drawn from brand/brand.mjs. Follows light / dark mode.
+// `animate` draws the stroke and brings the name in, for welcome moments.
+import { computed } from 'vue'
+import { MARK_PATH, MARK_STROKE, WORD_CV, WORD_MASTER, MARK_BOX, LOCKUP_BOX } from '../../brand/brand.mjs'
+const props = defineProps({ small: Boolean, large: Boolean, markOnly: Boolean, dark: Boolean, onBlue: Boolean, animate: Boolean })
+const size = computed(() => (props.small ? 'sm' : props.large ? 'lg' : 'md'))
+// Each logo on the page needs its own gradient id
+const gid = 'bl' + Math.random().toString(36).slice(2, 9)
 </script>
 
 <style scoped>
-.brand{display:inline-flex;align-items:center;gap:10px;text-decoration:none;font-family:'Plus Jakarta Sans',system-ui,sans-serif}
-.brand-mark{width:32px;height:32px;flex-shrink:0;display:block}
-.brand-name{font-size:19px;font-weight:800;letter-spacing:-.035em;color:#14142B;line-height:1}
-.brand-cv{color:#4338CA}
-.brand-sm .brand-mark{width:28px;height:28px}
-.brand-sm .brand-name{font-size:17px}
-.brand-lg{gap:14px}
-.brand-lg .brand-mark{width:44px;height:44px}
-.brand-lg .brand-name{font-size:26px}
-.brand-dark .brand-name{color:#FFFFFF}
-.brand-dark .brand-cv{color:#A5B4FC}
-:global([data-theme="dark"]) .brand .brand-name{color:#F3F4F6}
-:global([data-theme="dark"]) .brand .brand-cv{color:#A5B4FC}
+.brand{display:inline-flex;align-items:center;line-height:0}
+.brand svg{display:block;height:28px;width:auto;overflow:visible}
+.brand.sm svg{height:24px}
+.brand.lg svg{height:40px}
+.brand.mark-only svg{height:30px}
+.brand.mark-only.sm svg{height:24px}
+.brand.mark-only.lg svg{height:44px}
+.b-from{stop-color:var(--b-from,#14142B)}
+.b-to{stop-color:var(--b-to,#4338CA)}
+.b-word{fill:var(--b-text,#14142B)}
+:global([data-theme="dark"]){--b-from:#F3F4F6;--b-to:#8B85FF;--b-text:#F3F4F6}
+.brand.on-dark{--b-from:#F3F4F6;--b-to:#8B85FF;--b-text:#F3F4F6}
+.brand.on-blue{--b-from:#FFFFFF;--b-to:#A5B4FC;--b-text:#FFFFFF}
+
+/* Entrance: the stroke draws itself, then the name settles in */
+.animate .b-stroke{stroke-dasharray:1 2;stroke-dashoffset:1;animation:b-draw 1.15s cubic-bezier(.6,0,.25,1) .15s forwards}
+.animate .b-word{opacity:0;animation:b-in .7s cubic-bezier(.2,.7,.2,1) forwards}
+.animate .b-cv{animation-delay:.9s}
+.animate .b-master{animation-delay:1.02s}
+@keyframes b-draw{to{stroke-dashoffset:0}}
+@keyframes b-in{from{opacity:0;transform:translateX(-8px);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
+@media (prefers-reduced-motion:reduce){
+  .animate .b-stroke{stroke-dasharray:none;animation:none}
+  .animate .b-word{opacity:1;animation:none}
+}
 </style>

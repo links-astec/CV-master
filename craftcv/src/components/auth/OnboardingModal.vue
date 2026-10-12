@@ -3,7 +3,7 @@
     <div class="ob-root">
       <div class="ob-card" role="dialog" aria-labelledby="ob-title">
         <div class="ob-body">
-          <BrandLogo mark-only large />
+          <BrandLogo mark-only large animate />
           <h2 id="ob-title">{{ firstName ? $t('Welcome, {name}', { name: firstName }) : $t('Welcome') }}</h2>
           <p class="ob-lead">{{ $t('Three quick questions so the AI writes in the right tone for you. All optional.') }}</p>
 

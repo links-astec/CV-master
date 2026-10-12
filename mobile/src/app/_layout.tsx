@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Stack, router } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
@@ -18,6 +18,7 @@ import { DialogHost, confirm } from '@/components/dialogs'
 import { enablePush, markAsked, pushPreference, pushSupported, usePushTaps, wasAsked } from '@/lib/push'
 import { useReferralLinks } from '@/lib/referral'
 import { noteFirstOpen } from '@/lib/storeReview'
+import { BrandIntro } from '@/components/BrandIntro'
 
 SplashScreen.preventAutoHideAsync()
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000 } } })
@@ -41,6 +42,9 @@ function RootNavigator() {
   const tourOpen = useTourOpen()
   const welcomeDone = useWelcomeDone()
   const [langReady, setLangReady] = useState(false)
+  // The logo moment after the launch screen, once per launch
+  const [intro, setIntro] = useState(true)
+  const introDone = useCallback(() => setIntro(false), [])
   const [fonts] = useFonts({ PlusJakartaSans_400Regular, PlusJakartaSans_500Medium, PlusJakartaSans_600SemiBold, PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold })
 
   useEffect(() => { Promise.all([i18nReady, onboardingReady, currentReady]).finally(() => setLangReady(true)); noteFirstOpen() }, [])
@@ -104,6 +108,7 @@ function RootNavigator() {
       </Stack>
       <Tour />
       <DialogHost />
+      {intro && <BrandIntro onDone={introDone} />}
     </>
   )
 }

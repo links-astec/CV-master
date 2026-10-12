@@ -8,9 +8,10 @@ const { getDefaultConfig } = require('expo/metro-config')
 const config = getDefaultConfig(__dirname)
 
 const WEB_SRC = path.resolve(__dirname, '../craftcv/src')
+const WEB_BRAND = path.resolve(__dirname, '../craftcv/brand')   // the logo, defined once for site and app
 const APP_I18N = path.resolve(__dirname, 'src/i18n/index.ts')
 
-config.watchFolders = [...(config.watchFolders || []), WEB_SRC]
+config.watchFolders = [...(config.watchFolders || []), WEB_SRC, WEB_BRAND]
 
 // The CV fonts are bundled as files (assets/cv-fonts, see scripts/copy-cv-fonts.mjs)
 if (!config.resolver.assetExts.includes('woff2')) config.resolver.assetExts.push('woff2')

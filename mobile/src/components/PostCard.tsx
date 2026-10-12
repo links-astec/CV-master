@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { Image } from 'expo-image'
 import { Txt } from '@/components/kit'
-import { Mark } from '@/components/Logo'
+import { AppIcon, Mark } from '@/components/Logo'
 import { CATEGORY_LABEL, type Post } from '@/lib/blog'
 import { useLang } from '@/i18n'
 import { useTheme } from '@/lib/theme'
@@ -16,7 +16,7 @@ function Byline({ p }: { p: Post }) {
   const team = /cvmaster/i.test(author)
   return (
     <View style={styles.by}>
-      {team ? <Mark size={30} /> : (
+      {team ? <AppIcon size={30} /> : (
         <View style={[styles.av, { backgroundColor: c.accentSoft }]}>
           <Txt w={800} size={12} color={c.accent}>{author.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()}</Txt>
         </View>
@@ -39,7 +39,7 @@ export function PostCard({ p, compact, featured }: { p: Post; compact?: boolean;
     <Pressable onPress={() => router.push({ pathname: '/blog/[slug]', params: { slug: p.slug } })} accessibilityRole="button"
       style={({ pressed }) => [styles.card, { backgroundColor: c.surface, borderColor: c.border, opacity: pressed ? 0.9 : 1 }, compact && { width: 260 }]}>
       {p.cover ? <Image source={{ uri: p.cover }} style={styles.cover} contentFit="cover" transition={150} />
-        : <View style={[styles.cover, styles.ph, { backgroundColor: c.accentSoft }]}><View style={{ opacity: 0.4 }}><Mark size={48} /></View></View>}
+        : <View style={[styles.cover, styles.ph, { backgroundColor: c.accentSoft }]}><View style={{ opacity: 0.45 }}><Mark size={40} /></View></View>}
       <View style={[styles.body, featured && { padding: 18, gap: 8 }]}>
         <Txt w={700} size={13} color={c.accent}>{t(CATEGORY_LABEL[p.category])}</Txt>
         <Txt w={800} size={featured ? 23 : compact ? 16 : 18} numberOfLines={featured ? 4 : compact ? 2 : 3}

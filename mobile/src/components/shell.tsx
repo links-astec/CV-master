@@ -110,7 +110,7 @@ function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
       <View style={{ flex: 1, flexDirection: 'row' }}>
         <View style={[styles.menu, { backgroundColor: c.surface, paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}>
           <View style={styles.menuHead}>
-            <Logo size={40} />
+            <Logo size={30} />
             <View style={{ flex: 1 }} />
             <IconBtn icon={X} onPress={onClose} label={t('Close')} />
           </View>

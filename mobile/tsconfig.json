@@ -11,6 +11,9 @@
       ],
       "@web/*": [
         "../craftcv/src/*"
+      ],
+      "@brand/*": [
+        "../craftcv/brand/*"
       ]
     },
     "allowJs": true,
