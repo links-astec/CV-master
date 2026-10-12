@@ -239,6 +239,6 @@ a{color:var(--c-accent)}
 }
 
 /* ── REVEAL ON SCROLL (v-reveal) ────────────────────────────── */
-.rv{opacity:0;transform:translateY(24px);transition:opacity .9s var(--ease),transform .9s var(--ease)}
-.rv.in{opacity:1;transform:none}
-@media (prefers-reduced-motion:reduce){ .rv{opacity:1;transform:none;transition:none} }
+.reveal-up{opacity:0;transform:translateY(24px);transition:opacity .9s var(--ease),transform .9s var(--ease)}
+.reveal-up.revealed{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){ .reveal-up{opacity:1;transform:none;transition:none} }
