@@ -13,7 +13,7 @@ import { useAuth } from '@/lib/auth'
 import { referrerName, savedReferral } from '@/lib/referral'
 import { googleAvailable, googleIdToken } from '@/lib/google'
 import { appleAvailable, appleSignIn } from '@/lib/apple'
-import * as AppleAuthentication from 'expo-apple-authentication'
+import { AppleButton } from '@/components/AppleButton'
 import { useLang } from '@/i18n'
 import { useTheme } from '@/lib/theme'
 import { BRAND } from '@/brand'
@@ -180,10 +180,7 @@ export default function Auth() {
               <View style={[styles.orLine, { backgroundColor: c.border }]} />
             </View>
             {appleAvailable && (
-              <AppleAuthentication.AppleAuthenticationButton
-                buttonType={mode === 'signup' ? AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP : AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-                buttonStyle={dark ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-                cornerRadius={10} style={{ height: 50 }} onPress={() => { if (!busy) apple() }} />
+              <AppleButton signUp={mode === 'signup'} dark={dark} disabled={busy} onPress={apple} />
             )}
             {googleAvailable && <Pressable onPress={google} disabled={busy} accessibilityRole="button"
               style={({ pressed }) => [styles.google, { borderColor: c.border2, backgroundColor: c.surface, opacity: busy ? 0.6 : pressed ? 0.85 : 1 }]}>

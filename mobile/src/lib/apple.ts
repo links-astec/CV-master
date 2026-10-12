@@ -10,6 +10,8 @@ import * as AppleAuthentication from 'expo-apple-authentication'
 // For a quick test in Expo Go before the iPhone build exists: EXPO_PUBLIC_APPLE_IN_EXPO_GO=1 here and
 // APPLE_AUDIENCES=host.exp.Exponent on the server. Remove both afterwards (Expo Go's tokens aren't ours).
 const inExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient
+// Expo Go has Apple's sign-in but not Apple's native button, so it gets a look-alike (see AppleButton)
+export const appleNativeButton = !inExpoGo
 export const appleAvailable = Platform.OS === 'ios' && (!inExpoGo || process.env.EXPO_PUBLIC_APPLE_IN_EXPO_GO === '1')
 
 export type AppleSignIn = { identityToken: string; authorizationCode: string | null; fullName: { givenName: string | null; familyName: string | null } | null }

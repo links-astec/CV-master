@@ -38,7 +38,9 @@
     "Set new password": "Définir le nouveau mot de passe",
     "The microphone couldn’t start. Close other apps using it (calls, voice notes) and try again.": "Le micro n’a pas pu démarrer. Fermez les autres apps qui l’utilisent (appels, mémos vocaux) et réessayez.",
     "Nothing was recorded. Hold the phone close, speak, then tap stop.": "Rien n’a été enregistré. Tenez le téléphone près de vous, parlez, puis touchez stop.",
-    "Open settings": "Ouvrir les réglages"
+    "Open settings": "Ouvrir les réglages",
+    "Sign in with Apple": "Se connecter avec Apple",
+    "Sign up with Apple": "S’inscrire avec Apple"
   },
   "es": {
     "Preview": "Vista previa",
@@ -79,7 +81,9 @@
     "Set new password": "Guardar la nueva contraseña",
     "The microphone couldn’t start. Close other apps using it (calls, voice notes) and try again.": "No se pudo activar el micrófono. Cierra otras apps que lo usen (llamadas, notas de voz) e inténtalo de nuevo.",
     "Nothing was recorded. Hold the phone close, speak, then tap stop.": "No se grabó nada. Acerca el teléfono, habla y luego toca detener.",
-    "Open settings": "Abrir ajustes"
+    "Open settings": "Abrir ajustes",
+    "Sign in with Apple": "Iniciar sesión con Apple",
+    "Sign up with Apple": "Registrarse con Apple"
   },
   "de": {
     "Preview": "Vorschau",
@@ -120,7 +124,9 @@
     "Set new password": "Neues Passwort festlegen",
     "The microphone couldn’t start. Close other apps using it (calls, voice notes) and try again.": "Das Mikrofon konnte nicht starten. Schließen Sie andere Apps, die es nutzen (Anrufe, Sprachmemos), und versuchen Sie es erneut.",
     "Nothing was recorded. Hold the phone close, speak, then tap stop.": "Es wurde nichts aufgenommen. Halten Sie das Telefon nah, sprechen Sie und tippen Sie dann auf Stopp.",
-    "Open settings": "Einstellungen öffnen"
+    "Open settings": "Einstellungen öffnen",
+    "Sign in with Apple": "Mit Apple anmelden",
+    "Sign up with Apple": "Mit Apple registrieren"
   },
   "it": {
     "Preview": "Anteprima",
@@ -161,7 +167,9 @@
     "Set new password": "Imposta la nuova password",
     "The microphone couldn’t start. Close other apps using it (calls, voice notes) and try again.": "Il microfono non si è avviato. Chiudi le altre app che lo usano (chiamate, memo vocali) e riprova.",
     "Nothing was recorded. Hold the phone close, speak, then tap stop.": "Non è stato registrato nulla. Tieni il telefono vicino, parla, poi tocca stop.",
-    "Open settings": "Apri impostazioni"
+    "Open settings": "Apri impostazioni",
+    "Sign in with Apple": "Accedi con Apple",
+    "Sign up with Apple": "Iscriviti con Apple"
   },
   "pt": {
     "Preview": "Pré-visualizar",
@@ -202,7 +210,9 @@
     "Set new password": "Definir a nova senha",
     "The microphone couldn’t start. Close other apps using it (calls, voice notes) and try again.": "Não foi possível ligar o microfone. Feche outras apps que o estejam a usar (chamadas, notas de voz) e tente novamente.",
     "Nothing was recorded. Hold the phone close, speak, then tap stop.": "Nada foi gravado. Segure o telemóvel perto, fale e depois toque em parar.",
-    "Open settings": "Abrir definições"
+    "Open settings": "Abrir definições",
+    "Sign in with Apple": "Iniciar sessão com a Apple",
+    "Sign up with Apple": "Registar-se com a Apple"
   },
   "zh": {
     "Preview": "预览",
@@ -243,6 +253,8 @@
     "Set new password": "设置新密码",
     "The microphone couldn’t start. Close other apps using it (calls, voice notes) and try again.": "麦克风无法启动。请关闭正在使用它的其他应用（通话、语音备忘录）后重试。",
     "Nothing was recorded. Hold the phone close, speak, then tap stop.": "没有录到声音。请把手机靠近，说话后再点停止。",
-    "Open settings": "打开设置"
+    "Open settings": "打开设置",
+    "Sign in with Apple": "通过 Apple 登录",
+    "Sign up with Apple": "通过 Apple 注册"
   }
 }
