@@ -356,6 +356,33 @@ input[type=range]{flex:1;accent-color:var(--ac)}
   .tbl.cards td.acts{display:flex;gap:8px;flex-wrap:wrap}
   .tbl.cards td.acts .btn{flex:1}
   .tbl.cards .u-who span{overflow-wrap:anywhere}
+  /* Users: compact cards (who, sign-in and date, then the five numbers in one row) */
+  .tbl.cards.users-tbl tr{grid-template-columns:repeat(5,minmax(0,1fr));gap:10px 6px}
+  .tbl.cards.users-tbl td[data-label="Sign-in"]{grid-column:span 2}
+  .tbl.cards.users-tbl td[data-label="Joined"]{grid-column:span 3}
+  .tbl.cards.users-tbl td[data-label="CVs"],.tbl.cards.users-tbl td[data-label="Paid"],.tbl.cards.users-tbl td[data-label="Free CVs"],.tbl.cards.users-tbl td[data-label="AI"],.tbl.cards.users-tbl td[data-label="Invited"]{background:var(--s2);border-radius:10px;padding:8px 6px!important;text-align:center!important;font-weight:700}
+  .tbl.cards.users-tbl td[data-label]::before{font-size:9.5px;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tbl.cards.users-tbl td[data-label="Sign-in"]::before,.tbl.cards.users-tbl td[data-label="Joined"]::before{display:inline;margin-right:6px}
+  .tbl.cards.users-tbl .num-edit{display:flex;flex-direction:column;align-items:center;gap:0}
+  .tbl.cards.users-tbl .num-edit .btn{height:auto;padding:2px 4px;font-size:11.5px;color:var(--ac)}
+  /* Lists: filters and search take the full width */
+  .card-hd > div > .inp,.card-hd > div > select{flex:1 1 100%!important;width:100%!important}
+  .card-hd > div > .btn{flex:1}
+  /* Payments: name and email on one line each, the product and amount underneath */
+  .pay-row{flex-wrap:wrap;row-gap:6px;padding:12px 16px}
+  .pay-who{flex:1 1 calc(100% - 56px)}
+  .pay-who .muted{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pay-row > .badge{margin-left:52px}
+  .pay-row > .pay-amt{margin-left:auto}
+  /* Page header: the website link is under More; Refresh keeps only its icon */
+  .top-r a.btn{display:none}
+  .top{flex-wrap:nowrap}
+  .top p{font-size:12px}
+  /* Email preview: a phone shows the phone width; the controls wrap inside the card */
+  .email-right .card-head{flex-wrap:wrap;gap:8px}
+  .email-right .card-head .flex{flex-wrap:wrap;gap:6px}
+  .email-right .seg-sm:first-child{display:none}
+  .email-right .preview-iframe{width:100%!important;max-width:100%}
   /* Inbox: the list fits the screen (filters wrap instead of pushing it wider) */
   .ib{grid-template-columns:minmax(0,1fr)!important}
   .ib-tools .row{flex-wrap:wrap}
@@ -954,15 +981,15 @@ function renderUsers() {
     <div class="card-hd"><h3>${fmt(S.userTotal)} users</h3>
       <form data-form="user-search" style="display:flex;gap:8px"><input class="inp" id="u-q" placeholder="Search name or email…" value="${esc(S.uSearch)}" style="width:240px"><button class="btn">Search</button></form></div>
     ${S.usersLoading ? `<div class="loading"><div class="spinner"></div></div>` : `
-    <table class="tbl cards"><thead><tr><th>User</th><th>Sign-in</th><th>Joined</th><th>CVs</th><th>Paid</th><th>Free CVs</th><th>AI credits</th><th>Referred</th><th></th></tr></thead>
+    <table class="tbl cards users-tbl"><thead><tr><th>User</th><th>Sign-in</th><th>Joined</th><th>CVs</th><th>Paid</th><th>Free CVs</th><th>AI credits</th><th>Referred</th><th></th></tr></thead>
     <tbody>${!S.users.length ? `<tr><td colspan="9"><div class="empty">No users found</div></td></tr>` : S.users.map(u => `<tr>
       <td class="full"><div class="u-who"><div class="av">${esc(initials(u.name || u.email))}</div><div><b>${esc(u.name || u.email.split('@')[0])}</b><span>${esc(u.email)}</span></div></div></td>
       <td data-label="Sign-in"><span class="badge ${u.provider === 'google' ? 'b-sky' : u.provider === 'apple' ? 'b-gray' : 'b-gray'}">${esc(u.provider === 'google' ? 'Google' : u.provider === 'apple' ? 'Apple' : 'Email')}</span></td>
       <td data-label="Joined">${fmtDate(u.created_at)}</td>
       <td data-label="CVs">${fmt(u.draft_count)}</td><td data-label="Paid">${fmt(u.payment_count)}</td>
       <td data-label="Free CVs"><span class="num-edit"><b>${fmt(u.referral_credits)}</b><button class="btn btn-sm btn-ghost" data-edit="referral_credits" data-id="${u.id}" data-cur="${u.referral_credits}" data-label="Free CV credits for ${esc(u.email)}">Edit</button></span></td>
-      <td data-label="AI credits"><span class="num-edit"><b>${fmt(u.ai_credits)}</b><button class="btn btn-sm btn-ghost" data-edit="ai_credits" data-id="${u.id}" data-cur="${u.ai_credits || 0}" data-label="Extra AI requests for ${esc(u.email)}">Edit</button></span></td>
-      <td data-label="Referred">${fmt(u.referred_count)}</td>
+      <td data-label="AI"><span class="num-edit"><b>${fmt(u.ai_credits)}</b><button class="btn btn-sm btn-ghost" data-edit="ai_credits" data-id="${u.id}" data-cur="${u.ai_credits || 0}" data-label="Extra AI requests for ${esc(u.email)}">Edit</button></span></td>
+      <td data-label="Invited">${fmt(u.referred_count)}</td>
       <td class="full acts" style="white-space:nowrap"><button class="btn btn-sm" data-act="email-user" data-email="${esc(u.email)}">Email</button> <button class="btn btn-sm btn-danger" data-del="${u.id}" data-email="${esc(u.email)}">Delete</button></td></tr>`).join('')}</tbody></table>
     <div class="pager"><span>Page ${S.userPage} of ${pages}</span><div class="pg">
       ${S.userPage > 1 ? `<button class="btn btn-sm" data-page="${S.userPage - 1}">‹</button>` : ''}
@@ -1801,7 +1828,7 @@ function renderApp() {
     </aside>
     <div class="main">
       <header class="top"><div><h1>${title}</h1><p>${sub}</p></div>
-        <div class="top-r">${S.page === 'overview' ? `<button class="btn btn-sm" data-act="stats-refresh">${svg('refresh')} Refresh</button>` : ''}
+        <div class="top-r">${S.page === 'overview' ? `<button class="btn btn-sm" data-act="stats-refresh">${svg('refresh')}<span class="hide-sm"> Refresh</span></button>` : ''}
           <a class="btn btn-sm" href="https://www.cvmaster.live" target="_blank" rel="noopener">${svg('ext')} Open site</a></div></header>
       <div class="content ${S.page === 'inbox' ? 'flush' : ''}">${body}</div>
     </div>
