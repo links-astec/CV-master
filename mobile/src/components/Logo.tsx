@@ -1,7 +1,7 @@
 // The CVMaster logo, drawn from the same definition as the website (craftcv/brand/brand.mjs):
-// the mark (a "C" that sweeps into a tick), the "CV master" wordmark, and the app icon.
+// the mark (a "C" that sweeps into a tick), the "CVMaster" wordmark, and the app icon.
 import Svg, { ClipPath, Defs, G, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg'
-import { MARK_PATH, MARK_STROKE, WORD_CV, WORD_MASTER, THEMES } from '@brand/brand.mjs'
+import { MARK_PATH, MARK_STROKE, WORD_CV, WORD_MASTER, THEMES, LOCKUP_BOX } from '@brand/brand.mjs'
 import { useTheme } from '@/lib/theme'
 
 type Tone = 'auto' | 'light' | 'dark' | 'blue'
@@ -21,12 +21,12 @@ export function Mark({ size = 32, tone = 'auto' }: { size?: number; tone?: Tone 
   )
 }
 
-// Mark + "CV master". `size` is the height.
+// Mark + "CVMaster". `size` is the height.
 export function Logo({ size = 32, tone = 'auto' }: { size?: number; tone?: Tone }) {
   const t = useTone(tone)
   const id = uid('lg')
   return (
-    <Svg width={size * 326 / 64} height={size} viewBox="8 9 326 64" accessible accessibilityRole="image" accessibilityLabel="CVMaster">
+    <Svg width={size * 304 / 64} height={size} viewBox={LOCKUP_BOX} accessible accessibilityRole="image" accessibilityLabel="CVMaster">
       <Defs><LinearGradient id={id} gradientUnits="userSpaceOnUse" x1="30" y1="0" x2="104" y2="0"><Stop offset=".3" stopColor={t.from} /><Stop offset="1" stopColor={t.to} /></LinearGradient></Defs>
       <G transform="translate(0 3)"><Path d={MARK_PATH} fill="none" stroke={`url(#${id})`} strokeWidth={MARK_STROKE} strokeLinecap="round" strokeLinejoin="round" /></G>
       <Path d={WORD_CV} fill={t.text} />

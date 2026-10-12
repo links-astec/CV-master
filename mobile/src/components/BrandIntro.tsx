@@ -1,16 +1,16 @@
 // The launch moment (from the designer's reveal animation): the launch screen shows the mark in the
-// middle; here it glides left and settles while "CV master" comes in beside it, then the app appears.
+// middle; here it glides left and settles while "CVMaster" comes in beside it, then the app appears.
 // Runs once per launch, and not at all when the phone is set to reduce motion.
 import { useEffect, useRef } from 'react'
 import { AccessibilityInfo, Animated, Easing, StyleSheet, View } from 'react-native'
 import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg'
-import { MARK_PATH, MARK_STROKE, WORD_CV, WORD_MASTER, THEMES } from '@brand/brand.mjs'
+import { MARK_PATH, MARK_STROKE, WORD_CV, WORD_MASTER, THEMES, LOCKUP_BOX } from '@brand/brand.mjs'
 import { useTheme } from '@/lib/theme'
 
 const START = 120            // the mark's width on the launch screen (app.json → expo-splash-screen imageWidth)
 const H = 44                 // the finished logo's height
 const S = H / 64
-const W = 326 * S
+const W = 304 * S
 const MARK_W = 102 * S
 const MARK_H = 66 * S
 
@@ -61,7 +61,7 @@ export function BrandIntro({ onDone }: { onDone: () => void }) {
           </Svg>
         </Animated.View>
         <Animated.View style={[StyleSheet.absoluteFill, wordStyle]}>
-          <Svg width={W} height={H} viewBox="8 9 326 64">
+          <Svg width={W} height={H} viewBox={LOCKUP_BOX}>
             <Path d={WORD_CV} fill={t.text} />
             <Path d={WORD_MASTER} fill={t.text} />
           </Svg>

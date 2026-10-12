@@ -15,17 +15,20 @@ fs.mkdirSync(out('brand', 'animations'), { recursive: true })
 
 // 1. The designer's files, without the embedded content-credentials block (it's most of each file)
 const clean = (s) => s.replace(/<metadata>[\s\S]*?<\/metadata>/g, '').replace(/ xmlns:c2pa="[^"]*"/g, '')
+  .replace(/CV master/g, 'CVMaster').replace(/ — /g, ' ')   // the name is CVMaster; no em dashes
 if (fs.existsSync(SOURCE)) {
   const names = {
     'mark.svg': 'cvmaster-mark.svg', 'mark-dark.svg': 'cvmaster-mark-dark.svg', 'mark-on-blue.svg': 'cvmaster-mark-on-blue.svg',
-    'lockup.svg': 'cvmaster-logo.svg', 'lockup-dark.svg': 'cvmaster-logo-dark.svg', 'lockup-on-blue.svg': 'cvmaster-logo-on-blue.svg',
     'app-icon.svg': 'cvmaster-app-icon.svg', 'app-icon-square.svg': 'cvmaster-app-icon-square.svg', 'favicon.svg': 'cvmaster-favicon.svg',
   }
   for (const [from, to] of Object.entries(names)) fs.writeFileSync(out('brand', to), clean(fs.readFileSync(path.join(SOURCE, from), 'utf8')) + '\n')
   for (const f of fs.readdirSync(SOURCE).filter(f => f.endsWith('.html'))) fs.writeFileSync(out('brand', 'animations', f), clean(fs.readFileSync(path.join(SOURCE, f), 'utf8')))
 }
 
-// 2. Web SVGs
+// 2. The logo (mark + CVMaster, the wordmark from the reveal animation) for light, dark and indigo backgrounds
+for (const [theme, suffix] of [['light', ''], ['dark', '-dark'], ['blue', '-on-blue']]) fs.writeFileSync(out('brand', `cvmaster-logo${suffix}.svg`), lockupSvg({ theme, id: 'cvl' + suffix.replace('-', '') }) + '\n')
+
+// Web SVGs
 const BIMI = `<svg xmlns="http://www.w3.org/2000/svg" version="1.2" baseProfile="tiny-ps" viewBox="0 0 128 128"><title>CVMaster</title><rect width="128" height="128" fill="${COLORS.indigo}"/><g transform="translate(14 30) scale(0.85)"><path d="${MARK_PATH}" fill="none" stroke="#FFFFFF" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/></g></svg>\n`
 fs.writeFileSync(out('public/favicon.svg'), faviconSvg() + '\n')
 // BIMI: the brand picture mail apps show next to our emails (SVG Tiny PS: square, solid background)

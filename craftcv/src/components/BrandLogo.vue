@@ -10,18 +10,17 @@
         <path class="b-stroke" :d="MARK_PATH" pathLength="1" fill="none" :stroke="`url(#${gid})`" :stroke-width="MARK_STROKE" stroke-linecap="round" stroke-linejoin="round" />
       </g>
       <template v-if="!markOnly">
-        <path class="b-word b-cv" :d="WORD_CV" />
-        <path class="b-word b-master" :d="WORD_MASTER" />
+        <path v-for="(d, i) in WORD_LETTERS" :key="i" class="b-word" :d="d" :style="animate ? { animationDelay: (0.9 + i * 0.055).toFixed(3) + 's', '--dx': (i - 3.5) * 5 + 'px' } : null" />
       </template>
     </svg>
   </span>
 </template>
 
 <script setup>
-// The CVMaster logo (mark + "CV master"), drawn from brand/brand.mjs. Follows light / dark mode.
+// The CVMaster logo (mark + "CVMaster"), drawn from brand/brand.mjs. Follows light / dark mode.
 // `animate` draws the stroke and brings the name in, for welcome moments.
 import { computed } from 'vue'
-import { MARK_PATH, MARK_STROKE, WORD_CV, WORD_MASTER, MARK_BOX, LOCKUP_BOX } from '../../brand/brand.mjs'
+import { MARK_PATH, MARK_STROKE, WORD_LETTERS, MARK_BOX, LOCKUP_BOX } from '../../brand/brand.mjs'
 const props = defineProps({ small: Boolean, large: Boolean, markOnly: Boolean, dark: Boolean, onBlue: Boolean, animate: Boolean })
 const size = computed(() => (props.small ? 'sm' : props.large ? 'lg' : 'md'))
 // Each logo on the page needs its own gradient id
@@ -43,13 +42,11 @@ const gid = 'bl' + Math.random().toString(36).slice(2, 9)
 .brand.on-dark{--b-from:#F3F4F6;--b-to:#8B85FF;--b-text:#F3F4F6}
 .brand.on-blue{--b-from:#FFFFFF;--b-to:#A5B4FC;--b-text:#FFFFFF}
 
-/* Entrance: the stroke draws itself, then the name settles in */
+/* Entrance: the stroke draws itself, then the letters settle in one by one (as in the brand reveal) */
 .animate .b-stroke{stroke-dasharray:1 2;stroke-dashoffset:1;animation:b-draw 1.15s cubic-bezier(.6,0,.25,1) .15s forwards}
-.animate .b-word{opacity:0;animation:b-in .7s cubic-bezier(.2,.7,.2,1) forwards}
-.animate .b-cv{animation-delay:.9s}
-.animate .b-master{animation-delay:1.02s}
+.animate .b-word{opacity:0;animation:b-in .8s cubic-bezier(.2,.7,.2,1) forwards}
 @keyframes b-draw{to{stroke-dashoffset:0}}
-@keyframes b-in{from{opacity:0;transform:translateX(-8px);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
+@keyframes b-in{from{opacity:0;transform:translateX(var(--dx,-8px));filter:blur(5px)}to{opacity:1;transform:none;filter:none}}
 @media (prefers-reduced-motion:reduce){
   .animate .b-stroke{stroke-dasharray:none;animation:none}
   .animate .b-word{opacity:1;animation:none}
