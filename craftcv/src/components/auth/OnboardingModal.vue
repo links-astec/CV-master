@@ -76,7 +76,7 @@ const industries = INDUSTRIES, goals = GOALS, expLevels = LEVELS
 
 <style scoped>
 .ob-root{position:fixed;inset:0;z-index:1500;background:rgba(20,20,43,.55);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px}
-.ob-card{background:var(--c-surface);border-radius:20px;width:100%;max-width:540px;max-height:92dvh;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadow-xl);border:1px solid var(--c-border)}
+.ob-card{background:var(--c-surface);border-radius:20px;width:100%;max-width:540px;max-height:92dvh;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadow-xl);border:1px solid var(--hair)}
 .ob-body{padding:30px 30px 8px;overflow-y:auto}
 .ob-body h2{font-size:24px;font-weight:800;letter-spacing:-.02em;color:var(--c-text);margin:16px 0 6px}
 .ob-lead{font-size:14px;color:var(--c-text2);line-height:1.55;margin-bottom:22px}
@@ -84,7 +84,7 @@ const industries = INDUSTRIES, goals = GOALS, expLevels = LEVELS
 .ob-q{margin-bottom:20px}
 .ob-q-lbl{font-size:13px;font-weight:600;color:var(--c-text);margin-bottom:9px}
 .ob-chips{display:flex;flex-wrap:wrap;gap:7px}
-.ob-chip{height:34px;padding:0 13px;border-radius:99px;border:1px solid var(--c-border);background:var(--c-surface);
+.ob-chip{height:34px;padding:0 13px;border-radius:99px;border:1px solid var(--hair);background:var(--c-surface);
   font-size:13px;font-weight:500;color:var(--c-text2);display:inline-flex;align-items:center;gap:6px;transition:border-color .12s,background .12s,color .12s}
 .ob-chip:hover{border-color:var(--c-border2);color:var(--c-text)}
 .ob-chip.on{background:var(--c-accent-lt);border-color:var(--c-accent);color:var(--c-accent);font-weight:600}

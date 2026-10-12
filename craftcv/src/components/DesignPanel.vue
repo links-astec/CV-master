@@ -119,7 +119,7 @@ function undoTranslate() {
 .dp-val{font-weight:500;color:var(--c-text3)}
 .dp-layouts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
 .dp-layout{display:flex;flex-direction:column;gap:6px;padding:0;background:none;border:none;text-align:center;font-size:12px;font-weight:500;color:var(--c-text2)}
-.dp-layout :deep(.cvt){border-radius:6px;border:1px solid var(--c-border);box-shadow:var(--shadow-xs);transition:box-shadow .15s,border-color .15s}
+.dp-layout :deep(.cvt){border-radius:6px;border:1px solid var(--hair);box-shadow:var(--shadow-xs);transition:box-shadow .15s,border-color .15s}
 .dp-layout:hover :deep(.cvt){border-color:var(--c-border2);box-shadow:var(--shadow-sm)}
 .dp-layout.active{color:var(--c-accent);font-weight:600}
 .dp-layout.active :deep(.cvt){border-color:var(--c-accent);box-shadow:0 0 0 3px var(--c-accent-ring)}

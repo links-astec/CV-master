@@ -119,14 +119,14 @@ defineExpose({ show })
 
 <style scoped>
 .fb-backdrop{position:fixed;inset:0;z-index:9500;background:rgba(20,20,43,.5);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px}
-.fb{position:relative;width:100%;max-width:520px;max-height:92dvh;overflow-y:auto;background:var(--c-surface);border-radius:18px;padding:26px 26px 20px;box-shadow:var(--shadow-xl);border:1px solid var(--c-border)}
+.fb{position:relative;width:100%;max-width:520px;max-height:92dvh;overflow-y:auto;background:var(--c-surface);border-radius:18px;padding:26px 26px 20px;box-shadow:var(--shadow-xl);border:1px solid var(--hair)}
 .fb-x{position:absolute;top:14px;right:14px}
 .fb h3{font-size:19px;font-weight:700;letter-spacing:-.01em;color:var(--c-text);margin:0 30px 6px 0}
 .fb-sub{font-size:13.5px;color:var(--c-text2);line-height:1.55;margin-bottom:18px}
 .fb-lbl{display:block;font-size:13px;font-weight:600;color:var(--c-text);margin:14px 0 7px}
 .fb-opt{font-weight:400;color:var(--c-text3)}
 .fb-kinds{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.fb-kind{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 12px;border-radius:10px;border:1px solid var(--c-border);background:var(--c-surface);text-align:left;transition:border-color .12s,background .12s}
+.fb-kind{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 12px;border-radius:10px;border:1px solid var(--hair);background:var(--c-surface);text-align:left;transition:border-color .12s,background .12s}
 .fb-kind:hover{border-color:var(--c-border2)}
 .fb-kind.on{border-color:var(--c-accent);background:var(--c-accent-lt)}
 .fb-kind-t{font-size:13.5px;font-weight:600;color:var(--c-text)}

@@ -196,7 +196,7 @@ watch(() => store.wizardOpen, v => { document.body.style.overflow = v ? 'hidden'
 
 <style scoped>
 .wiz-backdrop{position:fixed;inset:0;z-index:7000;background:rgba(15,15,25,.45);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px}
-.wiz{width:100%;max-width:1240px;height:min(860px,calc(100vh - 40px));background:var(--c-surface);border-radius:20px;box-shadow:var(--shadow-xl);overflow:hidden;display:flex;border:1px solid var(--c-border)}
+.wiz{width:100%;max-width:1240px;height:min(860px,calc(100vh - 40px));background:var(--c-surface);border-radius:28px;box-shadow:var(--shadow-xl);overflow:hidden;display:flex;border:1px solid var(--hair)}
 .wiz-fade-enter-active,.wiz-fade-leave-active{transition:opacity .2s}
 .wiz-fade-enter-from,.wiz-fade-leave-to{opacity:0}
 
@@ -207,7 +207,7 @@ watch(() => store.wizardOpen, v => { document.body.style.overflow = v ? 'hidden'
 .wiz-pick-in h2{font-size:28px;font-weight:700;letter-spacing:-.025em}
 .wiz-pick-in > p{color:var(--c-text2);margin-top:8px;font-size:15px}
 .wiz-modes{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:32px}
-.wiz-mode{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:22px;border-radius:16px;border:1px solid var(--c-border);background:var(--c-surface);text-align:left;box-shadow:var(--shadow-xs);transition:border-color .15s,box-shadow .15s,transform .15s}
+.wiz-mode{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:22px;border-radius:16px;border:1px solid var(--hair);background:var(--c-surface);text-align:left;box-shadow:var(--shadow-xs);transition:border-color .15s,box-shadow .15s,transform .15s}
 .wiz-mode:hover{border-color:var(--c-accent);box-shadow:0 0 0 3px var(--c-accent-ring);transform:translateY(-2px)}
 .wiz-mode-ic{width:42px;height:42px;border-radius:12px;background:var(--c-accent-lt);display:flex;align-items:center;justify-content:center;margin-bottom:6px}
 .wiz-mode-ic svg{width:21px;height:21px;fill:none;stroke:var(--c-accent);stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}

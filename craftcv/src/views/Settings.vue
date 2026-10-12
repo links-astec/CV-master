@@ -23,7 +23,7 @@
           </div>
           <div class="st-row">
             <label class="st-lbl" for="st-pw">{{ $t('Password') }}</label>
-            <div v-if="!changingPw"><button class="btn-ghost btn-sm st-inline" @click="changingPw = true">{{ $t('Change password') }}</button></div>
+            <div v-if="!changingPw"><button class="btn-secondary btn-sm st-inline" @click="changingPw = true">{{ $t('Change password') }}</button></div>
             <div v-else class="st-pw-col">
               <input v-if="auth.user?.hasPassword ?? auth.user?.provider !== 'google'" class="f-inp" v-model="currentPassword" type="password" :placeholder="$t('Current password')" autocomplete="current-password" />
               <div class="st-pw">
@@ -416,7 +416,7 @@ watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota() } }
 <style scoped>
 .st{max-width:720px;display:flex;flex-direction:column;gap:16px}
 .st-h1{font-size:26px;font-weight:800;letter-spacing:-.025em;color:var(--c-text);margin-bottom:4px}
-.st-card{background:var(--c-surface);border:1px solid var(--c-border);border-radius:16px;padding:20px 22px;box-shadow:var(--shadow-xs)}
+.st-card{background:var(--c-surface);border:1px solid var(--hair);border-radius:16px;padding:20px 22px;box-shadow:var(--shadow-xs)}
 .st-card-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px}
 .st-card-t{font-size:15.5px;font-weight:700;color:var(--c-text);margin-bottom:4px}
 .st-p{font-size:13.5px;color:var(--c-text2);line-height:1.55}
@@ -457,7 +457,8 @@ watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota() } }
 .st-link .f-inp{flex:1;min-width:0;font-size:13px;color:var(--c-text2)}
 .st-share{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:10px;font-size:12.5px;color:var(--c-text3)}
 .st-share span{margin-right:4px}
-.st-share-btn{height:30px;padding:0 12px;border-radius:99px;border:1px solid var(--c-border);background:var(--c-surface);font-size:12.5px;font-weight:600;color:var(--c-text2)}
+.st-share-btn{height:32px;padding:0 14px;border-radius:999px;border:none;background:color-mix(in srgb,var(--c-text) 6%,var(--c-surface));font-size:12.5px;font-weight:600;color:var(--c-text);transition:background .2s var(--ease)}
+.st-share-btn:hover{background:color-mix(in srgb,var(--c-text) 10%,var(--c-surface))}
 .st-share-btn:hover{border-color:var(--c-border2);color:var(--c-text)}
 
 /* AI */
@@ -474,7 +475,7 @@ watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota() } }
 
 /* Help */
 .st-help{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
-.st-help > *{display:flex;flex-direction:column;gap:2px;text-align:left;padding:12px 14px;border-radius:12px;border:1px solid var(--c-border);background:var(--c-surface);text-decoration:none;font:inherit;cursor:pointer}
+.st-help > *{display:flex;flex-direction:column;gap:2px;text-align:left;padding:12px 14px;border-radius:12px;border:1px solid var(--hair);background:var(--c-surface);text-decoration:none;font:inherit;cursor:pointer}
 .st-help > *:hover{border-color:var(--c-border2);background:var(--c-surface2)}
 .st-help strong{font-size:13.5px;color:var(--c-text)}
 .st-help span{font-size:12px;color:var(--c-text3)}

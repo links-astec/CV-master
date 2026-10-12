@@ -243,8 +243,8 @@ defineExpose({ runScore })
 .ats-chip.green { background:var(--c-green-lt); color:var(--c-green); }
 .ats-chip.red   { background:var(--c-rose-lt);  color:var(--c-rose);  }
 
-.ats-section { background:var(--c-bg); border:1px solid var(--c-border); border-radius:var(--radius); padding:14px; }
-.ats-section-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--c-text3); margin-bottom:10px; }
+.ats-section { background:var(--c-bg); border:1px solid var(--hair); border-radius:var(--radius); padding:14px; }
+.ats-section-title { font-size:13px; font-weight:650; letter-spacing:-.005em; color:var(--c-text3); margin-bottom:10px; }
 .ats-keywords { display:flex; flex-wrap:wrap; gap:6px; }
 .ats-kw { display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:600; padding:3px 10px; border-radius:20px; }
 .ats-kw-match { background:var(--c-green-lt); color:var(--c-green); }

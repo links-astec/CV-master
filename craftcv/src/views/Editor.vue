@@ -127,7 +127,7 @@ function showDesign() {
 .ed-bar-l,.ed-bar-r{display:flex;align-items:center;gap:10px;min-width:0}
 .ed-bar-l{flex:1}
 .ed-bar-r{flex-shrink:0}
-.ed-design{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 10px 0 8px;border-radius:9px;border:1px solid var(--c-border);background:var(--c-surface);font-size:13px;font-weight:500;color:var(--c-text);white-space:nowrap}
+.ed-design{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 10px 0 8px;border-radius:9px;border:1px solid var(--hair);background:var(--c-surface);font-size:13px;font-weight:500;color:var(--c-text);white-space:nowrap}
 .ed-design:hover{border-color:var(--c-border2)}
 .ed-design svg{width:14px;height:14px;fill:none;stroke:var(--c-text3);stroke-width:2}
 .ed-design-l{overflow:hidden;text-overflow:ellipsis;min-width:0}

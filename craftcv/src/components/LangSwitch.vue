@@ -46,14 +46,14 @@ onUnmounted(() => { document.removeEventListener('click', onDoc); document.remov
 
 <style scoped>
 .lm{position:relative;flex-shrink:0}
-.lm-btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 10px;border:1px solid var(--c-border);border-radius:10px;background:var(--c-surface);color:var(--c-text);font-size:13px;font-weight:600;cursor:pointer}
+.lm-btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 10px;border:1px solid var(--hair);border-radius:10px;background:var(--c-surface);color:var(--c-text);font-size:13px;font-weight:600;cursor:pointer}
 .lm-btn:hover{border-color:var(--c-border2)}
 .lm-btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .lm-btn .lm-chev{width:13px;height:13px;color:var(--c-text3)}
 .lm-short{display:none}
 .lm-btn.big{width:100%;justify-content:flex-start;height:40px}
 .lm-btn.big .lm-chev{margin-left:auto}
-.lm-list{position:absolute;right:0;top:calc(100% + 6px);z-index:900;min-width:170px;list-style:none;margin:0;padding:6px;background:var(--c-surface);border:1px solid var(--c-border);border-radius:12px;box-shadow:var(--shadow-lg)}
+.lm-list{position:absolute;right:0;top:calc(100% + 6px);z-index:900;min-width:170px;list-style:none;margin:0;padding:6px;background:var(--c-surface);border:1px solid var(--hair);border-radius:12px;box-shadow:var(--shadow-lg)}
 .lm-list.up{top:auto;bottom:calc(100% + 6px)}
 .lm-list button{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:8px 10px;border:none;border-radius:8px;background:none;color:var(--c-text);font-size:14px;text-align:left;cursor:pointer}
 .lm-list button:hover{background:var(--c-surface2)}

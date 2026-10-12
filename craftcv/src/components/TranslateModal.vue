@@ -147,11 +147,11 @@ function apply(translate) {
 .tr-spin{width:22px;height:22px;border-radius:50%;border:3px solid var(--c-border);border-top-color:var(--c-accent);animation:spin .8s linear infinite}
 .tr-list{overflow-y:auto;min-height:0;flex:1;margin:0 -4px;padding:0 4px}
 .tr-toolbar{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--c-text3);margin-bottom:10px}
-.tr-item{display:flex;gap:11px;padding:12px 14px;border:1px solid var(--c-border);border-radius:12px;margin-bottom:8px;cursor:pointer;background:var(--c-surface)}
+.tr-item{display:flex;gap:11px;padding:12px 14px;border:1px solid var(--hair);border-radius:12px;margin-bottom:8px;cursor:pointer;background:var(--c-surface)}
 .tr-item.off{opacity:.55}
 .tr-item input{margin-top:3px;width:16px;height:16px;accent-color:var(--c-accent);flex-shrink:0}
 .tr-body{flex:1;min-width:0}
-.tr-lbl{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--c-text3);margin-bottom:6px}
+.tr-lbl{font-size:13px;font-weight:650;letter-spacing:-.005em;color:var(--c-text3);margin-bottom:6px}
 .tr-before,.tr-after{font-size:13px;line-height:1.55;white-space:pre-line;overflow-wrap:anywhere;padding:7px 9px;border-radius:8px}
 .tr-before{background:var(--c-surface2);color:var(--c-text3);margin-bottom:5px}
 .tr-after{background:var(--c-accent-lt);color:var(--c-text)}

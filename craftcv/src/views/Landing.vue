@@ -126,7 +126,17 @@
                   <div class="v-lock"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2.5" /><path d="M8 11V7.5a4 4 0 018 0V11" /></svg></div>
                 </template>
                 <template v-else>
-                  <div class="v-phone"><div class="v-phone-in"><CvThumb template="sidebar:indigo" :data="sampleCv()" /></div></div>
+                  <div class="v-devices">
+                    <div class="v-browser"><div class="v-bar"><i></i><i></i><i></i><span>cvmaster.live</span></div>
+                      <div class="v-browser-in"><div class="v-browser-page"><CvThumb template="modern:indigo" :data="sampleCv()" /></div></div></div>
+                    <div class="v-handset"><span class="v-island"></span><div class="v-screen">
+                      <div class="v-app-hd">{{ $t('My CVs') }}</div>
+                      <div class="v-app-card"><div class="v-app-thumb"><CvThumb template="sidebar:indigo" :data="sampleCv()" /></div>
+                        <div class="v-app-t">{{ sampleCv().fn }} {{ sampleCv().ln }}</div><div class="v-app-s">Sidebar · {{ $t('Indigo') }}</div>
+                        <div class="v-app-btns"><span>{{ $t('Open') }}</span><span class="pri">{{ $t('Download') }}</span></div></div>
+                      <div class="v-app-card v-app-peek"><div class="v-app-thumb"><CvThumb template="harvard:charcoal" :data="sampleCv()" /></div></div>
+                    </div></div>
+                  </div>
                 </template>
               </div>
             </Transition>
@@ -540,8 +550,25 @@ const FAQ = [
 .v-honest{width:min(440px,92%)}
 .v-lock{width:180px;height:180px;border-radius:50%;background:radial-gradient(circle at 30% 25%,#6A60F2,#4338CA 55%,#2A2390);display:flex;align-items:center;justify-content:center;box-shadow:0 30px 70px rgba(67,56,202,.35)}
 .v-lock svg{width:76px;height:76px;fill:none;stroke:#fff;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-.v-phone{width:250px;height:510px;border-radius:46px;background:#0C0C10;padding:12px;box-shadow:0 40px 90px rgba(20,20,43,.3),inset 0 0 0 2px #34343E}
-.v-phone-in{width:100%;height:100%;border-radius:36px;overflow:hidden;background:#fff;display:flex;align-items:flex-start}
+.v-devices{position:relative;width:100%;height:460px}
+.v-browser{position:absolute;left:0;top:44px;width:80%;border-radius:16px;background:#fff;overflow:hidden;box-shadow:0 2px 6px rgba(20,20,43,.05),0 30px 70px rgba(20,20,43,.16);border:1px solid rgba(20,20,43,.06)}
+.v-bar{height:32px;display:flex;align-items:center;gap:6px;padding:0 14px;background:#F2F2F7}
+.v-bar i{width:10px;height:10px;border-radius:50%;background:#D9D9E2}
+.v-bar span{margin:0 auto;padding:0 40px;height:20px;border-radius:7px;background:#fff;font-size:10.5px;font-weight:500;color:#8B909C;display:flex;align-items:center}
+.v-browser-in{height:320px;overflow:hidden;background:#ECECF0;padding:22px 0 0}
+.v-browser-page{width:58%;margin:0 0 0 12%;box-shadow:0 10px 30px rgba(20,20,43,.12)}
+.v-handset{position:absolute;right:0;top:0;width:212px;height:436px;border-radius:46px;background:#0C0C10;padding:9px;box-shadow:0 40px 90px rgba(20,20,43,.32),inset 0 0 0 1.5px #3A3A44}
+.v-island{position:absolute;top:19px;left:50%;transform:translateX(-50%);width:64px;height:19px;border-radius:12px;background:#0C0C10;z-index:2}
+.v-screen{width:100%;height:100%;border-radius:38px;overflow:hidden;background:#F5F5FA;padding:50px 13px 0}
+.v-app-hd{font-size:20px;font-weight:800;letter-spacing:-.03em;color:#14142B;margin:0 4px 12px}
+.v-app-card{background:#fff;border-radius:16px;padding:8px;box-shadow:0 1px 2px rgba(20,20,43,.04),0 4px 14px rgba(20,20,43,.06);margin-bottom:10px}
+.v-app-thumb{height:132px;overflow:hidden;border-radius:9px;box-shadow:inset 0 0 0 1px rgba(20,20,43,.06)}
+.v-app-t{font-size:12.5px;font-weight:700;letter-spacing:-.01em;color:#14142B;margin:9px 4px 1px}
+.v-app-s{font-size:10.5px;color:#6B6B84;margin:0 4px 9px}
+.v-app-btns{display:flex;gap:6px}
+.v-app-btns span{flex:1;text-align:center;font-size:10.5px;font-weight:600;padding:7px 0;border-radius:999px;background:#EFEFF4;color:#14142B}
+.v-app-btns .pri{background:#4338CA;color:#fff}
+.v-app-peek .v-app-thumb{height:120px}
 
 /* Templates */
 .lp-dots{display:flex;justify-content:center;gap:10px;margin-top:34px;flex-wrap:wrap}
@@ -641,7 +668,11 @@ const FAQ = [
   .lp-explore{grid-template-columns:1fr;padding:28px;gap:28px;min-height:0}
   .lp-show{min-height:360px;order:-1}
   .v-fan{height:330px}
-  .v-phone{width:200px;height:410px;border-radius:38px}
+  .v-devices{height:400px;max-width:520px}
+  .v-handset{width:180px;height:372px;border-radius:40px}
+  .v-screen{border-radius:32px;padding-top:44px}
+  .v-app-thumb{height:108px}
+  .v-browser-in{height:270px}
   .lp-tpls{grid-template-columns:1fr 1fr;gap:20px}
   .lp-reviews,.lp-prices,.lp-posts{grid-template-columns:1fr}
   .lp-news{grid-template-columns:1fr;gap:24px}
@@ -672,6 +703,17 @@ const FAQ = [
   .lp-pill-hd{font-size:15px;padding:13px 18px 13px 12px}
   .lp-show{min-height:300px}
   .v-fan{height:270px}
+  .v-devices{height:320px}
+  .lp-show{min-height:350px}
+  .v-browser{top:30px;width:86%;border-radius:12px}
+  .v-browser-in{height:210px;padding-top:14px}
+  .v-handset{width:146px;height:300px;border-radius:34px;padding:7px}
+  .v-island{top:14px;width:46px;height:14px}
+  .v-screen{border-radius:28px;padding:34px 9px 0}
+  .v-app-hd{font-size:15px;margin-bottom:8px}
+  .v-app-card{border-radius:12px;padding:6px}
+  .v-app-thumb{height:84px}
+  .v-app-t{font-size:10.5px}.v-app-s{font-size:9px}.v-app-btns span{font-size:9px;padding:5px 0}
   .lp-faq summary{font-size:16.5px}
   .lp-final{padding:110px 0}
   .lp-news-row{flex-direction:column}
