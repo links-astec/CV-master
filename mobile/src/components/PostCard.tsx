@@ -41,11 +41,7 @@ export function PostCard({ p, compact, featured }: { p: Post; compact?: boolean;
       {p.cover ? <Image source={{ uri: p.cover }} style={styles.cover} contentFit="cover" transition={150} />
         : <View style={[styles.cover, styles.ph, { backgroundColor: c.accentSoft }]}><View style={{ opacity: 0.4 }}><Mark size={48} /></View></View>}
       <View style={[styles.body, featured && { padding: 18, gap: 8 }]}>
-        {featured ? (
-          <View style={[styles.pill, { backgroundColor: c.accentSoft }]}>
-            <Txt w={800} size={11} color={c.accent} style={{ letterSpacing: 0.8, textTransform: 'uppercase' }}>{t('Latest')} · {t(CATEGORY_LABEL[p.category])}</Txt>
-          </View>
-        ) : <Txt w={800} size={11} color={c.accent} style={{ letterSpacing: 0.8, textTransform: 'uppercase' }}>{t(CATEGORY_LABEL[p.category])}</Txt>}
+        <Txt w={700} size={13} color={c.accent}>{t(CATEGORY_LABEL[p.category])}</Txt>
         <Txt w={800} size={featured ? 23 : compact ? 16 : 18} numberOfLines={featured ? 4 : compact ? 2 : 3}
           style={{ lineHeight: featured ? 29 : compact ? 21 : 24, letterSpacing: featured ? -0.4 : 0 }}>{p.title}</Txt>
         {!compact && !!p.excerpt && <Txt size={featured ? 15.5 : 14.5} color={c.text2} numberOfLines={3} style={{ lineHeight: featured ? 23 : 21 }}>{p.excerpt}</Txt>}
@@ -62,7 +58,6 @@ const styles = StyleSheet.create({
   cover: { width: '100%', aspectRatio: 16 / 9 },
   ph: { alignItems: 'center', justifyContent: 'center' },
   body: { padding: 16, gap: 6 },
-  pill: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99 },
   by: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 },
   av: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
 })
