@@ -82,7 +82,7 @@ async function downloadFree() {
 .wm-hd{margin-bottom:18px;padding-right:24px}
 .wm-hd h2{font-size:21px;font-weight:800;letter-spacing:-.025em}
 .wm-hd p{color:var(--c-text2);margin-top:6px;line-height:1.55}
-.wm-opt{width:100%;display:flex;align-items:center;gap:14px;padding:16px;margin-bottom:10px;border-radius:12px;border:1px solid var(--c-border);background:var(--c-surface);text-align:left;transition:border-color .15s,box-shadow .15s}
+.wm-opt{width:100%;display:flex;align-items:center;gap:14px;padding:16px;margin-bottom:10px;border-radius:12px;border:1px solid var(--hair);background:var(--c-surface);text-align:left;transition:border-color .15s,box-shadow .15s}
 .wm-opt:hover:not(:disabled){border-color:var(--c-border2);box-shadow:var(--shadow-sm)}
 .wm-opt.featured{border-color:var(--c-accent);box-shadow:0 0 0 1px var(--c-accent)}
 .wm-opt:disabled{opacity:.6;cursor:wait}

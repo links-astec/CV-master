@@ -295,7 +295,7 @@ function fixStep(stepIndex) {
 .ck-bar div{height:100%;border-radius:99px;background:var(--c-green);transition:width .4s ease}
 .ck-good{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:10px;background:var(--c-green-lt);color:var(--c-text);font-size:13px;line-height:1.5}
 .ck-good svg{width:16px;height:16px;flex-shrink:0;margin-top:2px;fill:none;stroke:var(--c-green);stroke-width:3}
-.ck-item{display:flex;align-items:center;gap:12px;padding:11px 12px;border:1px solid var(--c-border);border-radius:10px;background:var(--c-surface)}
+.ck-item{display:flex;align-items:center;gap:12px;padding:11px 12px;border:1px solid var(--hair);border-radius:10px;background:var(--c-surface)}
 .ck-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--c-amber)}
 .ck-item.error .ck-dot{background:var(--c-rose)}
 .ck-body{flex:1;min-width:0}

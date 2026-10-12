@@ -98,7 +98,7 @@ defineExpose({ show })
 /* Step components are reused here. Hide their wizard-style headings */
 .ced-acc :deep(.step-intro),.ced-acc :deep(.step-title),.ced-acc :deep(.step-sub){display:none}
 
-.acc{border:1px solid var(--c-border);border-radius:12px;background:var(--c-surface);margin-bottom:10px;overflow:hidden;transition:box-shadow .15s}
+.acc{border:1px solid var(--hair);border-radius:12px;background:var(--c-surface);margin-bottom:10px;overflow:hidden;transition:box-shadow .15s}
 .acc.open{box-shadow:var(--shadow-sm)}
 .acc-hd{width:100%;display:flex;align-items:center;gap:11px;padding:13px 14px;background:none;border:none;text-align:left}
 .acc-hd:hover{background:var(--c-surface2)}

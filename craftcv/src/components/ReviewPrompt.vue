@@ -72,7 +72,7 @@ async function send() {
 </script>
 
 <style scoped>
-.rv{border:1px solid var(--c-border);border-radius:14px;padding:14px 16px;background:var(--c-surface);text-align:left}
+.rv{border:1px solid var(--hair);border-radius:14px;padding:14px 16px;background:var(--c-surface);text-align:left}
 .rv.compact{margin-top:18px}
 .rv-q{font-size:14px;font-weight:700;color:var(--c-text)}
 .rv-stars{display:flex;gap:2px;margin:6px 0 4px}

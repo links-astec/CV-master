@@ -89,7 +89,7 @@ async function pick(l) {
 .tp-sw{width:22px;height:22px;border-radius:50%;border:none;background:var(--sw);box-shadow:inset 0 0 0 1px rgba(0,0,0,.12);transition:transform .12s}
 .tp-sw:hover{transform:scale(1.12)}
 .tp-sw.active{box-shadow:0 0 0 2px var(--c-bg),0 0 0 4px var(--sw)}
-.tp-auto{height:26px;padding:0 10px;border-radius:99px;border:1px solid var(--c-border);background:var(--c-surface);font-size:12.5px;font-weight:600;color:var(--c-text2)}
+.tp-auto{height:26px;padding:0 10px;border-radius:99px;border:1px solid var(--hair);background:var(--c-surface);font-size:12.5px;font-weight:600;color:var(--c-text2)}
 .tp-auto.active{border-color:var(--c-accent);color:var(--c-accent);background:var(--c-accent-lt)}
 .tp-count{font-size:11.5px;opacity:.6;font-weight:500;margin-left:2px}
 
@@ -97,7 +97,7 @@ async function pick(l) {
 .tp-filter-note{font-size:13.5px;color:var(--c-text2)}
 .tp-name .badge{margin-left:6px;vertical-align:1px}
 .tp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:22px}
-.tp-card{display:flex;flex-direction:column;padding:0;background:var(--c-surface);border:1px solid var(--c-border);border-radius:14px;overflow:hidden;text-align:left;
+.tp-card{display:flex;flex-direction:column;padding:0;background:var(--c-surface);border:1px solid var(--hair);border-radius:14px;overflow:hidden;text-align:left;
   box-shadow:var(--shadow-xs);transition:box-shadow .18s,transform .18s,border-color .18s}
 .tp-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-3px)}
 .tp-card.current{border-color:var(--c-accent);box-shadow:0 0 0 2px var(--c-accent-ring)}

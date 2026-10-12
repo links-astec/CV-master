@@ -335,8 +335,8 @@ defineExpose({ handleStripeReturn })
 .pw-ok svg{width:26px;height:26px;fill:none;stroke:var(--c-green);stroke-width:2.6}
 .pw-warn{background:var(--c-amber-lt)}
 .pw-warn svg{width:26px;height:26px;fill:none;stroke:var(--c-amber);stroke-width:2}
-.pw-price{border:1px solid var(--c-border);border-radius:12px;padding:16px 18px;margin-bottom:18px;background:var(--c-surface2)}
-.pw-amt{font-size:28px;font-weight:700;letter-spacing:-.02em}
+.pw-price{border:none;border-radius:20px;padding:20px 22px;margin-bottom:20px;background:color-mix(in srgb,var(--c-text) 4%,var(--c-surface))}
+.pw-amt{font-size:34px;font-weight:800;letter-spacing:-.04em}
 .pw-amt span{font-size:13px;font-weight:500;color:var(--c-text3);letter-spacing:0}
 .pw-price ul{list-style:none;margin-top:10px;display:flex;flex-direction:column;gap:7px}
 .pw-price li{display:flex;gap:8px;font-size:13.5px;color:var(--c-text2)}

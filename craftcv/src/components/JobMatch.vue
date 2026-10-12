@@ -236,12 +236,12 @@ onMounted(() => { if (!hasJob.value) draft.value = store.data.jobOffer || ''; ch
 .jm-intro h3{font-size:17px;font-weight:700;color:var(--c-text);letter-spacing:-.01em;margin-bottom:4px}
 .jm-intro p{font-size:13px;color:var(--c-text2);line-height:1.55;margin-bottom:4px}
 
-.jm-step{border:1px solid var(--c-border);border-radius:12px;background:var(--c-surface);padding:14px 16px;display:flex;flex-direction:column;gap:10px;transition:border-color .15s,box-shadow .15s}
+.jm-step{border:1px solid var(--hair);border-radius:12px;background:var(--c-surface);padding:14px 16px;display:flex;flex-direction:column;gap:10px;transition:border-color .15s,box-shadow .15s}
 .jm-step.active{border-color:var(--c-accent);box-shadow:0 0 0 3px var(--c-accent-lt)}
 .jm-step.locked{background:transparent;border-style:dashed}
 .jm-step.locked .jm-step-ttl{color:var(--c-text3)}
 .jm-step-hd{display:flex;align-items:center;gap:10px}
-.jm-num{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:700;background:var(--c-surface2);color:var(--c-text3);border:1px solid var(--c-border)}
+.jm-num{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:700;background:var(--c-surface2);color:var(--c-text3);border:1px solid var(--hair)}
 .jm-step.active .jm-num{background:var(--c-accent);color:#fff;border-color:var(--c-accent)}
 .jm-step.done .jm-num{background:var(--c-green);border-color:var(--c-green)}
 .jm-num svg{width:13px;height:13px;fill:none;stroke:#fff;stroke-width:3}
@@ -253,13 +253,13 @@ onMounted(() => { if (!hasJob.value) draft.value = store.data.jobOffer || ''; ch
 
 .jm-job{background:var(--c-bg);border-radius:8px;padding:10px 12px}
 .jm-target{font-size:13px;color:var(--c-text);margin-bottom:6px}
-.jm-fit{margin-top:12px;border:1px solid var(--c-border);border-radius:10px;padding:12px 14px;background:var(--c-surface);font-size:13px;line-height:1.5}
+.jm-fit{margin-top:12px;border:1px solid var(--hair);border-radius:10px;padding:12px 14px;background:var(--c-surface);font-size:13px;line-height:1.5}
 .jm-fit.loading{display:flex;align-items:center;gap:10px;color:var(--c-text2)}
 .jm-fit.good{border-color:color-mix(in srgb,var(--c-green) 40%,transparent);background:color-mix(in srgb,var(--c-green) 6%,var(--c-surface))}
 .jm-fit.stretch{border-color:color-mix(in srgb,var(--c-amber) 45%,transparent);background:color-mix(in srgb,var(--c-amber) 7%,var(--c-surface))}
 .jm-fit.poor{border-color:color-mix(in srgb,var(--c-rose) 45%,transparent);background:color-mix(in srgb,var(--c-rose) 7%,var(--c-surface))}
 .jm-fit-hd{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}
-.jm-fit-badge{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.jm-fit-badge{font-size:13px;font-weight:650;letter-spacing:-.005em}
 .jm-fit.good .jm-fit-badge{color:var(--c-green)}.jm-fit.stretch .jm-fit-badge{color:var(--c-amber)}.jm-fit.poor .jm-fit-badge{color:var(--c-rose)}
 .jm-fit-ttl{font-weight:600;color:var(--c-text)}
 .jm-fit-list{margin:8px 0 0 18px;color:var(--c-text2)}
@@ -287,7 +287,7 @@ onMounted(() => { if (!hasJob.value) draft.value = store.data.jobOffer || ''; ch
 .jm-step :deep(.btn-ai){margin:0}
 
 .jm-check{margin-top:10px;display:flex;flex-direction:column;gap:10px}
-.jm-check-hd{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--c-text3)}
+.jm-check-hd{font-size:13px;font-weight:650;letter-spacing:-.005em;color:var(--c-text3)}
 
 .jm-cta{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:8px;padding:14px 16px;border-radius:12px;background:var(--c-accent-lt)}
 .jm-cta-ttl{font-size:14px;font-weight:700;color:var(--c-text)}

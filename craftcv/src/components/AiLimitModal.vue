@@ -88,7 +88,7 @@ defineExpose({ show })
 
 <style scoped>
 .al-backdrop{position:fixed;inset:0;z-index:9600;background:rgba(20,20,43,.5);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px}
-.al{width:100%;max-width:440px;background:var(--c-surface);border-radius:18px;padding:26px 24px 16px;box-shadow:var(--shadow-xl);border:1px solid var(--c-border);text-align:center}
+.al{width:100%;max-width:440px;background:var(--c-surface);border-radius:18px;padding:26px 24px 16px;box-shadow:var(--shadow-xl);border:1px solid var(--hair);text-align:center}
 .al-ic{width:48px;height:48px;border-radius:14px;background:var(--c-accent-lt);display:flex;align-items:center;justify-content:center;margin:0 auto 12px}
 .al-ic svg{width:22px;height:22px;fill:var(--c-accent)}
 .al h3{font-size:19px;font-weight:700;letter-spacing:-.01em;color:var(--c-text);margin-bottom:8px}
