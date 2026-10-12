@@ -219,6 +219,32 @@ CREATE TABLE IF NOT EXISTS feedback (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- BLOG (also created on demand, server/blog.js): posts and their translations, uploaded images
+CREATE TABLE IF NOT EXISTS posts (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id     UUID NOT NULL DEFAULT gen_random_uuid(),
+  lang         TEXT NOT NULL DEFAULT 'en',
+  slug         TEXT UNIQUE NOT NULL,
+  title        TEXT NOT NULL,
+  excerpt      TEXT NOT NULL DEFAULT '',
+  body_md      TEXT NOT NULL DEFAULT '',
+  body_html    TEXT NOT NULL DEFAULT '',
+  cover_url    TEXT,
+  category     TEXT NOT NULL DEFAULT 'article',
+  source_name  TEXT,
+  source_url   TEXT,
+  status       TEXT NOT NULL DEFAULT 'draft',
+  author       TEXT,
+  views        INT NOT NULL DEFAULT 0,
+  published_at TIMESTAMPTZ,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS posts_pub ON posts(status, published_at DESC);
+CREATE TABLE IF NOT EXISTS post_images (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), mime TEXT NOT NULL, data BYTEA NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- SIGN IN WITH APPLE (iPhone app; also created on demand, server/apple.js)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS apple_id TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS apple_refresh_token TEXT;

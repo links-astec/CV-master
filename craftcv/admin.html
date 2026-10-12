@@ -192,6 +192,17 @@ textarea.inp{height:auto;padding:10px 12px;line-height:1.55;resize:vertical}
 
 /* ── Settings ── */
 .set-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.pe{display:flex;flex-direction:column;gap:14px}
+.pe-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pe-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.pe-tools{display:flex;gap:2px;flex-wrap:wrap}
+.pe-split{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pe-md{min-height:420px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13.5px}
+.pe-pv{min-height:420px;max-height:640px;overflow:auto;border:1px solid var(--b1);border-radius:10px;padding:14px 16px;background:var(--s1)}
+.pe-split.write .pe-pv{display:block}.pe-acts{display:flex;gap:8px;flex-wrap:wrap}
+.prose{font-size:15px;line-height:1.7}.prose h2{font-size:20px;margin:18px 0 6px}.prose h3{font-size:17px;margin:14px 0 4px}.prose p{margin:0 0 12px}
+.prose img{max-width:100%;border-radius:8px}.prose blockquote{margin:12px 0;padding-left:12px;border-left:3px solid var(--ac);color:var(--t2)}.prose ul,.prose ol{padding-left:20px;margin:0 0 12px}
+@media (max-width:760px){ .pe-row{grid-template-columns:1fr} .pe-split{grid-template-columns:1fr} .pe-split.write .pe-pv{display:none} .pe-split.preview .pe-md{display:none} .pe-acts .btn{flex:1} }
 .rv-row{padding:16px 20px;border-top:1px solid var(--b1);display:flex;flex-direction:column;gap:10px}
 .rv-top{display:flex;align-items:flex-start;gap:12px}
 .rv-who{flex:1;min-width:0;font-size:13.5px}
@@ -419,6 +430,7 @@ const S = {
   blocks: [], dragSrc: null,
   login: { email: '', password: '', err: '', loading: false, remember: false },
   status: null, statusLoading: false,
+  blog: { items: null, loading: false, edit: null, saving: false, tab: 'write' },
   toast: '',
 };
 
@@ -442,6 +454,7 @@ let _toastT;
 function toast(msg) { S.toast = msg; render(); clearTimeout(_toastT); _toastT = setTimeout(() => { S.toast = ''; render() }, 3200) }
 
 const ICON = {
+  blog: '<path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>',
   menu: '<line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>',
   app: '<rect x="7" y="2" width="10" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/>',
   overview: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
@@ -491,6 +504,7 @@ const PAGES = {
   reviews:    ['Reviews', 'Ratings from people who made a CV. Approve comments for the homepage'],
   newsletter: ['Email', 'Newsletters to subscribers, and important notices to every user'],
   subscribers:['Subscribers', 'People who agreed to get the newsletter'],
+  blog:       ['Blog', 'Articles, product updates, news and links shared from elsewhere'],
   app:        ['App & activity', 'Who is active, phones with notifications, and push messages to the app'],
   settings:   ['Settings', 'Maintenance mode and setup status'],
 }
@@ -508,6 +522,7 @@ async function go(p) {
   if (p === 'settings') await Promise.all([loadStatus(), S.stats ? null : loadStats()])
   if (p === 'overview' && !S.status) loadStatus()
   if (p === 'app') await loadActivity()
+  if (p === 'blog' && !S.blog.edit) await loadPosts()
   if (p === 'overview' || !S.stats) loadCounts()
 }
 // Unread emails + open site messages for the nav badge
@@ -570,6 +585,151 @@ function renderOverview() {
         <span class="badge ${p.source === 'stripe' ? 'b-ac' : 'b-gray'}">${esc(PRODUCT[p.product] || p.product)}${p.source !== 'stripe' ? ' · ' + esc(p.source) : ''}</span>
         <div class="pay-amt">${p.source === 'stripe' ? eur(PRICE[p.product] || 0) : '—'}</div></div>`).join('')}
   </div>`
+}
+
+// ── Blog ──────────────────────────────────────────────────────────────────────
+// Posts are written in Markdown and published at www.cvmaster.live/blog. "Shared from
+// elsewhere" posts are our own short summary plus a link to the original (never a copy).
+const BLOG_CATS = { article: 'Article', update: 'Product update', news: 'News', link: 'Shared from elsewhere' }
+const BLOG_LANGS = { en: 'English', fr: 'Français', es: 'Español', de: 'Deutsch', it: 'Italiano', pt: 'Português', zh: '中文' }
+async function loadPosts() {
+  S.blog.loading = !S.blog.items; render()
+  try { S.blog.items = (await api('GET', '/posts')).items } catch (e) { toast(e.message) }
+  S.blog.loading = false; render()
+}
+const newPost = (over = {}) => ({ id: null, title: '', slug: '', category: 'article', lang: 'en', cover: '', excerpt: '', body: '', sourceName: '', sourceUrl: '', author: '', status: 'draft', notify: true, ...over })
+function editPost(id) {
+  const p = id ? S.blog.items.find(x => x.id === id) : null
+  S.blog.edit = p ? { ...newPost(), ...p, notify: true } : newPost()
+  S.blog.tab = 'write'; render(); refreshPostPreview()
+}
+const postPayload = (e, status) => ({ title: e.title, slug: e.slug, category: e.category, lang: e.lang, cover: e.cover, excerpt: e.excerpt, body: e.body,
+  sourceName: e.sourceName, sourceUrl: e.sourceUrl, author: e.author, groupId: e.groupId, status, notify: !!e.notify })
+async function savePost(status) {
+  const e = S.blog.edit
+  if (!e.title.trim()) { toast('Give the post a title.'); return }
+  if (status === 'published' && !e.id) { await savePost('draft'); if (!S.blog.edit?.id) return; return savePost('published') }
+  if (status === 'published' && e.status !== 'published') {
+    if (!(await ask({ title: 'Publish this post?', message: `It goes live at www.cvmaster.live/blog${e.notify ? ', and every phone with the app gets a notification' : ''}.`, ok: 'Publish' }))) return
+  }
+  S.blog.saving = true; render()
+  try {
+    const r = e.id ? await api('PUT', '/posts/' + e.id, postPayload(e, status || e.status)) : await api('POST', '/posts', postPayload(e, 'draft'))
+    S.blog.edit = { ...S.blog.edit, ...r }
+    toast(status === 'published' && e.status !== 'published' ? `Published${r.pushed?.devices ? ` · sent to ${r.pushed.sent} phone${r.pushed.sent === 1 ? '' : 's'}` : ''}` : status === 'draft' && e.status === 'published' ? 'Unpublished (now a draft)' : 'Saved')
+    loadPosts()
+  } catch (err) { toast(err.message) }
+  S.blog.saving = false; render()
+}
+async function deletePost() {
+  const e = S.blog.edit
+  if (!(await ask({ title: 'Delete this post?', message: `“${e.title}” will be removed${e.status === 'published' ? ' from the site' : ''}. This can’t be undone.`, ok: 'Delete', danger: true }))) return
+  try { await api('DELETE', '/posts/' + e.id); S.blog.edit = null; toast('Deleted'); loadPosts() } catch (err) { toast(err.message) }
+}
+async function translatePost(lang) {
+  const e = S.blog.edit
+  if (!e.id) { toast('Save the post first.'); return }
+  S.blog.saving = true; render()
+  try { const r = await api('POST', `/posts/${e.id}/translate`, { lang }); await loadPosts(); S.blog.edit = { ...newPost(), ...r, notify: false }; toast(`Draft in ${BLOG_LANGS[lang]}. Check it, then publish`) }
+  catch (err) { toast(err.message) }
+  S.blog.saving = false; render(); refreshPostPreview()
+}
+async function uploadPostImage(file, where) {
+  const fd = new FormData(); fd.append('image', file)
+  try {
+    const r = await fetch('/api/admin/posts/images', { method: 'POST', credentials: 'include', body: fd })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(j.error || 'Upload failed')
+    if (where === 'cover') S.blog.edit.cover = j.url
+    else insertMd(`\n![${file.name.replace(/\.[^.]+$/, '').replace(/[[\]]/g, '')}](${j.url})\n`)
+    render(); refreshPostPreview()
+  } catch (err) { toast(err.message) }
+}
+function insertMd(before, after = '', placeholder = '') {
+  const ta = $('pb-body'); const e = S.blog.edit
+  const a = ta ? ta.selectionStart : e.body.length, b = ta ? ta.selectionEnd : e.body.length
+  const sel = e.body.slice(a, b) || placeholder
+  e.body = e.body.slice(0, a) + before + sel + after + e.body.slice(b)
+  render(); refreshPostPreview()
+  const t2 = $('pb-body'); if (t2) { t2.focus(); t2.selectionStart = a + before.length; t2.selectionEnd = a + before.length + sel.length }
+}
+let _pvT = null
+function refreshPostPreview() {
+  clearTimeout(_pvT)
+  _pvT = setTimeout(async () => {
+    const box = $('pb-preview'); if (!box || !S.blog.edit) return
+    try { box.innerHTML = (await api('POST', '/posts/preview', { body: S.blog.edit.body })).html || '<p class="muted">Nothing written yet.</p>' } catch {}
+  }, 400)
+}
+function renderBlog() {
+  const B = S.blog
+  if (B.edit) return renderPostEditor()
+  if (B.loading || !B.items) return `<div class="loading"><div class="spinner"></div></div>`
+  const groups = {}
+  for (const p of B.items) (groups[p.groupId] = groups[p.groupId] || []).push(p)
+  return `<div class="card">
+    <div class="card-hd"><h3>${fmt(Object.keys(groups).length)} post${Object.keys(groups).length === 1 ? '' : 's'}</h3>
+      <div style="display:flex;gap:8px"><a class="btn btn-sm" href="https://www.cvmaster.live/blog" target="_blank" rel="noopener">${svg('ext')} View the blog</a><button class="btn btn-sm btn-primary" data-act="post-new">New post</button></div></div>
+    ${!B.items.length ? `<div class="empty"><strong>No posts yet</strong>Write an article, a product update or news, or share a good article from elsewhere.</div>` :
+      Object.values(groups).map(vs => vs.map((p, i) => `<div class="rv-row" style="${i ? 'border-top:none;padding-top:0' : ''}">
+        <div class="rv-top">${p.cover ? `<img src="${esc(p.cover)}" alt="" style="width:64px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0">` : `<div class="av">${svg('blog')}</div>`}
+          <div class="rv-who"><b>${esc(p.title)}</b><div class="muted" style="font-size:12px">${BLOG_LANGS[p.lang] || p.lang} · ${esc(BLOG_CATS[p.category] || '')} · ${p.status === 'published' ? `${fmtDate(p.publishedAt)} · ${fmt(p.views)} views` : 'edited ' + fmtDate(p.updatedAt)}</div></div>
+          <span class="badge ${p.status === 'published' ? 'b-green' : 'b-gray'}">${p.status === 'published' ? 'Published' : 'Draft'}</span></div>
+        <div class="rv-acts"><button class="btn btn-sm" data-act="post-edit" data-id="${p.id}">Edit</button>${p.status === 'published' ? `<a class="btn btn-sm" href="${esc(p.url)}" target="_blank" rel="noopener">View</a>` : ''}</div>
+      </div>`).join('')).join('')}
+  </div>`
+}
+function renderPostEditor() {
+  const e = S.blog.edit, B = S.blog
+  const siblings = (B.items || []).filter(x => e.groupId && x.groupId === e.groupId && x.id !== e.id)
+  const missing = Object.keys(BLOG_LANGS).filter(l => l !== e.lang && !siblings.some(x => x.lang === l))
+  const tb = (act, label, title) => `<button class="btn btn-sm btn-ghost" data-act="md" data-md="${act}" title="${title}">${label}</button>`
+  return `<div class="card" style="margin-bottom:16px">
+    <div class="card-hd"><button class="btn btn-sm btn-ghost" data-act="post-back">‹ All posts</button>
+      <span class="badge ${e.status === 'published' ? 'b-green' : 'b-gray'}">${e.status === 'published' ? 'Published' : 'Draft'}</span></div>
+    <div class="card-bd pe">
+      <div><label class="lbl" for="pb-title">Title</label><input class="inp" id="pb-title" data-pf="title" maxlength="200" value="${esc(e.title)}" placeholder="5 ways to get your CV past the robots"></div>
+      <div class="pe-row">
+        <div><label class="lbl" for="pb-cat">Type</label><select class="inp" id="pb-cat" data-pf="category">${Object.entries(BLOG_CATS).map(([k, v]) => `<option value="${k}"${e.category === k ? ' selected' : ''}>${v}</option>`).join('')}</select></div>
+        <div><label class="lbl" for="pb-lang">Language</label><select class="inp" id="pb-lang" data-pf="lang">${Object.entries(BLOG_LANGS).map(([k, v]) => `<option value="${k}"${e.lang === k ? ' selected' : ''}>${v}</option>`).join('')}</select></div>
+      </div>
+      ${e.category === 'link' ? `<div class="notice-box"><b>Sharing someone else’s article.</b> Write your own short summary or take on it, and link to the original. Don’t paste their article or use their images: that needs the author’s permission. A short quote, clearly credited, is fine.</div>
+      <div class="pe-row">
+        <div><label class="lbl" for="pb-sname">Source</label><input class="inp" id="pb-sname" data-pf="sourceName" value="${esc(e.sourceName || '')}" placeholder="The Guardian"></div>
+        <div><label class="lbl" for="pb-surl">Link to the original</label><input class="inp" id="pb-surl" data-pf="sourceUrl" value="${esc(e.sourceUrl || '')}" placeholder="https://…"></div>
+      </div>` : ''}
+      <div><label class="lbl" for="pb-excerpt">Summary <span class="muted" style="font-weight:500">· shown on cards, in search results and link previews</span></label><textarea class="inp" id="pb-excerpt" data-pf="excerpt" rows="2" maxlength="400">${esc(e.excerpt)}</textarea></div>
+      <div><label class="lbl">Cover image</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${e.cover ? `<img src="${esc(e.cover)}" alt="" style="width:120px;height:68px;object-fit:cover;border-radius:8px">` : ''}
+          <label class="btn btn-sm">Upload<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" id="pb-cover-file" hidden></label>
+          <input class="inp" id="pb-cover" data-pf="cover" value="${esc(e.cover || '')}" placeholder="or paste an image link (https://…)" style="flex:1;min-width:180px">
+          ${e.cover ? `<button class="btn btn-sm btn-ghost" data-act="post-cover-clear">Remove</button>` : ''}</div></div>
+      <div>
+        <div class="pe-bar">
+          <div class="seg"><button class="${B.tab === 'write' ? 'on' : ''}" data-act="post-tab" data-tab="write">Write</button><button class="${B.tab === 'preview' ? 'on' : ''}" data-act="post-tab" data-tab="preview">Preview</button></div>
+          <div class="pe-tools">${tb('h2', 'H2', 'Heading')}${tb('h3', 'H3', 'Smaller heading')}${tb('b', '<b>B</b>', 'Bold')}${tb('i', '<i>I</i>', 'Italic')}${tb('link', 'Link', 'Link')}${tb('ul', '• List', 'List')}${tb('ol', '1. List', 'Numbered list')}${tb('quote', '“ Quote', 'Quote')}
+            <label class="btn btn-sm btn-ghost" title="Image">Image<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" id="pb-img-file" hidden></label></div>
+        </div>
+        <div class="pe-split ${B.tab}">
+          <textarea class="inp pe-md" id="pb-body" data-pf="body" placeholder="Write here. ## for a heading, **bold**, *italic*, - for a list, [text](https://link)…">${esc(e.body)}</textarea>
+          <div class="pe-pv prose" id="pb-preview"><p class="muted">Loading preview…</p></div>
+        </div>
+      </div>
+      <div class="pe-row">
+        <div><label class="lbl" for="pb-author">Author <span class="muted" style="font-weight:500">· optional</span></label><input class="inp" id="pb-author" data-pf="author" value="${esc(e.author || '')}" placeholder="CVMaster team"></div>
+        <div><label class="lbl" for="pb-slug">Web address</label><input class="inp" id="pb-slug" data-pf="slug" value="${esc(e.slug || '')}" placeholder="made from the title"></div>
+      </div>
+      ${e.id ? `<div><label class="lbl">Other languages</label><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        ${siblings.map(x => `<button class="btn btn-sm" data-act="post-edit" data-id="${x.id}">${BLOG_LANGS[x.lang]}${x.status === 'published' ? '' : ' (draft)'}</button>`).join('')}
+        ${missing.length ? `<select class="inp" id="pb-tr" style="width:auto"><option value="">Translate with AI into…</option>${missing.map(l => `<option value="${l}">${BLOG_LANGS[l]}</option>`).join('')}</select>` : ''}</div></div>` : ''}
+      ${e.status !== 'published' ? `<label class="notice-check" style="margin:0"><input type="checkbox" id="pb-notify" ${e.notify ? 'checked' : ''}> When I publish, send a notification to every phone with the app</label>` : ''}
+      <div class="pe-acts">
+        ${e.status === 'published'
+          ? `<button class="btn btn-primary" data-act="post-save" data-st="published" ${B.saving ? 'disabled' : ''}>Save changes</button><button class="btn" data-act="post-save" data-st="draft" ${B.saving ? 'disabled' : ''}>Unpublish</button><a class="btn" href="${esc(e.url)}" target="_blank" rel="noopener">${svg('ext')} View</a>`
+          : `<button class="btn btn-primary" data-act="post-save" data-st="published" ${B.saving ? 'disabled' : ''}>Publish</button><button class="btn" data-act="post-save" data-st="draft" ${B.saving ? 'disabled' : ''}>Save draft</button>`}
+        ${e.id ? `<button class="btn btn-danger" data-act="post-delete" style="margin-left:auto">Delete</button>` : ''}
+      </div>
+    </div></div>`
 }
 
 // ── App & activity ────────────────────────────────────────────────────────────
@@ -1631,8 +1791,8 @@ function renderLogin() {
 function renderApp() {
   const [title, sub] = PAGES[S.page]
   const inboxCount = (S.stats?.inbox_unread || 0) + (S.stats?.feedback_open || 0)
-  const nav = [['overview', 'Overview'], ['inbox', 'Inbox', inboxCount], ['users', 'Users'], ['reviews', 'Reviews', S.rv?.pending], ['newsletter', 'Email'], ['subscribers', 'Subscribers'], ['app', 'App & activity'], ['settings', 'Settings']]
-  const body = { overview: renderOverview, inbox: renderInbox, users: renderUsers, reviews: renderReviews, newsletter: renderEmail, subscribers: renderSubs, app: renderAppPage, settings: renderSettings }[S.page]()
+  const nav = [['overview', 'Overview'], ['inbox', 'Inbox', inboxCount], ['users', 'Users'], ['reviews', 'Reviews', S.rv?.pending], ['newsletter', 'Email'], ['subscribers', 'Subscribers'], ['blog', 'Blog'], ['app', 'App & activity'], ['settings', 'Settings']]
+  const body = { overview: renderOverview, inbox: renderInbox, users: renderUsers, reviews: renderReviews, newsletter: renderEmail, subscribers: renderSubs, blog: renderBlog, app: renderAppPage, settings: renderSettings }[S.page]()
   return `<div class="app">
     <aside class="sb">
       <div class="sb-head"><span class="sb-mark">${MARK}</span><span class="sb-name">CV<span>Master</span></span><span class="sb-tag">Admin</span></div>
@@ -1714,6 +1874,17 @@ function bind() {
     S.email.sent = false; sendEmail(false)
   })
   $('ib-reply')?.addEventListener('input', e => { S.inbox.reply = e.target.value })
+  document.querySelectorAll('[data-pf]').forEach(el => el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', e => {
+    if (!S.blog.edit) return
+    S.blog.edit[el.dataset.pf] = e.target.value
+    if (el.dataset.pf === 'body') refreshPostPreview()
+    if (el.dataset.pf === 'category') render()
+  }))
+  $('pb-notify')?.addEventListener('change', e => { if (S.blog.edit) S.blog.edit.notify = e.target.checked })
+  $('pb-cover-file')?.addEventListener('change', e => { const f = e.target.files?.[0]; if (f) uploadPostImage(f, 'cover') })
+  $('pb-img-file')?.addEventListener('change', e => { const f = e.target.files?.[0]; if (f) uploadPostImage(f, 'body') })
+  $('pb-tr')?.addEventListener('change', e => { if (e.target.value) translatePost(e.target.value) })
+  if ($('pb-preview')) refreshPostPreview()
   $('p-title')?.addEventListener('input', e => { S.push.title = e.target.value })
   $('p-body')?.addEventListener('input', e => { S.push.body = e.target.value })
   document.querySelectorAll('.block-body input,.block-body textarea,.block-body select').forEach(el => {
@@ -1750,6 +1921,24 @@ document.addEventListener('click', (e) => {
   else if (a === 'inbox-back') { S.inbox.sel = null; S.inbox.detail = null; render() }
   else if (a === 'reply') sendReply()
   else if (a === 'push-test') sendAppPush(true)
+  else if (a === 'post-new') editPost(null)
+  else if (a === 'post-edit') editPost(t.dataset.id)
+  else if (a === 'post-back') { S.blog.edit = null; render(); loadPosts() }
+  else if (a === 'post-save') savePost(t.dataset.st)
+  else if (a === 'post-delete') deletePost()
+  else if (a === 'post-cover-clear') { S.blog.edit.cover = ''; render() }
+  else if (a === 'post-tab') { S.blog.tab = t.dataset.tab; render() }
+  else if (a === 'md') {
+    const k = t.dataset.md
+    if (k === 'h2') insertMd('\n## ', '\n', 'Heading')
+    else if (k === 'h3') insertMd('\n### ', '\n', 'Heading')
+    else if (k === 'b') insertMd('**', '**', 'bold text')
+    else if (k === 'i') insertMd('*', '*', 'italic text')
+    else if (k === 'link') insertMd('[', '](https://)', 'link text')
+    else if (k === 'ul') insertMd('\n- ', '\n', 'item')
+    else if (k === 'ol') insertMd('\n1. ', '\n', 'item')
+    else if (k === 'quote') insertMd('\n> ', '\n', 'quote')
+  }
   else if (a === 'push-send') sendAppPush(false)
   else if (a === 'done') setItemStatus(true)
   else if (a === 'reopen') setItemStatus(false)

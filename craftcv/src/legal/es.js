@@ -82,6 +82,7 @@ export default ({ mail }) => {
           <li>copies, apliques ingeniería inversa o revendas el servicio o sus plantillas;</li>
           <li>subas contenido ilegal, dañino o que vulnere los derechos de otra persona.</li>
         </ul>` },
+        { id: 'reviews', title: 'Reseñas', html: `<p>Quienes han creado un CV pueden valorar CVMaster. Las valoraciones con estrellas cuentan de inmediato. Los comentarios escritos, y sus modificaciones posteriores, los revisamos antes de que aparezcan en nuestra web, para evitar spam, abusos y datos personales; hasta que se aprueba una modificación, se mantiene la versión anterior. Nunca eliminamos ni ocultamos una reseña por ser negativa, y no pagamos por reseñas.</p>` },
         { id: 'ai', title: 'Contenido generado por IA', html: `<p>Las sugerencias de la IA pueden equivocarse. CVMaster nunca añade nada sin tu aprobación, pero eres responsable de comprobar que todo lo que aparece en tu CV es cierto antes de enviarlo.</p>` },
         { id: 'ip', title: 'De quién es cada cosa', html: `<p>El contenido de tu CV es tuyo. La plataforma CVMaster, sus diseños y sus plantillas son nuestros.</p>` },
         { id: 'liability', title: 'Responsabilidad', html: `<p>No somos responsables de pérdidas indirectas o consecuentes, incluido el resultado de cualquier candidatura. Nada de estas condiciones limita los derechos que te reconoce la normativa de consumo.</p>` },
