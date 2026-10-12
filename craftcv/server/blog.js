@@ -5,6 +5,7 @@
 // A post can have translations (same group, another language); readers get their language,
 // or English. "Link" posts share someone else's article: our own short summary and a link
 // to the original, never a copy of it.
+import express from 'express';
 import { Marked } from 'marked';
 import multer from 'multer';
 import { query } from './db.js';
@@ -22,10 +23,21 @@ const safeUrl = (u, { images = false } = {}) => {
   return '';
 };
 
-// Markdown → HTML: no raw HTML from the text, only safe links and images
+// Markdown → HTML: no raw HTML from the text, only safe links and images. Headings get an id
+// so the "On this page" list can link to them.
+let _headings = null;
 const md = new Marked({ gfm: true });
 md.use({ renderer: {
   html(t) { return esc(t.text); },
+  heading(t) {
+    const inner = this.parser.parseInline(t.tokens);
+    const base = slugify(t.text);
+    let id = base;
+    for (let i = 2; _headings.ids.has(id); i++) id = `${base}-${i}`;
+    _headings.ids.add(id);
+    if (t.depth === 2) _headings.toc.push({ id, text: t.text.replace(/[*_`]/g, '') });
+    return `<h${t.depth} id="${id}">${inner}</h${t.depth}>\n`;
+  },
   link(t) {
     const href = safeUrl(t.href);
     const text = this.parser.parseInline(t.tokens);
@@ -39,7 +51,11 @@ md.use({ renderer: {
     return `<figure><img src="${esc(src)}" alt="${esc(t.text)}" loading="lazy">${t.title ? `<figcaption>${esc(t.title)}</figcaption>` : ''}</figure>`;
   },
 } });
-export const renderMarkdown = (text) => md.parse(String(text || '').slice(0, 200000));
+export const renderArticle = (text) => {
+  _headings = { ids: new Set(), toc: [] };
+  try { return { html: md.parse(String(text || '').slice(0, 200000)), toc: _headings.toc }; } finally { _headings = null; }
+};
+export const renderMarkdown = (text) => renderArticle(text).html;
 const readingMin = (text) => Math.max(1, Math.round(String(text || '').split(/\s+/).filter(Boolean).length / 220));
 
 export const slugify = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
@@ -76,15 +92,17 @@ export function ensureBlog() {
 
 // Published posts for readers of `lang`: each post once, in their language if translated, else
 // in English, else as written
-export async function listPosts({ lang = 'en', category = null, limit = 20, offset = 0 } = {}) {
+export async function listPosts({ lang = 'en', category = null, limit = 20, offset = 0, q = '' } = {}) {
   await ensureBlog();
   const L = BLOG_LANGS.includes(lang) ? lang : 'en';
   const p = [L];
   let where = `status = 'published'`;
   if (category && CATEGORIES[category]) { p.push(category); where += ` AND category = $${p.length}`; }
+  const words = String(q || '').trim().slice(0, 80);
+  if (words) { p.push(`%${words.replace(/[\\%_]/g, '\\$&')}%`); where += ` AND (title ILIKE $${p.length} OR excerpt ILIKE $${p.length} OR body_md ILIKE $${p.length})`; }
   p.push(Math.min(50, Math.max(1, limit)), Math.max(0, offset));
   const { rows } = await query(`SELECT * FROM (
-      SELECT DISTINCT ON (group_id) id, group_id, lang, slug, title, excerpt, cover_url, category, source_name, source_url, published_at, body_md
+      SELECT DISTINCT ON (group_id) id, group_id, lang, slug, title, excerpt, cover_url, category, source_name, source_url, published_at, body_md, author
       FROM posts WHERE ${where}
       ORDER BY group_id, (lang = $1) DESC, (lang = 'en') DESC, published_at ASC) x
     ORDER BY published_at DESC LIMIT $${p.length - 1} OFFSET $${p.length}`, p);
@@ -93,7 +111,7 @@ export async function listPosts({ lang = 'en', category = null, limit = 20, offs
 const publicCard = (r) => ({
   slug: r.slug, lang: r.lang, title: r.title, excerpt: r.excerpt, cover: r.cover_url, category: r.category,
   sourceName: r.source_name, sourceUrl: r.source_url, publishedAt: r.published_at, readingMin: readingMin(r.body_md),
-  url: `${SITE}/blog/${r.slug}`,
+  author: r.author || 'CVMaster team', url: `${SITE}/blog/${r.slug}`,
 });
 
 async function postBySlug(slug) {
@@ -106,114 +124,312 @@ async function postBySlug(slug) {
 
 // ── Pages (complete HTML, in the post's language) ──
 const T = async (lang, s) => translate(lang, s);
-const LOGO = `<svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><rect width="24" height="24" rx="7" fill="#4338CA"/><rect x="6" y="4" width="12" height="16" rx="2" fill="#fff"/><path d="M9 12.5l2 2 4-4.5" stroke="#4338CA" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const Ts = async (lang, list) => Object.fromEntries(await Promise.all(list.map(async s => [s, await T(lang, s)])));
+const LOGO = `<svg viewBox="0 0 64 64" width="30" height="30" aria-hidden="true"><rect width="64" height="64" rx="15" fill="#4338CA"/><path d="M21 11h15l11 11v27a4 4 0 0 1-4 4H21a4 4 0 0 1-4-4V15a4 4 0 0 1 4-4z" fill="#fff"/><path d="M36 11v7.5a3.5 3.5 0 0 0 3.5 3.5H47z" fill="#A5B4FC"/><path d="M23 19.5h8" stroke="#C7D2FE" stroke-width="3" stroke-linecap="round"/><path d="M23.5 37.5l6.5 6.5 12-12.5" fill="none" stroke="#4338CA" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const ICON = {
+  linkedin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.56V9h3.56v11.45z"/></svg>',
+  x: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.24 2.25h3.31l-7.23 8.26 8.5 11.24h-6.65l-5.21-6.82-5.97 6.82H1.68l7.73-8.84L1.25 2.25h6.83l4.71 6.23zm-1.16 17.52h1.83L7.08 4.13H5.12z"/></svg>',
+  whatsapp: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.92-2.2-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.07c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2-1.42.25-.69.25-1.29.18-1.41-.08-.13-.28-.2-.57-.35zM12.05 21.78h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.88 9.89-9.88 2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 0 1 2.89 6.99c0 5.45-4.44 9.88-9.88 9.88zm8.41-18.3A11.82 11.82 0 0 0 12.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.68 1.45h.01c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.17-3.48-8.41z"/></svg>',
+  facebook: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M24 12.07C24 5.45 18.63.07 12 .07S0 5.45 0 12.07c0 5.99 4.39 10.95 10.13 11.85v-8.38H7.08v-3.47h3.05V9.43c0-3.01 1.79-4.67 4.53-4.67 1.31 0 2.69.24 2.69.24v2.95h-1.51c-1.49 0-1.96.93-1.96 1.87v2.25h3.33l-.53 3.47h-2.8v8.38C19.61 23.03 24 18.06 24 12.07z"/></svg>',
+  email: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>',
+  link: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
+  search: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+  arrow: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  rss: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1.2" fill="currentColor"/></svg>',
+};
 const CSS = `
-:root{--bg:#f5f5fa;--s:#fff;--b:#e4e4ee;--t:#14142b;--t2:#4a4a63;--t3:#6b6b84;--ac:#4338ca;--acl:#eef0ff}
-@media (prefers-color-scheme:dark){:root:not(.light){--bg:#0c0c10;--s:#15151b;--b:#26262e;--t:#f3f4f6;--t2:#a8adb7;--t3:#8b909c;--ac:#8b85ff;--acl:#1f1d3d}}
-.dark{--bg:#0c0c10;--s:#15151b;--b:#26262e;--t:#f3f4f6;--t2:#a8adb7;--t3:#8b909c;--ac:#8b85ff;--acl:#1f1d3d}
-*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}body{margin:0;background:var(--bg);color:var(--t);font:16px/1.6 'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
-a{color:var(--ac)}
-.top{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--s) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--b)}
-.top .in{max-width:1080px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:14px}
-.brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:18px;color:var(--t);text-decoration:none}.brand em{font-style:normal;color:var(--ac)}
-.top nav{margin-left:auto;display:flex;align-items:center;gap:16px}.top nav a{color:var(--t2);text-decoration:none;font-weight:600;font-size:14.5px}
-.btn{display:inline-flex;align-items:center;justify-content:center;background:var(--ac);color:#fff!important;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:10px;font-size:14.5px}
-.wrap{max-width:760px;margin:0 auto;padding:34px 20px 60px}
-.kicker{font-size:12px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ac)}
-h1{font-size:clamp(28px,5vw,40px);line-height:1.15;letter-spacing:-.02em;margin:8px 0 10px}
-.meta{color:var(--t3);font-size:14px}
-.cover{width:100%;border-radius:16px;margin:24px 0 6px;display:block;aspect-ratio:16/9;object-fit:cover;background:var(--acl)}
-.prose{font-size:17px;line-height:1.75;color:var(--t)}.prose h2{font-size:24px;line-height:1.3;margin:34px 0 8px;letter-spacing:-.01em}.prose h3{font-size:19px;margin:26px 0 6px}
-.prose p{margin:0 0 18px}.prose ul,.prose ol{padding-left:22px;margin:0 0 18px}.prose li{margin:4px 0}
-.prose blockquote{margin:22px 0;padding:6px 0 6px 18px;border-left:3px solid var(--ac);color:var(--t2);font-style:italic}
-.prose figure{margin:24px 0}.prose img{max-width:100%;border-radius:12px;display:block}.prose figcaption{font-size:13.5px;color:var(--t3);margin-top:6px;text-align:center}
-.prose code{background:var(--acl);padding:2px 6px;border-radius:6px;font-size:.9em}.prose pre{background:var(--acl);padding:14px;border-radius:12px;overflow:auto}
-.prose table{border-collapse:collapse;width:100%;margin:0 0 18px}.prose td,.prose th{border:1px solid var(--b);padding:8px 10px;text-align:left}
-.source{margin:26px 0;padding:18px;border:1px solid var(--b);border-radius:14px;background:var(--s)}.source b{display:block;margin-bottom:10px}
-.cta{margin:40px 0 0;padding:26px;border-radius:18px;background:var(--acl);text-align:center}.cta h3{margin:0 0 6px;font-size:21px}.cta p{margin:0 0 16px;color:var(--t2)}
-.langs{margin-top:22px;font-size:13.5px;color:var(--t3)}.langs a{margin-right:10px}
-.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 24px}.tabs a{padding:7px 14px;border:1px solid var(--b);border-radius:99px;text-decoration:none;color:var(--t2);font-weight:600;font-size:14px;background:var(--s)}.tabs a.on{background:var(--ac);border-color:var(--ac);color:#fff}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
-.card{display:flex;flex-direction:column;background:var(--s);border:1px solid var(--b);border-radius:16px;overflow:hidden;text-decoration:none;color:var(--t)}
-.card img,.card .ph{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:linear-gradient(135deg,var(--acl),var(--s))}
-.card .b{padding:16px 18px 20px;display:flex;flex-direction:column;gap:6px}.card h2{font-size:18.5px;line-height:1.3;margin:0}.card p{margin:0;color:var(--t2);font-size:14.5px}
-.empty{padding:40px;text-align:center;color:var(--t3)}
-.foot{border-top:1px solid var(--b);padding:22px 20px;text-align:center;color:var(--t3);font-size:13.5px}.foot a{color:var(--t3);margin:0 8px}
-.app .top,.app .foot,.app .cta{display:none}.app .wrap{padding-top:18px}
-@media (max-width:560px){.top nav a.hide{display:none}.wrap{padding:24px 18px 50px}.prose{font-size:16.5px}}`;
+:root{--bg:#fff;--bg2:#f7f7fc;--s:#fff;--b:#e8e8f1;--t:#14142b;--t2:#4a4a63;--t3:#6b6b84;--ac:#4338ca;--ac2:#6d63ff;--acl:#eef0ff}
+@media (prefers-color-scheme:dark){:root:not(.light){--bg:#0c0c10;--bg2:#111117;--s:#15151b;--b:#26262e;--t:#f3f4f6;--t2:#b3b7c2;--t3:#8b909c;--ac:#8b85ff;--ac2:#a5a0ff;--acl:#1f1d3d}}
+.dark{--bg:#0c0c10;--bg2:#111117;--s:#15151b;--b:#26262e;--t:#f3f4f6;--t2:#b3b7c2;--t3:#8b909c;--ac:#8b85ff;--ac2:#a5a0ff;--acl:#1f1d3d}
+*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--t);font:16px/1.6 'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--ac)}img{max-width:100%}
+.in{max-width:1160px;margin:0 auto;padding-left:24px;padding-right:24px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--ac);color:#fff!important;text-decoration:none;font-weight:700;padding:0 18px;height:42px;border-radius:11px;font-size:14.5px;border:0;cursor:pointer;font-family:inherit;white-space:nowrap}
+.btn svg{width:17px;height:17px}.btn.ghost{background:var(--s);color:var(--t)!important;border:1px solid var(--b)}
+.kicker{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ac);text-decoration:none}
+.progress{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--ac),var(--ac2));z-index:30}
+/* Header */
+.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);-webkit-backdrop-filter:saturate(1.6) blur(12px);backdrop-filter:saturate(1.6) blur(12px);border-bottom:1px solid var(--b)}
+.top .in{height:66px;display:flex;align-items:center;gap:16px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:18px;color:var(--t);text-decoration:none;letter-spacing:-.01em}.brand em{font-style:normal;color:var(--ac)}
+.sep{width:1px;height:22px;background:var(--b)}.blog-l{font-weight:700;color:var(--t2);text-decoration:none;font-size:16px}
+.top nav{margin-left:auto;display:flex;align-items:center;gap:24px}.top nav .nl{color:var(--t2);text-decoration:none;font-weight:600;font-size:14.5px}.top nav .nl:hover{color:var(--t)}
+/* Blog home */
+.hero{background:radial-gradient(900px 340px at 12% -20%,var(--acl),transparent 70%),var(--bg2);border-bottom:1px solid var(--b)}
+.hero .in{padding-top:56px}
+.hero-row{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.hero h1{font-size:clamp(36px,6vw,56px);line-height:1.04;letter-spacing:-.035em;margin:0}
+.hero p{font-size:18px;color:var(--t2);margin:12px 0 0;max-width:560px}
+.search{display:flex;align-items:center;gap:8px;background:var(--s);border:1px solid var(--b);border-radius:13px;padding:0 6px 0 14px;height:48px;width:min(360px,100%);color:var(--t3)}
+.search svg{width:18px;height:18px;flex-shrink:0}.search input{flex:1;min-width:0;border:0;background:transparent;font:inherit;font-size:15px;color:var(--t);outline:0}
+.search:focus-within{border-color:var(--ac);box-shadow:0 0 0 3px var(--acl)}.search .btn{height:36px;padding:0 14px;border-radius:9px;font-size:14px}
+.cats{display:flex;gap:28px;margin-top:36px;overflow-x:auto;scrollbar-width:none}.cats::-webkit-scrollbar{display:none}
+.cats a{padding:12px 0 14px;border-bottom:2px solid transparent;color:var(--t2);font-weight:600;text-decoration:none;white-space:nowrap;font-size:15px}
+.cats a:hover{color:var(--t)}.cats a.on{color:var(--t);border-color:var(--ac)}
+.page{padding-top:44px;padding-bottom:72px}
+.feat{display:grid;grid-template-columns:1.2fr 1fr;gap:44px;align-items:center;text-decoration:none;color:var(--t);margin-bottom:60px}
+.feat .img{border-radius:20px}.feat h2{font-size:clamp(26px,3.2vw,38px);line-height:1.12;letter-spacing:-.025em;margin:12px 0 12px}
+.feat p{font-size:17.5px;color:var(--t2);margin:0 0 20px}.feat:hover h2{color:var(--ac)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ac);background:var(--acl);padding:5px 10px;border-radius:99px}
+.more{display:inline-flex;align-items:center;gap:6px;font-weight:700;color:var(--ac);margin-top:18px}.more svg{width:17px;height:17px;transition:transform .2s}.feat:hover .more svg{transform:translateX(3px)}
+.img{display:block;overflow:hidden;aspect-ratio:16/9;background:linear-gradient(135deg,var(--acl),var(--bg2));border:1px solid var(--b);border-radius:14px;position:relative}
+.img img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .35s ease}
+.img .ph{position:absolute;inset:0;display:grid;place-items:center}.img .ph svg{width:22%;height:auto;opacity:.35}
+.feat:hover .img img,.card:hover .img img{transform:scale(1.03)}
+.sec{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin:0 0 22px;padding-bottom:14px;border-bottom:1px solid var(--b)}
+.sec h2{font-size:22px;margin:0;letter-spacing:-.015em}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:40px 28px}
+.card{display:flex;flex-direction:column;text-decoration:none;color:var(--t)}
+.card .kicker{margin-top:16px}.card h3{font-size:19.5px;line-height:1.3;margin:8px 0 8px;letter-spacing:-.015em}.card:hover h3{color:var(--ac)}
+.card p{color:var(--t2);font-size:15px;margin:0 0 16px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.by{display:flex;align-items:center;gap:10px;color:var(--t3);font-size:13.5px;margin-top:auto}.by b{color:var(--t);font-weight:700}
+.av{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;background:var(--acl);color:var(--ac);font-weight:800;font-size:12px;overflow:hidden}.av svg{width:100%;height:100%}
+.empty{padding:70px 20px;text-align:center;color:var(--t3);font-size:16px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:52px}
+/* Newsletter */
+.nlb{margin-top:72px;border-radius:24px;padding:44px;color:#fff;display:grid;grid-template-columns:1.1fr 1fr;gap:32px;align-items:center;
+  background:radial-gradient(520px 260px at 92% -10%,#7c74ff,transparent 70%),linear-gradient(135deg,#312a9c,#4338ca)}
+.nlb h2{font-size:30px;line-height:1.15;margin:0 0 10px;letter-spacing:-.025em}.nlb p{margin:0;color:#dcdcff;font-size:16px}
+.nlb form{display:flex;gap:10px}.nlb input[type=email]{flex:1;min-width:0;height:52px;border-radius:13px;border:0;padding:0 16px;font:inherit;font-size:16px;color:#14142b;background:#fff;outline:0}
+.nlb button{height:52px;border:0;border-radius:13px;padding:0 22px;background:#14142b;color:#fff;font:inherit;font-weight:800;font-size:15px;cursor:pointer}
+.nlb small{display:block;margin-top:10px;color:#c9c8f6;font-size:12.5px}.nlb .msg{margin-top:12px;font-weight:700;font-size:15px;background:rgba(255,255,255,.14);padding:10px 14px;border-radius:11px}
+.hp{position:absolute!important;left:-9999px!important;width:1px;height:1px;overflow:hidden}
+/* Article */
+.art-h{padding-top:40px}.art-h .hd{max-width:780px}
+.crumbs{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;color:var(--t3)}.crumbs a{color:var(--t3);text-decoration:none}.crumbs a:hover{color:var(--ac)}.crumbs a.kicker{color:var(--ac)}
+.art-h h1{font-size:clamp(32px,5vw,52px);line-height:1.07;letter-spacing:-.035em;margin:16px 0 16px}
+.dek{font-size:20px;line-height:1.55;color:var(--t2);margin:0 0 26px}
+.byline{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:16px 0;border-top:1px solid var(--b);border-bottom:1px solid var(--b)}
+.byline .who{display:flex;align-items:center;gap:12px}.byline .av{width:46px;height:46px;font-size:15px}.byline b{display:block;font-size:15.5px}.byline span{color:var(--t3);font-size:14px}
+.share{display:flex;gap:8px;flex-wrap:wrap}
+.share a,.share button{width:40px;height:40px;border-radius:50%;border:1px solid var(--b);background:var(--s);color:var(--t2);display:grid;place-items:center;cursor:pointer;padding:0;transition:color .15s,border-color .15s}
+.share svg{width:17px;height:17px}.share a:hover,.share button:hover{color:var(--ac);border-color:var(--ac)}
+.cover{margin-top:34px}.cover img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:22px;display:block;background:var(--acl)}
+.art{display:grid;grid-template-columns:minmax(0,720px) 270px;gap:64px;justify-content:space-between;padding-top:48px;padding-bottom:56px}
+.side .stick{position:sticky;top:96px}
+.toc h4{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--t3);margin:0 0 12px}
+.toc ol{list-style:none;margin:0;padding:0;border-left:2px solid var(--b)}
+.toc a{display:block;padding:7px 0 7px 16px;margin-left:-2px;border-left:2px solid transparent;color:var(--t2);text-decoration:none;font-size:14px;line-height:1.4}
+.toc a:hover{color:var(--t)}.toc a.on{color:var(--ac);border-color:var(--ac);font-weight:700}
+.side-cta{margin-top:30px;padding:22px;border-radius:18px;background:var(--acl)}.side-cta h4{margin:0 0 6px;font-size:17px;line-height:1.3}.side-cta p{margin:0 0 16px;color:var(--t2);font-size:14px;line-height:1.55}.side-cta .btn{width:100%}
+.toc-m{display:none;border:1px solid var(--b);border-radius:14px;padding:0 18px;margin:0 0 30px;background:var(--bg2)}
+.toc-m summary{font-weight:700;padding:14px 0;cursor:pointer;list-style:none;display:flex;justify-content:space-between}.toc-m summary::-webkit-details-marker{display:none}.toc-m summary:after{content:'+';color:var(--t3);font-weight:600}.toc-m[open] summary:after{content:'−'}
+.toc-m ol{margin:0 0 14px;padding-left:20px}.toc-m li{margin:6px 0}.toc-m a{color:var(--t2);text-decoration:none}
+.prose{font-size:18.5px;line-height:1.78;color:var(--t);overflow-wrap:break-word}
+.prose h2{font-size:28px;line-height:1.25;letter-spacing:-.02em;margin:50px 0 14px;scroll-margin-top:90px}
+.prose h3{font-size:21px;line-height:1.35;margin:36px 0 10px;scroll-margin-top:90px}
+.prose>:first-child{margin-top:0}.prose p{margin:0 0 24px}
+.prose a{color:var(--ac);text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:3px}
+.prose ul,.prose ol{padding-left:24px;margin:0 0 24px}.prose li{margin:8px 0;padding-left:4px}.prose li::marker{color:var(--ac);font-weight:700}
+.prose blockquote{margin:40px 0;padding:2px 0 2px 26px;border-left:4px solid var(--ac);font-size:24px;line-height:1.45;font-weight:700;letter-spacing:-.015em;color:var(--t)}.prose blockquote p{margin:0}
+.prose figure{margin:34px 0}.prose img{border-radius:14px;display:block}.prose figcaption{font-size:14px;color:var(--t3);margin-top:10px;text-align:center}
+.prose code{background:var(--acl);padding:2px 6px;border-radius:6px;font-size:.88em}.prose pre{background:var(--bg2);border:1px solid var(--b);padding:16px;border-radius:14px;overflow:auto;font-size:15px}.prose pre code{background:none;padding:0}
+.prose table{border-collapse:collapse;width:100%;margin:0 0 24px;font-size:16px;display:block;overflow-x:auto}.prose td,.prose th{border:1px solid var(--b);padding:10px 12px;text-align:left}.prose th{background:var(--bg2)}
+.prose hr{border:0;border-top:1px solid var(--b);margin:44px 0}
+.source{margin:30px 0;padding:22px;border:1px solid var(--b);border-radius:16px;background:var(--bg2)}.source b{display:block;margin-bottom:12px}
+.langs{margin-top:28px;font-size:14px;color:var(--t3)}.langs a{margin-right:12px}
+.end{margin-top:48px;padding-top:24px;border-top:1px solid var(--b);display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.end b{font-size:16px}
+.author{display:flex;gap:18px;align-items:flex-start;margin-top:26px;padding:24px;border-radius:18px;background:var(--bg2);border:1px solid var(--b)}
+.author .av{width:58px;height:58px;font-size:18px}.author small{display:block;color:var(--t3);font-size:12px;text-transform:uppercase;letter-spacing:.08em;font-weight:700}.author b{display:block;font-size:17px;margin:2px 0 6px}.author p{margin:0;color:var(--t2);font-size:15px;line-height:1.6}
+.cta-m{display:none;margin-top:30px;padding:26px;border-radius:18px;background:var(--acl);text-align:center}.cta-m h3{margin:0 0 6px;font-size:21px}.cta-m p{margin:0 0 16px;color:var(--t2)}
+.related{background:var(--bg2);border-top:1px solid var(--b)}.related .in{padding-top:56px;padding-bottom:72px}.related .nlb{margin-top:64px}
+.toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);background:#14142b;color:#fff;padding:11px 18px;border-radius:12px;font-weight:700;font-size:14px;opacity:0;pointer-events:none;transition:all .25s;z-index:40}.toast.show{opacity:1;transform:translate(-50%,0)}
+/* Footer */
+.foot{border-top:1px solid var(--b)}.foot .cols{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:32px;padding-top:52px;padding-bottom:28px}
+.foot p{color:var(--t3);font-size:14.5px;max-width:300px;margin:14px 0 0}
+.foot h5{font-size:12.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--t3);margin:4px 0 12px}
+.foot .cols a:not(.brand){display:flex;align-items:center;gap:7px;color:var(--t2);text-decoration:none;font-size:14.5px;padding:4px 0}.foot .cols a:not(.brand):hover{color:var(--ac)}.foot .cols a:not(.brand) svg{width:15px;height:15px}
+.foot .copy{border-top:1px solid var(--b);padding-top:20px;padding-bottom:28px;color:var(--t3);font-size:13.5px}
+/* Inside the phone app: no site header, footer, sign-up or share buttons (the app has its own) */
+.app .top,.app .foot,.app .nlb,.app .share,.app .end,.app .crumbs,.app .side-cta,.app .cta-m{display:none!important}.app .art-h{padding-top:22px}.app .art-h h1{margin-top:0}
+@media (max-width:1000px){.art{grid-template-columns:minmax(0,1fr);gap:0}.side{display:none}.toc-m,.cta-m{display:block}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.top nav .nl{display:none}}
+@media (max-width:820px){.feat{grid-template-columns:1fr;gap:22px}.nlb{grid-template-columns:1fr;padding:30px 24px}.foot .cols{grid-template-columns:1fr 1fr}.foot .about{grid-column:1/-1}}
+@media (max-width:620px){.in{padding-left:18px;padding-right:18px}.grid{grid-template-columns:1fr}.hero .in{padding-top:38px}.hero p{font-size:16.5px}.cats{margin-top:26px;gap:22px}
+  .page{padding-top:30px}.feat{margin-bottom:44px}.art-h{padding-top:24px}.dek{font-size:18px}.cover{margin-top:24px}.cover img{border-radius:16px}.art{padding-top:32px}
+  .prose{font-size:17.5px;line-height:1.75}.prose h2{font-size:24px;margin-top:40px}.prose blockquote{font-size:21px;padding-left:18px}.nlb form{flex-direction:column}.nlb input[type=email]{flex:none;width:100%}.nlb h2{font-size:25px}
+  .top .in{height:60px}.top .btn{height:38px;padding:0 14px;font-size:14px}.sep,.blog-l{display:none}.byline .share{width:100%}.search{width:100%}}
+@media (max-width:380px){.top .btn{display:none}}`;
 
-async function chrome(lang, { title, description, url, image, alternates = [], body, jsonld, app, theme }) {
-  const [tBlog, tBuild, tPrivacy, tTerms] = await Promise.all(['Blog', 'Build my CV', 'Privacy', 'Terms'].map(s => T(lang, s)));
-  return `<!DOCTYPE html><html lang="${esc(lang)}" class="${app ? 'app' : ''} ${theme === 'dark' ? 'dark' : theme === 'light' ? 'light' : ''}"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+// Little page script: reading progress, copy link, and which heading you're on
+const JS = `(function(){
+var bar=document.querySelector('.progress'),body=document.querySelector('.prose');
+if(bar&&body){var f=function(){var r=body.getBoundingClientRect(),h=r.height-innerHeight*.6;bar.style.width=(h>0?Math.min(1,Math.max(0,-r.top/h)):0)*100+'%'};addEventListener('scroll',f,{passive:true});f()}
+var toast=document.querySelector('.toast');
+document.querySelectorAll('[data-copy]').forEach(function(b){b.addEventListener('click',function(){var u=b.getAttribute('data-copy');
+var done=function(){if(toast){toast.classList.add('show');setTimeout(function(){toast.classList.remove('show')},1800)}};
+if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(u).then(done,function(){})}
+else{var t=document.createElement('textarea');t.value=u;t.style.position='fixed';t.style.opacity='0';document.body.appendChild(t);t.select();try{document.execCommand('copy');done()}catch(e){}document.body.removeChild(t)}})});
+var links=[].slice.call(document.querySelectorAll('.toc a'));
+if(links.length&&'IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting)links.forEach(function(l){l.classList.toggle('on',l.getAttribute('href')==='#'+e.target.id)})})},{rootMargin:'0px 0px -75% 0px'});
+links.forEach(function(l){var h=document.getElementById(l.getAttribute('href').slice(1));if(h)io.observe(h)})}
+})();`;
+
+const TEAM = 'CVMaster team';
+const isTeam = (a) => !a || /cvmaster/i.test(a);
+const avatar = (a) => `<span class="av">${isTeam(a) ? LOGO : esc(String(a).trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase())}</span>`;
+const fmtDate = (d, lang) => { try { return new Date(d).toLocaleDateString({ en: 'en-GB', zh: 'zh-CN' }[lang] || lang, { day: 'numeric', month: 'long', year: 'numeric' }); } catch { return ''; } };
+const isoDate = (d) => { try { return new Date(d).toISOString(); } catch { return ''; } };
+
+async function chrome(lang, { title, description, url, image, alternates = [], body, jsonld, app, theme, article = false }) {
+  const t = await Ts(lang, ['Blog', 'Build my CV', 'Privacy', 'Terms', 'Contact', 'Free AI CV builder. Write, tailor and download a CV that gets you the interview.', 'Topics', 'Link copied', 'All posts', ...Object.values(CATEGORIES)]);
+  const L = esc(lang);
+  const cat = (k) => `<a href="${SITE}/blog?lang=${L}&amp;category=${k}">${esc(t[CATEGORIES[k]])}</a>`;
+  return `<!DOCTYPE html><html lang="${L}" class="${app ? 'app' : ''} ${theme === 'dark' ? 'dark' : theme === 'light' ? 'light' : ''}"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>${esc(title)}</title><meta name="description" content="${esc(description)}">
 <link rel="canonical" href="${esc(url)}">${alternates.map(a => `<link rel="alternate" hreflang="${esc(a.lang)}" href="${esc(a.url)}">`).join('')}
 <meta property="og:site_name" content="CVMaster"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}">
-<meta property="og:url" content="${esc(url)}"><meta property="og:image" content="${esc(image || SITE + '/og-image.png')}"><meta property="og:type" content="${jsonld ? 'article' : 'website'}">
-<meta name="twitter:card" content="summary_large_image"><link rel="icon" href="${SITE}/favicon.svg"><link rel="alternate" type="application/rss+xml" title="CVMaster" href="${SITE}/blog/feed.xml">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<meta property="og:url" content="${esc(url)}"><meta property="og:image" content="${esc(image || SITE + '/og-image.png')}"><meta property="og:type" content="${article ? 'article' : 'website'}">
+<meta name="twitter:card" content="summary_large_image"><meta name="theme-color" content="#4338ca"><link rel="icon" href="${SITE}/favicon.svg"><link rel="alternate" type="application/rss+xml" title="CVMaster blog" href="${SITE}/blog/feed.xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>${CSS}</style>${jsonld ? `<script type="application/ld+json">${JSON.stringify(jsonld).replace(/</g, '\\u003c')}</script>` : ''}</head><body>
-<header class="top"><div class="in"><a class="brand" href="${SITE}/?lang=${esc(lang)}">${LOGO}<span>CV<em>Master</em></span></a>
-<nav><a class="hide" href="${SITE}/blog?lang=${esc(lang)}">${esc(tBlog)}</a><a class="btn" href="${SITE}/?lang=${esc(lang)}">${esc(tBuild)}</a></nav></div></header>
+${article ? '<div class="progress"></div>' : ''}
+<header class="top"><div class="in"><a class="brand" href="${SITE}/?lang=${L}">${LOGO}<span>CV<em>Master</em></span></a><span class="sep"></span><a class="blog-l" href="${SITE}/blog?lang=${L}">${esc(t.Blog)}</a>
+<nav>${['article', 'update', 'news'].map(k => `<a class="nl" href="${SITE}/blog?lang=${L}&amp;category=${k}">${esc(t[CATEGORIES[k]])}</a>`).join('')}<a class="btn" href="${SITE}/?lang=${L}">${esc(t['Build my CV'])}</a></nav></div></header>
 ${body}
-<footer class="foot">© CVMaster · <a href="${SITE}/privacy">${esc(tPrivacy)}</a><a href="${SITE}/terms">${esc(tTerms)}</a><a href="${SITE}/blog/feed.xml">RSS</a></footer>
+<footer class="foot"><div class="in cols">
+  <div class="about"><a class="brand" href="${SITE}/?lang=${L}">${LOGO}<span>CV<em>Master</em></span></a><p>${esc(t['Free AI CV builder. Write, tailor and download a CV that gets you the interview.'])}</p></div>
+  <div><h5>${esc(t.Topics)}</h5><a href="${SITE}/blog?lang=${L}">${esc(t['All posts'])}</a>${Object.keys(CATEGORIES).map(cat).join('')}</div>
+  <div><h5>CVMaster</h5><a href="${SITE}/?lang=${L}">${esc(t['Build my CV'])}</a><a href="mailto:support@cvmaster.live">${esc(t.Contact)}</a><a href="${SITE}/blog/feed.xml">${ICON.rss} RSS</a></div>
+  <div><h5>Legal</h5><a href="${SITE}/privacy">${esc(t.Privacy)}</a><a href="${SITE}/terms">${esc(t.Terms)}</a></div>
+</div><div class="in copy">© ${new Date().getFullYear()} CVMaster</div></footer>
+<div class="toast" role="status">${esc(t['Link copied'])}</div>
+<script>${JS}</script>
 </body></html>`;
 }
 
-const fmtDate = (d, lang) => { try { return new Date(d).toLocaleDateString({ en: 'en-GB', zh: 'zh-CN' }[lang] || lang, { day: 'numeric', month: 'long', year: 'numeric' }); } catch { return ''; } };
+// The newsletter box: a plain form (works without scripts), answered on the same page
+async function newsletterBox(lang, back, state) {
+  const t = await Ts(lang, ['Get CV tips in your inbox', 'Practical advice to write a better CV and land more interviews, plus what’s new in CVMaster.',
+    'Your email address', 'Subscribe', 'No spam. Unsubscribe in one click, any time.',
+    'Check your inbox: we’ve sent you a link to confirm.', 'You’re already subscribed. Thank you!', 'That didn’t work. Check your email address and try again.']);
+  const msg = { ok: t['Check your inbox: we’ve sent you a link to confirm.'], already: t['You’re already subscribed. Thank you!'], error: t['That didn’t work. Check your email address and try again.'] }[state];
+  return `<section class="nlb" id="subscribe"><div><h2>${esc(t['Get CV tips in your inbox'])}</h2><p>${esc(t['Practical advice to write a better CV and land more interviews, plus what’s new in CVMaster.'])}</p></div>
+  <div>${state === 'ok' || state === 'already' ? `<div class="msg">${esc(msg)}</div>` : `<form method="post" action="/blog/subscribe">
+    <input type="hidden" name="back" value="${esc(back)}"><input type="hidden" name="lang" value="${esc(lang)}">
+    <label class="hp" aria-hidden="true">Website <input name="website" tabindex="-1" autocomplete="off"></label>
+    <input type="email" name="email" required maxlength="200" autocomplete="email" placeholder="${esc(t['Your email address'])}" aria-label="${esc(t['Your email address'])}">
+    <button type="submit">${esc(t.Subscribe)}</button></form>
+    ${msg ? `<div class="msg">${esc(msg)}</div>` : `<small>${esc(t['No spam. Unsubscribe in one click, any time.'])}</small>`}`}</div></section>`;
+}
 
-async function articlePage(post, versions, { app, theme }) {
+const cardHtml = (p, { lang, app, cats, minRead }) => `<a class="card" href="${SITE}/blog/${esc(p.slug)}${app ? '?app=1' : ''}">
+  <span class="img">${p.cover ? `<img src="${esc(p.cover)}" alt="" loading="lazy">` : `<span class="ph">${LOGO}</span>`}</span>
+  <span class="kicker">${esc(cats[p.category] || '')}</span><h3>${esc(p.title)}</h3><p>${esc(p.excerpt)}</p>
+  <span class="by">${avatar(p.author)}<span><b>${esc(p.author)}</b><br>${esc(fmtDate(p.publishedAt, lang))}${p.category !== 'link' ? ' · ' + esc(minRead.replace('{n}', p.readingMin)) : ''}</span></span></a>`;
+
+async function articlePage(post, versions, { app, theme, subscribed }) {
   const L = post.lang;
-  const [kicker, minRead, readOn, ctaT, ctaP, ctaB, alsoIn] = await Promise.all([
-    T(L, CATEGORIES[post.category] || 'Articles'), T(L, '{n} min read'), T(L, 'Read the full article on {source}'),
-    T(L, 'A CV that gets you the interview.'), T(L, 'Build it in minutes, tailor it to the job, and see how well it matches, before you apply.'), T(L, 'Build my CV for free'),
-    T(L, 'Also in'),
-  ]);
+  const t = await Ts(L, ['{n} min read', 'Read the full article on {source}', 'A CV that gets you the interview.',
+    'Build it in minutes, tailor it to the job, and see how well it matches, before you apply.', 'Build my CV for free', 'Also in', 'Blog',
+    'On this page', 'Share this article', 'Copy link', 'Email', 'Written by', 'Keep reading', 'All posts',
+    'The CVMaster team writes practical, honest advice to help you build a stronger CV and get more interviews.', ...Object.values(CATEGORIES)]);
+  const cats = Object.fromEntries(Object.entries(CATEGORIES).map(([k, v]) => [k, t[v]]));
   const url = `${SITE}/blog/${post.slug}`;
   const others = versions.filter(v => v.lang !== L);
   const LANG_NAME = { en: 'English', fr: 'Français', es: 'Español', de: 'Deutsch', it: 'Italiano', pt: 'Português', zh: '中文' };
+  const { html, toc } = renderArticle(post.body_md);
+  const author = post.author || TEAM;
+  const minRead = t['{n} min read'];
+  const host = post.source_url ? (() => { try { return new URL(post.source_url).hostname; } catch { return ''; } })() : '';
   const source = post.category === 'link' && post.source_url
-    ? `<div class="source"><b>${esc(post.source_name || new URL(post.source_url).hostname)}</b><a class="btn" href="${esc(post.source_url)}" target="_blank" rel="noopener nofollow">${esc(readOn.replace('{source}', post.source_name || new URL(post.source_url).hostname))} ↗</a></div>` : '';
-  const body = `<main class="wrap"><article>
-    <div class="kicker">${esc(kicker)}</div><h1>${esc(post.title)}</h1>
-    <div class="meta">${esc(fmtDate(post.published_at, L))} · ${esc(minRead.replace('{n}', readingMin(post.body_md)))}</div>
-    ${post.cover_url ? `<img class="cover" src="${esc(post.cover_url)}" alt="">` : ''}
-    <div class="prose">${post.body_html}</div>${source}
-    ${others.length ? `<div class="langs">${esc(alsoIn)}: ${others.map(v => `<a href="${SITE}/blog/${esc(v.slug)}${app ? '?app=1' : ''}">${LANG_NAME[v.lang] || v.lang}</a>`).join('')}</div>` : ''}
+    ? `<div class="source"><b>${esc(post.source_name || host)}</b><a class="btn" href="${esc(post.source_url)}" target="_blank" rel="noopener nofollow">${esc(t['Read the full article on {source}'].replace('{source}', post.source_name || host))} ↗</a></div>` : '';
+  const u = encodeURIComponent(url), tt = encodeURIComponent(post.title);
+  const share = `<div class="share">
+    <a href="https://www.linkedin.com/sharing/share-offsite/?url=${u}" target="_blank" rel="noopener" aria-label="LinkedIn" title="LinkedIn">${ICON.linkedin}</a>
+    <a href="https://x.com/intent/post?url=${u}&amp;text=${tt}" target="_blank" rel="noopener" aria-label="X" title="X">${ICON.x}</a>
+    <a href="https://wa.me/?text=${encodeURIComponent(post.title + ' ' + url)}" target="_blank" rel="noopener" aria-label="WhatsApp" title="WhatsApp">${ICON.whatsapp}</a>
+    <a href="https://www.facebook.com/sharer/sharer.php?u=${u}" target="_blank" rel="noopener" aria-label="Facebook" title="Facebook">${ICON.facebook}</a>
+    <a href="mailto:?subject=${tt}&amp;body=${u}" aria-label="${esc(t.Email)}" title="${esc(t.Email)}">${ICON.email}</a>
+    <button type="button" data-copy="${esc(url)}" aria-label="${esc(t['Copy link'])}" title="${esc(t['Copy link'])}">${ICON.link}</button></div>`;
+  // More to read: the same kind of post first, then the latest
+  const pool = [...await listPosts({ lang: L, category: post.category, limit: 4 }), ...await listPosts({ lang: L, limit: 7 })];
+  const related = pool.filter((p, i) => p.slug !== post.slug && pool.findIndex(x => x.slug === p.slug) === i && !versions.some(v => v.slug === p.slug)).slice(0, 3);
+  const tocList = toc.map(h => `<li><a href="#${esc(h.id)}">${esc(h.text)}</a></li>`).join('');
+  const body = `<main>
+  <header class="in art-h"><div class="hd">
+    <nav class="crumbs"><a href="${SITE}/blog?lang=${esc(L)}">${esc(t.Blog)}</a><span>›</span><a class="kicker" href="${SITE}/blog?lang=${esc(L)}&amp;category=${esc(post.category)}">${esc(cats[post.category] || cats.article)}</a></nav>
+    <h1>${esc(post.title)}</h1>${post.excerpt ? `<p class="dek">${esc(post.excerpt)}</p>` : ''}
+    <div class="byline"><div class="who">${avatar(author)}<div><b>${esc(author)}</b><span><time datetime="${isoDate(post.published_at)}">${esc(fmtDate(post.published_at, L))}</time> · ${esc(minRead.replace('{n}', readingMin(post.body_md)))}</span></div></div>${share}</div>
+  </div></header>
+  ${post.cover_url ? `<div class="in cover"><img src="${esc(post.cover_url)}" alt="" fetchpriority="high"></div>` : ''}
+  <div class="in art"><article>
+    ${toc.length > 1 ? `<details class="toc-m"><summary>${esc(t['On this page'])}</summary><ol>${tocList}</ol></details>` : ''}
+    <div class="prose">${html}</div>${source}
+    ${others.length ? `<div class="langs">${esc(t['Also in'])}: ${others.map(v => `<a href="${SITE}/blog/${esc(v.slug)}${app ? '?app=1' : ''}">${LANG_NAME[v.lang] || v.lang}</a>`).join('')}</div>` : ''}
+    <div class="end"><b>${esc(t['Share this article'])}</b>${share}</div>
+    <div class="author">${avatar(author)}<div><small>${esc(t['Written by'])}</small><b>${esc(author)}</b>${isTeam(author) ? `<p>${esc(t['The CVMaster team writes practical, honest advice to help you build a stronger CV and get more interviews.'])}</p>` : ''}</div></div>
+    <div class="cta-m"><h3>${esc(t['A CV that gets you the interview.'])}</h3><p>${esc(t['Build it in minutes, tailor it to the job, and see how well it matches, before you apply.'])}</p><a class="btn" href="${SITE}/?lang=${esc(L)}">${esc(t['Build my CV for free'])}</a></div>
   </article>
-  <div class="cta"><h3>${esc(ctaT)}</h3><p>${esc(ctaP)}</p><a class="btn" href="${SITE}/?lang=${esc(L)}">${esc(ctaB)}</a></div></main>`;
+  <aside class="side"><div class="stick">
+    ${toc.length > 1 ? `<nav class="toc"><h4>${esc(t['On this page'])}</h4><ol>${tocList}</ol></nav>` : ''}
+    <div class="side-cta"><h4>${esc(t['A CV that gets you the interview.'])}</h4><p>${esc(t['Build it in minutes, tailor it to the job, and see how well it matches, before you apply.'])}</p><a class="btn" href="${SITE}/?lang=${esc(L)}">${esc(t['Build my CV for free'])}</a></div>
+  </div></aside></div>
+  <section class="related"><div class="in">
+    ${related.length ? `<div class="sec"><h2>${esc(t['Keep reading'])}</h2><a class="more" style="margin:0" href="${SITE}/blog?lang=${esc(L)}${app ? '&amp;app=1' : ''}">${esc(t['All posts'])} ${ICON.arrow}</a></div>
+    <div class="grid">${related.map(p => cardHtml(p, { lang: L, app, cats, minRead })).join('')}</div>` : ''}
+    ${await newsletterBox(L, `/blog/${post.slug}`, subscribed)}
+  </div></section></main>`;
   return chrome(L, {
-    title: `${post.title} | CVMaster`, description: post.excerpt || post.title, url, image: post.cover_url, app, theme, body,
+    title: `${post.title} | CVMaster`, description: post.excerpt || post.title, url, image: post.cover_url, app, theme, body, article: true,
     alternates: versions.map(v => ({ lang: v.lang, url: `${SITE}/blog/${v.slug}` })),
     jsonld: { '@context': 'https://schema.org', '@type': 'BlogPosting', headline: post.title, description: post.excerpt, image: post.cover_url || `${SITE}/og-image.png`,
       datePublished: post.published_at, dateModified: post.updated_at, inLanguage: L, mainEntityOfPage: url,
-      author: { '@type': 'Organization', name: post.author || 'CVMaster' }, publisher: { '@type': 'Organization', name: 'CVMaster', logo: { '@type': 'ImageObject', url: `${SITE}/icon-512.png` } } },
+      author: isTeam(author) ? { '@type': 'Organization', name: 'CVMaster', url: SITE } : { '@type': 'Person', name: author },
+      publisher: { '@type': 'Organization', name: 'CVMaster', logo: { '@type': 'ImageObject', url: `${SITE}/icon-512.png` } } },
   });
 }
 
-async function indexPage(lang, category, { app, theme }) {
-  const posts = await listPosts({ lang, category, limit: 30 });
-  const [tTitle, tSub, tAll, tEmpty, minRead] = await Promise.all([
-    T(lang, 'CVMaster blog'), T(lang, 'CV advice, job-hunting tips and what’s new in CVMaster.'), T(lang, 'All'), T(lang, 'No posts here yet.'), T(lang, '{n} min read')]);
-  const cats = await Promise.all(Object.entries(CATEGORIES).map(async ([k, v]) => [k, await T(lang, v)]));
-  const q = (c) => `${SITE}/blog?lang=${lang}${c ? '&category=' + c : ''}${app ? '&app=1' : ''}`;
-  const body = `<main class="wrap" style="max-width:1080px">
-    <h1>${esc(tTitle)}</h1><p class="meta" style="font-size:16px">${esc(tSub)}</p>
-    <nav class="tabs"><a class="${!category ? 'on' : ''}" href="${q('')}">${esc(tAll)}</a>${cats.map(([k, v]) => `<a class="${category === k ? 'on' : ''}" href="${q(k)}">${esc(v)}</a>`).join('')}</nav>
-    ${posts.length ? `<div class="grid">${posts.map(p => `<a class="card" href="${SITE}/blog/${esc(p.slug)}${app ? '?app=1' : ''}">
-      ${p.cover ? `<img src="${esc(p.cover)}" alt="" loading="lazy">` : '<div class="ph"></div>'}
-      <div class="b"><div class="kicker">${esc((cats.find(c => c[0] === p.category) || [])[1] || '')}</div><h2>${esc(p.title)}</h2><p>${esc(p.excerpt)}</p>
-      <div class="meta">${esc(fmtDate(p.publishedAt, lang))}${p.category !== 'link' ? ' · ' + esc(minRead.replace('{n}', p.readingMin)) : ''}</div></div></a>`).join('')}</div>`
-      : `<div class="empty">${esc(tEmpty)}</div>`}
-  </main>`;
-  return chrome(lang, { title: `${tTitle} | CVMaster`, description: tSub, url: `${SITE}/blog`, app, theme, body });
+const PER_PAGE = 12;
+async function indexPage(lang, category, { app, theme, subscribed, q = '', page = 1 }) {
+  const items = await listPosts({ lang, category, q, limit: PER_PAGE + 1, offset: (page - 1) * PER_PAGE });
+  const hasMore = items.length > PER_PAGE;
+  const posts = items.slice(0, PER_PAGE);
+  const t = await Ts(lang, ['CVMaster blog', 'CV advice, job-hunting tips and what’s new in CVMaster.', 'All', 'No posts here yet.', '{n} min read',
+    'Search articles', 'Search', 'Results for “{q}”', 'No posts match your search.', 'Latest', 'Read article', 'Latest posts', 'Newer posts', 'Older posts',
+    ...Object.values(CATEGORIES)]);
+  const cats = Object.fromEntries(Object.entries(CATEGORIES).map(([k, v]) => [k, t[v]]));
+  const minRead = t['{n} min read'];
+  const L = esc(lang);
+  const link = (o = {}) => {
+    const c = 'category' in o ? o.category : category, p = o.page || 1, s = 'q' in o ? o.q : q;
+    return `${SITE}/blog?lang=${L}${c ? '&amp;category=' + c : ''}${s ? '&amp;q=' + encodeURIComponent(s) : ''}${p > 1 ? '&amp;page=' + p : ''}${app ? '&amp;app=1' : ''}`;
+  };
+  // The newest post gets the big spot on the first page of "All"
+  const feature = !category && !q && page === 1 && posts.length ? posts[0] : null;
+  const rest = feature ? posts.slice(1) : posts;
+  const featHtml = feature ? `<a class="feat" href="${SITE}/blog/${esc(feature.slug)}${app ? '?app=1' : ''}">
+      <span class="img">${feature.cover ? `<img src="${esc(feature.cover)}" alt="" fetchpriority="high">` : `<span class="ph">${LOGO}</span>`}</span>
+      <div><span class="pill">${esc(t.Latest)} · ${esc(cats[feature.category])}</span><h2>${esc(feature.title)}</h2><p>${esc(feature.excerpt)}</p>
+      <span class="by">${avatar(feature.author)}<span><b>${esc(feature.author)}</b><br>${esc(fmtDate(feature.publishedAt, lang))}${feature.category !== 'link' ? ' · ' + esc(minRead.replace('{n}', feature.readingMin)) : ''}</span></span>
+      <span class="more">${esc(t['Read article'])} ${ICON.arrow}</span></div></a>` : '';
+  const heading = q ? t['Results for “{q}”'].replace('{q}', q) : category ? cats[category] : t['Latest posts'];
+  const body = `<main>
+  <section class="hero"><div class="in">
+    <div class="hero-row"><div><h1>${esc(t['CVMaster blog'])}</h1><p>${esc(t['CV advice, job-hunting tips and what’s new in CVMaster.'])}</p></div>
+    <form class="search" method="get" action="${SITE}/blog" role="search">${ICON.search}<input type="hidden" name="lang" value="${L}">${app ? '<input type="hidden" name="app" value="1">' : ''}
+      <input type="search" name="q" value="${esc(q)}" placeholder="${esc(t['Search articles'])}" aria-label="${esc(t['Search articles'])}"><button class="btn" type="submit">${esc(t.Search)}</button></form></div>
+    <nav class="cats"><a class="${!category ? 'on' : ''}" href="${link({ category: null, q: '' })}">${esc(t.All)}</a>${Object.keys(CATEGORIES).map(k => `<a class="${category === k ? 'on' : ''}" href="${link({ category: k, q: '' })}">${esc(cats[k])}</a>`).join('')}</nav>
+  </div></section>
+  <div class="in page">
+    ${featHtml}
+    ${rest.length ? `<div class="sec"><h2>${esc(heading)}</h2></div><div class="grid">${rest.map(p => cardHtml(p, { lang, app, cats, minRead })).join('')}</div>`
+      : !feature ? `${q || category ? `<div class="sec"><h2>${esc(heading)}</h2></div>` : ''}<div class="empty">${esc(q ? t['No posts match your search.'] : t['No posts here yet.'])}</div>` : ''}
+    ${page > 1 || hasMore ? `<div class="pager">${page > 1 ? `<a class="btn ghost" href="${link({ page: page - 1 })}">← ${esc(t['Newer posts'])}</a>` : '<span></span>'}${hasMore ? `<a class="btn ghost" href="${link({ page: page + 1 })}">${esc(t['Older posts'])} →</a>` : ''}</div>` : ''}
+    ${await newsletterBox(lang, '/blog', subscribed)}
+  </div></main>`;
+  return chrome(lang, { title: `${t['CVMaster blog']} | CVMaster`, description: t['CV advice, job-hunting tips and what’s new in CVMaster.'], url: `${SITE}/blog`, app, theme, body });
 }
 
 // ── Routes ──
-export function registerBlog(app, { adminAuth, rateLimit, callAi, sendPush, onError = () => {} }) {
+export function registerBlog(app, { adminAuth, rateLimit, callAi, sendPush, subscribe, onError = () => {} }) {
   const imageUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 4 * 1024 * 1024 } });
-  const html = (res, s) => { res.set('Cache-Control', 'public, max-age=120, s-maxage=300'); res.removeHeader('X-Robots-Tag'); res.type('html').send(s); };
-  const opts = (req) => ({ app: req.query.app === '1', theme: ['dark', 'light'].includes(req.query.theme) ? req.query.theme : null });
+  const html = (res, s, cache = true) => { res.set('Cache-Control', cache ? 'public, max-age=120, s-maxage=300' : 'private, no-store'); res.removeHeader('X-Robots-Tag'); res.type('html').send(s); };
+  const opts = (req) => ({
+    app: req.query.app === '1', theme: ['dark', 'light'].includes(req.query.theme) ? req.query.theme : null,
+    subscribed: ['ok', 'already', 'error'].includes(req.query.subscribed) ? req.query.subscribed : null,
+  });
   const langOf = (req) => (BLOG_LANGS.includes(req.query.lang) ? req.query.lang : 'en');
 
   // Readers (website, app)
@@ -224,8 +440,21 @@ export function registerBlog(app, { adminAuth, rateLimit, callAi, sendPush, onEr
     } catch (e) { onError('posts', e); res.status(500).json({ error: 'Could not load the blog.' }); }
   });
   app.get('/blog', async (req, res) => {
-    try { html(res, await indexPage(langOf(req), CATEGORIES[req.query.category] ? req.query.category : null, opts(req))); }
-    catch (e) { onError('blog', e); res.status(500).send('The blog is unavailable right now.'); }
+    try {
+      const o = { ...opts(req), q: String(req.query.q || '').trim().slice(0, 80), page: Math.min(500, Math.max(1, parseInt(req.query.page, 10) || 1)) };
+      html(res, await indexPage(langOf(req), CATEGORIES[req.query.category] ? req.query.category : null, o), !o.subscribed);
+    } catch (e) { onError('blog', e); res.status(500).send('The blog is unavailable right now.'); }
+  });
+  // The newsletter form on blog pages (a plain form, so it works through the www.cvmaster.live/blog pass-through)
+  app.post('/blog/subscribe', rateLimit({ windowMs: 10 * 60 * 1000, max: 20 }), express.urlencoded({ extended: false, limit: '4kb' }), async (req, res) => {
+    const back = /^\/blog(\/[a-z0-9-]{1,120})?$/.test(req.body?.back || '') ? req.body.back : '/blog';
+    const lang = BLOG_LANGS.includes(req.body?.lang) ? req.body.lang : 'en';
+    const go = (state) => res.redirect(303, `${SITE}${back}?lang=${lang}&subscribed=${state}#subscribe`);
+    if (req.body?.website) return go('ok'); // a bot filled the hidden field
+    try {
+      const r = subscribe ? await subscribe(req.body?.email) : { ok: false };
+      go(!r.ok ? 'error' : r.already ? 'already' : 'ok');
+    } catch (e) { onError('blog subscribe', e); go('error'); }
   });
   app.get('/blog/feed.xml', async (req, res) => {
     try {
@@ -248,8 +477,9 @@ ${posts.map(p => `<item><title>${esc(p.title)}</title><link>${p.url}</link><guid
     try {
       const found = await postBySlug(req.params.slug);
       if (!found) return res.redirect(302, `${SITE}/blog`);
-      query('UPDATE posts SET views = views + 1 WHERE id = $1', [found.post.id]).catch(() => {});
-      html(res, await articlePage(found.post, found.versions, opts(req)));
+      const o = opts(req);
+      if (!o.subscribed) query('UPDATE posts SET views = views + 1 WHERE id = $1', [found.post.id]).catch(() => {});
+      html(res, await articlePage(found.post, found.versions, o), !o.subscribed);
     } catch (e) { onError('blog post', e); res.status(500).send('This post is unavailable right now.'); }
   });
   app.get('/api/blog-images/:id', async (req, res) => {
