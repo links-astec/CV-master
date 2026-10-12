@@ -10,6 +10,7 @@ import { Marked } from 'marked';
 import multer from 'multer';
 import { query } from './db.js';
 import { translate } from './push.js';
+import { lockupThemed, markThemed } from '../brand/brand.mjs';
 
 const SITE = 'https://www.cvmaster.live';
 export const BLOG_LANGS = ['en', 'fr', 'es', 'de', 'it', 'pt', 'zh'];
@@ -125,7 +126,8 @@ async function postBySlug(slug) {
 // ── Pages (complete HTML, in the post's language) ──
 const T = async (lang, s) => translate(lang, s);
 const Ts = async (lang, list) => Object.fromEntries(await Promise.all(list.map(async s => [s, await T(lang, s)])));
-const LOGO = `<svg viewBox="0 0 64 64" width="30" height="30" aria-hidden="true"><rect width="64" height="64" rx="15" fill="#4338CA"/><path d="M21 11h15l11 11v27a4 4 0 0 1-4 4H21a4 4 0 0 1-4-4V15a4 4 0 0 1 4-4z" fill="#fff"/><path d="M36 11v7.5a3.5 3.5 0 0 0 3.5 3.5H47z" fill="#A5B4FC"/><path d="M23 19.5h8" stroke="#C7D2FE" stroke-width="3" stroke-linecap="round"/><path d="M23.5 37.5l6.5 6.5 12-12.5" fill="none" stroke="#4338CA" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const LOGO = markThemed({ id: 'blm', height: 30 });
+const LOCKUP = (id) => lockupThemed({ id, height: 26 });
 const ICON = {
   linkedin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.56V9h3.56v11.45z"/></svg>',
   x: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.24 2.25h3.31l-7.23 8.26 8.5 11.24h-6.65l-5.21-6.82-5.97 6.82H1.68l7.73-8.84L1.25 2.25h6.83l4.71 6.23zm-1.16 17.52h1.83L7.08 4.13H5.12z"/></svg>',
@@ -138,21 +140,21 @@ const ICON = {
   rss: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1.2" fill="currentColor"/></svg>',
 };
 const CSS = `
-:root{--bg:#fff;--bg2:#f7f7fc;--s:#fff;--b:#e8e8f1;--t:#14142b;--t2:#4a4a63;--t3:#6b6b84;--ac:#4338ca;--ac2:#6d63ff;--acl:#eef0ff}
-@media (prefers-color-scheme:dark){:root:not(.light){--bg:#0c0c10;--bg2:#111117;--s:#15151b;--b:#26262e;--t:#f3f4f6;--t2:#b3b7c2;--t3:#8b909c;--ac:#8b85ff;--ac2:#a5a0ff;--acl:#1f1d3d}}
-.dark{--bg:#0c0c10;--bg2:#111117;--s:#15151b;--b:#26262e;--t:#f3f4f6;--t2:#b3b7c2;--t3:#8b909c;--ac:#8b85ff;--ac2:#a5a0ff;--acl:#1f1d3d}
+:root{--logo-from:#14142B;--logo-to:#4338CA;--logo-text:#14142B;--bg:#fff;--bg2:#f7f7fc;--s:#fff;--b:#e8e8f1;--t:#14142b;--t2:#4a4a63;--t3:#6b6b84;--ac:#4338ca;--ac2:#6d63ff;--acl:#eef0ff}
+@media (prefers-color-scheme:dark){:root:not(.light){--logo-from:#F3F4F6;--logo-to:#8B85FF;--logo-text:#F3F4F6;--bg:#0c0c10;--bg2:#111117;--s:#15151b;--b:#26262e;--t:#f3f4f6;--t2:#b3b7c2;--t3:#8b909c;--ac:#8b85ff;--ac2:#a5a0ff;--acl:#1f1d3d}}
+.dark{--logo-from:#F3F4F6;--logo-to:#8B85FF;--logo-text:#F3F4F6;--bg:#0c0c10;--bg2:#111117;--s:#15151b;--b:#26262e;--t:#f3f4f6;--t2:#b3b7c2;--t3:#8b909c;--ac:#8b85ff;--ac2:#a5a0ff;--acl:#1f1d3d}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--t);font:16px/1.6 'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased}
 a{color:var(--ac)}img{max-width:100%}
 .in{max-width:1160px;margin:0 auto;padding-left:24px;padding-right:24px}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--ac);color:#fff!important;text-decoration:none;font-weight:700;padding:0 18px;height:42px;border-radius:8px;font-size:14.5px;border:0;cursor:pointer;font-family:inherit;white-space:nowrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--ac);color:#fff!important;text-decoration:none;font-weight:700;padding:0 20px;height:42px;border-radius:999px;font-size:14.5px;border:0;cursor:pointer;font-family:inherit;white-space:nowrap}
 .btn svg{width:17px;height:17px}.btn.ghost{background:var(--s);color:var(--t)!important;border:1px solid var(--b)}
 .kicker{font-size:14px;font-weight:700;color:var(--ac);text-decoration:none}
 .progress{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--ac),var(--ac2));z-index:30}
 /* Header */
 .top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);-webkit-backdrop-filter:saturate(1.6) blur(12px);backdrop-filter:saturate(1.6) blur(12px);border-bottom:1px solid var(--b)}
 .top .in{height:66px;display:flex;align-items:center;gap:16px}
-.brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:18px;color:var(--t);text-decoration:none;letter-spacing:-.01em}.brand em{font-style:normal;color:var(--ac)}
+.brand{display:flex;align-items:center;text-decoration:none}.brand svg{display:block;height:26px;width:auto}
 .sep{width:1px;height:22px;background:var(--b)}.blog-l{font-weight:700;color:var(--t2);text-decoration:none;font-size:16px}
 .top nav{margin-left:auto;display:flex;align-items:center;gap:24px}.top nav .nl{color:var(--t2);text-decoration:none;font-weight:600;font-size:14.5px}.top nav .nl:hover{color:var(--t)}
 /* Blog home */
@@ -161,9 +163,9 @@ a{color:var(--ac)}img{max-width:100%}
 .hero-row{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap}
 .hero h1{font-size:clamp(36px,6vw,56px);line-height:1.04;letter-spacing:-.035em;margin:0}
 .hero p{font-size:18px;color:var(--t2);margin:12px 0 0;max-width:560px}
-.search{display:flex;align-items:center;gap:8px;background:var(--s);border:1px solid var(--b);border-radius:8px;padding:0 5px 0 14px;height:46px;width:min(360px,100%);color:var(--t3)}
+.search{display:flex;align-items:center;gap:8px;background:var(--s);border:1px solid var(--b);border-radius:999px;padding:0 5px 0 16px;height:46px;width:min(360px,100%);color:var(--t3)}
 .search svg{width:18px;height:18px;flex-shrink:0}.search input{flex:1;min-width:0;border:0;background:transparent;font:inherit;font-size:15px;color:var(--t);outline:0}
-.search:focus-within{border-color:var(--ac);box-shadow:0 0 0 3px var(--acl)}.search .btn{height:36px;padding:0 14px;border-radius:6px;font-size:14px}
+.search:focus-within{border-color:var(--ac);box-shadow:0 0 0 3px var(--acl)}.search .btn{height:36px;padding:0 16px;border-radius:999px;font-size:14px}
 .cats{display:flex;gap:28px;margin-top:36px;overflow-x:auto;scrollbar-width:none}.cats::-webkit-scrollbar{display:none}
 .cats a{padding:12px 0 14px;border-bottom:2px solid transparent;color:var(--t2);font-weight:600;text-decoration:none;white-space:nowrap;font-size:15px}
 .cats a:hover{color:var(--t)}.cats a.on{color:var(--t);border-color:var(--ac)}
@@ -186,15 +188,15 @@ a{color:var(--ac)}img{max-width:100%}
 .card .meta{margin-top:16px}.card h3{font-size:20px;line-height:1.3;margin:6px 0 8px;letter-spacing:-.015em}
 .card p{color:var(--t2);font-size:15px;margin:0 0 16px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .by{display:flex;align-items:center;gap:10px;color:var(--t3);font-size:13.5px;margin-top:auto}.by b{color:var(--t);font-weight:700}
-.av{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;background:var(--acl);color:var(--ac);font-weight:800;font-size:12px;overflow:hidden}.av svg{width:100%;height:100%}
+.av{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;background:var(--acl);color:var(--ac);font-weight:800;font-size:12px;overflow:hidden}.av .logo-mark{width:68%;height:auto}
 .empty{padding:70px 20px;text-align:center;color:var(--t3);font-size:16px}
 .pager{display:flex;justify-content:space-between;gap:12px;margin-top:52px}
 /* Newsletter */
 .nlb{margin-top:24px;padding-top:28px;border-top:2px solid var(--t);display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start;color:var(--t)}
 .nlb h2{font-size:24px;line-height:1.2;margin:0 0 8px;letter-spacing:-.02em}.nlb p{margin:0;color:var(--t2);font-size:16px;max-width:440px}
-.nlb form{display:flex;gap:8px;margin-top:4px}.nlb input[type=email]{flex:1;min-width:0;height:46px;border-radius:8px;border:1px solid var(--b);padding:0 14px;font:inherit;font-size:15.5px;color:var(--t);background:var(--s);outline:0}
+.nlb form{display:flex;gap:8px;margin-top:4px}.nlb input[type=email]{flex:1;min-width:0;height:46px;border-radius:999px;border:1px solid var(--b);padding:0 18px;font:inherit;font-size:15.5px;color:var(--t);background:var(--s);outline:0}
 .nlb input[type=email]:focus{border-color:var(--ac)}
-.nlb button{height:46px;border:0;border-radius:8px;padding:0 20px;background:var(--t);color:var(--bg);font:inherit;font-weight:700;font-size:15px;cursor:pointer}
+.nlb button{height:46px;border:0;border-radius:999px;padding:0 22px;background:var(--t);color:var(--bg);font:inherit;font-weight:700;font-size:15px;cursor:pointer}
 .nlb small{display:block;margin-top:10px;color:var(--t3);font-size:13px}.nlb .msg{margin-top:4px;font-weight:600;font-size:15.5px;color:var(--t)}
 .hp{position:absolute!important;left:-9999px!important;width:1px;height:1px;overflow:hidden}
 /* Article */
@@ -287,11 +289,11 @@ async function chrome(lang, { title, description, url, image, alternates = [], b
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>${CSS}</style>${jsonld ? `<script type="application/ld+json">${JSON.stringify(jsonld).replace(/</g, '\\u003c')}</script>` : ''}</head><body>
 ${article ? '<div class="progress"></div>' : ''}
-<header class="top"><div class="in"><a class="brand" href="${SITE}/?lang=${L}">${LOGO}<span>CV<em>Master</em></span></a><span class="sep"></span><a class="blog-l" href="${SITE}/blog?lang=${L}">${esc(t.Blog)}</a>
+<header class="top"><div class="in"><a class="brand" href="${SITE}/?lang=${L}" aria-label="CVMaster">${LOCKUP('blh')}</a><span class="sep"></span><a class="blog-l" href="${SITE}/blog?lang=${L}">${esc(t.Blog)}</a>
 <nav>${['article', 'update', 'news'].map(k => `<a class="nl" href="${SITE}/blog?lang=${L}&amp;category=${k}">${esc(t[CATEGORIES[k]])}</a>`).join('')}<a class="btn" href="${SITE}/?lang=${L}">${esc(t['Build my CV'])}</a></nav></div></header>
 ${body}
 <footer class="foot"><div class="in cols">
-  <div class="about"><a class="brand" href="${SITE}/?lang=${L}">${LOGO}<span>CV<em>Master</em></span></a><p>${esc(t['Free AI CV builder. Write, tailor and download a CV that gets you the interview.'])}</p></div>
+  <div class="about"><a class="brand" href="${SITE}/?lang=${L}" aria-label="CVMaster">${LOCKUP('blf')}</a><p>${esc(t['Free AI CV builder. Write, tailor and download a CV that gets you the interview.'])}</p></div>
   <div><h5>${esc(t.Topics)}</h5><a href="${SITE}/blog?lang=${L}">${esc(t['All posts'])}</a>${Object.keys(CATEGORIES).map(cat).join('')}</div>
   <div><h5>CVMaster</h5><a href="${SITE}/?lang=${L}">${esc(t['Build my CV'])}</a><a href="mailto:support@cvmaster.live">${esc(t.Contact)}</a><a href="${SITE}/blog/feed.xml">${ICON.rss} RSS</a></div>
   <div><h5>Legal</h5><a href="${SITE}/privacy">${esc(t.Privacy)}</a><a href="${SITE}/terms">${esc(t.Terms)}</a></div>

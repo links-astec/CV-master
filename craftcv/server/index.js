@@ -19,7 +19,8 @@ import { query } from './db.js';
 import { ensurePushTable, isPushToken, pushHealth, registerToken, removeToken, sendPush } from './push.js';
 import { ensureActivity, nextStep, personalNudges, recordEvents, setPersonalize } from './activity.js';
 import { ensureAppleCols, keepAppleRefreshToken, revokeApple, verifyAppleToken } from './apple.js';
-import { registerBlog } from './blog.js';
+import { registerBlog } from './blog.js'
+import { lockupSvg } from '../brand/brand.mjs';
 import { createRequire } from 'module';
 import { promises as dns } from 'dns';
 
@@ -55,7 +56,7 @@ const RESEND_FROM = process.env.RESEND_FROM || 'CVMaster <noreply@cvmaster.live>
 // Logo at the top of every email (public/email-logo-tile.png: public/email-logo.png on a white tile)
 // The logo sits on its own white rounded tile: invisible on a white email, and still readable when a
 // mail app's dark mode turns the email dark (Gmail's apps darken the colours but never the images)
-const EMAIL_LOGO = '<img src="https://www.cvmaster.live/email-logo-tile.png" width="169" height="50" alt="CVMaster" style="display:block;border:0;outline:none;text-decoration:none;width:169px;height:50px">';
+const EMAIL_LOGO = '<img src="https://www.cvmaster.live/email-logo-tile.png" width="164" height="50" alt="CVMaster" style="display:block;border:0;outline:none;text-decoration:none;width:164px;height:50px">';
 
 const smtpTransport = (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
   ? nodemailer.createTransport({
@@ -696,9 +697,9 @@ function nlPage(title, body) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
 <title>${title} | CVMaster</title><style>body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:#F5F5FA;color:#14142B;display:grid;place-items:center;min-height:100vh;padding:16px;box-sizing:border-box}
 .c{background:#fff;border:1px solid #E4E4EE;border-radius:16px;padding:32px 28px;max-width:420px;width:100%;box-sizing:border-box}
-.b{font-size:18px;font-weight:800;margin-bottom:20px}.b span{color:#4338CA}h1{font-size:21px;margin:0 0 10px}p{color:#4A4A63;line-height:1.6;margin:0 0 18px}
+.b{margin-bottom:22px}.b svg{display:block}h1{font-size:21px;margin:0 0 10px}p{color:#4A4A63;line-height:1.6;margin:0 0 18px}
 button,a.btn{display:inline-block;background:#4338CA;color:#fff;border:0;border-radius:10px;padding:12px 22px;font-weight:700;font-size:15px;text-decoration:none;cursor:pointer}
-a.l{color:#4338CA}</style></head><body><div class="c"><div class="b">CV<span>Master</span></div>${body}</div></body></html>`;
+a.l{color:#4338CA}</style></head><body><div class="c"><div class="b">${lockupSvg({ id: 'nlp', height: 26 })}</div>${body}</div></body></html>`;
 }
 
 // Someone asks for the newsletter (homepage or blog form): they get an email to confirm

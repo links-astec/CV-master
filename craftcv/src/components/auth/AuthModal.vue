@@ -8,7 +8,7 @@
 
         <!-- Brand panel (hidden on small screens) -->
         <aside class="auth-side" aria-hidden="true">
-          <BrandLogo dark />
+          <BrandLogo dark animate />
           <div class="auth-side-copy">
             <h3>{{ $t('Your CV, tailored to every job.') }}</h3>
             <ul>
@@ -22,7 +22,7 @@
 
         <div class="auth-main">
         <div class="auth-hd">
-          <BrandLogo mark-only class="auth-mobile-mark" />
+          <BrandLogo mark-only animate class="auth-mobile-mark" />
           <h2>{{ $t(TITLES[view]) }}</h2>
           <p>{{ $t(subtitle) }}</p>
         </div>
@@ -305,8 +305,8 @@ onMounted(async () => {
 
 <style scoped>
 .auth{max-width:880px;padding:0;display:grid;grid-template-columns:360px 1fr;overflow:hidden}
-.auth-side{position:relative;background:#14142B;color:#fff;padding:32px 30px 0;display:flex;flex-direction:column;gap:26px;overflow:hidden}
-.auth-side::before{content:'';position:absolute;inset:0;background:radial-gradient(420px 260px at 20% 0%,rgba(99,102,241,.45),transparent 70%);pointer-events:none}
+.auth-side{position:relative;background:#0C0C10;color:#fff;padding:34px 32px 0;display:flex;flex-direction:column;gap:26px;overflow:hidden}
+.auth-side::before{content:'';position:absolute;inset:0;background:radial-gradient(460px 300px at 20% 0%,rgba(139,133,255,.32),transparent 70%);pointer-events:none}
 .auth-side > *{position:relative}
 .auth-side-copy h3{font-size:24px;font-weight:800;letter-spacing:-.03em;line-height:1.15;margin-bottom:16px}
 .auth-side-copy ul{list-style:none;display:flex;flex-direction:column;gap:11px}
@@ -316,7 +316,7 @@ onMounted(async () => {
 .auth-main{padding:36px 36px 30px;min-width:0}
 .auth-mobile-mark{display:none}
 .auth-hd{display:flex;flex-direction:column;align-items:flex-start;text-align:left;margin-bottom:20px}
-.auth-hd h2{font-size:24px;font-weight:800;letter-spacing:-.03em;margin-top:0}
+.auth-hd h2{font-size:28px;font-weight:800;letter-spacing:-.035em;margin-top:0}
 .auth-hd p{font-size:14.5px;color:var(--c-text2);margin-top:6px;max-width:360px}
 @media (max-width:760px){
   .auth{grid-template-columns:1fr;max-width:440px}
