@@ -1,13 +1,13 @@
 // The app's frame, like the website's mobile layout: the top bar (menu, page title, language,
 // dark mode), the bottom tab bar with the big "+" in the middle, and the slide-in menu.
 import { useState } from 'react'
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { router, usePathname } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as WebBrowser from 'expo-web-browser'
 import type { ComponentProps } from 'react'
 import type { Tabs } from 'expo-router'
-import { Check, ChevronDown, FileText, Globe, LayoutGrid, Menu as MenuIcon, Moon, PenLine, Plus, Settings, Sun, X } from '@/components/icons'
+import { Bell, Check, ChevronDown, FileText, Globe, LayoutGrid, Menu as MenuIcon, Moon, PenLine, Plus, Settings, Sun, X } from '@/components/icons'
 import { BRAND } from '@/brand'
 import { LANGS, useLang } from '@/i18n'
 import { useAuth } from '@/lib/auth'
@@ -15,6 +15,8 @@ import { api } from '@/lib/api'
 import { useTheme } from '@/lib/theme'
 import { Btn, IconBtn, Txt } from '@/components/kit'
 import { Logo } from '@/components/Logo'
+import { useNotifications } from '@/lib/notifications'
+import { useTourTarget } from '@/lib/tourTargets'
 
 // ── Language pill + picker ───────────────────────────────────────────────────
 export function LangPill() {
@@ -63,8 +65,26 @@ export function TopBar({ title }: { title: string }) {
       <IconBtn icon={MenuIcon} onPress={() => setMenu(true)} label={t('Menu')} />
       <Txt w={600} size={18} style={{ flex: 1, marginLeft: 10 }} numberOfLines={1}>{title}</Txt>
       <LangPill />
+      <BellBtn />
       <IconBtn icon={dark ? Sun : Moon} onPress={toggleDark} label={t(dark ? 'Light mode' : 'Dark mode')} />
       <SideMenu open={menu} onClose={() => setMenu(false)} />
+    </View>
+  )
+}
+
+// Notifications bell with the unread count, like the website's
+function BellBtn() {
+  const { c } = useTheme()
+  const { t } = useLang()
+  const unread = (useNotifications().data || []).filter(n => !n.read).length
+  return (
+    <View>
+      <IconBtn icon={Bell} onPress={() => router.push('/notifications')} label={t('Notifications')} />
+      {unread > 0 && (
+        <View pointerEvents="none" style={[styles.badge, { backgroundColor: c.danger, borderColor: c.surface }]}>
+          <Txt w={700} size={10.5} color="#fff" style={{ lineHeight: 14 }}>{unread > 9 ? '9+' : unread}</Txt>
+        </View>
+      )}
     </View>
   )
 }
@@ -108,7 +128,7 @@ function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
               )
             })}
           </ScrollView>
-          {user ? (
+          {!!user && (
             <View style={styles.menuUser}>
               <View style={[styles.avatar, { backgroundColor: c.accentSoft }]}><Txt w={700} size={16} color={c.accent}>{(user.name || user.email || '?')[0].toUpperCase()}</Txt></View>
               <View style={{ flex: 1 }}>
@@ -116,11 +136,9 @@ function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
                 <Txt size={13} color={c.text3} numberOfLines={1}>{user.email}</Txt>
               </View>
             </View>
-          ) : (
-            <Btn title={t('Sign in')} kind="secondary" onPress={() => go('/auth')} full />
           )}
           <View style={styles.menuLinks}>
-            <Txt size={13.5} color={c.text3} onPress={() => { onClose(); Linking.openURL(`mailto:${BRAND.support}`) }}>{t('Feedback')}</Txt>
+            <Txt size={13.5} color={c.text3} onPress={() => go('/feedback')}>{t('Feedback')}</Txt>
             <Txt size={13.5} color={c.text3}>·</Txt>
             <Txt size={13.5} color={c.text3} onPress={() => web('/privacy')}>{t('Privacy')}</Txt>
             <Txt size={13.5} color={c.text3}>·</Txt>
@@ -143,30 +161,36 @@ const TABS: Record<string, { label: string; icon: typeof LayoutGrid }> = {
   settings: { label: 'Settings', icon: Settings },
 }
 
+// The tour points at the tabs and the "+" button (the website's data-tour="nav-…" / "new-cv")
+const TOUR_KEY: Record<string, string> = { index: 'nav-home', templates: 'nav-templates', editor: 'nav-editor', settings: 'nav-settings' }
+function TabButton({ name, on, onPress }: { name: string; on: boolean; onPress: () => void }) {
+  const { c } = useTheme()
+  const { t } = useLang()
+  const target = useTourTarget(TOUR_KEY[name])
+  const { label, icon: Icon } = TABS[name]
+  return (
+    <Pressable ref={target} collapsable={false} onPress={onPress} accessibilityRole="tab" accessibilityState={{ selected: on }} style={styles.tab}>
+      <Icon size={24} color={on ? c.accent : c.text3} strokeWidth={1.7} />
+      <Txt w={on ? 600 : 500} size={12} color={on ? c.accent : c.text3}>{t(label)}</Txt>
+    </Pressable>
+  )
+}
+
 export function TabBar({ state, navigation }: BottomTabBarProps) {
   const { c, dark } = useTheme()
   const { t } = useLang()
   const insets = useSafeAreaInsets()
-  const routes = state.routes.filter(r => TABS[r.name])
-  const tab = (name: string) => {
-    const r = routes.find(x => x.name === name)
-    if (!r) return null
-    const on = state.routes[state.index]?.name === name
-    const { label, icon: Icon } = TABS[name]
-    return (
-      <Pressable key={name} onPress={() => navigation.navigate(name)} accessibilityRole="tab" accessibilityState={{ selected: on }} style={styles.tab}>
-        <Icon size={24} color={on ? c.accent : c.text3} strokeWidth={1.7} />
-        <Txt w={on ? 600 : 500} size={12} color={on ? c.accent : c.text3}>{t(label)}</Txt>
-      </Pressable>
-    )
-  }
+  const plusTarget = useTourTarget('new-cv')
+  const tab = (name: string) => state.routes.some(r => r.name === name)
+    ? <TabButton key={name} name={name} on={state.routes[state.index]?.name === name} onPress={() => navigation.navigate(name)} />
+    : null
   return (
     <View style={[styles.tabs, { paddingBottom: Math.max(insets.bottom, 8), backgroundColor: dark ? c.surface : 'rgba(255,255,255,0.97)', borderTopColor: c.border }]}>
       {tab('index')}
       {tab('templates')}
       <Pressable onPress={() => router.push('/new')} accessibilityRole="button" accessibilityLabel={t('New CV')} style={styles.plusWrap}>
         {({ pressed }) => (
-          <View style={[styles.plus, { backgroundColor: c.accent, opacity: pressed ? 0.85 : 1, shadowColor: c.accent }]}>
+          <View ref={plusTarget} collapsable={false} style={[styles.plus, { backgroundColor: c.accent, opacity: pressed ? 0.85 : 1, shadowColor: c.accent }]}>
             <Plus size={26} color="#fff" strokeWidth={2.2} />
           </View>
         )}
@@ -188,6 +212,7 @@ const styles = StyleSheet.create({
   navItem: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 12, paddingVertical: 12, borderRadius: 12 },
   menuUser: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 8, paddingVertical: 10 },
   avatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  badge: { position: 'absolute', top: 1, right: 0, minWidth: 17, height: 17, borderRadius: 9, borderWidth: 1.5, paddingHorizontal: 3, alignItems: 'center', justifyContent: 'center' },
   menuLinks: { flexDirection: 'row', gap: 8, justifyContent: 'center', paddingTop: 10 },
   tabs: { flexDirection: 'row', alignItems: 'flex-end', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 8 },
   tab: { flex: 1, alignItems: 'center', gap: 3, paddingBottom: 2 },

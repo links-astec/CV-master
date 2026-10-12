@@ -1,5 +1,5 @@
-// New CV: fill it in step by step, import an existing CV, or tell your story. Works as a guest too
-// (the CV is kept on this phone until an account is created).
+// New CV: fill it in step by step, import an existing CV, or tell your story. The CV is saved to
+// the account, so it is on the website too.
 import { useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
@@ -11,7 +11,6 @@ import { IconBtn, PageTitle, Txt } from '@/components/kit'
 import type { Draft } from '@/lib/api'
 import { importCv, startCv } from '@/lib/start'
 import { errorText } from '@/lib/ai'
-import { useAuth } from '@/lib/auth'
 import { useLang } from '@/i18n'
 import { useTheme } from '@/lib/theme'
 
@@ -38,21 +37,19 @@ export default function NewCv() {
   const { c } = useTheme()
   const insets = useSafeAreaInsets()
   const qc = useQueryClient()
-  const { user } = useAuth()
   const [busy, setBusy] = useState<'' | 'empty' | 'import'>('')
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
 
-  const opened = (d: Draft | null) => {
-    if (d) qc.setQueryData<Draft[]>(['drafts'], list => [d, ...(list || [])])
-    else qc.invalidateQueries({ queryKey: ['guest'] })
+  const opened = (d: Draft) => {
+    qc.setQueryData<Draft[]>(['drafts'], list => [d, ...(list || [])])
     router.back()
     router.navigate('/editor')
   }
 
   async function empty() {
     setBusy('empty'); setError('')
-    try { opened(await startCv(!!user)) } catch (e) { setError(errorText(e)) }
+    try { opened(await startCv()) } catch (e) { setError(errorText(e)) }
     setBusy('')
   }
 
@@ -63,7 +60,7 @@ export default function NewCv() {
     const file = res.assets[0]
     if (file.size && file.size > 10 * 1024 * 1024) { setError(t('PDF, DOCX or TXT · Max 10MB')); return }
     setBusy('import'); setStatus(t('Reading {file}…', { file: file.name }))
-    try { opened(await startCv(!!user, await importCv(file))) } catch (e) { setError(errorText(e)) }
+    try { opened(await startCv(await importCv(file))) } catch (e) { setError(errorText(e)) }
     setBusy(''); setStatus('')
   }
 

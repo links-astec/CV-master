@@ -1,16 +1,16 @@
-// Tell your story: the user writes about their career (the keyboard's dictation works too), the AI
-// asks follow-up questions for what's missing (up to the server's limit of rounds), then builds the CV.
+// Tell your story, like the website: the user types or speaks (microphone) about their career, the
+// AI asks follow-up questions for what's missing (up to the server's limit of rounds), then builds the CV.
 import { useState } from 'react'
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native'
 import { Text } from '@/components/AppText'
 import { router } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ChevronLeft } from '@/components/icons'
-import { IconBtn, Txt } from '@/components/kit'
+import { IconBtn, Segmented, Txt } from '@/components/kit'
+import { MicRecorder } from '@/components/MicRecorder'
 import { useQueryClient } from '@tanstack/react-query'
 import type { Draft } from '@/lib/api'
 import { fromExtracted, startCv, tellStory, type StoryAnswer } from '@/lib/start'
-import { useAuth } from '@/lib/auth'
 import { errorText } from '@/lib/ai'
 import { Button, Card, Field } from '@/components/ui'
 import { useLang } from '@/i18n'
@@ -21,7 +21,7 @@ export default function Story() {
   const c = useColors()
   const insets = useSafeAreaInsets()
   const qc = useQueryClient()
-  const { user } = useAuth()
+  const [mode, setMode] = useState<'type' | 'mic'>('type')
   const [story, setStory] = useState('')
   const [questions, setQuestions] = useState<{ q: string; hint: string }[]>([])
   const [answers, setAnswers] = useState<StoryAnswer[]>([])
@@ -42,9 +42,8 @@ export default function Story() {
         setAnswers(all); setQuestions(r.questions); setDraftAnswers(r.questions.map(() => ''))
         setRound(r.round); setMaxRounds(r.maxRounds)
       } else {
-        const d = await startCv(!!user, fromExtracted(r.cv))
-        if (d) qc.setQueryData<Draft[]>(['drafts'], list => [d, ...(list || [])])
-        else qc.invalidateQueries({ queryKey: ['guest'] })
+        const d = await startCv(fromExtracted(r.cv))
+        qc.setQueryData<Draft[]>(['drafts'], list => [d, ...(list || [])])
         router.back()
         router.navigate('/editor')
       }
@@ -61,10 +60,13 @@ export default function Story() {
       </View>
       {!questions.length ? (
         <Card>
+          <Txt size={15} color={c.text2} style={{ lineHeight: 21 }}>{t('Speak or type your career story. AI builds your whole CV from it.')}</Txt>
+          <Segmented items={[{ key: 'type', label: t('Type') }, { key: 'mic', label: t('Microphone') }]} value={mode} onChange={setMode} />
+          {mode === 'mic' && <MicRecorder onText={text => setStory(s => (s.trim() ? s.trim() + ' ' : '') + text)} />}
           <Field
-            label={t('Your story')} value={story} onChangeText={setStory} multiline style={{ minHeight: 220 }}
-            placeholder={t('e.g. I’ve been in product management for 8 years. I started at a startup in London where I built their first mobile app from scratch. Then I moved to a fintech where I led a team of 12 and grew the user base from 50K to 2M. I’m passionate about data-driven decisions…')}
-            hint={t('Be as detailed as you like. More context gives a better CV.')}
+            label={t(mode === 'mic' ? 'Transcript' : 'Your story')} value={story} onChangeText={setStory} multiline style={{ minHeight: mode === 'mic' ? 140 : 220 }}
+            placeholder={mode === 'mic' ? t('Your recorded text appears here. Edit freely before continuing…') : t('e.g. I’ve been in product management for 8 years. I started at a startup in London where I built their first mobile app from scratch. Then I moved to a fintech where I led a team of 12 and grew the user base from 50K to 2M. I’m passionate about data-driven decisions…')}
+            hint={t(mode === 'mic' ? 'Edit your transcript above if needed, then build your CV.' : 'Be as detailed as you like. More context gives a better CV.')}
           />
           {!!unusable && (
             <View style={{ gap: 4 }}>

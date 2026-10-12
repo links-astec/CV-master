@@ -44,12 +44,17 @@
         "expo-image-picker",
         {
           "photosPermission": "CVMaster uses the photo you choose only as the picture on your CV.",
-          "cameraPermission": false,
-          "microphonePermission": false
+          "cameraPermission": false
         }
       ],
       "expo-sharing",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "CVMaster uses the microphone only while you record your career story, to turn your words into text."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

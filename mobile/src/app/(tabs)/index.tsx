@@ -1,22 +1,23 @@
-// My CVs, like the website's dashboard: CV cards (picture, name, layout, progress, Open /
-// Download / delete) for an account, or the guest CV kept on this phone, or "Let's build your CV".
-import { useState } from 'react'
-import { Alert, RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
+// My CVs, like the website's dashboard: CV cards (picture, name, layout, progress, Paid, Open /
+// Download / Email again / delete), the occasional "How was CVMaster?" card, or "Let's build your
+// CV". The same CVs as on the website: they live in the account.
+import { useEffect, useState } from 'react'
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
-import { useQueryClient } from '@tanstack/react-query'
-import { Download, Plus, Trash } from '@/components/icons'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import * as SecureStore from 'expo-secure-store'
+import { Download, Mail, Plus, Trash } from '@/components/icons'
 import { TopBar } from '@/components/shell'
 import { Btn, Card, IconBtn, LinkBtn, PageTitle, Txt } from '@/components/kit'
 import { CvThumb } from '@/components/CvThumb'
+import { ReviewPrompt } from '@/components/ReviewPrompt'
+import { confirm, toast } from '@/components/dialogs'
 import { useDrafts } from '@/lib/drafts'
-import { useGuest } from '@/lib/useOpenCv'
 import { api, type Draft } from '@/lib/api'
-import { useAuth } from '@/lib/auth'
-import { setCurrentCv, closeEditor, useCurrentCvId } from '@/lib/editor'
-import { GUEST_ID, clearGuest, guestHasContent } from '@/lib/guest'
-import { normalise, type CvData } from '@/lib/cv'
+import { setCurrentCv, closeEditor, useCurrentCvId, useEditor } from '@/lib/editor'
+import { hasCvContent, normalise, type CvData } from '@/lib/cv'
 import { rules } from '@/lib/checklist'
-import { sharePreviewPdf } from '@/lib/pdf'
+import { shareCleanPdf, sharePreviewPdf } from '@/lib/pdf'
 import { errorText } from '@/lib/ai'
 import { startTour } from '@/lib/onboarding'
 import { useLang } from '@/i18n'
@@ -38,21 +39,31 @@ function completion(d: CvData) {
   const total = all.reduce((n, r) => n + r.points, 0)
   return Math.round((all.filter(r => r.severity === 'pass').reduce((n, r) => n + r.points, 0) / total) * 100)
 }
+const titleOf = (d: CvData) => [d.fn, d.ln].filter(Boolean).join(' ') + (d.title ? ' · ' + d.title : '')
+const fileNameOf = (d: CvData) => ([d.fn, d.ln].filter(Boolean).join(' ') || 'My CV').replace(/[^a-zA-Z0-9\s-]/g, '').trim().replace(/\s+/g, '-') + '-CV.pdf'
 
-function CvCard({ id, title, template, data, updatedAt, onDelete, guest }: {
-  id: string; title: string; template: string; data: Record<string, unknown>; updatedAt: string; onDelete: () => void; guest?: boolean
-}) {
+function CvCard({ draft, paid, onDelete }: { draft: Draft; paid: boolean; onDelete: () => void }) {
   const { t } = useLang()
   const c = useColors()
-  const [busy, setBusy] = useState(false)
-  const { data: cv, fmt } = normalise(data)
+  const open = useEditor()
+  const [busy, setBusy] = useState('')
+  // The open CV may have newer edits than the list
+  const live = open?.id === draft.id
+  const { data: saved, fmt: savedFmt } = normalise(draft.data)
+  const cv = live ? open!.data : saved
+  const fmt = live ? open!.fmt : savedFmt
+  const template = live ? open!.template : draft.template
   const pct = completion(cv)
-  const open = () => { setCurrentCv(id); router.navigate('/editor') }
+  const go = () => { setCurrentCv(draft.id); router.navigate('/editor') }
   async function download() {
-    if (guest) { router.push({ pathname: '/auth', params: { reason: 'download' } }); return }
-    setBusy(true)
-    try { await sharePreviewPdf(id) } catch (e) { Alert.alert(errorText(e)) }
-    setBusy(false)
+    setBusy('dl')
+    try { if (paid) await shareCleanPdf(draft.id, fileNameOf(cv)); else await sharePreviewPdf(draft.id) } catch (e) { toast(t('Download failed: {e}', { e: errorText(e) })) }
+    setBusy('')
+  }
+  async function resend() {
+    setBusy('send')
+    try { const j = await api<{ sentTo: string }>('/api/cv/redownload', { body: { draftId: draft.id } }); toast(t('Sent to {email}', { email: j.sentTo })) } catch (e) { toast(errorText(e)) }
+    setBusy('')
   }
   return (
     <Card pad={0} style={{ overflow: 'hidden', gap: 0 }}>
@@ -60,86 +71,86 @@ function CvCard({ id, title, template, data, updatedAt, onDelete, guest }: {
         <CvThumb template={template} data={cv} fmt={fmt} height={230} />
       </View>
       <View style={{ padding: 16, gap: 10 }}>
-        <Txt w={700} size={17} numberOfLines={2}>{title || t('Untitled CV')}</Txt>
-        <Txt size={14} color={c.text3}>{templateLabel(template)} · {ago(updatedAt, t)}</Txt>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Txt w={700} size={17} numberOfLines={2} style={{ flex: 1 }}>{titleOf(cv) || draft.title || t('Untitled CV')}</Txt>
+          {paid && <View style={[styles.badge, { backgroundColor: c.greenSoft }]}><Txt w={600} size={12} color={c.green}>{t('Paid')}</Txt></View>}
+        </View>
+        <Txt size={14} color={c.text3}>{templateLabel(template)} · {ago(draft.updatedAt, t)}</Txt>
         <View style={[styles.bar, { backgroundColor: c.border }]} accessibilityLabel={t('{n}% complete', { n: pct })}>
           <View style={{ width: `${pct}%`, height: '100%', backgroundColor: c.accent, borderRadius: 99 }} />
         </View>
         <View style={styles.actions}>
-          <Btn title={t('Open')} kind="secondary" size="sm" onPress={open} />
-          <Btn title={t('Download')} kind="secondary" size="sm" icon={Download} onPress={download} busy={busy} />
+          <Btn title={t('Open')} kind="secondary" size="sm" onPress={go} />
+          <Btn title={t(busy === 'dl' ? 'Preparing…' : 'Download')} kind="secondary" size="sm" icon={Download} onPress={download} busy={busy === 'dl'} />
+          {paid && <Btn title={t(busy === 'send' ? 'Sending…' : 'Email again')} kind="secondary" size="sm" icon={Mail} onPress={resend} busy={busy === 'send'} />}
           <View style={{ flex: 1 }} />
-          <IconBtn icon={Trash} onPress={onDelete} label={t('Delete this CV?')} color={c.text2} />
+          <IconBtn icon={Trash} onPress={onDelete} label={t('Delete')} color={c.text2} />
         </View>
       </View>
     </Card>
   )
 }
 
+const REVIEW_LATER = 'cvmaster-review-later'
+
 export default function MyCvs() {
   const { t } = useLang()
   const c = useColors()
   const qc = useQueryClient()
-  const { user } = useAuth()
   const current = useCurrentCvId()
-  const drafts = useDrafts(!!user)
-  const guest = useGuest()
+  const drafts = useDrafts(true)
+  const paid = useQuery({ queryKey: ['paid-drafts'], queryFn: () => api<{ draftIds: string[]; legacyAll: boolean }>('/api/payment/paid-drafts') })
+  const [reviewLater, setReviewLater] = useState<number | null>(null)
+  const [reviewShown, setReviewShown] = useState(false)
+  const [now] = useState(() => Date.now())
+  useEffect(() => { SecureStore.getItemAsync(REVIEW_LATER).then(v => setReviewLater(Number(v) || 0)).catch(() => setReviewLater(0)) }, [])
 
-  function askDelete(id: string) {
-    Alert.alert(t('Delete this CV?'), t('It will be permanently deleted from your account.'), [
-      { text: t('Keep it'), style: 'cancel' },
-      {
-        text: t('Delete'), style: 'destructive',
-        onPress: async () => {
-          if (id === GUEST_ID) { if (current === GUEST_ID) closeEditor(); clearGuest(); qc.invalidateQueries({ queryKey: ['guest'] }); return }
-          try {
-            await api(`/api/drafts/${id}`, { method: 'DELETE' })
-            if (current === id) closeEditor()
-            qc.setQueryData<Draft[]>(['drafts'], list => (list || []).filter(x => x.id !== id))
-          } catch { Alert.alert(t('Could not delete this CV.')) }
-        },
-      },
-    ])
+  async function askDelete(id: string) {
+    const ok = await confirm({ title: t('Delete this CV?'), message: t('It will be permanently deleted from your account.'), ok: t('Delete'), cancel: t('Keep it'), danger: true })
+    if (!ok) return
+    try {
+      await api(`/api/drafts/${id}`, { method: 'DELETE' })
+      if (current === id) closeEditor()
+      qc.setQueryData<Draft[]>(['drafts'], list => (list || []).filter(x => x.id !== id))
+    } catch { toast(t('Could not delete this CV.')) }
   }
 
-  const list = user ? (drafts.data || []) : []
-  const g = !user && guestHasContent(guest.data ?? null) ? guest.data! : null
-  const empty = user ? !drafts.isLoading && !list.length : !g
-  const sample = sampleCv()
+  // Like the website: CVs with something in them (and the one being edited)
+  const list = (drafts.data || []).filter(d => d.id === current || hasCvContent(normalise(d.data).data) || !!(d.data?.fn || d.data?.ln))
+  const isPaid = (id: string) => !!paid.data?.legacyAll || !!paid.data?.draftIds.includes(id)
+  const empty = !drafts.isLoading && !list.length
+  const askReview = reviewLater !== null && now - reviewLater > 30 * 864e5 &&
+    list.some(d => d.createdAt && now - new Date(d.createdAt).getTime() > 3 * 864e5)
+  const later = () => { const now = Date.now(); setReviewLater(now); SecureStore.setItemAsync(REVIEW_LATER, String(now)).catch(() => {}) }
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <TopBar title={t('My CVs')} />
       <ScrollView
         contentContainerStyle={styles.body}
-        refreshControl={user ? <RefreshControl refreshing={drafts.isRefetching} onRefresh={() => drafts.refetch()} tintColor={c.accent} /> : undefined}>
-        <PageTitle title={t('My CVs')} sub={user ? t('Open a CV to edit it, or download and send it.') : t('You’re using CVMaster as a guest. Your CV is saved on this phone.')} />
+        refreshControl={<RefreshControl refreshing={drafts.isRefetching} onRefresh={() => { drafts.refetch(); paid.refetch() }} tintColor={c.accent} />}>
+        <PageTitle title={t('My CVs')} sub={t('Open a CV to edit it, or download and send it.')} />
         <Btn title={t('New CV')} icon={Plus} onPress={() => router.push('/new')} />
 
-        {list.map(d => (
-          <CvCard key={d.id} id={d.id} title={d.title} template={d.template} data={d.data} updatedAt={d.updatedAt} onDelete={() => askDelete(d.id)} />
-        ))}
-        {!!user && drafts.error && (
+        {list.map(d => <CvCard key={d.id} draft={d} paid={isPaid(d.id)} onDelete={() => askDelete(d.id)} />)}
+        {drafts.error && (
           <Card><Txt color={c.text2}>{drafts.error.message}</Txt><LinkBtn title={t('Try again')} onPress={() => drafts.refetch()} /></Card>
         )}
 
-        {g && (
-          <>
-            <CvCard guest id={GUEST_ID} title={[g.data.fn, g.data.ln].filter(Boolean).join(' ') + (g.data.title ? ' · ' + g.data.title : '')}
-              template={g.template} data={{ ...g.data, fmt: g.fmt }} updatedAt={g.updatedAt} onDelete={() => askDelete(GUEST_ID)} />
-            <Card style={{ backgroundColor: c.accentSoft, borderColor: c.accentSoft }}>
-              <Txt w={700} size={17}>{t('This CV is only on this phone.')}</Txt>
-              <Txt color={c.text2} style={{ lineHeight: 22 }}>{t('Create a free account to keep it safe, edit it on any device and export it.')}</Txt>
-              <Btn title={t('Create account')} onPress={() => router.push('/auth')} />
+        {askReview && (
+          <View style={{ display: reviewShown ? 'flex' : 'none' }}>
+            <Card>
+              <ReviewPrompt onlyIfNew onShown={() => setReviewShown(true)} />
+              <LinkBtn title={t('Not now')} color={c.text3} onPress={later} />
             </Card>
-          </>
+          </View>
         )}
 
         {empty && (
           <Card style={{ gap: 18 }}>
             <View style={{ paddingHorizontal: 28, paddingTop: 6 }}>
               <View style={{ transform: [{ rotate: '-2deg' }], shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 }}>
-                <CvThumb template="modern:indigo" data={sample} height={300} radius={4} />
+                <CvThumb template="modern:indigo" data={sampleCv()} height={300} radius={4} />
               </View>
             </View>
             <Txt w={800} size={24} style={{ letterSpacing: -0.4 }}>{t('Let’s build your CV')}</Txt>
@@ -159,5 +170,6 @@ export default function MyCvs() {
 const styles = StyleSheet.create({
   body: { padding: 16, paddingTop: 22, gap: 18, paddingBottom: 40 },
   bar: { height: 6, borderRadius: 99, overflow: 'hidden' },
+  badge: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
 })

@@ -100,7 +100,7 @@ export default function EditSheet() {
               {SECTIONS.map(s => (
                 <Accordion key={s} title={t(TITLE[s])} sub={summaryOf(s, cv.data)} done={!!summaryOf(s, cv.data)} open={open === s} onToggle={() => toggle(s)}>
                   {s === 'personal' && <CvFor d={cv.data} />}
-                  <SectionBody section={s} d={cv.data} t={t} />
+                  <SectionBody section={s} d={cv.data} t={t} template={cv.template} />
                 </Accordion>
               ))}
               <Accordion title={t('Before you export')} sub={todo ? t(todo === 1 ? '{n} thing to fix' : '{n} things to fix', { n: todo }) : t('Your CV is complete')} done={!todo} open={open === 'check'} onToggle={() => toggle('check')}>

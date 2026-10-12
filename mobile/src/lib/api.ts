@@ -2,7 +2,16 @@
 // session cookie the server sets at sign-in; the phone's networking keeps it like a browser.
 // Server error messages are English keys, translated with the website's dictionaries.
 import { BRAND } from '@/brand'
+import { router } from 'expo-router'
 import { t } from '@/i18n'
+
+// A request was refused because today's free AI is used up: show the AI requests screen (once)
+let limitShownAt = 0
+export function showAiLimit() {
+  if (Date.now() - limitShownAt < 3000) return
+  limitShownAt = Date.now()
+  router.push({ pathname: '/ai-limit', params: { reason: 'limit' } })
+}
 
 export class ApiError extends Error {
   status: number
@@ -27,13 +36,17 @@ export async function api<T = unknown>(path: string, init: { method?: string; bo
     throw new ApiError(t('Connection error. Please try again.'), 0)
   }
   const json = await res.json().catch(() => ({}))
-  if (!res.ok) throw new ApiError(t(json?.error || 'Something went wrong. Please try again.'), res.status, json?.code)
+  if (!res.ok) {
+    if (json?.code === 'AI_LIMIT') showAiLimit()
+    throw new ApiError(t(json?.error || 'Something went wrong. Please try again.'), res.status, json?.code)
+  }
   return json as T
 }
 
 export type User = {
   id: string; email: string; name: string; plan: string; onboarded: boolean
   avatar?: string | null; provider?: string; uiLang?: string | null; emailVerified?: boolean
+  hasPassword?: boolean; aiPersonalize?: boolean; industry?: string | null; goal?: string | null; experience?: string | null
 }
 
 export type Draft = {

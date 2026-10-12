@@ -14,7 +14,15 @@
     "You’re using CVMaster as a guest. Your CV is saved on this phone.": "Vous utilisez CVMaster en tant qu’invité. Votre CV est enregistré sur ce téléphone.",
     "This CV is only on this phone.": "Ce CV n’est que sur ce téléphone.",
     "Your CV is saved on this phone only. Create a free account to keep it safe, use it on any device and export it.": "Votre CV n’est enregistré que sur ce téléphone. Créez un compte gratuit pour le garder en sécurité, l’utiliser sur tous vos appareils et l’exporter.",
-    "Tap “Edit CV” to change the content and watch the page update. The Job match tab tailors your CV to the job offer and gives you an ATS score.": "Touchez « Modifier le CV » pour changer le contenu et voir la page se mettre à jour. L’onglet Adéquation au poste adapte votre CV à l’offre et vous donne un score ATS."
+    "Tap “Edit CV” to change the content and watch the page update. The Job match tab tailors your CV to the job offer and gives you an ATS score.": "Touchez « Modifier le CV » pour changer le contenu et voir la page se mettre à jour. L’onglet Adéquation au poste adapte votre CV à l’offre et vous donne un score ATS.",
+    "Confirmation email sent. Check your inbox.": "E-mail de confirmation envoyé. Vérifiez votre boîte de réception.",
+    "Sign out?": "Se déconnecter ?",
+    "Share": "Partager",
+    "This account signs in with Google. To use the app, set a password: tap “Send reset link” and we’ll email you a link.": "Ce compte se connecte avec Google. Pour utiliser l’application, définissez un mot de passe : touchez « Envoyer le lien » et nous vous enverrons un lien par e-mail.",
+    "Invite code (optional)": "Code d’invitation (facultatif)",
+    "Have an invite code?": "Vous avez un code d’invitation ?",
+    "Microphone access is off. Allow it for CVMaster in your phone’s settings, or type instead.": "L’accès au micro est désactivé. Autorisez-le pour CVMaster dans les réglages du téléphone, ou écrivez plutôt.",
+    "Turning your words into text…": "Transcription de vos paroles…"
   },
   "es": {
     "Preview": "Vista previa",
@@ -31,7 +39,15 @@
     "You’re using CVMaster as a guest. Your CV is saved on this phone.": "Estás usando CVMaster como invitado. Tu CV se guarda en este teléfono.",
     "This CV is only on this phone.": "Este CV solo está en este teléfono.",
     "Your CV is saved on this phone only. Create a free account to keep it safe, use it on any device and export it.": "Tu CV solo se guarda en este teléfono. Crea una cuenta gratuita para tenerlo a salvo, usarlo en cualquier dispositivo y exportarlo.",
-    "Tap “Edit CV” to change the content and watch the page update. The Job match tab tailors your CV to the job offer and gives you an ATS score.": "Toca «Editar CV» para cambiar el contenido y ver cómo se actualiza la página. La pestaña de encaje con la oferta adapta tu CV a la oferta y te da una puntuación ATS."
+    "Tap “Edit CV” to change the content and watch the page update. The Job match tab tailors your CV to the job offer and gives you an ATS score.": "Toca «Editar CV» para cambiar el contenido y ver cómo se actualiza la página. La pestaña de encaje con la oferta adapta tu CV a la oferta y te da una puntuación ATS.",
+    "Confirmation email sent. Check your inbox.": "Correo de confirmación enviado. Revisa tu bandeja de entrada.",
+    "Sign out?": "¿Cerrar sesión?",
+    "Share": "Compartir",
+    "This account signs in with Google. To use the app, set a password: tap “Send reset link” and we’ll email you a link.": "Esta cuenta inicia sesión con Google. Para usar la app, crea una contraseña: toca «Enviar enlace de restablecimiento» y te enviaremos un enlace por correo.",
+    "Invite code (optional)": "Código de invitación (opcional)",
+    "Have an invite code?": "¿Tienes un código de invitación?",
+    "Microphone access is off. Allow it for CVMaster in your phone’s settings, or type instead.": "El acceso al micrófono está desactivado. Permítelo para CVMaster en los ajustes del teléfono, o escribe en su lugar.",
+    "Turning your words into text…": "Convirtiendo tus palabras en texto…"
   },
   "de": {
     "Preview": "Vorschau",
@@ -48,7 +64,15 @@
     "You’re using CVMaster as a guest. Your CV is saved on this phone.": "Sie nutzen CVMaster als Gast. Ihr Lebenslauf wird auf diesem Telefon gespeichert.",
     "This CV is only on this phone.": "Dieser Lebenslauf ist nur auf diesem Telefon.",
     "Your CV is saved on this phone only. Create a free account to keep it safe, use it on any device and export it.": "Ihr Lebenslauf ist nur auf diesem Telefon gespeichert. Erstellen Sie ein kostenloses Konto, um ihn zu sichern, auf jedem Gerät zu nutzen und zu exportieren.",
-    "Tap “Edit CV” to change the content and watch the page update. The Job match tab tailors your CV to the job offer and gives you an ATS score.": "Tippen Sie auf „Lebenslauf bearbeiten“, um den Inhalt zu ändern und die Seite live zu sehen. Der Tab Stellenabgleich passt Ihren Lebenslauf an die Stelle an und zeigt Ihren ATS-Score."
+    "Tap “Edit CV” to change the content and watch the page update. The Job match tab tailors your CV to the job offer and gives you an ATS score.": "Tippen Sie auf „Lebenslauf bearbeiten“, um den Inhalt zu ändern und die Seite live zu sehen. Der Tab Stellenabgleich passt Ihren Lebenslauf an die Stelle an und zeigt Ihren ATS-Score.",
+    "Confirmation email sent. Check your inbox.": "Bestätigungs-E-Mail gesendet. Sehen Sie in Ihrem Posteingang nach.",
+    "Sign out?": "Abmelden?",
+    "Share": "Teilen",
+    "This account signs in with Google. To use the app, set a password: tap “Send reset link” and we’ll email you a link.": "Dieses Konto meldet sich mit Google an. Um die App zu nutzen, legen Sie ein Passwort fest: Tippen Sie auf „Zurücksetzungslink senden“ und wir schicken Ihnen einen Link per E-Mail.",
+    "Invite code (optional)": "Einladungscode (optional)",
+    "Have an invite code?": "Haben Sie einen Einladungscode?",
+    "Microphone access is off. Allow it for CVMaster in your phone’s settings, or type instead.": "Der Mikrofonzugriff ist aus. Erlauben Sie ihn für CVMaster in den Telefoneinstellungen oder tippen Sie stattdessen.",
+    "Turning your words into text…": "Ihre Worte werden in Text umgewandelt…"
   },
   "it": {
     "Preview": "Anteprima",
@@ -65,7 +89,15 @@
     "You’re using CVMaster as a guest. Your CV is saved on this phone.": "Stai usando CVMaster come ospite. Il tuo CV è salvato su questo telefono.",
     "This CV is only on this phone.": "Questo CV è solo su questo telefono.",
     "Your CV is saved on this phone only. Create a free account to keep it safe, use it on any device and export it.": "Il tuo CV è salvato solo su questo telefono. Crea un account gratuito per tenerlo al sicuro, usarlo su qualsiasi dispositivo ed esportarlo.",
-    "Tap “Edit CV” to change the content and watch the page update. The Job match tab tailors your CV to the job offer and gives you an ATS score.": "Tocca «Modifica CV» per cambiare il contenuto e vedere la pagina aggiornarsi. La scheda Corrispondenza con l’offerta adatta il CV all’offerta e ti dà un punteggio ATS."
+    "Tap “Edit CV” to change the content and watch the page update. The Job match tab tailors your CV to the job offer and gives you an ATS score.": "Tocca «Modifica CV» per cambiare il contenuto e vedere la pagina aggiornarsi. La scheda Corrispondenza con l’offerta adatta il CV all’offerta e ti dà un punteggio ATS.",
+    "Confirmation email sent. Check your inbox.": "Email di conferma inviata. Controlla la posta in arrivo.",
+    "Sign out?": "Uscire?",
+    "Share": "Condividi",
+    "This account signs in with Google. To use the app, set a password: tap “Send reset link” and we’ll email you a link.": "Questo account accede con Google. Per usare l’app, imposta una password: tocca «Invia link di reset» e ti invieremo un link via email.",
+    "Invite code (optional)": "Codice invito (facoltativo)",
+    "Have an invite code?": "Hai un codice invito?",
+    "Microphone access is off. Allow it for CVMaster in your phone’s settings, or type instead.": "L’accesso al microfono è disattivato. Consentilo a CVMaster nelle impostazioni del telefono, oppure scrivi.",
+    "Turning your words into text…": "Trasformiamo le tue parole in testo…"
   },
   "pt": {
     "Preview": "Pré-visualizar",
@@ -82,7 +114,15 @@
     "You’re using CVMaster as a guest. Your CV is saved on this phone.": "Você está usando o CVMaster como visitante. Seu currículo fica salvo neste telefone.",
     "This CV is only on this phone.": "Este currículo está só neste telefone.",
     "Your CV is saved on this phone only. Create a free account to keep it safe, use it on any device and export it.": "Seu currículo fica salvo só neste telefone. Crie uma conta gratuita para mantê-lo seguro, usá-lo em qualquer dispositivo e exportá-lo.",
-    "Tap “Edit CV” to change the content and watch the page update. The Job match tab tailors your CV to the job offer and gives you an ATS score.": "Toque em “Editar currículo” para alterar o conteúdo e ver a página atualizar. A aba Compatibilidade com a vaga adapta seu currículo à vaga e mostra uma pontuação ATS."
+    "Tap “Edit CV” to change the content and watch the page update. The Job match tab tailors your CV to the job offer and gives you an ATS score.": "Toque em “Editar currículo” para alterar o conteúdo e ver a página atualizar. A aba Compatibilidade com a vaga adapta seu currículo à vaga e mostra uma pontuação ATS.",
+    "Confirmation email sent. Check your inbox.": "E-mail de confirmação enviado. Verifique a sua caixa de entrada.",
+    "Sign out?": "Terminar sessão?",
+    "Share": "Partilhar",
+    "This account signs in with Google. To use the app, set a password: tap “Send reset link” and we’ll email you a link.": "Esta conta entra com o Google. Para usar o app, defina uma senha: toque em “Enviar link de redefinição” e enviaremos um link por e-mail.",
+    "Invite code (optional)": "Código de convite (opcional)",
+    "Have an invite code?": "Tem um código de convite?",
+    "Microphone access is off. Allow it for CVMaster in your phone’s settings, or type instead.": "O acesso ao microfone está desligado. Permita-o para o CVMaster nas definições do telemóvel, ou escreva em vez disso.",
+    "Turning your words into text…": "A transformar as suas palavras em texto…"
   },
   "zh": {
     "Preview": "预览",
@@ -99,6 +139,14 @@
     "You’re using CVMaster as a guest. Your CV is saved on this phone.": "您正在以访客身份使用 CVMaster。您的简历保存在此手机上。",
     "This CV is only on this phone.": "这份简历只保存在此手机上。",
     "Your CV is saved on this phone only. Create a free account to keep it safe, use it on any device and export it.": "您的简历仅保存在此手机上。创建免费账号，即可安全保存、在任何设备上使用并导出。",
-    "Tap “Edit CV” to change the content and watch the page update. The Job match tab tailors your CV to the job offer and gives you an ATS score.": "点按“编辑简历”修改内容，页面会实时更新。“职位匹配”标签会根据职位信息定制您的简历，并给出 ATS 得分。"
+    "Tap “Edit CV” to change the content and watch the page update. The Job match tab tailors your CV to the job offer and gives you an ATS score.": "点按“编辑简历”修改内容，页面会实时更新。“职位匹配”标签会根据职位信息定制您的简历，并给出 ATS 得分。",
+    "Confirmation email sent. Check your inbox.": "确认邮件已发送，请查收收件箱。",
+    "Sign out?": "退出登录？",
+    "Share": "分享",
+    "This account signs in with Google. To use the app, set a password: tap “Send reset link” and we’ll email you a link.": "此账号使用 Google 登录。要使用应用，请设置密码：点击“发送重置链接”，我们会通过邮件发给你一个链接。",
+    "Invite code (optional)": "邀请码（可选）",
+    "Have an invite code?": "有邀请码吗？",
+    "Microphone access is off. Allow it for CVMaster in your phone’s settings, or type instead.": "麦克风权限已关闭。请在手机设置中允许 CVMaster 使用麦克风，或改为打字。",
+    "Turning your words into text…": "正在把你的话转成文字…"
   }
 }

@@ -1,11 +1,10 @@
 // Starting a CV: empty, imported from a PDF/Word/text file, or built from the user's story.
 // The server does the reading (same endpoints as the website); the result becomes a new draft.
 import { BRAND } from '@/brand'
-import { api, ApiError, type Draft } from '@/lib/api'
+import { api, ApiError, showAiLimit, type Draft } from '@/lib/api'
 import { defaultFmt, draftTitle, emptyData, type CvData, type CvFmt } from '@/lib/cv'
 import { lang, t } from '@/i18n'
 import { setCurrentCv } from '@/lib/editor'
-import { GUEST_ID, newGuest } from '@/lib/guest'
 import { DEFAULT_TEMPLATE } from '@web/composables/cvRenderer.js'
 
 type Ext = Record<string, any>
@@ -53,21 +52,18 @@ export async function importCv(file: { uri: string; name: string; mimeType?: str
     throw new ApiError(t('Connection error. Please try again.'), 0)
   }
   const j = await res.json().catch(() => ({}))
-  if (!res.ok) throw new ApiError(t(j?.error || 'Failed to extract CV. Try a different file or fill in manually.'), res.status, j?.code)
+  if (!res.ok) {
+    if (j?.code === 'AI_LIMIT') showAiLimit()
+    throw new ApiError(t(j?.error || 'Failed to extract CV. Try a different file or fill in manually.'), res.status, j?.code)
+  }
   return fromExtracted(j.extracted || {})
 }
 
-// A new CV for whoever is using the app: an account CV, or the guest CV on this phone.
-// It becomes the CV the Editor tab shows.
-export async function startCv(signedIn: boolean, data: CvData = emptyData(), template: string = DEFAULT_TEMPLATE): Promise<Draft | null> {
-  if (signedIn) {
-    const d = await createDraft(data, defaultFmt(), template)
-    setCurrentCv(d.id)
-    return d
-  }
-  newGuest(data, template)
-  setCurrentCv(GUEST_ID)
-  return null
+// A new CV in the account; it becomes the CV the Editor tab shows
+export async function startCv(data: CvData = emptyData(), template: string = DEFAULT_TEMPLATE): Promise<Draft> {
+  const d = await createDraft(data, defaultFmt(), template)
+  setCurrentCv(d.id)
+  return d
 }
 
 export type StoryAnswer = { q: string; a: string }

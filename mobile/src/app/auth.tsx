@@ -1,7 +1,7 @@
 // Sign in / create account / reset password, as a sheet like the website's sign-in pop-up.
-// Same rules as the site: 8+ character passwords, Terms and Privacy agreement, optional newsletter.
-// A guest's CV moves into the account (see lib/auth.tsx).
-import { useState } from 'react'
+// Same rules as the site: 8+ character passwords, Terms and Privacy agreement, optional newsletter,
+// and a friend's invite code (from their link, or typed in) counts as the referral.
+import { useEffect, useState } from 'react'
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -10,6 +10,7 @@ import { X } from '@/components/icons'
 import { Btn, Field, IconBtn, Toggle, Txt } from '@/components/kit'
 import { Mark } from '@/components/Logo'
 import { useAuth } from '@/lib/auth'
+import { referrerName, savedReferral } from '@/lib/referral'
 import { useLang } from '@/i18n'
 import { useTheme } from '@/lib/theme'
 import { BRAND } from '@/brand'
@@ -31,6 +32,13 @@ export default function Auth() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [sent, setSent] = useState('')
+  const [refCode, setRefCode] = useState('')
+  const [refName, setRefName] = useState('')
+  const [refOpen, setRefOpen] = useState(false)
+
+  // A friend's code from the link that opened the app
+  useEffect(() => { savedReferral().then(code => { if (code) { setRefCode(code); referrerName(code).then(setRefName) } }) }, [])
+  const checkRef = () => { if (refCode.trim()) referrerName(refCode).then(setRefName); else setRefName('') }
 
   const go = (m: Mode) => { setMode(m); setError(''); setSent('') }
   const web = (p: string) => () => WebBrowser.openBrowserAsync(`${BRAND.website}${p}?lang=${lang}`)
@@ -50,18 +58,18 @@ export default function Auth() {
     try {
       // Signing in closes this sheet by itself (it's only available while signed out)
       if (mode === 'signin') await signIn(email, password)
-      else if (mode === 'signup') await register({ name, email, password, newsletter })
+      else if (mode === 'signup') await register({ name, email, password, newsletter, referredBy: refCode.trim() })
       else { await forgotPassword(email); setSent(t('If an account exists for {email}, a reset link is on its way. It expires in 1 hour. Check your spam folder too.', { email: email.trim() })) }
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('Something went wrong. Please try again.'))
+      // A Google account without a password: the app signs in by email, so offer to set one
+      if ((e as { code?: string }).code === 'GOOGLE_ACCOUNT') { setMode('forgot'); setError(t('This account signs in with Google. To use the app, set a password: tap “Send reset link” and we’ll email you a link.')) }
+      else setError(e instanceof Error ? e.message : t('Something went wrong. Please try again.'))
     }
     setBusy(false)
   }
 
   const title = mode === 'signin' ? t('Welcome back') : mode === 'signup' ? t('Create your free account') : t('Reset your password')
-  const sub = params.reason === 'download' && mode !== 'forgot'
-    ? t('Create a free account to download. The CV you built comes with you.')
-    : mode === 'signin' ? t('Sign in to see your saved CVs.') : mode === 'signup' ? t('Free to build. Pay only when you export.') : t('Enter your email and we’ll send you a reset link.')
+  const sub = mode === 'signin' ? t('Sign in to see your saved CVs.') : mode === 'signup' ? t('Free to build. Pay only when you export.') : t('Enter your email and we’ll send you a reset link.')
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.surface }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -73,6 +81,13 @@ export default function Auth() {
         <Txt w={800} size={28} style={{ letterSpacing: -0.5, lineHeight: 34 }}>{title}</Txt>
         <Txt size={15.5} color={c.text2} style={{ lineHeight: 22, marginBottom: 6 }}>{sub}</Txt>
 
+        {mode === 'signup' && !!refCode && !refOpen && (
+          <View style={[styles.ref, { backgroundColor: c.greenSoft }]}>
+            <Txt size={14} color={c.green} style={{ lineHeight: 20 }}>
+              <Txt w={700} size={14} color={c.green}>{refName ? t('{name} invited you.', { name: refName }) : t('You were invited.')}</Txt> {t('They earn a free export credit when you join.')}
+            </Txt>
+          </View>
+        )}
         {mode === 'signup' && <Field label={t('Full name')} value={name} onChangeText={setName} autoComplete="name" textContentType="name" />}
         <Field
           label={t('Email address')} value={email} onChangeText={setEmail} placeholder="you@example.com"
@@ -92,6 +107,14 @@ export default function Auth() {
           </Pressable>
         )}
 
+        {mode === 'signup' && (refOpen ? (
+          <Field label={t('Invite code (optional)')} value={refCode} onChangeText={setRefCode} onBlur={checkRef} autoCapitalize="characters" autoCorrect={false}
+            hint={refName ? t('{name} invited you.', { name: refName }) : undefined} />
+        ) : !refCode && (
+          <Pressable onPress={() => setRefOpen(true)} hitSlop={8} accessibilityRole="button" style={{ alignSelf: 'flex-start' }}>
+            <Txt w={600} size={14} color={c.accent}>{t('Have an invite code?')}</Txt>
+          </Pressable>
+        ))}
         {mode === 'signup' && (
           <View style={{ gap: 14, marginTop: 4 }}>
             <View style={styles.switchRow}>
@@ -135,4 +158,5 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: 24, gap: 14 },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   switchRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  ref: { borderRadius: 12, padding: 12 },
 })

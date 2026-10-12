@@ -1,6 +1,7 @@
-// First launch: three welcome screens with the website's homepage message, then straight into the
-// app as a guest ("No account needed to start") or to sign in.
-import { useRef, useState } from 'react'
+// Signed out: three welcome screens with the website's homepage message, then create a free account
+// or sign in (the app needs an account; the website also works as a guest). After signing out, or
+// deleting the account, the app comes back here on the last screen.
+import { useEffect, useRef, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
 import { router } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -9,7 +10,7 @@ import { Btn, Txt } from '@/components/kit'
 import { Logo } from '@/components/Logo'
 import { LangPill } from '@/components/shell'
 import { CvThumb } from '@/components/CvThumb'
-import { markWelcomeDone } from '@/lib/onboarding'
+import { markWelcomeDone, useWelcomeDone } from '@/lib/onboarding'
 import { useLang } from '@/i18n'
 import { useTheme } from '@/lib/theme'
 import { sampleCv } from '@web/composables/sampleCv.js'
@@ -20,13 +21,19 @@ export default function Welcome() {
   const insets = useSafeAreaInsets()
   const { width } = useWindowDimensions()
   const pager = useRef<ScrollView>(null)
-  const [page, setPage] = useState(0)
   const pages = 3
+  // Seen before (e.g. just signed out): open on the last screen, with the buttons
+  const welcomeDone = useWelcomeDone()
+  const [seen] = useState(!!welcomeDone)
+  const [page, setPage] = useState(seen ? pages - 1 : 0)
+  useEffect(() => {
+    if (seen) setTimeout(() => pager.current?.scrollTo({ x: (pages - 1) * width, animated: false }), 0)
+  }, [seen, width])
 
   const go = (n: number) => { pager.current?.scrollTo({ x: n * width, animated: true }); setPage(n) }
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => setPage(Math.round(e.nativeEvent.contentOffset.x / width))
-  const start = () => { markWelcomeDone(); router.replace('/') }
-  const signIn = () => { markWelcomeDone(); router.replace('/'); setTimeout(() => router.push({ pathname: '/auth', params: { mode: 'signin' } }), 50) }
+  const start = () => { markWelcomeDone(); router.push({ pathname: '/auth', params: { mode: 'signup' } }) }
+  const signIn = () => { markWelcomeDone(); router.push({ pathname: '/auth', params: { mode: 'signin' } }) }
 
   const steps = [
     { t: 'Build', d: 'Fill in guided steps, tell your story, or import the CV you already have.' },
@@ -80,7 +87,6 @@ export default function Welcome() {
               </View>
             ))}
           </View>
-          <Txt size={14} color={c.text3}>{t('No account needed to start')}</Txt>
         </ScrollView>
       </ScrollView>
 
@@ -100,7 +106,7 @@ export default function Welcome() {
           </View>
         ) : (
           <View style={{ gap: 10 }}>
-            <Btn title={t('Build my CV for free')} size="lg" full onPress={start} />
+            <Btn title={t('Create free account')} size="lg" full onPress={start} />
             <Btn title={t('Sign in')} kind="secondary" size="lg" full onPress={signIn} />
           </View>
         )}

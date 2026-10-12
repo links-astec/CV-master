@@ -7,6 +7,7 @@ import { setField, update } from '@/lib/editor'
 import { type Section } from '@/lib/sections'
 import { Button, Card, ChipInput, Field, SmallAction } from '@/components/ui'
 import { PhotoField } from '@/components/PhotoField'
+import { getLayout, parseTemplate } from '@web/composables/cvRenderer.js'
 import { GroupLabel } from '@/components/kit'
 import { useColors } from '@/lib/theme'
 import type { CvData } from '@/lib/cv'
@@ -41,10 +42,11 @@ function ItemActions({ i, count, onMove, onRemove, t }: { i: number; count: numb
   )
 }
 
-function Personal({ d, t }: { d: CvData; t: T }) {
+// The photo is asked for only by the layouts that show one (tagged "Photo"), like the website
+function Personal({ d, t, photo }: { d: CvData; t: T; photo: boolean }) {
   return (
     <View style={{ gap: 14 }}>
-      <PhotoField photo={d.photo} initials={[d.fn, d.ln].map(x => x.trim()[0] || '').join('').toUpperCase()} />
+      {photo && <PhotoField photo={d.photo} initials={[d.fn, d.ln].map(x => x.trim()[0] || '').join('').toUpperCase()} />}
       <GroupLabel>{t('Name')}</GroupLabel>
       <Field label={t('First Name')} value={d.fn} onChangeText={v => setField('fn', v)} placeholder={t('Alexandra')} autoComplete="given-name" textContentType="givenName" />
       <Field label={t('Last Name')} value={d.ln} onChangeText={v => setField('ln', v)} placeholder={t('Morrison')} autoComplete="family-name" textContentType="familyName" />
@@ -236,9 +238,9 @@ function Hint({ text }: { text: string }) {
   return <Text style={{ fontSize: 12.5, color: c.text3 }}>{text}</Text>
 }
 
-export function SectionBody({ section, d, t }: { section: Section; d: CvData; t: T }) {
+export function SectionBody({ section, d, t, template }: { section: Section; d: CvData; t: T; template: string }) {
   switch (section) {
-    case 'personal': return <Personal d={d} t={t} />
+    case 'personal': return <Personal d={d} t={t} photo={!!getLayout(parseTemplate(template).layout)?.photo} />
     case 'summary': return <Summary d={d} t={t} />
     case 'experience': return <Experience d={d} t={t} />
     case 'education': return <Education d={d} t={t} />

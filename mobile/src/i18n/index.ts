@@ -24,23 +24,26 @@ const CODES: string[] = LANGS.map(l => l.code)
 type Dict = Record<string, string>
 type Pattern = [RegExp, string]
 type DictModule = { default?: Dict; PATTERNS?: Pattern[] }
-// The website's files are plain JavaScript; their shape is { default: Dict, PATTERNS: [RegExp, string][] }
-const as = (p: Promise<unknown>) => p as Promise<DictModule>
-const LOADERS: Record<string, () => Promise<DictModule>> = {
-  fr: () => as(import('@web/i18n/fr.js')),
-  es: () => as(import('@web/i18n/es.js')),
-  de: () => as(import('@web/i18n/de.js')),
-  it: () => as(import('@web/i18n/it.js')),
-  pt: () => as(import('@web/i18n/pt.js')),
-  zh: () => as(import('@web/i18n/zh.js')),
+// The website's files are plain JavaScript; their shape is { default: Dict, PATTERNS: [RegExp, string][] }.
+// They are bundled with the app (require, not import()): an on-demand chunk from outside the app's
+// folder can fail to load on the phone, which left the app in English after choosing a language.
+/* eslint-disable @typescript-eslint/no-require-imports */
+const LOADERS: Record<string, () => DictModule> = {
+  fr: () => require('@web/i18n/fr.js'),
+  es: () => require('@web/i18n/es.js'),
+  de: () => require('@web/i18n/de.js'),
+  it: () => require('@web/i18n/it.js'),
+  pt: () => require('@web/i18n/pt.js'),
+  zh: () => require('@web/i18n/zh.js'),
 }
+/* eslint-enable @typescript-eslint/no-require-imports */
 
 let current: LangCode = 'en'
+let explicitChoice = false
 let dict: Dict = {}
 let patterns: Pattern[] = []
-let version = 0
 const listeners = new Set<() => void>()
-const emit = () => { version++; listeners.forEach(l => l()) }
+const emit = () => { state = null; listeners.forEach(l => l()) }
 
 // The website's code reads `lang.value`
 export const lang = { get value(): LangCode { return current } }
@@ -70,18 +73,17 @@ export async function setLang(code: string, { explicit = true } = {}) {
   if (code === 'en') { dict = {}; patterns = [] }
   else {
     try {
-      const m = await LOADERS[code]()
+      const m = LOADERS[code]()
       // App-only texts (src/i18n/extra.json) on top of the website's dictionary
       dict = { ...(m.default || {}), ...((EXTRA as Record<string, Dict>)[code] || {}) }
       patterns = m.PATTERNS || []
-    } catch { return }
+    } catch (e) { console.warn('[i18n] could not load', code, e); return }
   }
   current = code as LangCode
-  if (explicit) { try { await SecureStore.setItemAsync(KEY, code) } catch {} }
+  if (explicit) { explicitChoice = true; try { await SecureStore.setItemAsync(KEY, code) } catch {} }
   emit()
 }
 
-let explicitChoice = false
 export const hasExplicitChoice = () => explicitChoice
 
 // First launch: the phone's language if we have it; afterwards the user's own choice
@@ -102,11 +104,15 @@ export const i18nReady: Promise<void> = initialLang().then(code => setLang(code,
 export const locale = () => (LANGS.find(l => l.code === current) || LANGS[0]).locale
 export const googleLocale = () => (LANGS.find(l => l.code === current) || LANGS[0]).google
 
-// React: components that call useLang() re-render when the language changes
+// React: components that call useLang() re-render when the language changes. Each language gets
+// a new value (and a new `t`), so screens the React Compiler has cached are redrawn too: with
+// the same object and the same `t`, the language pill and the tab labels stayed in English.
+type LangState = { lang: LangCode; t: typeof t; setLang: typeof setLang; locale: string }
+let state: LangState | null = null
+const snapshot = (): LangState => (state ??= { lang: current, t: (s, p) => t(s, p), setLang, locale: locale() })
 const subscribe = (fn: () => void) => { listeners.add(fn); return () => { listeners.delete(fn) } }
-export function useLang() {
-  useSyncExternalStore(subscribe, () => version)
-  return { lang: current, t, setLang, locale: locale() }
+export function useLang(): LangState {
+  return useSyncExternalStore(subscribe, snapshot)
 }
 
 // The website's module also has a Vue plugin as its default export; the app never uses it
