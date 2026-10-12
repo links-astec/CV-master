@@ -2170,7 +2170,7 @@ app.post('/api/cv/upload', aiAccess, upload.single('cv'), async (req, res) => {
     const systemPrompt = `You are an expert CV/resume parser. Your job is to extract structured data from CV text with high accuracy.
 Rules:
 - Extract ALL work experiences, not just recent ones
-- For each experience, write a detailed desc summarising key responsibilities and achievements from the CV text
+- For each experience, write desc as 2-5 bullet lines, one per line, each starting with "• ": the responsibilities and achievements from the CV, in the person's own wording, keeping every number. Never merge them into a paragraph and never add anything that isn't in the CV
 - Extract ALL education entries (degrees, diplomas, bootcamps, courses)
 - Extract ALL skills mentioned anywhere in the CV
 - If a professional summary exists, use it verbatim or improve it slightly; if not, write one based on the experience
@@ -2199,7 +2199,7 @@ Rules:
       "title": "exact job title",
       "company": "company name",
       "period": "date range as written in CV",
-      "desc": "detailed description of responsibilities, achievements, and impact (2-4 sentences)"
+      "desc": "• first point\\n• second point (2-5 bullet lines from the CV)"
     }
   ],
   "skills": ["skill1", "skill2", "...all technical and soft skills mentioned"],
