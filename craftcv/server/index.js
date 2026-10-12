@@ -18,6 +18,7 @@ import nodemailer from 'nodemailer';
 import { query } from './db.js';
 import { ensurePushTable, isPushToken, registerToken, removeToken, sendPush } from './push.js';
 import { ensureActivity, nextStep, personalNudges, recordEvents, setPersonalize } from './activity.js';
+import { ensureAppleCols, keepAppleRefreshToken, revokeApple, verifyAppleToken } from './apple.js';
 import { createRequire } from 'module';
 import { promises as dns } from 'dns';
 
@@ -866,6 +867,46 @@ app.post('/api/auth/google', async (req, res) => {
   }
 });
 
+// ── SIGN IN WITH APPLE (iPhone app; see server/apple.js) ──────────────────────
+app.post('/api/auth/apple', async (req, res) => {
+  try {
+    const { identityToken, authorizationCode } = req.body || {};
+    if (!identityToken) return res.status(400).json({ error: 'Apple sign-in failed, please try again.' });
+    let a;
+    try { a = await verifyAppleToken(identityToken); }
+    catch (e) { console.warn('[apple] token:', e.message); return res.status(401).json({ error: 'Apple sign-in failed, please try again.' }); }
+    await ensureAppleCols();
+    await ensureReferralColumns();
+
+    // The account with this Apple id, or the one with the same email (linked to Apple now)
+    let user = (await query('SELECT * FROM users WHERE apple_id = $1', [a.sub])).rows[0];
+    if (!user && a.email) {
+      user = (await query(`UPDATE users SET apple_id = $1, email_verified = (email_verified OR $2) WHERE email = $3 RETURNING *`,
+        [a.sub, a.emailVerified, a.email])).rows[0];
+    }
+    if (!user) {
+      // Apple shares the email (or a private relay address) only the first time
+      if (!a.email) return res.status(400).json({ error: 'Apple didn’t share an email address. Try again, or sign up with your email.' });
+      const fn = req.body?.fullName || {};
+      const name = [fn.givenName, fn.familyName].filter(x => typeof x === 'string' && x.trim()).join(' ').trim().slice(0, 100) || a.email.split('@')[0];
+      const referrerId = await findReferrer(req.body?.referredBy || '', a.email);
+      user = (await query(
+        `INSERT INTO users (email, name, provider, apple_id, avatar, referral_code, referred_by, email_verified)
+         VALUES ($1, $2, 'apple', $3, $4, $5, $6, TRUE) RETURNING *`,
+        [a.email, name, a.sub, name[0].toUpperCase(), generateReferralCode(name, a.email), referrerId])).rows[0];
+      if (referrerId) await welcomeReferred(user.id).catch(e => console.warn('[referral] welcome bonus:', e.message));
+      await seedNotifications(user.id);
+      if (req.body?.newsletter === true) await setSubscription(a.email, { userId: user.id, source: 'signup', status: 'subscribed' }).catch(e => console.warn('[newsletter] apple:', e.message));
+    }
+    keepAppleRefreshToken(user.id, authorizationCode).catch(e => console.warn('[apple] refresh token:', e.message));
+    setAuthCookie(res, signToken(user.id, user.token_version));
+    res.json({ user: publicUser(user) });
+  } catch (e) {
+    console.error('Apple auth error:', e.message);
+    res.status(500).json({ error: 'Apple sign-in failed, please try again.' });
+  }
+});
+
 // ── FORGOT PASSWORD ───────────────────────────────────────────────────────────
 const hashResetToken = (t) => createHash('sha256').update(String(t || '')).digest('hex');
 app.post('/api/auth/forgot-password', async (req, res) => {
@@ -973,6 +1014,8 @@ app.post('/api/auth/delete-account', rateLimit({ windowMs: 15 * 60 * 1000, max: 
       return res.status(400).json({ error: 'Type your email address to confirm.' });
     }
     await query('DELETE FROM newsletter_subscribers WHERE LOWER(email) = LOWER($1)', [u.email]).catch(() => {});
+    // Signed in with Apple: end Apple's link to the app too (Apple requires it)
+    if (u.apple_refresh_token) await revokeApple(u.apple_refresh_token).catch(e => console.warn('[apple] revoke:', e.message));
     await query('DELETE FROM users WHERE id = $1', [u.id]);
     res.clearCookie('token', { domain: IS_PROD ? '.cvmaster.live' : undefined });
     res.json({ ok: true });

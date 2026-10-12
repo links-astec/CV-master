@@ -219,6 +219,11 @@ CREATE TABLE IF NOT EXISTS feedback (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- SIGN IN WITH APPLE (iPhone app; also created on demand, server/apple.js)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS apple_id TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS apple_refresh_token TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS users_apple_id ON users(apple_id) WHERE apple_id IS NOT NULL;
+
 -- PUSH NOTIFICATIONS: the phone app's Expo push tokens (also created on demand, server/push.js)
 CREATE TABLE IF NOT EXISTS push_tokens (
   token        TEXT PRIMARY KEY,

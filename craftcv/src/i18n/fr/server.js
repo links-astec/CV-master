@@ -1,6 +1,8 @@
 // Messages that come from the server (errors, limits, notifications) and are shown as they are.
 // Admin-only and developer messages are left in English.
 export default {
+  'Apple sign-in failed, please try again.': 'Échec de la connexion avec Apple, veuillez réessayer.',
+  'Apple didn’t share an email address. Try again, or sign up with your email.': 'Apple n’a pas transmis d’adresse e-mail. Réessayez, ou inscrivez-vous avec votre e-mail.',
   'Invalid push token.': 'Identifiant de notification invalide.',
   'Could not turn on notifications.': 'Impossible d’activer les notifications.',
   'Could not load your next step.': 'Impossible de charger votre prochaine étape.',
