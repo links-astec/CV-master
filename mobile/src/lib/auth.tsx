@@ -9,6 +9,7 @@ import { hasExplicitChoice, lang, setLang } from '@/i18n'
 import { closeEditor } from '@/lib/editor'
 import { clearReferral } from '@/lib/referral'
 import { googleSignOut } from '@/lib/google'
+import type { AppleSignIn } from '@/lib/apple'
 import { disablePush, refreshPush } from '@/lib/push'
 import { flushEvents, setTracking, track } from '@/lib/track'
 
@@ -18,6 +19,7 @@ type AuthState = {
   signIn: (email: string, password: string) => Promise<void>
   register: (p: { name: string; email: string; password: string; newsletter: boolean; referredBy?: string }) => Promise<void>
   signInWithGoogle: (p: { idToken: string; newsletter?: boolean; referredBy?: string }) => Promise<void>
+  signInWithApple: (p: AppleSignIn & { newsletter?: boolean; referredBy?: string }) => Promise<void>
   adoptUser: (u: User) => void
   forgotPassword: (email: string) => Promise<void>
   deleteAccount: (confirm: { password?: string; confirmEmail?: string }) => Promise<void>
@@ -110,6 +112,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signedIn(u.uiLang ? u : { ...u, uiLang: lang.value })
   }, [signedIn])
 
+  // Apple (iPhone): the server checks Apple's identity token
+  const signInWithApple = useCallback(async (p: AppleSignIn & { newsletter?: boolean; referredBy?: string }) => {
+    const { user: u } = await api<{ user: User }>('/api/auth/apple', {
+      body: { identityToken: p.identityToken, authorizationCode: p.authorizationCode, fullName: p.fullName, newsletter: !!p.newsletter, referredBy: p.referredBy || undefined },
+    })
+    clearReferral()
+    if (!u.uiLang) api('/api/auth/settings', { method: 'PATCH', body: { uiLang: lang.value } }).catch(() => {})
+    signedIn(u.uiLang ? u : { ...u, uiLang: lang.value })
+  }, [signedIn])
+
   // Signed in another way (e.g. setting a new password from a reset link)
   const adoptUser = useCallback((u: User) => signedIn(u), [signedIn])
 
@@ -135,8 +147,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const markOnboarded = useCallback(() => setUser(u => (u ? { ...u, onboarded: true } : u)), [])
   const patchUser = useCallback((p: Partial<User>) => setUser(u => (u ? { ...u, ...p } : u)), [])
 
-  const value = useMemo(() => ({ user, ready, signIn, register, signInWithGoogle, adoptUser, forgotPassword, deleteAccount, signOut, markOnboarded, patchUser, refresh }),
-    [user, ready, signIn, register, signInWithGoogle, adoptUser, forgotPassword, deleteAccount, signOut, markOnboarded, patchUser, refresh])
+  const value = useMemo(() => ({ user, ready, signIn, register, signInWithGoogle, signInWithApple, adoptUser, forgotPassword, deleteAccount, signOut, markOnboarded, patchUser, refresh }),
+    [user, ready, signIn, register, signInWithGoogle, signInWithApple, adoptUser, forgotPassword, deleteAccount, signOut, markOnboarded, patchUser, refresh])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 

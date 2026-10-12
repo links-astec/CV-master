@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "645096295861",
+    "project_id": "utopian-calling-439414-q0",
+    "storage_bucket": "utopian-calling-439414-q0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:645096295861:android:2ec9491e06dcfae0bc9dfc",
+        "android_client_info": {
+          "package_name": "live.cvmaster.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "645096295861-76m7h940l3dvi6f8a5990r0e6obu6sin.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBm-Fp5E8Q1r75A3rETSRWI3jk2UnOmUUc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "645096295861-76m7h940l3dvi6f8a5990r0e6obu6sin.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

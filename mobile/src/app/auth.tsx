@@ -12,6 +12,8 @@ import { Mark } from '@/components/Logo'
 import { useAuth } from '@/lib/auth'
 import { referrerName, savedReferral } from '@/lib/referral'
 import { googleAvailable, googleIdToken } from '@/lib/google'
+import { appleAvailable, appleSignIn } from '@/lib/apple'
+import * as AppleAuthentication from 'expo-apple-authentication'
 import { useLang } from '@/i18n'
 import { useTheme } from '@/lib/theme'
 import { BRAND } from '@/brand'
@@ -20,9 +22,9 @@ type Mode = 'signin' | 'signup' | 'forgot'
 
 export default function Auth() {
   const params = useLocalSearchParams<{ mode?: string; reason?: string }>()
-  const { signIn, register, forgotPassword, signInWithGoogle } = useAuth()
+  const { signIn, register, forgotPassword, signInWithGoogle, signInWithApple } = useAuth()
   const { t, lang } = useLang()
-  const { c } = useTheme()
+  const { c, dark } = useTheme()
   const insets = useSafeAreaInsets()
   const top = useTopSpace(16)   // a full screen (from the welcome screens), so below the notch on iPhone
   const [mode, setMode] = useState<Mode>(params.mode === 'signin' || params.mode === 'forgot' ? params.mode : 'signup')
@@ -80,6 +82,20 @@ export default function Auth() {
       if (idToken) await signInWithGoogle({ idToken, newsletter: mode === 'signup' && newsletter, referredBy: refCode.trim() })
     } catch (e) {
       setError(e instanceof Error && e.message ? e.message : t('Google sign-in failed, please try again.'))
+    }
+    setBusy(false)
+  }
+
+  // Sign in with Apple (iPhone), the same rules as Google
+  async function apple() {
+    setError('')
+    if (mode === 'signup' && !agree) { setError(t('Please agree to the Terms and Privacy Policy first.')); return }
+    setBusy(true)
+    try {
+      const cred = await appleSignIn()
+      if (cred) await signInWithApple({ ...cred, newsletter: mode === 'signup' && newsletter, referredBy: refCode.trim() })
+    } catch (e) {
+      setError(e instanceof Error && e.message ? e.message : t('Apple sign-in failed, please try again.'))
     }
     setBusy(false)
   }
@@ -156,18 +172,24 @@ export default function Auth() {
           onPress={submit} busy={busy} size="lg" full style={{ marginTop: 6 }}
         />
 
-        {googleAvailable && mode !== 'forgot' && (
+        {(googleAvailable || appleAvailable) && mode !== 'forgot' && (
           <>
             <View style={styles.or}>
               <View style={[styles.orLine, { backgroundColor: c.border }]} />
               <Txt size={13} color={c.text3}>{t('or')}</Txt>
               <View style={[styles.orLine, { backgroundColor: c.border }]} />
             </View>
-            <Pressable onPress={google} disabled={busy} accessibilityRole="button"
+            {appleAvailable && (
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={mode === 'signup' ? AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP : AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                buttonStyle={dark ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                cornerRadius={10} style={{ height: 50 }} onPress={() => { if (!busy) apple() }} />
+            )}
+            {googleAvailable && <Pressable onPress={google} disabled={busy} accessibilityRole="button"
               style={({ pressed }) => [styles.google, { borderColor: c.border2, backgroundColor: c.surface, opacity: busy ? 0.6 : pressed ? 0.85 : 1 }]}>
               <Txt w={800} size={18} color="#4285F4">G</Txt>
               <Txt w={600} size={16}>{t('Continue with Google')}</Txt>
-            </Pressable>
+            </Pressable>}
           </>
         )}
 
