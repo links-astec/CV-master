@@ -73,7 +73,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
-import { parseTemplate } from '../../composables/cvRenderer.js'
+import { getLayout, parseTemplate } from '../../composables/cvRenderer.js'
 import CvForSwitch from '../CvForSwitch.vue'
 const store = useCvStore()
 const fileInput = ref(null)
@@ -81,7 +81,7 @@ const dragging  = ref(false)
 const photoError = ref('')
 
 // UK/US recruiters usually prefer no photo, so only these layouts show one
-const showsPhoto = computed(() => ['photo', 'sidebar'].includes(parseTemplate(store.template).layout))
+const showsPhoto = computed(() => !!getLayout(parseTemplate(store.template).layout)?.photo)
 
 function triggerPick() { fileInput.value?.click() }
 function handleFile(e) { processFile(e.target.files[0]) }
