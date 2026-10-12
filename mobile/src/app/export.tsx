@@ -14,6 +14,7 @@ import { useOpenCv } from '@/lib/useOpenCv'
 import { pageInfoOf } from '@/lib/pageInfo'
 import { checkout, emailCv, paidStatus, redeemCredit, shareCleanPdf, sharePreviewPdf } from '@/lib/pdf'
 import { errorText } from '@/lib/ai'
+import { maybeAskForStoreReview } from '@/lib/storeReview'
 import { api } from '@/lib/api'
 import { useLang } from '@/i18n'
 import { useTheme } from '@/lib/theme'
@@ -69,6 +70,7 @@ export default function Export() {
       await flush()
       const r = await emailCv({ draftId: id, overrideEmail: email.trim() || null, sessionId })
       setSentTo(r.sentTo); setPaid(true); setState('sent')
+      maybeAskForStoreReview()
     } catch (e) {
       const status = (e as { status?: number }).status
       if (status === 401 || status === 403) { setError(errorText(e)); setState('ready') } else setState('emailFailed')
@@ -101,7 +103,9 @@ export default function Export() {
   async function download(kind: 'clean' | 'preview') {
     if (!id || busy) return
     setBusy(kind)
-    try { if (kind === 'clean') await shareCleanPdf(id, fileName); else await sharePreviewPdf(id) } catch (e) { toast(errorText(e)) }
+    try {
+      if (kind === 'clean') { await shareCleanPdf(id, fileName); maybeAskForStoreReview() } else await sharePreviewPdf(id)
+    } catch (e) { toast(errorText(e)) }
     setBusy('')
   }
 

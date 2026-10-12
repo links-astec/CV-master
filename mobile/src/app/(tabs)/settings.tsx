@@ -3,7 +3,7 @@
 // quick tour), the review, help and feedback, and deleting the account. Everything is saved to the
 // account, so it is the same on the website.
 import { useEffect, useState } from 'react'
-import { Linking, Modal, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native'
+import { Linking, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import * as WebBrowser from 'expo-web-browser'
@@ -21,6 +21,7 @@ import { errorText } from '@/lib/ai'
 import { startTour } from '@/lib/onboarding'
 import { disablePush, enablePush, pushPreference, pushSupported } from '@/lib/push'
 import { track } from '@/lib/track'
+import { openStorePage, storePageUrl } from '@/lib/storeReview'
 import { useLang } from '@/i18n'
 import { useTheme } from '@/lib/theme'
 import { BRAND } from '@/brand'
@@ -288,8 +289,15 @@ export default function Settings() {
           <SettingRow title={t('Quick tour')} desc={t('A one-minute walkthrough of building, tailoring and exporting')} right={<Btn title={t('Start tour')} kind="secondary" size="sm" onPress={startTour} />} />
         </Card>
 
-        {/* Review (only for people who have made a CV) */}
+        {/* Review (only for people who have made a CV): for the homepage, and in the app's store */}
         <ReviewCard />
+        {!!storePageUrl() && (
+          <Card style={{ gap: 0 }}>
+            <SettingRow first title={t(Platform.OS === 'ios' ? 'Rate CVMaster on the App Store' : 'Rate CVMaster on Google Play')}
+              desc={t('A rating there helps other job seekers find the app.')}
+              right={<Btn title={t('Rate')} kind="secondary" size="sm" onPress={openStorePage} />} />
+          </Card>
+        )}
 
         {/* Help */}
         <Card style={{ gap: 8 }}>

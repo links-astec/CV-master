@@ -17,6 +17,7 @@ import { Tour } from '@/components/Tour'
 import { DialogHost, confirm } from '@/components/dialogs'
 import { enablePush, markAsked, pushPreference, pushSupported, usePushTaps, wasAsked } from '@/lib/push'
 import { useReferralLinks } from '@/lib/referral'
+import { noteFirstOpen } from '@/lib/storeReview'
 
 SplashScreen.preventAutoHideAsync()
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000 } } })
@@ -42,7 +43,7 @@ function RootNavigator() {
   const [langReady, setLangReady] = useState(false)
   const [fonts] = useFonts({ PlusJakartaSans_400Regular, PlusJakartaSans_500Medium, PlusJakartaSans_600SemiBold, PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold })
 
-  useEffect(() => { Promise.all([i18nReady, onboardingReady, currentReady]).finally(() => setLangReady(true)) }, [])
+  useEffect(() => { Promise.all([i18nReady, onboardingReady, currentReady]).finally(() => setLangReady(true)); noteFirstOpen() }, [])
   const allReady = ready && langReady && fonts && welcomeDone !== null
   useEffect(() => { if (allReady) SplashScreen.hideAsync() }, [allReady])
 

@@ -1,16 +1,14 @@
 // My CVs, like the website's dashboard: CV cards (picture, name, layout, progress, Paid, Open /
 // Download / Email again / delete), the occasional "How was CVMaster?" card, or "Let's build your
 // CV". The same CVs as on the website: they live in the account.
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import * as SecureStore from 'expo-secure-store'
 import { Download, Mail, Plus, Trash } from '@/components/icons'
 import { TopBar } from '@/components/shell'
 import { Btn, Card, IconBtn, LinkBtn, PageTitle, Txt } from '@/components/kit'
 import { CvThumb } from '@/components/CvThumb'
-import { ReviewPrompt } from '@/components/ReviewPrompt'
 import { confirm, toast } from '@/components/dialogs'
 import { useDrafts } from '@/lib/drafts'
 import { api, type Draft } from '@/lib/api'
@@ -92,8 +90,6 @@ function CvCard({ draft, paid, onDelete }: { draft: Draft; paid: boolean; onDele
   )
 }
 
-const REVIEW_LATER = 'cvmaster-review-later'
-
 export default function MyCvs() {
   const { t } = useLang()
   const c = useColors()
@@ -102,10 +98,6 @@ export default function MyCvs() {
   const drafts = useDrafts(true)
   const next = useNextStep()
   const paid = useQuery({ queryKey: ['paid-drafts'], queryFn: () => api<{ draftIds: string[]; legacyAll: boolean }>('/api/payment/paid-drafts') })
-  const [reviewLater, setReviewLater] = useState<number | null>(null)
-  const [reviewShown, setReviewShown] = useState(false)
-  const [now] = useState(() => Date.now())
-  useEffect(() => { SecureStore.getItemAsync(REVIEW_LATER).then(v => setReviewLater(Number(v) || 0)).catch(() => setReviewLater(0)) }, [])
 
   async function askDelete(id: string) {
     const ok = await confirm({ title: t('Delete this CV?'), message: t('It will be permanently deleted from your account.'), ok: t('Delete'), cancel: t('Keep it'), danger: true })
@@ -121,9 +113,6 @@ export default function MyCvs() {
   const list = (drafts.data || []).filter(d => d.id === current || hasCvContent(normalise(d.data).data) || !!(d.data?.fn || d.data?.ln))
   const isPaid = (id: string) => !!paid.data?.legacyAll || !!paid.data?.draftIds.includes(id)
   const empty = !drafts.isLoading && !list.length
-  const askReview = reviewLater !== null && now - reviewLater > 30 * 864e5 &&
-    list.some(d => d.createdAt && now - new Date(d.createdAt).getTime() > 3 * 864e5)
-  const later = () => { const now = Date.now(); setReviewLater(now); SecureStore.setItemAsync(REVIEW_LATER, String(now)).catch(() => {}) }
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
@@ -149,14 +138,6 @@ export default function MyCvs() {
           <Card><Txt color={c.text2}>{drafts.error.message}</Txt><LinkBtn title={t('Try again')} onPress={() => drafts.refetch()} /></Card>
         )}
 
-        {askReview && (
-          <View style={{ display: reviewShown ? 'flex' : 'none' }}>
-            <Card>
-              <ReviewPrompt onlyIfNew onShown={() => setReviewShown(true)} />
-              <LinkBtn title={t('Not now')} color={c.text3} onPress={later} />
-            </Card>
-          </View>
-        )}
 
         {empty && (
           <Card style={{ gap: 18 }}>

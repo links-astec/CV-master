@@ -40,7 +40,11 @@
     "Nothing was recorded. Hold the phone close, speak, then tap stop.": "Rien n’a été enregistré. Tenez le téléphone près de vous, parlez, puis touchez stop.",
     "Open settings": "Ouvrir les réglages",
     "Sign in with Apple": "Se connecter avec Apple",
-    "Sign up with Apple": "S’inscrire avec Apple"
+    "Sign up with Apple": "S’inscrire avec Apple",
+    "Rate": "Noter",
+    "A rating there helps other job seekers find the app.": "Une note là-bas aide d’autres candidats à trouver l’application.",
+    "Rate CVMaster on the App Store": "Noter CVMaster sur l’App Store",
+    "Rate CVMaster on Google Play": "Noter CVMaster sur Google Play"
   },
   "es": {
     "Preview": "Vista previa",
@@ -83,7 +87,11 @@
     "Nothing was recorded. Hold the phone close, speak, then tap stop.": "No se grabó nada. Acerca el teléfono, habla y luego toca detener.",
     "Open settings": "Abrir ajustes",
     "Sign in with Apple": "Iniciar sesión con Apple",
-    "Sign up with Apple": "Registrarse con Apple"
+    "Sign up with Apple": "Registrarse con Apple",
+    "Rate": "Valorar",
+    "A rating there helps other job seekers find the app.": "Una valoración allí ayuda a otras personas a encontrar la app.",
+    "Rate CVMaster on the App Store": "Valorar CVMaster en el App Store",
+    "Rate CVMaster on Google Play": "Valorar CVMaster en Google Play"
   },
   "de": {
     "Preview": "Vorschau",
@@ -126,7 +134,11 @@
     "Nothing was recorded. Hold the phone close, speak, then tap stop.": "Es wurde nichts aufgenommen. Halten Sie das Telefon nah, sprechen Sie und tippen Sie dann auf Stopp.",
     "Open settings": "Einstellungen öffnen",
     "Sign in with Apple": "Mit Apple anmelden",
-    "Sign up with Apple": "Mit Apple registrieren"
+    "Sign up with Apple": "Mit Apple registrieren",
+    "Rate": "Bewerten",
+    "A rating there helps other job seekers find the app.": "Eine Bewertung dort hilft anderen Jobsuchenden, die App zu finden.",
+    "Rate CVMaster on the App Store": "CVMaster im App Store bewerten",
+    "Rate CVMaster on Google Play": "CVMaster bei Google Play bewerten"
   },
   "it": {
     "Preview": "Anteprima",
@@ -169,7 +181,11 @@
     "Nothing was recorded. Hold the phone close, speak, then tap stop.": "Non è stato registrato nulla. Tieni il telefono vicino, parla, poi tocca stop.",
     "Open settings": "Apri impostazioni",
     "Sign in with Apple": "Accedi con Apple",
-    "Sign up with Apple": "Iscriviti con Apple"
+    "Sign up with Apple": "Iscriviti con Apple",
+    "Rate": "Valuta",
+    "A rating there helps other job seekers find the app.": "Una valutazione lì aiuta altre persone in cerca di lavoro a trovare l’app.",
+    "Rate CVMaster on the App Store": "Valuta CVMaster sull’App Store",
+    "Rate CVMaster on Google Play": "Valuta CVMaster su Google Play"
   },
   "pt": {
     "Preview": "Pré-visualizar",
@@ -212,7 +228,11 @@
     "Nothing was recorded. Hold the phone close, speak, then tap stop.": "Nada foi gravado. Segure o telemóvel perto, fale e depois toque em parar.",
     "Open settings": "Abrir definições",
     "Sign in with Apple": "Iniciar sessão com a Apple",
-    "Sign up with Apple": "Registar-se com a Apple"
+    "Sign up with Apple": "Registar-se com a Apple",
+    "Rate": "Avaliar",
+    "A rating there helps other job seekers find the app.": "Uma avaliação lá ajuda outras pessoas à procura de emprego a encontrar o app.",
+    "Rate CVMaster on the App Store": "Avaliar o CVMaster na App Store",
+    "Rate CVMaster on Google Play": "Avaliar o CVMaster no Google Play"
   },
   "zh": {
     "Preview": "预览",
@@ -255,6 +275,10 @@
     "Nothing was recorded. Hold the phone close, speak, then tap stop.": "没有录到声音。请把手机靠近，说话后再点停止。",
     "Open settings": "打开设置",
     "Sign in with Apple": "通过 Apple 登录",
-    "Sign up with Apple": "通过 Apple 注册"
+    "Sign up with Apple": "通过 Apple 注册",
+    "Rate": "评分",
+    "A rating there helps other job seekers find the app.": "在那里评分能帮助其他求职者找到这个应用。",
+    "Rate CVMaster on the App Store": "在 App Store 为 CVMaster 评分",
+    "Rate CVMaster on Google Play": "在 Google Play 为 CVMaster 评分"
   }
 }
