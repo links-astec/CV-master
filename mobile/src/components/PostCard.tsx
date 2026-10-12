@@ -25,7 +25,7 @@ function Byline({ p }: { p: Post }) {
         <Txt w={700} size={13}>{author}</Txt>
         <Txt size={12.5} color={c.text3}>
           {new Date(p.publishedAt).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })}
-          {p.category !== 'link' ? ` · ${t('{n} min read', { n: p.readingMin })}` : p.sourceName ? ` · ${p.sourceName}` : ''}
+          {p.category !== 'link' ? ` · ${t('{n} min read', { n: p.readingMin })}` : ''}
         </Txt>
       </View>
     </View>
