@@ -6,7 +6,7 @@ import { BRAND } from '@/brand'
 
 export type Post = {
   slug: string; lang: string; title: string; excerpt: string; cover: string | null; category: 'article' | 'update' | 'news' | 'link'
-  sourceName: string | null; sourceUrl: string | null; publishedAt: string; readingMin: number; url: string
+  sourceName: string | null; sourceUrl: string | null; publishedAt: string; readingMin: number; url: string; author?: string
 }
 export const CATEGORY_LABEL: Record<Post['category'], string> = { article: 'Articles', update: 'Product updates', news: 'News', link: 'From around the web' }
 

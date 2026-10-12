@@ -26,14 +26,17 @@ export default function Blog() {
       </View>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: insets.bottom + 30 }}
         refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => q.refetch()} tintColor={c.accent} />}>
-        <Txt size={15} color={c.text2} style={{ lineHeight: 22 }}>{t('CV advice, job-hunting tips and what’s new in CVMaster.')}</Txt>
+        <View style={{ gap: 4 }}>
+          <Txt w={800} size={30} style={{ letterSpacing: -0.8, lineHeight: 36 }}>{t('CVMaster blog')}</Txt>
+          <Txt size={15} color={c.text2} style={{ lineHeight: 22 }}>{t('CV advice, job-hunting tips and what’s new in CVMaster.')}</Txt>
+        </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
           <Chip label={t('All')} on={!cat} onPress={() => setCat(null)} />
           {Object.entries(CATEGORY_LABEL).map(([k, v]) => <Chip key={k} label={t(v)} on={cat === k} onPress={() => setCat(k)} />)}
         </ScrollView>
         {q.isLoading ? <ActivityIndicator color={c.accent} style={{ marginTop: 30 }} />
           : !q.data?.length ? <Txt color={c.text3} style={{ textAlign: 'center', marginTop: 30 }}>{t('No posts here yet.')}</Txt>
-          : q.data.map(p => <PostCard key={p.slug} p={p} />)}
+          : q.data.map((p, i) => <PostCard key={p.slug} p={p} featured={i === 0 && !cat} />)}
       </ScrollView>
     </View>
   )
