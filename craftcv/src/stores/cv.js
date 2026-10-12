@@ -134,6 +134,8 @@ export const useCvStore = defineStore('cv', () => {
   const wizardDraftId  = ref(null)
   const currentDraftId = ref(null)
   const lastSavedAt    = ref(null)
+  // The server's time of the open CV's last save, to spot a newer version saved elsewhere
+  let serverUpdatedAt = 0
 
   // ── Persist on change. LocalStorage immediately, account debounced ─────────
   let saveTimer = null
@@ -141,6 +143,7 @@ export const useCvStore = defineStore('cv', () => {
   function scheduleSave(delay = 1500) {
     clearTimeout(saveTimer)
     saveTimer = setTimeout(() => {
+      saveTimer = null
       if (currentDraftId.value || hasDraftableContent(data.value)) saveDraft().catch(() => {})
     }, delay)
   }
@@ -217,6 +220,19 @@ export const useCvStore = defineStore('cv', () => {
     data.value     = normaliseData(draft.data)
     template.value = normalizeTemplate(draft.template)
     if (draft.data?.fmt) fmt.value = normaliseFmt(draft.data.fmt)
+    serverUpdatedAt = Date.parse(draft.updatedAt) || 0
+  }
+
+  // Back on this tab: if the open CV was changed elsewhere since (the phone app, another tab)
+  // and nothing here is waiting to be saved, show the newer version instead of saving over it
+  async function refreshFromServer() {
+    if (!auth.isLoggedIn || !currentDraftId.value || saveTimer || savePromise) return
+    try {
+      const r = await fetch(apiUrl('/api/drafts'), { credentials: 'include' })
+      if (!r.ok || saveTimer || savePromise) return
+      const d = (await r.json()).find(x => x.id === currentDraftId.value)
+      if (d && (Date.parse(d.updatedAt) || 0) > serverUpdatedAt + 1000) loadDraft(d)
+    } catch {}
   }
 
   // Safe way to apply extracted data from upload/narrate without crashing reactivity
@@ -310,6 +326,7 @@ export const useCvStore = defineStore('cv', () => {
       if (!wizardDraftId.value)  wizardDraftId.value  = draft.id
       if (!currentDraftId.value) currentDraftId.value = draft.id
       lastSavedAt.value = Date.now()
+      serverUpdatedAt = Date.parse(draft.updatedAt) || serverUpdatedAt
       return draft.id
     })().catch((e) => {
       console.warn('Draft save failed:', e.message)
@@ -347,6 +364,6 @@ export const useCvStore = defineStore('cv', () => {
     initDarkMode, openWizard, openWizardAtStep, closeWizard,
     setMode, nextStep, prevStep,
     addExperience, removeExperience, addSkill, removeSkill,
-    resetData, loadDraft, applyExtracted, saveDraft, ensureSavedDraftId, aiWrite,
+    resetData, loadDraft, refreshFromServer, applyExtracted, saveDraft, ensureSavedDraftId, aiWrite,
   }
 })

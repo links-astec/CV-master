@@ -1076,6 +1076,9 @@ async function creditAiPack(userId, sessionId, source) {
   return (await query('SELECT ai_credits FROM users WHERE id = $1', [userId])).rows[0]?.ai_credits || 0;
 }
 
+// This server's own address, for links back to it (Render sits behind a proxy, so https in production)
+const apiOrigin = (req) => `${IS_PROD ? 'https' : req.protocol}://${req.get('host')}`;
+
 app.post('/api/payment/ai-pack', authMiddleware, async (req, res) => {
   try {
     if (req.body?.withdrawalConsent !== true) return res.status(400).json({ error: 'Please tick the box to confirm you want the requests straight away.' });
@@ -1089,8 +1092,8 @@ app.post('/api/payment/ai-pack', authMiddleware, async (req, res) => {
       payment_method_types: ['card'],
       line_items: [{ price_data: { currency: CV_CURRENCY, product_data: { name: `CVMaster | ${AI_PACK_SIZE} extra AI requests`, description: 'Never expire · use them for writing help, tailoring, ATS checks and fixes' }, unit_amount: AI_PACK_CENTS }, quantity: 1 }],
       mode: 'payment',
-      success_url: `${FRONTEND_URL}/?ai_pack={CHECKOUT_SESSION_ID}`,
-      cancel_url:  `${FRONTEND_URL}/`,
+      success_url: req.body?.from === 'app' ? `${apiOrigin(req)}/api/payment/app-return?ai_pack={CHECKOUT_SESSION_ID}` : `${FRONTEND_URL}/?ai_pack={CHECKOUT_SESSION_ID}`,
+      cancel_url:  req.body?.from === 'app' ? `${apiOrigin(req)}/api/payment/app-return?cancelled=1` : `${FRONTEND_URL}/`,
       client_reference_id: req.user.sub,
       metadata: { product: 'ai_pack', userId: req.user.sub, withdrawal_waiver: `accepted ${new Date().toISOString()}` },
     });
@@ -2650,9 +2653,25 @@ async function assertOwnDraft(userId, draftId) {
   return rows.length > 0;
 }
 
+// Back from checkout opened by the phone app: hand over to the app (cvmaster://paid), which
+// closes the browser and emails the CV. The page only shows if the app isn't there to take it.
+app.get('/api/payment/app-return', (req, res) => {
+  const session = String(req.query.session || '').replace(/[^\w-]/g, '').slice(0, 200);
+  const draft   = String(req.query.draft || '').replace(/[^\w-]/g, '').slice(0, 80);
+  const aiPack  = String(req.query.ai_pack || '').replace(/[^\w-]/g, '').slice(0, 200);
+  const target  = req.query.cancelled ? 'cvmaster://paid?cancelled=1'
+    : aiPack ? `cvmaster://paid?ai_pack=${aiPack}` : `cvmaster://paid?session=${session}&draft=${draft}`;
+  res.type('html').send(`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CVMaster</title><style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:420px;margin:0 auto;padding:48px 24px;text-align:center;color:#14142b}
+a{display:inline-block;margin-top:18px;background:#4338CA;color:#fff;text-decoration:none;padding:13px 26px;border-radius:10px;font-weight:700}</style></head>
+<body><h2>${req.query.cancelled ? 'Payment cancelled' : 'Payment received'}</h2><p>Return to the CVMaster app to continue.</p>
+<a href="${target}">Open the app</a><script>location.href=${JSON.stringify(target)}</script></body></html>`);
+});
+
 app.post('/api/payment/create-session', authMiddleware, async (req, res) => {
   try {
     const { draftId, withdrawalConsent } = req.body;
+    const fromApp = req.body?.from === 'app';
     if (!(await assertOwnDraft(req.user.sub, draftId))) {
       return res.status(400).json({ error: 'Your CV hasn\'t been saved yet. Please try again in a moment.' });
     }
@@ -2671,8 +2690,9 @@ app.post('/api/payment/create-session', authMiddleware, async (req, res) => {
       payment_method_types: ['card'],
       line_items: [{ price_data: { currency: CV_CURRENCY, product_data: { name: 'CVMaster | your CV as a clean PDF', description: 'Emailed and downloadable · re-send free, even after edits' }, unit_amount: CV_PRICE_CENTS }, quantity: 1 }],
       mode: 'payment',
-      success_url: `${FRONTEND_URL}/export-success?session={CHECKOUT_SESSION_ID}&draft=${draftId}`,
-      cancel_url:  `${FRONTEND_URL}/`,
+      // The phone app opens checkout in a browser; it comes back to the app through app-return
+      success_url: fromApp ? `${apiOrigin(req)}/api/payment/app-return?session={CHECKOUT_SESSION_ID}&draft=${draftId}` : `${FRONTEND_URL}/export-success?session={CHECKOUT_SESSION_ID}&draft=${draftId}`,
+      cancel_url:  fromApp ? `${apiOrigin(req)}/api/payment/app-return?cancelled=1` : `${FRONTEND_URL}/`,
       client_reference_id: req.user.sub,
       metadata: { product: 'email_export', draftId, userId: req.user.sub, withdrawal_waiver: `accepted ${new Date().toISOString()}` },
       payment_intent_data: { description: 'CVMaster clean PDF. Immediate delivery, withdrawal right waived by the customer' },

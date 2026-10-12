@@ -121,7 +121,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, provide, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, watch, provide, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth.js'
 import { useCvStore, hasCvContent } from './stores/cv.js'
@@ -376,6 +376,11 @@ function handleStripeReturn() {
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
+// Coming back to this tab: pick up changes made elsewhere (the phone app, another tab)
+function onTabVisible() { if (document.visibilityState === 'visible') store.refreshFromServer() }
+onMounted(() => document.addEventListener('visibilitychange', onTabVisible))
+onUnmounted(() => document.removeEventListener('visibilitychange', onTabVisible))
+
 onMounted(async () => {
   store.initDarkMode()
   await checkMaintenance()
