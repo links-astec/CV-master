@@ -25,7 +25,7 @@
             <label class="st-lbl" for="st-pw">{{ $t('Password') }}</label>
             <div v-if="!changingPw"><button class="btn-ghost btn-sm st-inline" @click="changingPw = true">{{ $t('Change password') }}</button></div>
             <div v-else class="st-pw-col">
-              <input v-if="auth.user?.provider !== 'google'" class="f-inp" v-model="currentPassword" type="password" :placeholder="$t('Current password')" autocomplete="current-password" />
+              <input v-if="auth.user?.hasPassword ?? auth.user?.provider !== 'google'" class="f-inp" v-model="currentPassword" type="password" :placeholder="$t('Current password')" autocomplete="current-password" />
               <div class="st-pw">
               <input id="st-pw" class="f-inp" v-model="newPassword" :type="showPw ? 'text' : 'password'" :placeholder="$t('New password (8+ characters)')" autocomplete="new-password" />
               <button type="button" class="st-eye" :aria-label="$t(showPw ? 'Hide password' : 'Show password')" @click="showPw = !showPw">{{ $t(showPw ? 'Hide' : 'Show') }}</button>
@@ -179,6 +179,27 @@
           <RouterLink to="/terms"><strong>{{ $t('Terms of service') }}</strong><span>{{ $t('Payments, refunds and complaints') }}</span></RouterLink>
         </div>
       </section>
+
+      <!-- Delete account -->
+      <section v-if="auth.isLoggedIn" class="st-card">
+        <div class="st-card-hd st-del-hd">
+          <div>
+            <div class="st-card-t">{{ $t('Delete account') }}</div>
+            <p class="st-p">{{ $t('Deletes your account and every CV in it, on the website and in the app. This cannot be undone.') }}</p>
+          </div>
+          <button v-if="!deleting" class="btn-secondary btn-sm st-danger-ghost" @click="deleting = true">{{ $t('Delete account') }}</button>
+        </div>
+        <div v-if="deleting" class="st-del">
+          <input v-if="auth.user?.hasPassword ?? auth.user?.provider !== 'google'" class="f-inp" v-model="deleteConfirm" type="password"
+                 :placeholder="$t('Current password')" autocomplete="current-password" @keydown.enter="deleteAccount" />
+          <input v-else class="f-inp" v-model="deleteConfirm" type="email" :placeholder="$t('Type your email address to confirm.')" @keydown.enter="deleteAccount" />
+          <div v-if="deleteError" class="st-err">{{ $t(deleteError) }}</div>
+          <div class="st-btns">
+            <button class="btn-primary st-danger" :disabled="deleteBusy || !deleteConfirm" @click="deleteAccount">{{ $t(deleteBusy ? 'Deleting…' : 'Delete my account') }}</button>
+            <button class="btn-ghost" :disabled="deleteBusy" @click="deleting = false; deleteConfirm = ''; deleteError = ''">{{ $t('Cancel') }}</button>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 </template>
@@ -293,6 +314,32 @@ async function logout() {
   router.push('/')
 }
 
+// Delete the account (confirmed with the password, or the email for Google accounts without one)
+const deleting      = ref(false)
+const deleteConfirm = ref('')
+const deleteError   = ref('')
+const deleteBusy    = ref(false)
+async function deleteAccount() {
+  if (!deleteConfirm.value || deleteBusy.value) return
+  deleteError.value = ''
+  deleteBusy.value = true
+  try {
+    const hasPw = auth.user?.hasPassword ?? auth.user?.provider !== 'google'
+    const r = await fetch(apiUrl('/api/auth/delete-account'), {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(hasPw ? { password: deleteConfirm.value } : { confirmEmail: deleteConfirm.value }),
+    })
+    const d = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(d.error || 'Something went wrong. Please try again.')
+    auth.user = null
+    store.resetData()
+    router.push('/')
+    showToast('Your account has been deleted.')
+  } catch (e) { deleteError.value = e.message }
+  deleteBusy.value = false
+}
+
 const startTutorial = inject('startTutorial', null)
 function restartTour() {
   try { localStorage.removeItem('cvmaster-tour-done') } catch {}
@@ -402,6 +449,12 @@ watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota() } }
 .st-help > *:hover{border-color:var(--c-border2);background:var(--c-surface2)}
 .st-help strong{font-size:13.5px;color:var(--c-text)}
 .st-help span{font-size:12px;color:var(--c-text3)}
+
+/* Delete account */
+.st-del-hd{margin-bottom:0}
+.st-del{display:flex;flex-direction:column;gap:10px;margin-top:14px;max-width:380px}
+.st-danger-ghost{color:var(--c-rose)}
+.st-danger{background:var(--c-rose);color:#fff}
 
 @media (max-width:600px){
   .st-card{padding:18px 16px}

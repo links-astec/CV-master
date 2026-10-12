@@ -1,5 +1,10 @@
 // Settings
 export default {
+  'Delete account': 'Supprimer le compte',
+  'Deletes your account and every CV in it, on the website and in the app. This cannot be undone.': 'Supprime votre compte et tous ses CV, sur le site et dans l’application. C’est définitif.',
+  'Deleting…': 'Suppression…',
+  'Delete my account': 'Supprimer mon compte',
+  'Your account has been deleted.': 'Votre compte a été supprimé.',
   'not confirmed': 'non confirmé',
   'resend link': 'renvoyer le lien',
   'confirmed': 'confirmé',

@@ -43,6 +43,8 @@
 }
 
 html,body,#app{height:100%}
+/* Stop phone browsers enlarging text in the 700px-wide CV preview, which made the end-of-page line land in the wrong place */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{background:var(--c-bg);color:var(--c-text);font-family:var(--font);font-size:14px;line-height:1.5}
 button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
 button{cursor:pointer}
