@@ -10,6 +10,7 @@ import { Mic, Square } from '@/components/icons'
 import { Txt } from '@/components/kit'
 import { BRAND } from '@/brand'
 import { CLIENT_HEADERS } from '@/lib/api'
+import { appendFile } from '@/lib/upload'
 import { lang, useLang } from '@/i18n'
 import { useTheme } from '@/lib/theme'
 
@@ -19,7 +20,7 @@ const detail = (e: unknown) => (e instanceof Error ? e.message : String(e || '')
 
 async function transcribe(uri: string): Promise<string> {
   const form = new FormData()
-  form.append('audio', { uri, name: 'speech.m4a', type: 'audio/m4a' } as unknown as Blob)
+  appendFile(form, 'audio', uri, 'speech.m4a', 'audio/m4a')
   form.append('lang', lang.value)
   const res = await fetch(BRAND.api + '/api/ai/transcribe', { method: 'POST', credentials: 'include', headers: CLIENT_HEADERS, body: form })
   const j = await res.json().catch(() => ({}))

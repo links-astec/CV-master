@@ -2,6 +2,7 @@
 // The server does the reading (same endpoints as the website); the result becomes a new draft.
 import { BRAND } from '@/brand'
 import { api, ApiError, CLIENT_HEADERS, showAiLimit, type Draft } from '@/lib/api'
+import { appendFile } from '@/lib/upload'
 import { defaultFmt, draftTitle, emptyData, type CvData, type CvFmt } from '@/lib/cv'
 import { lang, t } from '@/i18n'
 import { setCurrentCv } from '@/lib/editor'
@@ -43,8 +44,7 @@ export async function createDraft(data: CvData = emptyData(), fmt: CvFmt = defau
 // Upload a PDF, Word or text CV; the server extracts it with AI (counts as one AI request)
 export async function importCv(file: { uri: string; name: string; mimeType?: string | null }): Promise<CvData> {
   const form = new FormData()
-  // React Native's FormData sends a local file from { uri, name, type }
-  form.append('cv', { uri: file.uri, name: file.name, type: file.mimeType || 'application/octet-stream' } as unknown as Blob)
+  appendFile(form, 'cv', file.uri, file.name, file.mimeType || 'application/octet-stream')
   let res: Response
   try {
     res = await fetch(BRAND.api + '/api/cv/upload', { method: 'POST', credentials: 'include', headers: CLIENT_HEADERS, body: form })
