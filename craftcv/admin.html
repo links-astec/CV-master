@@ -2,8 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
+<!-- Add to Home Screen: opens like an app, with its own icon -->
+<link rel="manifest" href="/admin.webmanifest">
+<link rel="apple-touch-icon" href="/admin-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="CVM Admin">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#14142B">
 <title>CVMaster Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -184,6 +192,16 @@ textarea.inp{height:auto;padding:10px 12px;line-height:1.55;resize:vertical}
 
 /* ── Settings ── */
 .set-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+.st-banner{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:12px;margin-bottom:16px;font-weight:700}
+.st-banner.ok{background:var(--green-lt);color:var(--green)}.st-banner.warn{background:var(--amber-lt);color:var(--amber)}.st-banner.down{background:var(--red-lt);color:var(--red)}
+.st-banner span{font-weight:500;font-size:12.5px;color:var(--t2);margin-left:auto}
+.st-group{font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--t3);margin:16px 0 4px}
+.st-group:first-child{margin-top:0}
+.chk-ic.down{background:var(--red-lt);color:var(--red)}
+.ppl{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ppl span{display:inline-flex;align-items:center;gap:6px;background:var(--ac-lt);color:var(--ac);border-radius:99px;padding:4px 6px 4px 10px;font-size:12.5px;font-weight:600}
+.ppl button{border:0;background:none;color:var(--ac);font-weight:700;cursor:pointer;padding:0 4px}
 .chk{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-top:1px solid var(--b1)}
 .chk:first-child{border-top:none;padding-top:0}
 .chk-ic{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
@@ -351,10 +369,11 @@ const S = {
   users: [], userTotal: 0, userPage: 1, userPages: 1, usersLoading: false, uSearch: '',
   inbox: { tab: 'all', status: 'open', emails: [], site: [], unread: 0, open: 0, loading: false, sel: null, detail: null, detailLoading: false, reply: '', sending: false, err: '' },
   config: null,
-  email: { subject: '', plan: 'all', testTo: '', sending: false, sent: false, sentCount: 0, err: '', important: false },
+  email: { subject: '', plan: 'all', testTo: '', sending: false, sent: false, sentCount: 0, err: '', important: false, people: [] },
   history: null,
   blocks: [], dragSrc: null,
-  login: { email: '', password: '', err: '', loading: false },
+  login: { email: '', password: '', err: '', loading: false, remember: false },
+  status: null, statusLoading: false,
   toast: '',
 };
 
@@ -413,7 +432,7 @@ async function checkAuth() {
 }
 async function login() {
   S.login.loading = true; S.login.err = ''; render()
-  try { await api('POST', '/login', { email: S.login.email, password: S.login.password }); S.auth = await api('GET', '/me'); await go('overview') }
+  try { await api('POST', '/login', { email: S.login.email, password: S.login.password, remember: S.login.remember }); S.auth = await api('GET', '/me'); await go('overview') }
   catch (e) { S.login.err = e.message; S.login.loading = false; render() }
 }
 async function logout() { await api('POST', '/logout').catch(() => {}); S.auth = null; render() }
@@ -440,7 +459,8 @@ async function go(p) {
   if (p === 'reviews') await loadReviews()
   if (p === 'subscribers' || p === 'newsletter') await loadSubs()
   if (p === 'newsletter') { loadHistory(); loadMyTemplates() }
-  if (p === 'settings') await Promise.all([loadConfig(), S.stats ? null : loadStats()])
+  if (p === 'settings') await Promise.all([loadStatus(), S.stats ? null : loadStats()])
+  if (p === 'overview' && !S.status) loadStatus()
   if (p === 'app') await loadActivity()
   if (p === 'overview' || !S.stats) loadCounts()
 }
@@ -493,6 +513,7 @@ function renderOverview() {
       <button class="attn-row" data-go="inbox" data-tab="email"><span class="attn-ic" style="background:var(--ac-lt);color:var(--ac)">${svg('mail')}</span>Unread emails<span class="n">${inboxN}</span></button>
       <button class="attn-row" data-go="inbox" data-tab="site"><span class="attn-ic" style="background:var(--amber-lt);color:var(--amber)">${svg('msg')}</span>Open site messages<span class="n">${fbN}</span></button>
       <button class="attn-row" data-go="settings"><span class="attn-ic" style="background:${S.maintenance ? 'var(--red-lt);color:var(--red)' : 'var(--green-lt);color:var(--green)'}">${svg(S.maintenance ? 'alert' : 'check')}</span>${S.maintenance ? 'Maintenance mode is ON' : 'Site is live'}<span class="n"></span></button>
+      ${(() => { const { down, warn } = statusCounts(); return !S.status ? '' : `<button class="attn-row" data-go="settings"><span class="attn-ic" style="background:${down.length ? 'var(--red-lt);color:var(--red)' : warn.length ? 'var(--amber-lt);color:var(--amber)' : 'var(--green-lt);color:var(--green)'}">${svg(down.length || warn.length ? 'alert' : 'check')}</span>${down.length ? `${down.length} not working` : warn.length ? `All working · ${warn.length} to look at` : 'Everything is working'}<span class="n"></span></button>` })()}
     </div>
   </div>
   <div class="card">
@@ -736,7 +757,7 @@ function renderUsers() {
       <td><span class="num-edit"><b>${fmt(u.ai_credits)}</b><button class="btn btn-sm btn-ghost" data-edit="ai_credits" data-id="${u.id}" data-cur="${u.ai_credits || 0}" data-label="Extra AI requests for ${esc(u.email)}">Edit</button></span></td>
       <td>${fmt(u.referred_count)}</td>
       <td>${fmtDate(u.created_at)}</td>
-      <td><button class="btn btn-sm btn-danger" data-del="${u.id}" data-email="${esc(u.email)}">Delete</button></td></tr>`).join('')}</tbody></table>
+      <td style="white-space:nowrap"><button class="btn btn-sm" data-act="email-user" data-email="${esc(u.email)}">Email</button> <button class="btn btn-sm btn-danger" data-del="${u.id}" data-email="${esc(u.email)}">Delete</button></td></tr>`).join('')}</tbody></table>
     <div class="pager"><span>Page ${S.userPage} of ${pages}</span><div class="pg">
       ${S.userPage > 1 ? `<button class="btn btn-sm" data-page="${S.userPage - 1}">‹</button>` : ''}
       ${Array.from({ length: Math.min(7, pages) }, (_, i) => start + i).map(p => `<button class="btn btn-sm ${p === S.userPage ? 'btn-primary' : ''}" data-page="${p}">${p}</button>`).join('')}
@@ -847,6 +868,32 @@ function renderReviews() {
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 async function loadConfig() { try { S.config = await api('GET', '/config'); render() } catch (e) { toast(e.message) } }
+// Is everything working? (website, server, AI, email, payments, sign-in, phone app, jobs)
+async function loadStatus(refresh) {
+  S.statusLoading = true; render()
+  try { S.status = await api('GET', '/status' + (refresh ? '?refresh=1' : '')) } catch (e) { toast(e.message) }
+  S.statusLoading = false; render()
+}
+const statusCounts = () => {
+  const c = S.status?.checks || []
+  return { down: c.filter(x => x.state === 'down'), warn: c.filter(x => x.state === 'warn') }
+}
+function renderStatus() {
+  const st = S.status
+  if (!st) return `<div class="loading"><div class="spinner"></div></div>`
+  const { down, warn } = statusCounts()
+  const ic = { ok: svg('check'), warn: '!', down: '×' }
+  const banner = down.length ? `<div class="st-banner down">${down.length} not working: ${down.map(c => esc(c.name)).join(', ')}<span>checked ${fmtDate(st.at)}</span></div>`
+    : warn.length ? `<div class="st-banner warn">Everything is working · ${warn.length} to look at<span>checked ${fmtDate(st.at)}</span></div>`
+    : `<div class="st-banner ok">Everything is working<span>checked ${fmtDate(st.at)}</span></div>`
+  let group = ''
+  const rows = st.checks.map(c => {
+    const head = c.group !== group ? `<div class="st-group">${esc(group = c.group)}</div>` : ''
+    return head + `<div class="chk"><span class="chk-ic ${c.state === 'ok' ? 'ok' : c.state === 'down' ? 'down' : 'no'}">${ic[c.state] || '!'}</span><div><span class="chk-t">${esc(c.name)}</span><span>${esc(c.detail || '')}</span></div></div>`
+  }).join('')
+  return banner + rows + `<p class="muted" style="font-size:12px;margin-top:14px">Checked again every 30 minutes while people use CVMaster. ${st.alertsTo ? `When something stops working, or works again, an email goes to <b>${esc(st.alertsTo)}</b>.` : 'Set ADMIN_EMAIL in Render to be emailed when something stops working.'} If the whole server goes down nothing here can run, so also add a free outside monitor (for example UptimeRobot) on <code>https://api.cvmaster.live/api/health</code> and <code>https://www.cvmaster.live</code>.</p>`
+}
+
 function renderSettings() {
   const c = S.config
   const row = (ok, title, text) => `<div class="chk"><span class="chk-ic ${ok ? 'ok' : 'no'}">${ok ? svg('check') : '!'}</span><div><span class="chk-t">${title}</span><span>${text}</span></div></div>`
@@ -855,16 +902,9 @@ function renderSettings() {
       <div class="maint"><div><b>${S.maintenance ? 'The site is in maintenance' : 'The site is live'}</b><div class="muted" style="font-size:13px;margin-top:2px">Maintenance shows everyone a “back soon” page. This admin panel keeps working.</div></div>
       <label class="toggle"><input type="checkbox" id="maint-toggle" ${S.maintenance ? 'checked' : ''} ${S.maintLoading ? 'disabled' : ''}><span class="toggle-track"></span></label></div>
     </div></div>
-    <div class="card"><div class="card-hd"><h3>Setup status</h3><button class="btn btn-sm btn-ghost" data-act="config-refresh">${svg('refresh')}</button></div><div class="card-bd">
-      ${!c ? `<div class="loading"><div class="spinner"></div></div>` : [
-        row(!!c.ai, 'AI', c.ai ? `Using ${esc(c.ai)}${c.aiLast?.provider ? ` · last answer from ${esc(c.aiLast.provider)}` : ''}${c.aiLast?.claudeError ? ` · Claude error: ${esc(c.aiLast.claudeError)}` : ''}` : 'No AI key set'),
-        row(c.stripe, 'Payments (Stripe)', c.stripe ? `Connected in <b>${c.stripeMode}</b> mode${c.stripeWebhook ? ' · webhook secret set' : ' · <b>webhook secret missing</b> (STRIPE_WEBHOOK_SECRET)'}` : 'STRIPE_SECRET_KEY is not set'),
-        row(c.email, 'Sending email', c.email ? `Sending as <code>${esc(c.sendingFrom)}</code>` : 'No email provider configured'),
-        row(c.inbound, 'Receiving email (support inbox)', c.inbound ? `Emails to support@cvmaster.live arrive in the Inbox. Replies are sent as <code>${esc(c.supportFrom)}</code>.`
-          : `Not set up yet. In Resend, turn on receiving for cvmaster.live, add a webhook for <b>email.received</b> pointing to <code>${esc(c.inboundUrl)}</code>, and put its signing secret in Render as <code>RESEND_INBOUND_SECRET</code>.`),
-        row(!!c.feedbackEmail, 'Site message alerts', c.feedbackEmail ? `A copy of each site message is emailed to <code>${esc(c.feedbackEmail)}</code>` : 'Optional: set FEEDBACK_EMAIL to also get site messages by email'),
-        row(c.pdf === 'ready', 'PDF engine', c.pdf === 'ready' ? 'Chrome is ready' : `Status: ${esc(c.pdf)}`),
-      ].join('')}
+    <div class="card" style="grid-column:1/-1"><div class="card-hd"><h3>Status: website, server and phone app</h3>
+      <button class="btn btn-sm" data-act="status-refresh" ${S.statusLoading ? 'disabled' : ''}>${svg('refresh')} Check now</button></div><div class="card-bd">
+      ${renderStatus()}
     </div></div>
   </div>`
 }
@@ -1042,7 +1082,7 @@ function refreshPreview() {
     const mine = ++_pvSeq
     const plan = $('e-plan-sel')?.value || S.email.plan
     try {
-      const p = await api('POST', '/email/preview', { subject: $('e-subject')?.value || S.email.subject, body: buildEmailHtml(), audience: plan === 'users' ? 'all_users' : 'subscribers' })
+      const p = await api('POST', '/email/preview', { subject: $('e-subject')?.value || S.email.subject, body: buildEmailHtml(), audience: plan === 'users' ? 'all_users' : plan === 'people' ? 'people' : 'subscribers' })
       if (mine !== _pvSeq) return
       S.pv = p
       const f = $('e-preview'); if (f) f.srcdoc = pvDoc(p.html)
@@ -1292,8 +1332,9 @@ async function sendEmail(test=false) {
   S.email.subject=subject; S.email.plan=plan;
   S.email.sending=true; S.email.err=''; S.email.sent=false; render();
   try {
-    const toUsers=plan==='users';
-    const payload={subject,body:buildEmailHtml(),plan_filter:toUsers?'all':plan,audience:toUsers?'all_users':'subscribers',important:toUsers&&S.email.important};
+    const toUsers=plan==='users', toPeople=plan==='people';
+    if(toPeople&&!test&&!S.email.people.length){ throw new Error('Add at least one person to send to.') }
+    const payload={subject,body:buildEmailHtml(),plan_filter:toUsers||toPeople?'all':plan,audience:toUsers?'all_users':toPeople?'people':'subscribers',important:toUsers&&S.email.important,recipients:toPeople?S.email.people:undefined};
     if(test&&testTo) payload.test_email=testTo;
     const d=await api('POST','/email/send',payload);
     S.email.sent=true; S.email.sentCount=d.test?1:d.queued;
@@ -1400,11 +1441,18 @@ function renderEmail() {
               <option value="pro"${S.email.plan==='pro'?' selected':''}>Subscribers on Pro${S.subs ? ' (' + fmt(S.subs.byPlan.pro || 0) + ')' : ''}</option>
               <option value="unpaid"${S.email.plan==='unpaid'?' selected':''}>Subscribers who made a CV but haven’t bought one${S.subs?.unpaid != null ? ' (' + fmt(S.subs.unpaid) + ')' : ''}</option>
             </optgroup>
+            <optgroup label="Particular people">
+              <option value="people"${S.email.plan==='people'?' selected':''}>Specific users${S.email.people.length ? ' (' + S.email.people.length + ')' : ''}</option>
+            </optgroup>
             <optgroup label="Important notice, every account">
               <option value="users"${S.email.plan==='users'?' selected':''}>Every user${S.subs?.allUsers != null ? ' (' + fmt(S.subs.allUsers) + ')' : ''}</option>
             </optgroup>
           </select>
-          ${S.email.plan === 'users' ? `<div class="notice-box">
+          ${S.email.plan === 'people' ? `<div style="margin-top:8px">
+            <input class="inp" id="e-people" placeholder="Add emails of users (comma or Enter)…" autocomplete="off">
+            <div class="ppl">${S.email.people.map(e => `<span>${esc(e)}<button data-act="ppl-remove" data-email="${esc(e)}" title="Remove">×</button></span>`).join('')}</div>
+            <div class="muted" style="font-size:12px;margin-top:6px">Only accounts can be emailed this way. Tip: on the Users page, “Email” adds a person here. Sent from support, so replies come back to the Inbox.</div>
+          </div>` : S.email.plan === 'users' ? `<div class="notice-box">
             <b>Important notices only.</b> Every account gets this, whether or not they subscribed. So use it for things users need to know:
             changes to the Terms, Privacy policy or prices, security notices, outages, or problems with accounts or payments. Never for promotions.
             <label class="notice-check"><input type="checkbox" id="e-important" ${S.email.important ? 'checked' : ''}> This is an important service message, not marketing</label>
@@ -1515,6 +1563,7 @@ function renderLogin() {
     <form data-form="login">
       <div><label class="lbl" for="li-email">Email</label><input class="inp" id="li-email" type="email" value="${esc(S.login.email)}" autocomplete="username" required></div>
       <div><label class="lbl" for="li-pass">Password</label><input class="inp" id="li-pass" type="password" autocomplete="current-password" required></div>
+      <label class="notice-check" style="margin:0"><input type="checkbox" id="li-remember" ${S.login.remember ? 'checked' : ''}> Keep me signed in on this device for 30 days</label>
       <button class="btn btn-primary" style="height:42px" ${S.login.loading ? 'disabled' : ''}>${S.login.loading ? '<span class="spinner"></span>' : 'Sign in'}</button>
     </form></div></div>`
 }
@@ -1539,6 +1588,14 @@ function renderApp() {
   </div>`
 }
 
+// Specific people for an email (from the field, or the Users page's "Email" button)
+function addPeople(text, refocus = true) {
+  const list = String(text).split(/[\s,;]+/).map(x => x.trim().toLowerCase()).filter(x => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x))
+  S.email.people = [...new Set([...S.email.people, ...list])].slice(0, 500)
+  render()
+  if (refocus) setTimeout(() => $('e-people')?.focus(), 0)
+}
+
 // ── Events ────────────────────────────────────────────────────────────────────
 function bind() {
   $('maint-toggle')?.addEventListener('change', toggleMaintenance)
@@ -1548,12 +1605,22 @@ function bind() {
   $('e-important')?.addEventListener('change', e => { S.email.important = e.target.checked })
   $('tpl-sel')?.addEventListener('change', e => { if (e.target.value) loadTemplate(e.target.value) })
   $('e-test')?.addEventListener('input', e => { S.email.testTo = e.target.value })
+  $('e-people')?.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' && e.key !== ',') return
+    e.preventDefault(); addPeople(e.target.value); e.target.value = ''
+  })
+  // Leaving the field adds what was typed, after the browser has finished moving focus
+  $('e-people')?.addEventListener('blur', e => { const v = e.target.value.trim(); if (v) { e.target.value = ''; setTimeout(() => addPeople(v, false), 0) } })
   $('sub-f')?.addEventListener('change', (e) => { S.subFilter = e.target.value; render() })
   $('sub-q')?.addEventListener('change', (e) => { S.subQ = e.target.value.trim(); render() })
   $('e-test-btn')?.addEventListener('click', () => sendEmail(true))
   $('e-send-btn')?.addEventListener('click', async () => {
     const plan = $('e-plan-sel')?.value || 'all'
-    if (plan === 'users') {
+    if (plan === 'people') {
+      const n = S.email.people.length
+      if (!n) { toast('Add at least one person to send to.'); return }
+      if (!(await ask({ title: `Send to ${n} ${n === 1 ? 'person' : 'people'}?`, message: S.email.people.slice(0, 6).join(', ') + (n > 6 ? ` and ${n - 6} more` : ''), ok: 'Send now' }))) return
+    } else if (plan === 'users') {
       if (!S.email.important) { toast('Tick the box to confirm this is an important service message.'); return }
       const n = S.subs?.allUsers
       if (!(await ask({ title: 'Send to every user?', message: `This important notice goes to all ${n != null ? n + ' ' : ''}accounts right away. It can’t be undone.`, ok: 'Send to everyone', danger: true }))) return
@@ -1577,6 +1644,8 @@ document.addEventListener('click', (e) => {
   if (t.dataset.review) { setReview(t.dataset.review, t.dataset.st); return }
   if (t.dataset.sub) { subAction(t.dataset.sub, t.dataset.sact, t.dataset.email); return }
   if (t.dataset.act === 'sub-export') { exportSubs(); return }
+  if (t.dataset.act === 'ppl-remove') { S.email.people = S.email.people.filter(x => x !== t.dataset.email); render(); return }
+  if (t.dataset.act === 'email-user') { S.email.plan = 'people'; S.email.people = [...new Set([...S.email.people, t.dataset.email])]; go('newsletter'); return }
   if (t.dataset.act === 'email-history') { loadHistory(); return }
   if (t.dataset.act === 'ib-images') { S.inbox.showImages = true; render(); return }
   if (t.dataset.act === 'pv-width') { S.pvWidth = t.dataset.w; render(); return }
@@ -1592,6 +1661,7 @@ document.addEventListener('click', (e) => {
   if (a === 'logout') logout()
   else if (a === 'stats-refresh') { S.stats = null; loadStats() }
   else if (a === 'config-refresh') { S.config = null; render(); loadConfig() }
+  else if (a === 'status-refresh') loadStatus(true)
   else if (a === 'inbox-refresh') loadInbox()
   else if (a === 'inbox-back') { S.inbox.sel = null; S.inbox.detail = null; render() }
   else if (a === 'reply') sendReply()
@@ -1605,7 +1675,7 @@ document.addEventListener('submit', (e) => {
   const f = e.target.dataset.form
   if (!f) return
   e.preventDefault()
-  if (f === 'login') { S.login.email = $('li-email').value; S.login.password = $('li-pass').value; login() }
+  if (f === 'login') { S.login.email = $('li-email').value; S.login.password = $('li-pass').value; S.login.remember = !!$('li-remember')?.checked; login() }
   if (f === 'user-search') { S.uSearch = $('u-q').value.trim(); loadUsers(1) }
 })
 window.addEventListener('hashchange', () => { const p = location.hash.slice(1); if (S.auth && p && p !== S.page) go(p) })
