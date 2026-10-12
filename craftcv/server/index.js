@@ -3234,6 +3234,10 @@ async function runStatus() {
     check('Sign-in', 'apple', 'Sign in with Apple (iPhone app)', async () => {
       const r = await httpOk('https://appleid.apple.com/auth/keys');
       if (!r.ok) return { state: 'down', detail: `Apple’s keys unreachable (${r.status})` };
+      // The Expo Go test mode trusts tokens issued for Expo Go, which any Expo Go app can get: test only
+      if (String(process.env.APPLE_AUDIENCES || '').includes('host.exp.Exponent')) {
+        return { state: 'warn', detail: 'Expo Go test mode is ON (APPLE_AUDIENCES=host.exp.Exponent). Remove it from Render once the iPhone build exists' };
+      }
       const revoke = process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY;
       return revoke ? { state: 'ok', detail: 'Apple reachable · account deletion revokes Apple sign-in' }
         : { state: 'warn', detail: 'Works · before the App Store release, add APPLE_TEAM_ID, APPLE_KEY_ID and APPLE_PRIVATE_KEY so deleting an account revokes Apple sign-in' };
