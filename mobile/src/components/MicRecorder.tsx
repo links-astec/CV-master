@@ -3,7 +3,8 @@
 // speech recognition; the app records a clip and the server turns it into text in the app's
 // language (it doesn't use up AI requests).
 import { useEffect, useRef, useState } from 'react'
-import { Animated, Pressable, StyleSheet, View } from 'react-native'
+import { Animated, Linking, Platform, Pressable, StyleSheet, View } from 'react-native'
+import { File } from 'expo-file-system'
 import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder, useAudioRecorderState } from 'expo-audio'
 import { Mic, Square } from '@/components/icons'
 import { Txt } from '@/components/kit'
@@ -13,6 +14,8 @@ import { lang, useLang } from '@/i18n'
 import { useTheme } from '@/lib/theme'
 
 const MAX_MS = 5 * 60 * 1000   // a clip is at most 5 minutes; record again to add more
+// A problem worth showing as it is (in English, under the translated message) while we test
+const detail = (e: unknown) => (e instanceof Error ? e.message : String(e || '')).slice(0, 160)
 
 async function transcribe(uri: string): Promise<string> {
   const form = new FormData()
@@ -31,6 +34,8 @@ export function MicRecorder({ onText }: { onText: (text: string) => void }) {
   const state = useAudioRecorderState(recorder, 250)
   const [phase, setPhase] = useState<'idle' | 'recording' | 'working' | 'done'>('idle')
   const [error, setError] = useState('')
+  const [why, setWhy] = useState('')            // the technical reason, small, for testing
+  const [blocked, setBlocked] = useState(false)  // permission refused for good: offer the phone's settings
   const [pulse] = useState(() => new Animated.Value(0))
   const limit = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -42,30 +47,62 @@ export function MicRecorder({ onText }: { onText: (text: string) => void }) {
   }, [phase, pulse])
 
   async function start() {
-    setError('')
+    setError(''); setWhy(''); setBlocked(false)
     const p = await requestRecordingPermissionsAsync().catch(() => null)
-    if (!p?.granted) { setError(t('Microphone access is off. Allow it for CVMaster in your phone’s settings, or type instead.')); return }
+    if (!p?.granted) {
+      setError(t('Microphone access is off. Allow it for CVMaster in your phone’s settings, or type instead.'))
+      setBlocked(p?.canAskAgain === false)
+      return
+    }
     try {
+      // iPhone: the audio session must allow recording before the recorder is prepared
       await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true })
-      await recorder.prepareToRecordAsync()
+      try { await recorder.prepareToRecordAsync() }
+      catch {
+        // The session can need a moment after the permission prompt closes: try once more
+        await new Promise(r => setTimeout(r, 400))
+        await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true })
+        await recorder.prepareToRecordAsync()
+      }
       recorder.record()
       setPhase('recording')
       limit.current = setTimeout(stop, MAX_MS)   // stop at the time limit
-    } catch { setError(t('Microphone access is off. Allow it for CVMaster in your phone’s settings, or type instead.')) }
+    } catch (e) {
+      setError(t('The microphone couldn’t start. Close other apps using it (calls, voice notes) and try again.'))
+      setWhy(detail(e))
+      setAudioModeAsync({ allowsRecording: false }).catch(() => {})
+    }
   }
 
   async function stop() {
     if (limit.current) { clearTimeout(limit.current); limit.current = null }
     setPhase('working')
+    let stage = 'stop'
     try {
+      const ms = recorder.getStatus().durationMillis || 0
       await recorder.stop()
       await setAudioModeAsync({ allowsRecording: false }).catch(() => {})
-      if (!recorder.uri) throw new Error()
-      const text = (await transcribe(recorder.uri)).trim()
-      if (text) onText(text)
+      const uri = recorder.uri
+      if (!uri) throw new Error('no recording file')
+      // Nothing (or almost nothing) was recorded: say so instead of sending silence
+      let size = 0
+      try { size = new File(uri).size || 0 } catch {}
+      if ((ms > 0 && ms < 700) || (size > 0 && size < 2000)) {
+        setError(t('Nothing was recorded. Hold the phone close, speak, then tap stop.'))
+        setWhy(`${ms} ms, ${size} bytes`)
+        setPhase('idle')
+        return
+      }
+      stage = 'upload'
+      const text = (await transcribe(uri)).trim()
+      if (!text) { setError(t('We could not understand the recording. Please try again.')); setPhase('idle'); return }
+      onText(text)
       setPhase('done')
     } catch (e) {
-      setError(t(e instanceof Error && e.message ? e.message : 'We could not understand the recording. Please try again.'))
+      // Server messages are English keys (translated); anything else is shown as a reason
+      const m = detail(e)
+      setError(t(stage === 'upload' && m ? m : 'We could not understand the recording. Please try again.'))
+      if (stage !== 'upload' || m.startsWith('Network')) setWhy(m)
       setPhase('idle')
     }
   }
@@ -93,6 +130,12 @@ export function MicRecorder({ onText }: { onText: (text: string) => void }) {
       </View>
       <Txt w={600} size={14.5} color={recording ? c.danger : c.text2} style={{ textAlign: 'center' }}>{label}</Txt>
       {!!error && <Txt size={13.5} color={c.danger} style={{ textAlign: 'center', lineHeight: 19 }}>{error}</Txt>}
+      {!!why && <Txt size={11.5} color={c.text3} style={{ textAlign: 'center' }} selectable>{why}</Txt>}
+      {blocked && Platform.OS !== 'web' && (
+        <Pressable onPress={() => Linking.openSettings()} accessibilityRole="button" hitSlop={8}>
+          <Txt w={600} size={14} color={c.accent}>{t('Open settings')}</Txt>
+        </Pressable>
+      )}
     </View>
   )
 }

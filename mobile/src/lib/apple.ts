@@ -7,7 +7,10 @@ import { Platform } from 'react-native'
 import Constants, { ExecutionEnvironment } from 'expo-constants'
 import * as AppleAuthentication from 'expo-apple-authentication'
 
-export const appleAvailable = Platform.OS === 'ios' && Constants.executionEnvironment !== ExecutionEnvironment.StoreClient
+// For a quick test in Expo Go before the iPhone build exists: EXPO_PUBLIC_APPLE_IN_EXPO_GO=1 here and
+// APPLE_AUDIENCES=host.exp.Exponent on the server. Remove both afterwards (Expo Go's tokens aren't ours).
+const inExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient
+export const appleAvailable = Platform.OS === 'ios' && (!inExpoGo || process.env.EXPO_PUBLIC_APPLE_IN_EXPO_GO === '1')
 
 export type AppleSignIn = { identityToken: string; authorizationCode: string | null; fullName: { givenName: string | null; familyName: string | null } | null }
 
