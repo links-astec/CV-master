@@ -357,15 +357,22 @@ input[type=range]{flex:1;accent-color:var(--ac)}
   .tbl.cards td.acts{display:flex;gap:8px;flex-wrap:wrap}
   .tbl.cards td.acts .btn{flex:1}
   .tbl.cards .u-who span{overflow-wrap:anywhere}
-  /* Users: compact cards (who, sign-in and date, then the five numbers in one row) */
-  .tbl.cards.users-tbl tr{grid-template-columns:repeat(5,minmax(0,1fr));gap:10px 6px}
-  .tbl.cards.users-tbl td[data-label="Sign-in"]{grid-column:span 2}
-  .tbl.cards.users-tbl td[data-label="Joined"]{grid-column:span 3}
-  .tbl.cards.users-tbl td[data-label="CVs"],.tbl.cards.users-tbl td[data-label="Paid"],.tbl.cards.users-tbl td[data-label="Free CVs"],.tbl.cards.users-tbl td[data-label="AI"],.tbl.cards.users-tbl td[data-label="Invited"]{background:var(--s2);border-radius:10px;padding:8px 6px!important;text-align:center!important;font-weight:700}
-  .tbl.cards.users-tbl td[data-label]::before{font-size:9.5px;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .tbl.cards.users-tbl td[data-label="Sign-in"]::before,.tbl.cards.users-tbl td[data-label="Joined"]::before{display:inline;margin-right:6px}
-  .tbl.cards.users-tbl .num-edit{display:flex;flex-direction:column;align-items:center;gap:0}
-  .tbl.cards.users-tbl .num-edit .btn{height:auto;padding:2px 4px;font-size:11.5px;color:var(--ac)}
+  /* Users: a list row. Name and email; how they sign in and when they joined; one line of numbers; small actions */
+  .tbl.cards.users-tbl tr{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:14px 16px 14px 62px}
+  .tbl.cards.users-tbl td.full:first-child{flex:1 1 100%;margin-left:-46px}
+  .tbl.cards.users-tbl td[data-label]::before{display:inline;font-size:12.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--t3);margin:0 5px 0 0}
+  .tbl.cards.users-tbl td[data-label="Sign-in"]::before{display:none}
+  .tbl.cards.users-tbl td[data-label="Sign-in"]{flex:0 0 auto}
+  .tbl.cards.users-tbl td[data-label="Joined"]{flex:0 1 auto;font-size:13px;color:var(--t2)}
+  /* the numbers start on their own line, the buttons after them */
+  .tbl.cards.users-tbl tr::after{content:"";flex-basis:100%;height:0;order:1}
+  .tbl.cards.users-tbl td[data-label="CVs"],.tbl.cards.users-tbl td[data-label="Paid"],.tbl.cards.users-tbl td[data-label="Invited"],.tbl.cards.users-tbl td[data-label="Free CVs"],.tbl.cards.users-tbl td[data-label="AI credits"]{order:2}
+  .tbl.cards.users-tbl td.acts{order:3}
+  .tbl.cards.users-tbl td[data-label="CVs"],.tbl.cards.users-tbl td[data-label="Paid"],.tbl.cards.users-tbl td[data-label="Invited"],.tbl.cards.users-tbl td[data-label="Free CVs"],.tbl.cards.users-tbl td[data-label="AI credits"]{flex:0 0 auto;font-size:14px;font-weight:700;color:var(--t1);display:inline-flex;align-items:baseline}
+  .tbl.cards.users-tbl .num-edit{display:inline-flex;align-items:baseline;gap:2px}
+  .tbl.cards.users-tbl .num-edit .btn{height:auto;padding:0 2px 0 4px;font-size:12.5px;font-weight:600;color:var(--ac);background:none;border:0}
+  .tbl.cards.users-tbl td.acts{flex:1 1 100%;justify-content:flex-start;gap:8px;margin-top:4px}
+  .tbl.cards.users-tbl td.acts .btn{flex:0 0 auto;height:32px;padding:0 14px}
   /* Lists: filters and search take the full width */
   .card-hd > div > .inp,.card-hd > div > select{flex:1 1 100%!important;width:100%!important}
   .card-hd > div > .btn{flex:1}
@@ -989,7 +996,7 @@ function renderUsers() {
       <td data-label="Joined">${fmtDate(u.created_at)}</td>
       <td data-label="CVs">${fmt(u.draft_count)}</td><td data-label="Paid">${fmt(u.payment_count)}</td>
       <td data-label="Free CVs"><span class="num-edit"><b>${fmt(u.referral_credits)}</b><button class="btn btn-sm btn-ghost" data-edit="referral_credits" data-id="${u.id}" data-cur="${u.referral_credits}" data-label="Free CV credits for ${esc(u.email)}">Edit</button></span></td>
-      <td data-label="AI"><span class="num-edit"><b>${fmt(u.ai_credits)}</b><button class="btn btn-sm btn-ghost" data-edit="ai_credits" data-id="${u.id}" data-cur="${u.ai_credits || 0}" data-label="Extra AI requests for ${esc(u.email)}">Edit</button></span></td>
+      <td data-label="AI credits"><span class="num-edit"><b>${fmt(u.ai_credits)}</b><button class="btn btn-sm btn-ghost" data-edit="ai_credits" data-id="${u.id}" data-cur="${u.ai_credits || 0}" data-label="Extra AI requests for ${esc(u.email)}">Edit</button></span></td>
       <td data-label="Invited">${fmt(u.referred_count)}</td>
       <td class="full acts" style="white-space:nowrap"><button class="btn btn-sm" data-act="email-user" data-email="${esc(u.email)}">Email</button> <button class="btn btn-sm btn-danger" data-del="${u.id}" data-email="${esc(u.email)}">Delete</button></td></tr>`).join('')}</tbody></table>
     <div class="pager"><span>Page ${S.userPage} of ${pages}</span><div class="pg">
