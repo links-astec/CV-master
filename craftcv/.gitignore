@@ -11,3 +11,6 @@ patch_renderer.cjs
 # Puppeteer's Chrome download (see .puppeteerrc.cjs)
 .cache/
 i18n-export/
+
+# Local test copy of the server (never committed)
+_srvtest/
