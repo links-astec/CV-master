@@ -47,6 +47,7 @@ export function CvPreview({ template, data, fmt, zoomed = false, shrink = false,
         source={{ html }}
         style={{ backgroundColor: c.canvas }}
         setSupportMultipleWindows={false}
+        textZoom={100}
         onMessage={onMessage}
         // Links on the CV don't navigate away inside the preview
         onShouldStartLoadWithRequest={req => req.navigationType !== 'click'}

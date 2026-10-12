@@ -41,7 +41,7 @@ export function LayoutGrid({ items, selected, onPick, estimate }: Props) {
       {html ? (
         <WebView
           ref={web} originWhitelist={['*']} source={{ html }} onMessage={onMessage}
-          scrollEnabled={false} bounces={false} setSupportMultipleWindows={false}
+          scrollEnabled={false} bounces={false} setSupportMultipleWindows={false} textZoom={100}
           showsVerticalScrollIndicator={false} style={{ backgroundColor: c.bg }}
         />
       ) : <ActivityIndicator style={{ marginTop: 40 }} color={c.accent} />}
