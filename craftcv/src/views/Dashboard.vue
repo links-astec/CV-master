@@ -72,8 +72,8 @@
         <button class="link-btn db-review-later" @click="laterReview">{{ $t('Not now') }}</button>
       </div>
 
-      <!-- Empty state -->
-      <div v-else class="db-empty card">
+      <!-- Empty state: only when there are no CVs -->
+      <div v-if="!loading && !cards.length" class="db-empty card">
         <div class="db-empty-art"><CvThumb template="modern:indigo" :data="sampleCv()" /></div>
         <div class="db-empty-copy">
           <h2>{{ $t('Let’s build your CV') }}</h2>
