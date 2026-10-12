@@ -305,6 +305,41 @@ input[type=range]{flex:1;accent-color:var(--ac)}
   .ib:not(.has-sel) .ib-view{display:none}
   .ib-back{display:inline-flex;margin-bottom:12px}
 }
+/* Phones: a bottom tab bar (Overview, Inbox, Users, Email, More) instead of the sidebar */
+.tabbar,.more-sheet,.more-bg{display:none}
+@media (max-width:760px){
+  .sb{display:none!important}
+  .tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:60;background:var(--night);padding:6px 4px calc(6px + env(safe-area-inset-bottom));border-top:1px solid rgba(255,255,255,.08)}
+  .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;border:none;background:none;color:#9A9AB8;font:600 11px var(--f);padding:6px 0;position:relative;cursor:pointer}
+  .tab svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+  .tab.on{color:#fff}
+  .tab .dot{position:absolute;top:2px;left:calc(50% + 6px);min-width:17px;height:17px;padding:0 4px;border-radius:99px;background:var(--ac);color:#fff;font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  .more-bg{display:block;position:fixed;inset:0;z-index:70;background:rgba(20,20,43,.45)}
+  .more-sheet{display:block;position:fixed;left:0;right:0;bottom:0;z-index:71;background:var(--s1);border-radius:18px 18px 0 0;padding:10px 12px calc(14px + env(safe-area-inset-bottom));box-shadow:var(--shadow-lg)}
+  .more-grab{width:38px;height:5px;border-radius:99px;background:var(--b2);margin:2px auto 10px}
+  .more-row{display:flex;align-items:center;gap:12px;width:100%;padding:13px 10px;border:none;background:none;border-radius:10px;font:600 15px var(--f);color:var(--t1);text-decoration:none;cursor:pointer}
+  .more-row:active,.more-row.on{background:var(--ac-lt);color:var(--ac)}
+  .more-row svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+  .more-row .count{margin-left:auto;background:var(--ac);color:#fff;border-radius:99px;font-size:11.5px;padding:2px 8px}
+  .more-who{font-size:12.5px;color:var(--t3);padding:8px 10px 4px;border-top:1px solid var(--b1);margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .main{padding-bottom:calc(70px + env(safe-area-inset-bottom))}
+  .top-r .btn span.hide-sm{display:none}
+  /* Tables become cards: one per row, each value with its label */
+  .tbl.cards{display:block;overflow:visible}
+  .tbl.cards thead{display:none}
+  .tbl.cards tbody{display:block}
+  .tbl.cards tr{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;padding:14px 16px;border-top:1px solid var(--b1)}
+  .tbl.cards td{display:block;padding:0!important;border:0!important;min-width:0;text-align:left!important;white-space:normal!important}
+  .tbl.cards td[data-label]::before{content:attr(data-label);display:block;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--t3);margin-bottom:3px}
+  .tbl.cards td.full{grid-column:1/-1}
+  .tbl.cards td.acts{display:flex;gap:8px;flex-wrap:wrap}
+  .tbl.cards td.acts .btn{flex:1}
+  .tbl.cards .u-who span{overflow-wrap:anywhere}
+  /* Inbox: the list fits the screen (filters wrap instead of pushing it wider) */
+  .ib{grid-template-columns:minmax(0,1fr)!important}
+  .ib-tools .row{flex-wrap:wrap}
+  .ib-tools .seg{flex-wrap:wrap;max-width:100%}
+}
 @media (max-width:760px){
   .app{flex-direction:column;height:auto;min-height:100vh}
   .sb{width:100%;flex-direction:row;flex-wrap:wrap;align-items:center}
@@ -397,6 +432,7 @@ let _toastT;
 function toast(msg) { S.toast = msg; render(); clearTimeout(_toastT); _toastT = setTimeout(() => { S.toast = ''; render() }, 3200) }
 
 const ICON = {
+  menu: '<line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>',
   app: '<rect x="7" y="2" width="10" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/>',
   overview: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
   inbox: '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/>',
@@ -435,7 +471,7 @@ async function login() {
   try { await api('POST', '/login', { email: S.login.email, password: S.login.password, remember: S.login.remember }); S.auth = await api('GET', '/me'); await go('overview') }
   catch (e) { S.login.err = e.message; S.login.loading = false; render() }
 }
-async function logout() { await api('POST', '/logout').catch(() => {}); S.auth = null; render() }
+async function logout() { S.moreOpen = false; await api('POST', '/logout').catch(() => {}); S.auth = null; render() }
 
 // ── Navigation ────────────────────────────────────────────────────────────────
 const PAGES = {
@@ -748,16 +784,16 @@ function renderUsers() {
     <div class="card-hd"><h3>${fmt(S.userTotal)} users</h3>
       <form data-form="user-search" style="display:flex;gap:8px"><input class="inp" id="u-q" placeholder="Search name or email…" value="${esc(S.uSearch)}" style="width:240px"><button class="btn">Search</button></form></div>
     ${S.usersLoading ? `<div class="loading"><div class="spinner"></div></div>` : `
-    <table class="tbl"><thead><tr><th>User</th><th>Sign-in</th><th>CVs</th><th>Paid</th><th>Free CVs</th><th>AI credits</th><th>Referred</th><th>Joined</th><th></th></tr></thead>
+    <table class="tbl cards"><thead><tr><th>User</th><th>Sign-in</th><th>Joined</th><th>CVs</th><th>Paid</th><th>Free CVs</th><th>AI credits</th><th>Referred</th><th></th></tr></thead>
     <tbody>${!S.users.length ? `<tr><td colspan="9"><div class="empty">No users found</div></td></tr>` : S.users.map(u => `<tr>
-      <td><div class="u-who"><div class="av">${esc(initials(u.name || u.email))}</div><div><b>${esc(u.name || u.email.split('@')[0])}</b><span>${esc(u.email)}</span></div></div></td>
-      <td><span class="badge ${u.provider === 'google' ? 'b-sky' : 'b-gray'}">${esc(u.provider === 'google' ? 'Google' : 'Email')}</span></td>
-      <td>${fmt(u.draft_count)}</td><td>${fmt(u.payment_count)}</td>
-      <td><span class="num-edit"><b>${fmt(u.referral_credits)}</b><button class="btn btn-sm btn-ghost" data-edit="referral_credits" data-id="${u.id}" data-cur="${u.referral_credits}" data-label="Free CV credits for ${esc(u.email)}">Edit</button></span></td>
-      <td><span class="num-edit"><b>${fmt(u.ai_credits)}</b><button class="btn btn-sm btn-ghost" data-edit="ai_credits" data-id="${u.id}" data-cur="${u.ai_credits || 0}" data-label="Extra AI requests for ${esc(u.email)}">Edit</button></span></td>
-      <td>${fmt(u.referred_count)}</td>
-      <td>${fmtDate(u.created_at)}</td>
-      <td style="white-space:nowrap"><button class="btn btn-sm" data-act="email-user" data-email="${esc(u.email)}">Email</button> <button class="btn btn-sm btn-danger" data-del="${u.id}" data-email="${esc(u.email)}">Delete</button></td></tr>`).join('')}</tbody></table>
+      <td class="full"><div class="u-who"><div class="av">${esc(initials(u.name || u.email))}</div><div><b>${esc(u.name || u.email.split('@')[0])}</b><span>${esc(u.email)}</span></div></div></td>
+      <td data-label="Sign-in"><span class="badge ${u.provider === 'google' ? 'b-sky' : u.provider === 'apple' ? 'b-gray' : 'b-gray'}">${esc(u.provider === 'google' ? 'Google' : u.provider === 'apple' ? 'Apple' : 'Email')}</span></td>
+      <td data-label="Joined">${fmtDate(u.created_at)}</td>
+      <td data-label="CVs">${fmt(u.draft_count)}</td><td data-label="Paid">${fmt(u.payment_count)}</td>
+      <td data-label="Free CVs"><span class="num-edit"><b>${fmt(u.referral_credits)}</b><button class="btn btn-sm btn-ghost" data-edit="referral_credits" data-id="${u.id}" data-cur="${u.referral_credits}" data-label="Free CV credits for ${esc(u.email)}">Edit</button></span></td>
+      <td data-label="AI credits"><span class="num-edit"><b>${fmt(u.ai_credits)}</b><button class="btn btn-sm btn-ghost" data-edit="ai_credits" data-id="${u.id}" data-cur="${u.ai_credits || 0}" data-label="Extra AI requests for ${esc(u.email)}">Edit</button></span></td>
+      <td data-label="Referred">${fmt(u.referred_count)}</td>
+      <td class="full acts" style="white-space:nowrap"><button class="btn btn-sm" data-act="email-user" data-email="${esc(u.email)}">Email</button> <button class="btn btn-sm btn-danger" data-del="${u.id}" data-email="${esc(u.email)}">Delete</button></td></tr>`).join('')}</tbody></table>
     <div class="pager"><span>Page ${S.userPage} of ${pages}</span><div class="pg">
       ${S.userPage > 1 ? `<button class="btn btn-sm" data-page="${S.userPage - 1}">‹</button>` : ''}
       ${Array.from({ length: Math.min(7, pages) }, (_, i) => start + i).map(p => `<button class="btn btn-sm ${p === S.userPage ? 'btn-primary' : ''}" data-page="${p}">${p}</button>`).join('')}
@@ -811,16 +847,16 @@ function renderSubs() {
         <input class="inp" id="sub-q" placeholder="Search name or email…" value="${esc(S.subQ || '')}" style="width:210px">
         <button class="btn" data-act="sub-export">Export CSV</button>
       </div></div>
-    <table class="tbl"><thead><tr><th>Person</th><th>Status</th><th>Where they agreed</th><th>Plan</th><th>Agreed on</th><th></th></tr></thead>
+    <table class="tbl cards"><thead><tr><th>Person</th><th>Status</th><th>Where they agreed</th><th>Plan</th><th>Agreed on</th><th></th></tr></thead>
     <tbody>${!items.length ? `<tr><td colspan="6"><div class="empty"><strong>Nobody here yet</strong>People join from the homepage form, the box at sign-up, or Settings.</div></td></tr>` : items.map(x => {
       const st = STATUS[x.status] || STATUS.pending
       return `<tr>
-        <td><div class="u-who"><div class="av">${esc(initials(x.name || x.email))}</div><div><b>${esc(x.name || x.email.split('@')[0])}</b><span>${esc(x.email)}</span></div></div></td>
-        <td><span class="badge ${st[1]}">${st[0]}</span></td>
-        <td>${esc(SOURCE[x.source] || x.source || '—')}</td>
-        <td>${x.plan ? esc(x.plan) : '<span class="muted">No account</span>'}</td>
-        <td>${x.status === 'unsubscribed' ? '<span class="muted">Left ' + fmtDate(x.unsubscribed_at) + '</span>' : x.consent_at ? fmtDate(x.consent_at) : '<span class="muted">—</span>'}</td>
-        <td style="white-space:nowrap;text-align:right">${x.status !== 'unsubscribed' ? `<button class="btn btn-sm" data-sub="${x.id}" data-sact="unsub" data-email="${esc(x.email)}">Unsubscribe</button> ` : ''}<button class="btn btn-sm btn-danger" data-sub="${x.id}" data-sact="del" data-email="${esc(x.email)}">Delete</button></td></tr>`
+        <td class="full"><div class="u-who"><div class="av">${esc(initials(x.name || x.email))}</div><div><b>${esc(x.name || x.email.split('@')[0])}</b><span>${esc(x.email)}</span></div></div></td>
+        <td data-label="Status"><span class="badge ${st[1]}">${st[0]}</span></td>
+        <td data-label="Where they agreed">${esc(SOURCE[x.source] || x.source || '—')}</td>
+        <td data-label="Plan">${x.plan ? esc(x.plan) : '<span class="muted">No account</span>'}</td>
+        <td data-label="Agreed on">${x.status === 'unsubscribed' ? '<span class="muted">Left ' + fmtDate(x.unsubscribed_at) + '</span>' : x.consent_at ? fmtDate(x.consent_at) : '<span class="muted">—</span>'}</td>
+        <td class="full acts" style="white-space:nowrap;text-align:right">${x.status !== 'unsubscribed' ? `<button class="btn btn-sm" data-sub="${x.id}" data-sact="unsub" data-email="${esc(x.email)}">Unsubscribe</button> ` : ''}<button class="btn btn-sm btn-danger" data-sub="${x.id}" data-sact="del" data-email="${esc(x.email)}">Delete</button></td></tr>`
     }).join('')}</tbody></table>
   </div>
   <p class="muted" style="font-size:12.5px;margin-top:12px">Only people who agreed are listed. You can unsubscribe or delete someone (for example if they ask by email), but you can’t add people. They have to sign up themselves.</p>`
@@ -1585,6 +1621,7 @@ function renderApp() {
           <a class="btn btn-sm" href="https://www.cvmaster.live" target="_blank" rel="noopener">${svg('ext')} Open site</a></div></header>
       <div class="content ${S.page === 'inbox' ? 'flush' : ''}">${body}</div>
     </div>
+    ${renderTabbar(nav)}
   </div>`
 }
 
@@ -1594,6 +1631,27 @@ function addPeople(text, refocus = true) {
   S.email.people = [...new Set([...S.email.people, ...list])].slice(0, 500)
   render()
   if (refocus) setTimeout(() => $('e-people')?.focus(), 0)
+}
+
+// Phones: bottom tabs for the main pages, the rest under "More"
+const TABS = ['overview', 'inbox', 'users', 'newsletter']
+function renderTabbar(nav) {
+  const label = { overview: 'Overview', inbox: 'Inbox', users: 'Users', newsletter: 'Email' }
+  const count = Object.fromEntries(nav.map(([id, , n]) => [id, n]))
+  const inMore = !TABS.includes(S.page)
+  const more = nav.filter(([id]) => !TABS.includes(id))
+  return `<nav class="tabbar">
+    ${TABS.map(id => `<button class="tab ${S.page === id ? 'on' : ''}" data-go="${id}">${svg(id)}${label[id]}${count[id] ? `<span class="dot">${count[id] > 99 ? '99+' : count[id]}</span>` : ''}</button>`).join('')}
+    <button class="tab ${inMore ? 'on' : ''}" data-act="more">${svg('menu')}More${more.some(([, , n]) => n) ? '<span class="dot">•</span>' : ''}</button>
+  </nav>
+  ${S.moreOpen ? `<div class="more-bg" data-act="more-close"></div>
+  <div class="more-sheet" role="dialog" aria-label="More">
+    <div class="more-grab"></div>
+    ${more.map(([id, l, n]) => `<button class="more-row ${S.page === id ? 'on' : ''}" data-go="${id}">${svg(id)}${l}${n ? `<span class="count">${n}</span>` : ''}</button>`).join('')}
+    <a class="more-row" href="https://www.cvmaster.live" target="_blank" rel="noopener">${svg('ext')}Open the website</a>
+    <div class="more-who">Signed in as ${esc(S.auth?.email || '')}</div>
+    <button class="more-row" data-act="logout">${svg('out')}Sign out</button>
+  </div>` : ''}`
 }
 
 // ── Events ────────────────────────────────────────────────────────────────────
@@ -1650,7 +1708,9 @@ document.addEventListener('click', (e) => {
   if (t.dataset.act === 'ib-images') { S.inbox.showImages = true; render(); return }
   if (t.dataset.act === 'pv-width') { S.pvWidth = t.dataset.w; render(); return }
   if (t.dataset.act === 'pv-dark') { S.pvDark = t.dataset.d === '1'; render(); return }
-  if (t.dataset.go) { if (t.dataset.tab) S.inbox.tab = t.dataset.tab; go(t.dataset.go); return }
+  if (t.dataset.go) { S.moreOpen = false; if (t.dataset.tab) S.inbox.tab = t.dataset.tab; go(t.dataset.go); return }
+  if (t.dataset.act === 'more') { S.moreOpen = !S.moreOpen; render(); return }
+  if (t.dataset.act === 'more-close') { S.moreOpen = false; render(); return }
   if (t.dataset.open) { const [k, id] = t.dataset.open.split(':'); openItem(k, id); return }
   if (t.dataset.ibtab) { S.inbox.tab = t.dataset.ibtab; render(); return }
   if (t.dataset.ibstatus) { S.inbox.status = t.dataset.ibstatus; S.inbox.sel = null; S.inbox.detail = null; loadInbox(); return }
