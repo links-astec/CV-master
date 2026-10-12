@@ -152,6 +152,16 @@
         </div>
         <div v-if="auth.isLoggedIn" class="st-pref">
           <div>
+            <div class="st-pref-t">{{ $t('Personalise with my activity') }}</div>
+            <div class="st-pref-s">{{ $t('Suggests your next step and reminds you where you left off, from what you do in CVMaster. Kept on our servers only, never shared. Turning it off deletes it.') }}</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" :checked="auth.user?.personalizeActivity !== false" :disabled="profileSaving" @change="setPersonalize($event.target.checked)" />
+            <div class="toggle-track"><div class="toggle-thumb"></div></div>
+          </label>
+        </div>
+        <div v-if="auth.isLoggedIn" class="st-pref">
+          <div>
             <div class="st-pref-t">{{ $t('Email newsletter') }}</div>
             <div class="st-pref-s">{{ $t(nlStatus === 'pending' ? 'Starts once you confirm your email address' : 'CV tips and CVMaster news. A couple of emails a month at most') }}</div>
           </div>
@@ -213,6 +223,7 @@ import ReviewPrompt from '../components/ReviewPrompt.vue'
 import LangSwitch from '../components/LangSwitch.vue'
 import { INDUSTRIES, GOALS, LEVELS } from '../composables/profileOptions.js'
 import { t } from '../i18n/index.js'
+import { track } from '../composables/track.js'
 
 const apiUrl    = (p) => (import.meta.env.VITE_API_URL || '') + p
 const auth      = useAuthStore()
@@ -307,6 +318,23 @@ async function saveAiProfile(change) {
   profileSaving.value = false
 }
 
+// Personalisation from activity (turning it off deletes what was kept)
+async function setPersonalize(on) {
+  profileSaving.value = true
+  try {
+    const r = await fetch(apiUrl('/api/auth/settings'), {
+      method: 'PATCH', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ personalizeActivity: on }),
+    })
+    const data = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(data.error)
+    if (auth.user) auth.user.personalizeActivity = on
+    showToast('Saved')
+  } catch (e) { showToast(e.message || 'Could not save, please try again.') }
+  profileSaving.value = false
+}
+
 // Signing out clears this browser's copy of the CV; App then shows the homepage
 async function logout() {
   await auth.logout()
@@ -362,6 +390,7 @@ async function copyLink() {
   const link = referralInfo.value?.link || ''
   try {
     await navigator.clipboard.writeText(link)
+    track('invite_shared', { channel: 'copy' })
     copied.value = true
     setTimeout(() => { copied.value = false }, 2500)
   } catch {
@@ -371,10 +400,10 @@ async function copyLink() {
   }
 }
 const shareMsg = () => t('I’ve been using CVMaster to build my CV. It tailors it to the job and checks it against ATS. Sign up with my link and get {n} extra AI requests: {link}', { n: referralInfo.value?.welcomeAi || 25, link: referralInfo.value?.link || '' })
-function shareWhatsApp() { window.open(`https://wa.me/?text=${encodeURIComponent(shareMsg())}`, '_blank') }
-function shareTwitter()  { window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareMsg())}`, '_blank') }
-function shareLinkedIn() { window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(referralInfo.value?.link || '')}`, '_blank') }
-function shareEmail()    { window.location.href = `mailto:?subject=${encodeURIComponent(t('Try CVMaster for your CV'))}&body=${encodeURIComponent(shareMsg())}` }
+function shareWhatsApp() { track('invite_shared', { channel: 'whatsapp' }); window.open(`https://wa.me/?text=${encodeURIComponent(shareMsg())}`, '_blank') }
+function shareTwitter()  { track('invite_shared', { channel: 'x' }); window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareMsg())}`, '_blank') }
+function shareLinkedIn() { track('invite_shared', { channel: 'linkedin' }); window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(referralInfo.value?.link || '')}`, '_blank') }
+function shareEmail()    { track('invite_shared', { channel: 'email' }); window.location.href = `mailto:?subject=${encodeURIComponent(t('Try CVMaster for your CV'))}&body=${encodeURIComponent(shareMsg())}` }
 
 onMounted(() => {
   loadAiQuota(); if (auth.isLoggedIn) { loadReferral(); loadNewsletter() }

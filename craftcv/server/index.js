@@ -16,6 +16,8 @@ import { OAuth2Client } from 'google-auth-library';
 import { Resend } from 'resend';
 import nodemailer from 'nodemailer';
 import { query } from './db.js';
+import { ensurePushTable, isPushToken, registerToken, removeToken, sendPush } from './push.js';
+import { ensureActivity, nextStep, personalNudges, recordEvents, setPersonalize } from './activity.js';
 import { createRequire } from 'module';
 import { promises as dns } from 'dns';
 
@@ -36,6 +38,9 @@ const JWT_SECRET       = secretFromEnv('JWT_SECRET', 'cvmaster-dev-secret-change
 const GROQ_KEY         = process.env.GROQ_API_KEY || '';
 const STRIPE_KEY       = process.env.STRIPE_SECRET_KEY || '';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+// The phone app signs in with the same web client id; its Android/iOS client ids can be added
+// (comma-separated) in case a phone presents one of those instead
+const GOOGLE_AUDIENCES = [GOOGLE_CLIENT_ID, ...String(process.env.GOOGLE_APP_CLIENT_IDS || '').split(',').map(x => x.trim())].filter(Boolean);
 const FRONTEND_URL     = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 // ── Mailer ────────────────────────────────────────────────────────────────────
@@ -184,11 +189,13 @@ function ensureNotifCols() {
   if (!_notifCols) _notifCols = query('ALTER TABLE notifications ADD COLUMN IF NOT EXISTS link TEXT').catch(e => { _notifCols = null; throw e; });
   return _notifCols;
 }
+// Also sent as a push to the user's phones (if they have the app with notifications on)
 async function notify(userId, type, title, body, link = null) {
   try {
     await ensureNotifCols();
     await query('INSERT INTO notifications (user_id, type, title, body, link) VALUES ($1, $2, $3, $4, $5)', [userId, type, title, body, link]);
-  } catch (e) { console.warn('[notify]', e.message); }
+  } catch (e) { console.warn('[notify]', e.message); return; }
+  sendPush([userId], { title, body, link, type }).catch(e => console.warn('[push]', e.message));
 }
 
 // ── GENTLE REMINDERS ──────────────────────────────────────────────────────────
@@ -243,7 +250,9 @@ async function runReminders() {
     for (const r of toEmail) await query('UPDATE users SET review_emailed_at = NOW() WHERE id = $1', [r.id]);
     console.log(`[reminders] review emails: ${res.sent} sent, ${res.failed} failed`);
   }
-  console.log(`[reminders] unpaid nudges ${unpaid.length}, review nudges ${toAsk.length}, review emails ${toEmail.length}`);
+  // 4. Where they left off (personalised, only for people who allow it)
+  const personal = await personalNudges(notify).catch(e => { console.warn('[reminders] personal:', e.message); return 0; });
+  console.log(`[reminders] unpaid nudges ${unpaid.length}, review nudges ${toAsk.length}, review emails ${toEmail.length}, personal nudges ${personal}`);
 }
 app.use((req, res, next) => {
   if (!_jobsRunning && Date.now() - _jobsAt > 6 * 60 * 60 * 1000 && process.env.DISABLE_REMINDERS !== 'true') {
@@ -316,12 +325,30 @@ async function userFromToken(token) {
   return p;
 }
 
+// Activity for personalisation (server/activity.js): what the server itself sees a signed-in user
+// do. The app says which phone it is with the X-CVMaster-Client header; anything else is the website.
+const clientOf = (req) => (['ios', 'android'].includes(req.get('x-cvmaster-client')) ? req.get('x-cvmaster-client') : 'web');
+function track(req, name, props = {}) {
+  const userId = req.user?.sub;
+  if (userId) recordEvents(userId, clientOf(req), [{ name, props }]).catch(e => console.warn('[track]', e.message));
+}
+// "Last active" (so reminders wait while someone is using CVMaster), at most every 10 minutes
+const _seen = new Map();
+function noteActive(userId) {
+  const at = _seen.get(userId) || 0;
+  if (Date.now() - at < 10 * 60 * 1000) return;
+  _seen.set(userId, Date.now());
+  if (_seen.size > 5000) _seen.clear();
+  ensureActivity().then(() => query('UPDATE users SET last_active_at = NOW() WHERE id = $1', [userId])).catch(() => {});
+}
+
 async function authMiddleware(req, res, next) {
   const token = tokenOf(req);
   if (!token) return res.status(401).json({ error: 'Unauthorized' });
   const user = await userFromToken(token).catch(() => null);
   if (!user) return res.status(401).json({ error: 'Session expired, please sign in again.' });
   req.user = user;
+  noteActive(user.sub);
   next();
 }
 // AI + CV import work for guests too (attach the user when there is a valid session).
@@ -401,6 +428,7 @@ async function aiAccess(req, res, next) {
   } catch (e) {
     console.warn('[ai-allowance] check failed, allowing request:', e.message); // never block AI because of a counter error
   }
+  track(req, 'ai_used', { feature: req.path.split('/').pop() });
   next();
 }
 
@@ -422,6 +450,8 @@ function publicUser(row) {
     emailVerified: row.provider === 'google' || !!row.email_verified,
     // Google accounts may have set a password too (through "Forgot password?")
     hasPassword: !!row.hash,
+    // "Personalise with my activity" (Settings)
+    personalizeActivity: row.personalize_activity !== false,
   };
 }
 
@@ -528,8 +558,7 @@ async function rewardReferrer(userId) {
   const { referred_by: referrerId, name } = rows[0];
   await query('UPDATE users SET referral_credits = referral_credits + 1 WHERE id = $1', [referrerId]);
   const first = String(name || 'A friend').split(' ')[0];
-  await query(`INSERT INTO notifications (user_id, type, title, body) VALUES ($1, 'referral', 'You earned a free CV', $2)`,
-    [referrerId, `${first} got their CV with your link. Your next clean PDF is on us.`]).catch(() => {});
+  await notify(referrerId, 'referral', 'You earned a free CV', `${first} got their CV with your link. Your next clean PDF is on us.`, '/settings');
 }
 
 // ── NEWSLETTER ────────────────────────────────────────────────────────────────
@@ -793,7 +822,7 @@ app.post('/api/auth/google', async (req, res) => {
     if (!credential) return res.status(400).json({ error: 'Google credential missing.' });
     if (!GOOGLE_CLIENT_ID) return res.status(503).json({ error: 'Google login is not configured on this server.' });
     const client  = new OAuth2Client(GOOGLE_CLIENT_ID);
-    const ticket  = await client.verifyIdToken({ idToken: credential, audience: GOOGLE_CLIENT_ID });
+    const ticket  = await client.verifyIdToken({ idToken: credential, audience: GOOGLE_AUDIENCES });
     const payload = ticket.getPayload();
     const { email, name, picture, sub: googleId } = payload;
     // Only an address Google has verified may sign in to (or link with) an account
@@ -953,9 +982,39 @@ app.post('/api/auth/delete-account', rateLimit({ windowMs: 15 * 60 * 1000, max: 
   }
 });
 
+// ── PUSH NOTIFICATIONS (phone app) ────────────────────────────────────────────
+// The app registers its push token after sign-in and removes it on sign-out or when the user
+// turns notifications off in Settings.
+app.post('/api/push/register', authMiddleware, async (req, res) => {
+  try {
+    if (!isPushToken(req.body?.token)) return res.status(400).json({ error: 'Invalid push token.' });
+    await registerToken(req.user.sub, req.body.token, String(req.body.platform || ''));
+    res.json({ ok: true });
+  } catch (e) { console.error('[push/register]', e.message); res.status(500).json({ error: 'Could not turn on notifications.' }); }
+});
+app.post('/api/push/unregister', async (req, res) => {
+  try {
+    if (isPushToken(req.body?.token)) await removeToken(req.body.token);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Update failed.' }); }
+});
+
+// ── ACTIVITY & PERSONALISATION ────────────────────────────────────────────────
+// Signed-in users' activity, kept on this server only (see server/activity.js), and the
+// personal "next step" it suggests.
+app.post('/api/events', authMiddleware, rateLimit({ windowMs: 60 * 1000, max: 30 }), async (req, res) => {
+  try { res.json({ ok: true, kept: await recordEvents(req.user.sub, req.body?.platform, req.body?.events) }); }
+  catch (e) { console.error('[events]', e.message); res.status(500).json({ error: 'Update failed.' }); }
+});
+app.get('/api/me/next', authMiddleware, async (req, res) => {
+  try { res.json(await nextStep(req.user.sub)); }
+  catch (e) { console.error('[next]', e.message); res.status(500).json({ error: 'Could not load your next step.' }); }
+});
+
 // ── ME ────────────────────────────────────────────────────────────────────────
 app.get('/api/auth/me', authMiddleware, async (req, res) => {
   try {
+    await ensureActivity().catch(() => {});
     const { rows } = await query('SELECT * FROM users WHERE id = $1', [req.user.sub]);
     if (!rows.length) return res.status(404).json({ error: 'User not found.' });
     res.json(publicUser(rows[0]));
@@ -1004,6 +1063,13 @@ app.patch('/api/auth/settings', authMiddleware, async (req, res) => {
       }
       params.push(await bcrypt.hash(newPassword, 12));
       updates.push(`hash = $${params.length}`);
+    }
+    if (typeof req.body.personalizeActivity === 'boolean') {
+      await setPersonalize(req.user.sub, req.body.personalizeActivity);
+      if (!updates.length) {
+        const row = (await query('SELECT * FROM users WHERE id = $1', [req.user.sub])).rows[0];
+        return res.json({ ok: true, user: publicUser(row) });
+      }
     }
     if (!updates.length) return res.status(400).json({ error: 'Nothing to update.' });
     params.push(req.user.sub);
@@ -1425,7 +1491,9 @@ app.post('/api/ai/ats', rateLimit({ windowMs: 60 * 1000, max: 30 }), needsCvCont
     const brief = await jobBrief(req.body?.jobOffer, req, { charge: true });
     if (!brief) return res.status(400).json({ error: 'Please paste the full job description (at least a few sentences).' });
     if (!brief.keywords.length) return res.status(500).json({ error: 'Analysis failed. Please try again. Make sure your CV has some content filled in.' });
-    res.json(atsScore(cv, brief));
+    const score = atsScore(cv, brief);
+    track(req, 'job_match', { score: score.score });
+    res.json(score);
   } catch (e) {
     if (e.aiLimit) return res.status(429).json({ code: 'AI_LIMIT', tier: e.aiLimit.tier, signedIn: !!req.user, error: aiLimitError(e.aiLimit) });
     console.error('[ats]', e.message);
@@ -2580,6 +2648,8 @@ app.post('/api/cv/email', pdfLimiter, async (req, res) => {
       </div>`,
       attachments: [{ filename: out.fileName, content: out.pdf, contentType: 'application/pdf' }],
     });
+    req.user = { sub: userId };
+    track(req, 'export', { kind: 'email' });
     res.json({ ok: true, sentTo: toEmail, draftId: out.draft.id, format: 'pdf' });
   } catch (e) {
     console.error('[email] FAILED:', e.message);
@@ -2614,6 +2684,7 @@ app.post('/api/drafts', authMiddleware, async (req, res) => {
       [req.user.sub, String(title || 'Untitled CV').slice(0, 200), JSON.stringify(data || {}), String(template || 'modern:indigo').slice(0, 60)]
     );
     const d = rows[0];
+    track(req, 'cv_created', { source: String(req.body?.source || '').slice(0, 20) || 'blank' });
     res.json({ id: d.id, userId: d.user_id, title: d.title, data: d.cv_data, template: d.template, createdAt: d.created_at, updatedAt: d.updated_at });
   } catch (e) { res.status(500).json({ error: 'Failed to create draft.' }); }
 });
@@ -2623,6 +2694,8 @@ app.put('/api/drafts/:id', authMiddleware, async (req, res) => {
     const { title, data, template } = req.body;
     if (!UUID_RE.test(req.params.id)) return res.status(404).json({ error: 'Draft not found.' });
     if (draftTooBig(data)) return res.status(413).json({ error: 'This CV is too large to save. Try a smaller photo.' });
+    // A layout or colour change is kept for personalisation (favourite layouts first)
+    const before = template == null ? null : (await query('SELECT template FROM drafts WHERE id = $1 AND user_id = $2', [req.params.id, req.user.sub])).rows[0]?.template;
     const { rows } = await query(
       `UPDATE drafts SET title = COALESCE($1, title), cv_data = COALESCE($2, cv_data),
        template = COALESCE($3, template), updated_at = NOW()
@@ -2631,6 +2704,10 @@ app.put('/api/drafts/:id', authMiddleware, async (req, res) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'Draft not found.' });
     const d = rows[0];
+    if (before && before !== d.template) {
+      const [layout, theme] = String(d.template).split(':');
+      track(req, 'template_chosen', { layout, theme });
+    }
     res.json({ id: d.id, userId: d.user_id, title: d.title, data: d.cv_data, template: d.template, createdAt: d.created_at, updatedAt: d.updated_at });
   } catch (e) { res.status(500).json({ error: 'Failed to update draft.' }); }
 });
@@ -2806,6 +2883,7 @@ app.post('/api/cv/download-watermarked', authMiddleware, pdfLimiter, async (req,
       if (draft) pdf = await generateCvPdf(addHtmlWatermark(await draftDocument(draft)));
     }
     if (!pdf) return res.status(500).json({ error: 'PDF generation failed. Please try again.' });
+    track(req, 'export', { kind: 'preview' });
     sendPdf(res, pdf, entry.fileName.replace(/\.pdf$/, '-preview.pdf'));
   } catch (e) {
     console.error('[download-watermarked]', e.message);
@@ -2845,6 +2923,7 @@ app.post('/api/cv/export-pdf', authMiddleware, pdfLimiter, async (req, res) => {
   try {
     const out = await paidDraftPdf(req.user.sub, req.body?.draftId);
     if (out.error) return res.status(out.status).json({ error: out.error });
+    track(req, 'export', { kind: 'clean' });
     sendPdf(res, out.pdf, out.fileName);
   } catch (e) {
     console.error('[cv/export-pdf]', e.message);
@@ -2967,6 +3046,42 @@ app.get('/api/admin/config', adminAuthMiddleware, (req, res) => {
     feedbackEmail: FEEDBACK_TO || null,
     pdf: pdfEngine.status,
   });
+});
+
+// Push to every phone with the app (sent as written, in the admin's own words)
+app.post('/api/admin/push', adminAuthMiddleware, async (req, res) => {
+  try {
+    const title = String(req.body?.title || '').trim().slice(0, 80);
+    const body  = String(req.body?.body || '').trim().slice(0, 240);
+    if (!title || !body) return res.status(400).json({ error: 'Write a title and a message.' });
+    const link = ['/', '/templates', '/editor', '/settings'].includes(req.body?.link) ? req.body.link : '/';
+    if (req.body?.test) {
+      // Only to the phones of the account with the admin's email (to check how it looks)
+      const me = (await query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [req.admin?.email || ''])).rows[0];
+      if (!me) return res.status(400).json({ error: 'No app account uses your admin email, so there is no phone to test on.' });
+      return res.json(await sendPush([me.id], { title, body, link, type: 'news' }, { translate: false }));
+    }
+    res.json(await sendPush('all', { title, body, link, type: 'news' }, { translate: false }));
+  } catch (e) { console.error('[admin/push]', e.message); res.status(500).json({ error: 'Push failed.' }); }
+});
+app.get('/api/admin/activity', adminAuthMiddleware, async (req, res) => {
+  try {
+    await ensureActivity(); await ensurePushTable();
+    const one = async (sql) => (await query(sql)).rows[0];
+    const active = await one(`SELECT
+        COUNT(*) FILTER (WHERE last_active_at > NOW() - INTERVAL '1 day')::int  AS day,
+        COUNT(*) FILTER (WHERE last_active_at > NOW() - INTERVAL '7 days')::int AS week,
+        COUNT(*) FILTER (WHERE last_active_at > NOW() - INTERVAL '30 days')::int AS month,
+        COUNT(*) FILTER (WHERE NOT personalize_activity)::int AS opted_out FROM users`);
+    const phones = await one(`SELECT COUNT(*)::int AS devices, COUNT(DISTINCT user_id)::int AS users,
+        COUNT(*) FILTER (WHERE platform = 'ios')::int AS ios, COUNT(*) FILTER (WHERE platform = 'android')::int AS android FROM push_tokens`);
+    const events = (await query(`SELECT name, COUNT(*)::int AS n FROM user_events WHERE created_at > NOW() - INTERVAL '30 days' GROUP BY 1 ORDER BY 2 DESC`)).rows;
+    const platforms = (await query(`SELECT COALESCE(platform, 'web') AS platform, COUNT(DISTINCT user_id)::int AS users FROM user_events
+        WHERE created_at > NOW() - INTERVAL '30 days' GROUP BY 1 ORDER BY 2 DESC`)).rows;
+    const layouts = (await query(`SELECT props->>'layout' AS layout, COUNT(*)::int AS n FROM user_events
+        WHERE name = 'template_chosen' AND created_at > NOW() - INTERVAL '30 days' GROUP BY 1 ORDER BY 2 DESC LIMIT 8`)).rows;
+    res.json({ active, phones, events, platforms, layouts });
+  } catch (e) { console.error('[admin/activity]', e.message); res.status(500).json({ error: 'Could not load activity.' }); }
 });
 
 app.get('/api/admin/stats', adminAuthMiddleware, async (req, res) => {
@@ -3744,7 +3859,7 @@ app.get('/api/referral/info', authMiddleware, async (req, res) => {
       rewarded:    Number(rewarded_count),       // …and bought their CV (each earned a credit)
       recentCount: Number(recent_count),
       welcomeAi:   REFERRAL_WELCOME_AI,
-      link:        `${FRONTEND_URL}?ref=${referral_code}`,
+      link:        `${FRONTEND_URL}/invite/${referral_code}`,
     });
   } catch (e) { res.status(500).json({ error: 'Could not load your invite link.' }); }
 });

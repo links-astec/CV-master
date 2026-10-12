@@ -1,5 +1,7 @@
 // Settings
 export default {
+  'Personalise with my activity': 'Personnaliser avec mon activité',
+  'Suggests your next step and reminds you where you left off, from what you do in CVMaster. Kept on our servers only, never shared. Turning it off deletes it.': 'Propose votre prochaine étape et vous rappelle où vous en étiez, d’après ce que vous faites dans CVMaster. Conservé uniquement sur nos serveurs, jamais partagé. Le désactiver le supprime.',
   'Delete account': 'Supprimer le compte',
   'Deletes your account and every CV in it, on the website and in the app. This cannot be undone.': 'Supprime votre compte et tous ses CV, sur le site et dans l’application. C’est définitif.',
   'Deleting…': 'Suppression…',

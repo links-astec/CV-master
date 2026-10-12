@@ -1,5 +1,9 @@
 // My CVs, Templates, Editor
 export default {
+  'Your next step': 'Votre prochaine étape',
+  'Start': 'Commencer',
+  'Match to a job': 'Comparer à une offre',
+  'Get my PDF': 'Obtenir mon PDF',
   // My CVs
   'Open a CV to edit it, or download and send it.': 'Ouvrez un CV pour le modifier, ou téléchargez-le et envoyez-le.',
   'Your saved CVs will appear here.': 'Vos CV enregistrés apparaîtront ici.',

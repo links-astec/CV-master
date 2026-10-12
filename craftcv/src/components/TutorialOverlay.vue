@@ -79,6 +79,7 @@
 
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { track } from '../composables/track.js'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -205,7 +206,7 @@ watch(currentStep, () => positionCard())
 watch(() => props.visible, (v) => { if (v) { currentStep.value = 0; positionCard() } })
 
 function next() {
-  if (isLast.value) { finish(); return }
+  if (isLast.value) { track('tour_done'); finish(); return }
   currentStep.value++
 }
 function prev() {
