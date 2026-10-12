@@ -275,6 +275,13 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS nudged_at TIMESTAMPTZ;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS nudge_count INT NOT NULL DEFAULT 0;
 
+-- SETTINGS changed from the admin (for example how many reviews before the homepage shows them)
+CREATE TABLE IF NOT EXISTS site_settings (
+  key        TEXT PRIMARY KEY,
+  value      JSONB NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS admins (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email         TEXT UNIQUE NOT NULL,

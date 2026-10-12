@@ -667,18 +667,25 @@ button,a.btn{display:inline-block;background:#4338CA;color:#fff;border:0;border-
 a.l{color:#4338CA}</style></head><body><div class="c"><div class="b">CV<span>Master</span></div>${body}</div></body></html>`;
 }
 
+// Someone asks for the newsletter (homepage or blog form): they get an email to confirm
+async function requestNewsletter(rawEmail, source) {
+  const email = String(rawEmail || '').trim().toLowerCase();
+  const check = await checkEmailAddress(email);
+  if (!check.ok) return { ok: false, error: check.error };
+  await ensureNewsletterTable();
+  const existing = (await query('SELECT status FROM newsletter_subscribers WHERE email = $1', [email])).rows[0];
+  if (existing?.status === 'subscribed') return { ok: true, already: true };
+  const sub = await setSubscription(email, { source, status: 'pending' });
+  await sendNewsletterConfirm(sub);
+  return { ok: true };
+}
+
 // Homepage form
 app.post('/api/newsletter/subscribe', rateLimit({ windowMs: 10 * 60 * 1000, max: 6 }), async (req, res) => {
   try {
-    const email = String(req.body?.email || '').trim().toLowerCase();
-    const check = await checkEmailAddress(email);
-    if (!check.ok) return res.status(400).json({ error: check.error });
-    await ensureNewsletterTable();
-    const existing = (await query('SELECT status FROM newsletter_subscribers WHERE email = $1', [email])).rows[0];
-    if (existing?.status === 'subscribed') return res.json({ ok: true, already: true });
-    const sub = await setSubscription(email, { source: 'homepage', status: 'pending' });
-    await sendNewsletterConfirm(sub);
-    res.json({ ok: true });
+    const r = await requestNewsletter(req.body?.email, 'homepage');
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    res.json(r.already ? { ok: true, already: true } : { ok: true });
   } catch (e) { console.error('[newsletter/subscribe]', e.message); res.status(500).json({ error: 'Could not subscribe you right now. Please try again later.' }); }
 });
 
@@ -3120,7 +3127,7 @@ app.get('/api/admin/config', adminAuthMiddleware, (req, res) => {
 });
 
 // The blog: pages, feed, images, and its admin (server/blog.js)
-registerBlog(app, { adminAuth: adminAuthMiddleware, rateLimit, callAi, sendPush, onError: (where, e) => console.error(`[${where}]`, e.message) });
+registerBlog(app, { adminAuth: adminAuthMiddleware, rateLimit, callAi, sendPush, subscribe: (email) => requestNewsletter(email, 'blog'), onError: (where, e) => console.error(`[${where}]`, e.message) });
 
 // Push to every phone with the app (sent as written, in the admin's own words)
 app.post('/api/admin/push', adminAuthMiddleware, async (req, res) => {
@@ -3651,7 +3658,33 @@ app.delete('/api/admin/newsletter/subscribers/:id', adminAuthMiddleware, async (
 // Real users who have made a CV can rate CVMaster (1–5) once, with an optional comment.
 // Admins approve comments to show on the homepage; "hidden" is only for spam/abuse.
 // The average counts every review that isn't hidden (good and bad), as Google requires.
-const REVIEWS_MIN_TO_SHOW = 3;
+// How many reviews there must be before the homepage shows them: set by the admin (Reviews page)
+const REVIEWS_MIN_DEFAULT = 3;
+let _settingsTable = null;
+const _settings = new Map();
+function ensureSettingsTable() {
+  if (!_settingsTable) _settingsTable = query('CREATE TABLE IF NOT EXISTS site_settings (key TEXT PRIMARY KEY, value JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())')
+    .catch(e => { _settingsTable = null; throw e; });
+  return _settingsTable;
+}
+async function getSetting(key, fallback) {
+  const hit = _settings.get(key);
+  if (hit && Date.now() - hit.at < 60_000) return hit.value;
+  await ensureSettingsTable();
+  const row = (await query('SELECT value FROM site_settings WHERE key = $1', [key])).rows[0];
+  const value = row ? row.value : fallback;
+  _settings.set(key, { value, at: Date.now() });
+  return value;
+}
+async function setSetting(key, value) {
+  await ensureSettingsTable();
+  await query(`INSERT INTO site_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`, [key, JSON.stringify(value)]);
+  _settings.set(key, { value, at: Date.now() });
+}
+const reviewsMinToShow = async () => {
+  const n = Number(await getSetting('reviews_min_to_show', REVIEWS_MIN_DEFAULT));
+  return Number.isInteger(n) && n >= 1 && n <= 50 ? n : REVIEWS_MIN_DEFAULT;
+};
 let _reviewsTable = null;
 function ensureReviewsTable() {
   if (!_reviewsTable) {
@@ -3728,7 +3761,7 @@ app.get('/api/reviews/public', async (req, res) => {
   try {
     await ensureReviewsTable();
     const agg = (await query(`SELECT COUNT(*)::int AS count, ROUND(AVG(rating)::numeric, 1)::float AS average FROM reviews WHERE status <> 'hidden'`)).rows[0];
-    if (agg.count < REVIEWS_MIN_TO_SHOW) return res.json({ count: agg.count, average: null, reviews: [] });
+    if (agg.count < await reviewsMinToShow()) return res.json({ count: agg.count, average: null, reviews: [] });
     const reviews = (await query(`SELECT rating, comment, display_name AS name, role, created_at FROM reviews
                                   WHERE status = 'approved' AND comment IS NOT NULL ORDER BY created_at DESC LIMIT 6`)).rows;
     res.set('Cache-Control', 'public, max-age=300');
@@ -3746,8 +3779,16 @@ app.get('/api/admin/reviews', adminAuthMiddleware, async (req, res) => {
                                      ROUND(AVG(rating) FILTER (WHERE status <> 'hidden')::numeric, 1)::float AS average,
                                      (COUNT(*) FILTER (WHERE status = 'pending' AND comment IS NOT NULL) + COUNT(*) FILTER (WHERE pending_at IS NOT NULL))::int AS pending
                               FROM reviews`)).rows[0];
-    res.json({ items: rows, ...agg, minToShow: REVIEWS_MIN_TO_SHOW });
+    res.json({ items: rows, ...agg, minToShow: await reviewsMinToShow() });
   } catch (e) { res.status(500).json({ error: 'Failed to load reviews.' }); }
+});
+app.put('/api/admin/reviews/settings', adminAuthMiddleware, async (req, res) => {
+  try {
+    const n = Math.round(Number(req.body?.minToShow));
+    if (!(n >= 1 && n <= 50)) return res.status(400).json({ error: 'Choose a number from 1 to 50.' });
+    await setSetting('reviews_min_to_show', n);
+    res.json({ ok: true, minToShow: n });
+  } catch (e) { res.status(500).json({ error: 'Could not save the setting.' }); }
 });
 app.patch('/api/admin/reviews/:id', adminAuthMiddleware, async (req, res) => {
   try {

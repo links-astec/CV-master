@@ -212,7 +212,8 @@ textarea.inp{height:auto;padding:10px 12px;line-height:1.55;resize:vertical}
 .rv-cmp > div{background:var(--s2);border-radius:10px;padding:10px 12px}
 .rv-l{font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--t3);margin-bottom:4px}
 .rv-acts{display:flex;gap:8px;flex-wrap:wrap;padding-left:48px}
-@media (max-width:760px){ .rv-body,.rv-cmp,.rv-acts{padding-left:0} .rv-cmp{grid-template-columns:1fr} .rv-acts .btn{flex:1} }
+.rv-set{display:flex;align-items:center;gap:16px;flex-wrap:wrap}.rv-set>div:first-child{flex:1;min-width:220px}.rv-set-c{display:flex;gap:8px}.rv-set-c .inp{width:auto}
+@media (max-width:760px){ .rv-body,.rv-cmp,.rv-acts{padding-left:0} .rv-cmp{grid-template-columns:1fr} .rv-acts .btn{flex:1} .rv-set-c{width:100%} .rv-set-c .inp{flex:1} }
 body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
 .st-banner{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:12px;margin-bottom:16px;font-weight:700}
 .st-banner.ok{background:var(--green-lt);color:var(--green)}.st-banner.warn{background:var(--amber-lt);color:var(--amber)}.st-banner.down{background:var(--red-lt);color:var(--red)}
@@ -1028,7 +1029,7 @@ function renderSubs() {
   if (S.subsLoading || !S.subs) return `<div class="loading"><div class="spinner"></div></div>`
   const d = S.subs, f = S.subFilter || 'subscribed', q = (S.subQ || '').toLowerCase()
   const STATUS = { subscribed: ['Subscribed', 'b-green'], pending: ['Waiting for confirmation', 'b-amber'], unsubscribed: ['Unsubscribed', 'b-gray'] }
-  const SOURCE = { homepage: 'Homepage form', signup: 'Sign-up box', settings: 'Settings' }
+  const SOURCE = { homepage: 'Homepage form', blog: 'Blog form', signup: 'Sign-up box', settings: 'Settings' }
   const LABEL  = { subscribed: 'subscribed', pending: 'waiting for confirmation', unsubscribed: 'unsubscribed', all: 'people' }
   const items = d.items.filter(x => (f === 'all' || x.status === f) && (!q || x.email.includes(q) || (x.name || '').toLowerCase().includes(q)))
   return `
@@ -1077,6 +1078,14 @@ async function setReview(id, status) {
     await loadReviews(); loadCounts()
   } catch (e) { toast(e.message) }
 }
+async function saveReviewsMin() {
+  const n = Number(document.getElementById('rv-min')?.value)
+  try {
+    await api('PUT', '/reviews/settings', { minToShow: n })
+    toast(S.rv && S.rv.count >= n ? 'Saved. Reviews now show on the homepage' : `Saved. Reviews show once there are ${n}`)
+    await loadReviews()
+  } catch (e) { toast(e.message) }
+}
 function renderReviews() {
   if (S.rvLoading || !S.rv) return `<div class="loading"><div class="spinner"></div></div>`
   const r = S.rv
@@ -1087,6 +1096,13 @@ function renderReviews() {
     <div class="card kpi"><div class="kpi-l">Reviews counted</div><div class="kpi-v">${fmt(r.count)}</div><div class="kpi-s">${r.count >= r.minToShow ? 'Shown on the homepage and to Google' : `Shown once there are ${r.minToShow}`}</div></div>
     <div class="card kpi"><div class="kpi-l">Waiting for you</div><div class="kpi-v">${fmt(r.pending)}</div><div class="kpi-s">New comments and edits to approve</div></div>
   </div>
+  <div class="card" style="margin-bottom:16px"><div class="card-bd rv-set">
+    <div><b>Show reviews on the homepage once there are</b>
+      <div class="muted" style="font-size:12.5px;margin-top:2px">${r.count >= r.minToShow ? `Showing now: ${fmt(r.count)} ${r.count === 1 ? 'review' : 'reviews'}, the star rating and the approved comments.` : `Hidden for now: ${fmt(r.count)} of ${fmt(r.minToShow)}. A few reviews look more trustworthy than one.`}</div></div>
+    <div class="rv-set-c"><select class="inp" id="rv-min">${[1, 2, 3, 4, 5, 10, 20].concat([1, 2, 3, 4, 5, 10, 20].includes(r.minToShow) ? [] : [r.minToShow]).sort((a, b) => a - b)
+      .map(n => `<option value="${n}"${n === r.minToShow ? ' selected' : ''}>${n} ${n === 1 ? 'review' : 'reviews'}</option>`).join('')}</select>
+      <button class="btn btn-primary" data-act="rv-min-save">Save</button></div>
+  </div></div>
   <div class="card">
     <div class="card-hd"><h3>All reviews</h3><span class="muted" style="font-size:12.5px">Hide only spam or abuse. The average must include bad reviews too.</span></div>
     ${!r.items.length ? `<div class="empty"><strong>No reviews yet</strong>People are asked for one after they get their CV.</div>` : r.items.map(x => {
@@ -1944,6 +1960,7 @@ document.addEventListener('click', (e) => {
   else if (a === 'stats-refresh') { S.stats = null; loadStats() }
   else if (a === 'config-refresh') { S.config = null; render(); loadConfig() }
   else if (a === 'status-refresh') loadStatus(true)
+  else if (a === 'rv-min-save') saveReviewsMin()
   else if (a === 'inbox-refresh') loadInbox()
   else if (a === 'inbox-back') { S.inbox.sel = null; S.inbox.detail = null; render() }
   else if (a === 'reply') sendReply()
