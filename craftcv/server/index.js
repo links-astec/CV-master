@@ -279,10 +279,26 @@ let _statusAt = 0, _statusRunning = false;
 const SERVER_STARTED = new Date();
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
-app.use('/api/',      rateLimit({ windowMs: 15*60*1000, max: 200, standardHeaders: true, legacyHeaders: false }));
-app.use('/api/ai/',   rateLimit({ windowMs: 60*1000,    max: 20,  message: { error: 'Too many AI requests, wait a minute.' } }));
-// Guests (no account) get a smaller hourly AI budget per IP
-app.use('/api/auth/', rateLimit({ windowMs: 15*60*1000, max: 15,  message: { error: 'Too many attempts, try again later.' } }));
+// A class, an office or a café often shares one internet address, so signed-in people are
+// counted per account, and an address gets room for a room full of guests. Sign-in, sign-up
+// and password attempts stay strict per email address (that's what stops password guessing).
+const sessionKey = (req) => {
+  const t = tokenOf(req);
+  if (t) { try { const p = jwt.verify(t, JWT_SECRET); if (p?.sub) return `u:${p.sub}`; } catch {} }
+  return `ip:${req.ip}`;
+};
+const perPerson = (userMax, networkMax) => (req) => (sessionKey(req).startsWith('u:') ? userMax : networkMax);
+app.use('/api/',      rateLimit({ windowMs: 15*60*1000, max: perPerson(600, 4000), keyGenerator: sessionKey, standardHeaders: true, legacyHeaders: false }));
+app.use('/api/ai/',   rateLimit({ windowMs: 60*1000,    max: perPerson(20, 150), keyGenerator: sessionKey, message: { error: 'Too many AI requests, wait a minute.' } }));
+// Google and Apple sign-ins are checked by Google and Apple, so they only count towards the network limit
+const PASSWORD_ATTEMPTS = ['/login', '/register', '/forgot-password', '/reset-password', '/resend-verification'];
+const AUTH_ATTEMPTS = [...PASSWORD_ATTEMPTS, '/google', '/apple'];
+const notAttempt = (req) => !(req.method === 'POST' && AUTH_ATTEMPTS.includes(req.path));
+const tooMany = { error: 'Too many attempts, try again later.' };
+app.use('/api/auth/', rateLimit({ windowMs: 15*60*1000, max: 10, message: tooMany,
+  skip: (req) => !(req.method === 'POST' && PASSWORD_ATTEMPTS.includes(req.path)),
+  keyGenerator: (req) => `${req.ip}|${String(req.body?.email || req.body?.token || '').trim().toLowerCase().slice(0, 200)}` }));
+app.use('/api/auth/', rateLimit({ windowMs: 15*60*1000, max: 400, skip: notAttempt, message: tooMany }));
 
 // ── Auth helpers ──────────────────────────────────────────────────────────────
 // `v` is the user's token_version: changing or resetting the password bumps it, which
@@ -385,7 +401,19 @@ function ensureAiTables() {
   }
   return _aiTables;
 }
-const aiSubject = (req) => req.user ? `u:${req.user.sub}` : `ip:${req.ip}`;
+// Guests are counted per browser (a cookie), so a class sharing one network doesn't share 5
+// uses; the network as a whole has a daily cap so clearing cookies can't get unlimited AI.
+const AI_GUEST_NETWORK_PER_DAY = 200;
+const GID = /^[a-f0-9]{32}$/;
+app.use(['/api/ai/', '/api/cv/upload'], (req, res, next) => {
+  if (!GID.test(req.cookies?.cvm_gid || '')) {
+    const g = randomBytes(16).toString('hex');
+    res.cookie('cvm_gid', g, { httpOnly: true, secure: IS_PROD, sameSite: 'lax', domain: IS_PROD ? '.cvmaster.live' : undefined, maxAge: 365 * 864e5 });
+    req.cookies = { ...(req.cookies || {}), cvm_gid: g };
+  }
+  next();
+});
+const aiSubject = (req) => req.user ? `u:${req.user.sub}` : GID.test(req.cookies?.cvm_gid || '') ? `g:${req.cookies.cvm_gid}` : `ip:${req.ip}`;
 
 // 'verified' | 'unverified' | 'guest'
 async function aiTier(req) {
@@ -400,6 +428,12 @@ const aiLimitFor = (tier) => tier === 'verified' ? AI_FREE_PER_DAY : AI_GUEST_PE
 async function useAiAllowance(req) {
   await ensureAiTables();
   const tier = await aiTier(req), limit = aiLimitFor(tier);
+  if (!req.user) {
+    const net = (await query(
+      `INSERT INTO ai_usage (subject, day, count) VALUES ($1, CURRENT_DATE, 1)
+       ON CONFLICT (subject, day) DO UPDATE SET count = ai_usage.count + 1 RETURNING count`, [`net:${req.ip}`])).rows[0].count;
+    if (net > AI_GUEST_NETWORK_PER_DAY) return { ok: false, tier };
+  }
   const { rows } = await query(
     `INSERT INTO ai_usage (subject, day, count) VALUES ($1, CURRENT_DATE, 1)
      ON CONFLICT (subject, day) DO UPDATE SET count = ai_usage.count + 1 RETURNING count`,
@@ -1303,24 +1337,49 @@ async function callAiRaw(prompt, model, systemPrompt, maxTokens, reasoningEffort
   return callGroq(prompt, model, systemPrompt, maxTokens, reasoningEffort);
 }
 
+// When many people use AI at once (a class, a workshop) Groq can briefly say "too many requests"
+// or have a hiccup. Wait and try again (as long as Groq asks, within reason), then try the
+// smaller model, which has its own rate limit, before giving up.
+const AI_FALLBACK_MODEL = process.env.GROQ_FALLBACK_MODEL || 'openai/gpt-oss-20b';
 async function callGroq(prompt, model = AI_MODEL, systemPrompt = null, maxTokens = 800, reasoningEffort = 'low') {
   if (!GROQ_KEY) throw new Error('AI is not configured. Add ANTHROPIC_API_KEY or GROQ_API_KEY to your environment.');
   const messages = [];
   if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
   messages.push({ role: 'user', content: prompt });
-  const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_KEY}` },
-    body:    JSON.stringify({
-      model, messages, temperature: 0.1,
-      ...(model.startsWith('openai/gpt-oss')
-        ? { reasoning_effort: reasoningEffort, max_tokens: maxTokens + (reasoningEffort === 'low' ? 1024 : 4096) }
-        : { max_tokens: maxTokens }),
-    }),
-  });
-  const j = await r.json();
-  if (!r.ok) throw new Error(j.error?.message || 'AI request failed.');
-  return j.choices?.[0]?.message?.content || '';
+  const plan = [model, model, ...(model !== AI_FALLBACK_MODEL ? [AI_FALLBACK_MODEL, AI_FALLBACK_MODEL] : [model])];
+  let lastErr = null;
+  for (let i = 0; i < plan.length; i++) {
+    const m = plan[i];
+    let r, j;
+    try {
+      r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_KEY}` },
+        body:    JSON.stringify({
+          model: m, messages, temperature: 0.1,
+          ...(m.startsWith('openai/gpt-oss')
+            ? { reasoning_effort: reasoningEffort, max_tokens: maxTokens + (reasoningEffort === 'low' ? 1024 : 4096) }
+            : { max_tokens: maxTokens }),
+        }),
+        signal: AbortSignal.timeout(60000),
+      });
+      j = await r.json().catch(() => ({}));
+    } catch (e) { lastErr = e; r = null; }   // timeout or network: try again
+    if (r?.ok) {
+      const out = j.choices?.[0]?.message?.content || '';
+      if (out.trim()) return out;
+      lastErr = new Error('Empty AI reply.');
+    } else if (r) {
+      lastErr = new Error(j.error?.message || `AI request failed (${r.status}).`);
+      if (r.status !== 429 && r.status < 500) throw lastErr;   // a real error in the request: don't retry
+    }
+    if (i < plan.length - 1) {
+      const asked = Number(r?.headers.get('retry-after')) || 0;
+      await new Promise(res => setTimeout(res, Math.min(8000, Math.max(asked * 1000, 800 * (i + 1)))));
+    }
+  }
+  console.warn('[ai] Groq failed after retries:', lastErr?.message);
+  throw lastErr || new Error('AI request failed.');
 }
 
 // Pull the first {...} object out of a model reply (tolerates ``` fences / chatter).
@@ -1789,13 +1848,14 @@ Each question gets a short "hint" with an example answer.
 
 When building the CV ("ready"):
 - Use ONLY facts from the story and the answers. Never invent employers, dates, numbers, qualifications or skills. Leave a field "" if unknown.
+- Contact details: only if the person wrote their own name, email, phone, LinkedIn or website in the story, copy them exactly into fn (first name), ln (last name), email, phone, li and website. Otherwise leave them "". Never guess them.
 - Experience "desc": 2-4 bullet lines, each starting with "• " and a strong verb, keeping any numbers the person gave.
 - "sum": 2-3 sentences, first person implied (no "I"), specific to them.
 - "skills": 6-12 concrete skills they clearly have from the story.
 - Write every text field in ${language}.
 
 Reply with ONLY a JSON object, no markdown:
-{"verdict":"unusable|needs_more|ready","reason":"","questions":[{"q":"","hint":""}],"cv":{"title":"","sum":"","loc":"","skills":[],"experiences":[{"title":"","company":"","period":"","desc":""}],"education":[{"degree":"","school":"","year":""}],"projects":[{"name":"","desc":"","tech":""}],"languages":[{"name":"","level":""}],"certifications":[]}}
+{"verdict":"unusable|needs_more|ready","reason":"","questions":[{"q":"","hint":""}],"cv":{"fn":"","ln":"","email":"","phone":"","li":"","website":"","title":"","sum":"","loc":"","skills":[],"experiences":[{"title":"","company":"","period":"","desc":""}],"education":[{"degree":"","school":"","year":""}],"projects":[{"name":"","desc":"","tech":""}],"languages":[{"name":"","level":""}],"certifications":[]}}
 Only include "questions" for needs_more and "cv" for ready. Questions and reason are in ${language}.`;
 
     // A story for a friend gets nothing from the account holder's profile

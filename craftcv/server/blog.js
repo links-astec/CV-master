@@ -361,7 +361,7 @@ async function articlePage(post, versions, { app, theme, subscribed }) {
     <div class="prose">${html}</div>${source}
     ${others.length ? `<div class="langs">${esc(t['Also in'])}: ${others.map(v => `<a href="${SITE}/blog/${esc(v.slug)}${app ? '?app=1' : ''}">${LANG_NAME[v.lang] || v.lang}</a>`).join('')}</div>` : ''}
     <div class="end"><b>${esc(t['Share this article'])}</b>${share}</div>
-    <div class="author">${avatar(author)}<div><small>${esc(t['Written by'])}</small><b>${esc(author)}</b>${isTeam(author) ? `<p>${esc(t['The CVMaster team writes practical, honest advice to help you build a stronger CV and get more interviews.'])}</p>` : ''}</div></div>
+    ${post.category === 'link' ? '' : `<div class="author">${avatar(author)}<div><small>${esc(t['Written by'])}</small><b>${esc(author)}</b>${isTeam(author) ? `<p>${esc(t['The CVMaster team writes practical, honest advice to help you build a stronger CV and get more interviews.'])}</p>` : ''}</div></div>`}
     <div class="cta-m"><h3>${esc(t['A CV that gets you the interview.'])}</h3><p>${esc(t['Build it in minutes, tailor it to the job, and see how well it matches, before you apply.'])}</p><a class="btn" href="${SITE}/?lang=${esc(L)}">${esc(t['Build my CV for free'])}</a></div>
   </article>
   <aside class="side"><div class="stick">
