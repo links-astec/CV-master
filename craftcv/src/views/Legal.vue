@@ -147,6 +147,7 @@ const DOCS = [
         <li>copy, reverse-engineer or resell the service or its templates;</li>
         <li>upload content that is illegal, harmful or infringes someone else’s rights.</li>
       </ul>` },
+      { id: 'reviews', title: 'Reviews', html: `<p>People who have made a CV can rate CVMaster. Star ratings count straight away. Written comments, and later edits to them, are checked by us before they appear on our website, to keep out spam, abuse and personal details; until an edit is approved, the earlier version stays. We never remove or hide a review because it is negative, and we don’t pay for reviews.</p>` },
       { id: 'ai', title: 'AI-generated content', html: `<p>AI suggestions can be wrong. CVMaster never adds anything without your approval, but you are responsible for checking that everything on your CV is true before you send it.</p>` },
       { id: 'ip', title: 'Who owns what', html: `<p>You own the content of your CV. We own the CVMaster platform, its designs and templates.</p>` },
       { id: 'liability', title: 'Liability', html: `<p>We are not liable for indirect or consequential losses, including the outcome of any job application. Nothing in these terms limits rights you have under consumer law.</p>` },
@@ -241,6 +242,7 @@ const DOCS_FR = [
         <li>copier, désassembler ou revendre le service ou ses modèles ;</li>
         <li>importer du contenu illégal, nuisible ou qui porte atteinte aux droits d’autrui.</li>
       </ul>` },
+      { id: 'reviews', title: 'Avis', html: `<p>Les personnes qui ont créé un CV peuvent noter CVMaster. Les notes en étoiles comptent tout de suite. Les commentaires écrits, et leurs modifications ultérieures, sont vérifiés par nous avant d’apparaître sur notre site, pour écarter le spam, les propos abusifs et les données personnelles ; tant qu’une modification n’est pas approuvée, la version précédente reste affichée. Nous ne supprimons ni ne masquons jamais un avis parce qu’il est négatif, et nous ne payons pas pour des avis.</p>` },
       { id: 'ai', title: 'Contenu généré par l’IA', html: `<p>Les suggestions de l’IA peuvent être erronées. CVMaster n’ajoute jamais rien sans votre accord, mais il vous appartient de vérifier que tout ce qui figure sur votre CV est exact avant de l’envoyer.</p>` },
       { id: 'ip', title: 'Propriété', html: `<p>Vous êtes propriétaire du contenu de votre CV. Nous sommes propriétaires de la plateforme CVMaster, de ses designs et de ses modèles.</p>` },
       { id: 'liability', title: 'Responsabilité', html: `<p>Nous ne sommes pas responsables des pertes indirectes, y compris de l’issue d’une candidature. Rien dans ces conditions ne limite les droits dont vous disposez en tant que consommateur.</p>` },

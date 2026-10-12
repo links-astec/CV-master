@@ -6,6 +6,14 @@
   },
   "rewrites": [
     {
+      "source": "/blog",
+      "destination": "https://api.cvmaster.live/blog"
+    },
+    {
+      "source": "/blog/:path*",
+      "destination": "https://api.cvmaster.live/blog/:path*"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

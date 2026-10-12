@@ -1,7 +1,7 @@
 <template>
   <div v-if="state !== 'hidden'" class="rv" :class="{ compact }">
     <template v-if="state === 'done'">
-      <div class="rv-done">{{ $t(waiting ? 'Thanks. Your updated review shows once we’ve checked it. Your current one stays up until then.' : 'Thank you. Your review helps other job seekers find CVMaster.') }}</div>
+      <div class="rv-done">{{ $t('Thank you. Your review helps other job seekers find CVMaster.') }}</div>
     </template>
     <template v-else>
       <div class="rv-q">{{ $t(existing ? 'Your review' : 'How was CVMaster?') }}</div>
@@ -40,7 +40,6 @@ const hover    = ref(0)
 const comment  = ref('')
 const sending  = ref(false)
 const error    = ref('')
-const waiting  = ref(false)   // their edit waits for approval; the published review stays meanwhile
 
 onMounted(async () => {
   if (!auth.isLoggedIn) return
@@ -50,7 +49,7 @@ onMounted(async () => {
     if (!r.ok || !j.canReview) return
     if (j.review) {
       if (props.onlyIfNew) return
-      existing.value = true; rating.value = j.review.rating; comment.value = j.review.comment || ''; waiting.value = !!j.review.awaitingApproval
+      existing.value = true; rating.value = j.review.rating; comment.value = j.review.comment || ''
     }
     state.value = 'ask'
     emit('shown')
@@ -66,7 +65,6 @@ async function send() {
     })
     const j = await r.json().catch(() => ({}))
     if (!r.ok) throw new Error(j.error || 'Could not send your review.')
-    waiting.value = !!(j.awaitingApproval && existing.value)
     state.value = 'done'
   } catch (e) { error.value = e.message }
   sending.value = false

@@ -5,3 +5,4 @@ Disallow: /editor
 Disallow: /settings
 
 Sitemap: https://www.cvmaster.live/sitemap.xml
+Sitemap: https://www.cvmaster.live/blog/sitemap.xml

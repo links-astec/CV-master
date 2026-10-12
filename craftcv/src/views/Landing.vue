@@ -8,6 +8,7 @@
           <a href="#templates" @click.prevent="go('#templates')">{{ $t('Templates') }}</a>
           <a href="#pricing" @click.prevent="go('#pricing')">{{ $t('Pricing') }}</a>
           <a href="#faq" @click.prevent="go('#faq')">{{ $t('FAQ') }}</a>
+          <a :href="`/blog?lang=${lang}`">{{ $t('Blog') }}</a>
         </nav>
         <div class="lp-nav-cta">
           <LangSwitch />
@@ -106,6 +107,21 @@
     </section>
 
     <!-- FAQ -->
+    <!-- Latest from the blog (only once there are posts) -->
+    <section v-if="posts.length" class="lp-sec" id="blog">
+      <div class="lp-wrap">
+        <h2 class="lp-h2">{{ $t('From the blog') }}</h2>
+        <p class="lp-sub">{{ $t('CV advice, job-hunting tips and what’s new in CVMaster.') }}</p>
+        <div class="lp-posts">
+          <a v-for="p in posts" :key="p.slug" class="lp-post" :href="`/blog/${p.slug}`">
+            <img v-if="p.cover" :src="p.cover" alt="" loading="lazy" /><span v-else class="lp-post-ph"></span>
+            <span class="lp-post-b"><strong>{{ p.title }}</strong><span>{{ p.excerpt }}</span></span>
+          </a>
+        </div>
+        <div class="lp-center"><a class="btn-secondary" :href="`/blog?lang=${lang}`">{{ $t('Read the blog') }}</a></div>
+      </div>
+    </section>
+
     <section class="lp-sec" id="faq">
       <div class="lp-wrap lp-faq-wrap">
         <h2 class="lp-h2">{{ $t('Questions') }}</h2>
@@ -160,7 +176,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, inject, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, inject, onMounted, onUnmounted, watch } from 'vue'
 import BrandLogo from '../components/BrandLogo.vue'
 import CvThumb from '../components/CvThumb.vue'
 import { sampleCv } from '../composables/sampleCv.js'
@@ -188,6 +204,14 @@ async function subscribe() {
     nl.already = !!d.already; nl.state = 'done'
   } catch (e) { nl.error = e.message; nl.state = 'idle' }
 }
+
+// The latest blog posts, in the visitor's language (or English)
+const posts = ref([])
+async function loadPosts() {
+  try { const r = await fetch((import.meta.env.VITE_API_URL || '') + `/api/posts?limit=3&lang=${lang.value}`); if (r.ok) posts.value = (await r.json()).items || [] } catch {}
+}
+onMounted(loadPosts)
+watch(lang, loadPosts)
 
 // Real reviews; the rating is also given to search engines (structured data) once shown
 const rv = ref({ count: 0, average: null, reviews: [] })
@@ -305,6 +329,13 @@ const FAQ = [
 .lp-stars{color:#F59E0B;letter-spacing:1px}
 .lp-stars span{color:var(--c-border2)}
 .lp-reviews{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:36px}
+.lp-posts{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:32px 0 28px}
+.lp-post{display:flex;flex-direction:column;border:1px solid var(--c-border);border-radius:16px;overflow:hidden;background:var(--c-surface);text-decoration:none;color:var(--c-text)}
+.lp-post img,.lp-post-ph{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:linear-gradient(135deg,var(--c-accent-lt),var(--c-surface))}
+.lp-post-b{display:flex;flex-direction:column;gap:6px;padding:16px 18px 20px}
+.lp-post-b strong{font-size:17px;line-height:1.3}
+.lp-post-b span{font-size:14px;color:var(--c-text2);line-height:1.5}
+@media (max-width:860px){ .lp-posts{grid-template-columns:1fr} }
 .lp-review{margin:0;padding:22px;border:1px solid var(--c-border);border-radius:18px;background:var(--c-surface);display:flex;flex-direction:column;gap:10px}
 .lp-review blockquote{margin:0;font-size:15px;line-height:1.6;color:var(--c-text)}
 .lp-review figcaption{font-size:13.5px;font-weight:700;color:var(--c-text2);margin-top:auto}

@@ -82,6 +82,7 @@ export default ({ mail }) => {
           <li>kopieren, analysieren (Reverse Engineering) oder verkaufen Sie den Dienst oder seine Vorlagen nicht weiter;</li>
           <li>laden Sie keine Inhalte hoch, die rechtswidrig oder schädlich sind oder die Rechte anderer verletzen.</li>
         </ul>` },
+        { id: 'reviews', title: 'Bewertungen', html: `<p>Wer einen Lebenslauf erstellt hat, kann CVMaster bewerten. Sternebewertungen zählen sofort. Schriftliche Kommentare und spätere Änderungen daran prüfen wir, bevor sie auf unserer Website erscheinen, um Spam, Beleidigungen und persönliche Daten fernzuhalten; bis eine Änderung freigegeben ist, bleibt die vorherige Fassung sichtbar. Wir entfernen oder verbergen niemals eine Bewertung, weil sie negativ ist, und wir bezahlen nicht für Bewertungen.</p>` },
         { id: 'ai', title: 'KI-generierte Inhalte', html: `<p>KI-Vorschläge können falsch sein. CVMaster fügt nie etwas ohne Ihre Zustimmung hinzu, Sie sind aber dafür verantwortlich, vor dem Versand zu prüfen, dass alles in Ihrem Lebenslauf stimmt.</p>` },
         { id: 'ip', title: 'Wem was gehört', html: `<p>Der Inhalt Ihres Lebenslaufs gehört Ihnen. Die Plattform CVMaster, ihre Designs und Vorlagen gehören uns.</p>` },
         { id: 'liability', title: 'Haftung', html: `<p>Wir haften nicht für indirekte Schäden oder Folgeschäden, einschließlich des Ergebnisses einer Bewerbung. Nichts in diesen Bedingungen schränkt Ihre Rechte nach dem Verbraucherrecht ein.</p>` },

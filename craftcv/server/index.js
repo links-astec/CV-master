@@ -19,6 +19,7 @@ import { query } from './db.js';
 import { ensurePushTable, isPushToken, pushHealth, registerToken, removeToken, sendPush } from './push.js';
 import { ensureActivity, nextStep, personalNudges, recordEvents, setPersonalize } from './activity.js';
 import { ensureAppleCols, keepAppleRefreshToken, revokeApple, verifyAppleToken } from './apple.js';
+import { registerBlog } from './blog.js';
 import { createRequire } from 'module';
 import { promises as dns } from 'dns';
 
@@ -3117,6 +3118,9 @@ app.get('/api/admin/config', adminAuthMiddleware, (req, res) => {
     pdf: pdfEngine.status,
   });
 });
+
+// The blog: pages, feed, images, and its admin (server/blog.js)
+registerBlog(app, { adminAuth: adminAuthMiddleware, rateLimit, callAi, sendPush, onError: (where, e) => console.error(`[${where}]`, e.message) });
 
 // Push to every phone with the app (sent as written, in the admin's own words)
 app.post('/api/admin/push', adminAuthMiddleware, async (req, res) => {
