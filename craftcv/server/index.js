@@ -3660,7 +3660,12 @@ function ensureReviewsTable() {
       role         TEXT,
       status       TEXT NOT NULL DEFAULT 'pending',
       created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW())`).catch(e => { _reviewsTable = null; throw e; });
+      updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW())`)
+      // An edit of a review already on the homepage waits here; the published one doesn't change until approved
+      .then(() => query('ALTER TABLE reviews ADD COLUMN IF NOT EXISTS pending_rating INT'))
+      .then(() => query('ALTER TABLE reviews ADD COLUMN IF NOT EXISTS pending_comment TEXT'))
+      .then(() => query('ALTER TABLE reviews ADD COLUMN IF NOT EXISTS pending_at TIMESTAMPTZ'))
+      .catch(e => { _reviewsTable = null; throw e; });
   }
   return _reviewsTable;
 }
@@ -3668,9 +3673,13 @@ function ensureReviewsTable() {
 app.get('/api/reviews/mine', authMiddleware, async (req, res) => {
   try {
     await ensureReviewsTable();
-    const r = (await query('SELECT rating, comment, status FROM reviews WHERE user_id = $1', [req.user.sub])).rows[0];
+    const r = (await query('SELECT rating, comment, status, pending_rating, pending_comment, pending_at FROM reviews WHERE user_id = $1', [req.user.sub])).rows[0];
     const drafts = (await query('SELECT COUNT(*)::int AS n FROM drafts WHERE user_id = $1', [req.user.sub])).rows[0].n;
-    res.json({ review: r || null, canReview: drafts > 0 });
+    // People see their latest version, including an edit that is waiting to be checked
+    const review = r && (r.pending_at
+      ? { rating: r.pending_rating, comment: r.pending_comment, status: r.status, awaitingApproval: true }
+      : { rating: r.rating, comment: r.comment, status: r.status, awaitingApproval: false });
+    res.json({ review: review || null, canReview: drafts > 0 });
   } catch (e) { res.status(500).json({ error: 'Could not load your review.' }); }
 });
 
@@ -3689,13 +3698,24 @@ app.post('/api/reviews', authMiddleware, rateLimit({ windowMs: 60 * 60 * 1000, m
     // Shown as "Amara M." — first name and initial only
     const parts = String(u.name || 'CVMaster user').trim().split(/\s+/);
     const displayName = parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.` : parts[0];
+    const prev = (await query('SELECT id, rating, comment, status FROM reviews WHERE user_id = $1', [req.user.sub])).rows[0];
+    // Already on the homepage (or hidden): the published review stays exactly as it is; the edit
+    // waits for the admin to approve it
+    if (prev && (prev.status === 'approved' || prev.status === 'hidden')) {
+      if (prev.rating === rating && (prev.comment || null) === comment) {
+        await query('UPDATE reviews SET pending_rating = NULL, pending_comment = NULL, pending_at = NULL WHERE id = $1', [prev.id]);
+        return res.json({ ok: true });
+      }
+      await query('UPDATE reviews SET pending_rating = $1, pending_comment = $2, pending_at = NOW(), updated_at = NOW() WHERE id = $3', [rating, comment, prev.id]);
+      return res.json({ ok: true, awaitingApproval: true });
+    }
     await query(
       `INSERT INTO reviews (user_id, rating, comment, display_name, role) VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (user_id) DO UPDATE SET rating = EXCLUDED.rating, comment = EXCLUDED.comment,
          display_name = EXCLUDED.display_name, role = EXCLUDED.role, updated_at = NOW(),
-         status = CASE WHEN reviews.comment IS DISTINCT FROM EXCLUDED.comment THEN 'pending' ELSE reviews.status END`,
+         pending_rating = NULL, pending_comment = NULL, pending_at = NULL, status = 'pending'`,
       [req.user.sub, rating, comment, displayName.slice(0, 60), String(u.title || '').slice(0, 80) || null]);
-    res.json({ ok: true });
+    res.json({ ok: true, awaitingApproval: !!comment });
   } catch (e) { console.error('[reviews]', e.message); res.status(500).json({ error: 'Could not save your review.' }); }
 });
 
@@ -3715,17 +3735,29 @@ app.get('/api/reviews/public', async (req, res) => {
 app.get('/api/admin/reviews', adminAuthMiddleware, async (req, res) => {
   try {
     await ensureReviewsTable();
-    const rows = (await query(`SELECT r.id, r.rating, r.comment, r.display_name, r.role, r.status, r.created_at, u.email
-                               FROM reviews r LEFT JOIN users u ON u.id = r.user_id ORDER BY r.created_at DESC LIMIT 300`)).rows;
-    const agg = (await query(`SELECT COUNT(*)::int AS count, ROUND(AVG(rating)::numeric, 1)::float AS average,
-                                     COUNT(*) FILTER (WHERE status = 'pending' AND comment IS NOT NULL)::int AS pending
-                              FROM reviews WHERE status <> 'hidden'`)).rows[0];
+    const rows = (await query(`SELECT r.id, r.rating, r.comment, r.display_name, r.role, r.status, r.created_at, r.updated_at,
+                                      r.pending_rating, r.pending_comment, r.pending_at, u.email
+                               FROM reviews r LEFT JOIN users u ON u.id = r.user_id ORDER BY COALESCE(r.pending_at, r.created_at) DESC LIMIT 300`)).rows;
+    const agg = (await query(`SELECT COUNT(*) FILTER (WHERE status <> 'hidden')::int AS count,
+                                     ROUND(AVG(rating) FILTER (WHERE status <> 'hidden')::numeric, 1)::float AS average,
+                                     (COUNT(*) FILTER (WHERE status = 'pending' AND comment IS NOT NULL) + COUNT(*) FILTER (WHERE pending_at IS NOT NULL))::int AS pending
+                              FROM reviews`)).rows[0];
     res.json({ items: rows, ...agg, minToShow: REVIEWS_MIN_TO_SHOW });
   } catch (e) { res.status(500).json({ error: 'Failed to load reviews.' }); }
 });
 app.patch('/api/admin/reviews/:id', adminAuthMiddleware, async (req, res) => {
   try {
     await ensureReviewsTable();
+    // An edit waiting for approval: publish it (replacing the old one), or keep the old one
+    if (req.body?.update === 'approve') {
+      await query(`UPDATE reviews SET rating = pending_rating, comment = pending_comment, status = 'approved',
+                   pending_rating = NULL, pending_comment = NULL, pending_at = NULL WHERE id = $1 AND pending_at IS NOT NULL`, [req.params.id]);
+      return res.json({ ok: true });
+    }
+    if (req.body?.update === 'reject') {
+      await query('UPDATE reviews SET pending_rating = NULL, pending_comment = NULL, pending_at = NULL WHERE id = $1', [req.params.id]);
+      return res.json({ ok: true });
+    }
     const status = ['approved', 'pending', 'hidden'].includes(req.body?.status) ? req.body.status : null;
     if (!status) return res.status(400).json({ error: 'Unknown status.' });
     await query('UPDATE reviews SET status = $1 WHERE id = $2', [status, req.params.id]);

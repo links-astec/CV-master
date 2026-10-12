@@ -1,5 +1,6 @@
 // "Before you export" checklist
 export default {
+  'Thanks. Your updated review shows once we’ve checked it. Your current one stays up until then.': 'Merci. Votre avis modifié apparaîtra une fois vérifié. L’actuel reste affiché d’ici là.',
   '{n} thing to fix': '{n} point à corriger',
   '{n} things to fix': '{n} points à corriger',
   'Your CV is complete': 'Votre CV est complet',
