@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "live.cvmaster.app",
+      "sha256_cert_fingerprints": [
+        "E3:BB:36:50:27:8B:E6:D1:47:AC:18:57:5E:4D:52:3D:54:0D:34:B1:A8:B2:1E:12:7F:EB:75:EE:E5:0D:27:55"
+      ]
+    }
+  }
+]
