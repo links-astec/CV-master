@@ -192,6 +192,16 @@ textarea.inp{height:auto;padding:10px 12px;line-height:1.55;resize:vertical}
 
 /* ── Settings ── */
 .set-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.rv-row{padding:16px 20px;border-top:1px solid var(--b1);display:flex;flex-direction:column;gap:10px}
+.rv-top{display:flex;align-items:flex-start;gap:12px}
+.rv-who{flex:1;min-width:0;font-size:13.5px}
+.rv-c{margin-top:4px;font-size:13.5px;line-height:1.55;color:var(--t1);white-space:pre-wrap;overflow-wrap:anywhere}
+.rv-body{padding-left:48px}
+.rv-cmp{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-left:48px}
+.rv-cmp > div{background:var(--s2);border-radius:10px;padding:10px 12px}
+.rv-l{font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--t3);margin-bottom:4px}
+.rv-acts{display:flex;gap:8px;flex-wrap:wrap;padding-left:48px}
+@media (max-width:760px){ .rv-body,.rv-cmp,.rv-acts{padding-left:0} .rv-cmp{grid-template-columns:1fr} .rv-acts .btn{flex:1} }
 body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
 .st-banner{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:12px;margin-bottom:16px;font-weight:700}
 .st-banner.ok{background:var(--green-lt);color:var(--green)}.st-banner.warn{background:var(--amber-lt);color:var(--amber)}.st-banner.down{background:var(--red-lt);color:var(--red)}
@@ -869,34 +879,48 @@ async function loadReviews() {
   S.rvLoading = false; render()
 }
 async function setReview(id, status) {
-  try { await api('PATCH', '/reviews/' + id, { status }); toast(status === 'approved' ? 'Approved. Shown on the homepage' : status === 'hidden' ? 'Hidden' : 'Moved back to pending'); await loadReviews() } catch (e) { toast(e.message) }
+  try {
+    if (status === 'upd-approve' || status === 'upd-reject') {
+      await api('PATCH', '/reviews/' + id, { update: status === 'upd-approve' ? 'approve' : 'reject' })
+      toast(status === 'upd-approve' ? 'The edit is now on the homepage' : 'Kept the published version')
+    } else {
+      await api('PATCH', '/reviews/' + id, { status })
+      toast(status === 'approved' ? 'Approved. Shown on the homepage' : status === 'hidden' ? 'Hidden' : 'Shown again')
+    }
+    await loadReviews(); loadCounts()
+  } catch (e) { toast(e.message) }
 }
 function renderReviews() {
   if (S.rvLoading || !S.rv) return `<div class="loading"><div class="spinner"></div></div>`
   const r = S.rv
   const stars = (n) => `<span style="color:#F59E0B;letter-spacing:1px">${'★'.repeat(n)}</span><span style="color:var(--b2)">${'★'.repeat(5 - n)}</span>`
-  const STATUS = { pending: ['Pending', 'b-amber'], approved: ['On homepage', 'b-green'], hidden: ['Hidden', 'b-gray'] }
   return `
   <div class="kpis" style="grid-template-columns:repeat(3,1fr)">
     <div class="card kpi"><div class="kpi-l">Average rating</div><div class="kpi-v">${r.average ? r.average.toFixed(1) : '—'}</div><div class="kpi-s">${r.average ? stars(Math.round(r.average)) : 'No reviews yet'}</div></div>
     <div class="card kpi"><div class="kpi-l">Reviews counted</div><div class="kpi-v">${fmt(r.count)}</div><div class="kpi-s">${r.count >= r.minToShow ? 'Shown on the homepage and to Google' : `Shown once there are ${r.minToShow}`}</div></div>
-    <div class="card kpi"><div class="kpi-l">Comments to check</div><div class="kpi-v">${fmt(r.pending)}</div><div class="kpi-s">Approve to show on the homepage</div></div>
+    <div class="card kpi"><div class="kpi-l">Waiting for you</div><div class="kpi-v">${fmt(r.pending)}</div><div class="kpi-s">New comments and edits to approve</div></div>
   </div>
   <div class="card">
     <div class="card-hd"><h3>All reviews</h3><span class="muted" style="font-size:12.5px">Hide only spam or abuse. The average must include bad reviews too.</span></div>
     ${!r.items.length ? `<div class="empty"><strong>No reviews yet</strong>People are asked for one after they get their CV.</div>` : r.items.map(x => {
-      const st = STATUS[x.status] || STATUS.pending
-      return `<div class="pay-row" style="align-items:flex-start">
-        <div class="av">${esc(initials(x.display_name || x.email))}</div>
-        <div class="pay-who" style="white-space:normal">
-          <div style="white-space:normal">${stars(x.rating)} <b style="margin-left:6px">${esc(x.display_name || '')}</b>${x.role ? `<span class="muted"> · ${esc(x.role)}</span>` : ''}</div>
-          ${x.comment ? `<div style="margin-top:4px;font-size:13.5px;line-height:1.55;color:var(--t1);white-space:pre-wrap">${esc(x.comment)}</div>` : '<div class="muted" style="font-size:12.5px;margin-top:2px">No comment</div>'}
-          <div class="muted" style="font-size:12px;margin-top:4px">${esc(x.email || '')} · ${fmtDate(x.created_at)}</div>
-        </div>
-        <span class="badge ${st[1]}">${st[0]}</span>
-        <div style="display:flex;gap:6px;flex-shrink:0">
-          ${x.status !== 'approved' && x.comment ? `<button class="btn btn-sm btn-primary" data-review="${x.id}" data-st="approved">Approve</button>` : ''}
-          ${x.status !== 'hidden' ? `<button class="btn btn-sm" data-review="${x.id}" data-st="hidden">Hide</button>` : `<button class="btn btn-sm" data-review="${x.id}" data-st="pending">Unhide</button>`}
+      // What the review is waiting for, in plain words
+      const st = x.pending_at ? ['Edit waiting for you', 'b-amber']
+        : x.status === 'hidden' ? ['Hidden', 'b-gray']
+        : !x.comment ? ['Rating only · counted', 'b-gray']
+        : x.status === 'approved' ? ['On the homepage', 'b-green'] : ['Waiting for you', 'b-amber']
+      const body = (rating, comment) => `<div>${stars(rating)}</div>${comment ? `<div class="rv-c">${esc(comment)}</div>` : '<div class="muted" style="font-size:12.5px">No comment</div>'}`
+      return `<div class="rv-row">
+        <div class="rv-top"><div class="av">${esc(initials(x.display_name || x.email))}</div>
+          <div class="rv-who"><b>${esc(x.display_name || '')}</b>${x.role ? `<span class="muted"> · ${esc(x.role)}</span>` : ''}<div class="muted" style="font-size:12px">${esc(x.email || '')} · ${fmtDate(x.created_at)}</div></div>
+          <span class="badge ${st[1]}">${st[0]}</span></div>
+        ${x.pending_at ? `<div class="rv-cmp">
+            <div><div class="rv-l">Published now</div>${body(x.rating, x.comment)}</div>
+            <div><div class="rv-l">Their edit · ${fmtDate(x.pending_at)}</div>${body(x.pending_rating, x.pending_comment)}</div></div>`
+          : `<div class="rv-body">${body(x.rating, x.comment)}</div>`}
+        <div class="rv-acts">
+          ${x.pending_at ? `<button class="btn btn-sm btn-primary" data-review="${x.id}" data-st="upd-approve">Approve the edit</button><button class="btn btn-sm" data-review="${x.id}" data-st="upd-reject">Keep the published one</button>`
+            : x.status !== 'approved' && x.status !== 'hidden' && x.comment ? `<button class="btn btn-sm btn-primary" data-review="${x.id}" data-st="approved">Approve for the homepage</button>` : ''}
+          ${x.status !== 'hidden' ? `<button class="btn btn-sm" data-review="${x.id}" data-st="hidden">Hide</button>` : `<button class="btn btn-sm" data-review="${x.id}" data-st="${x.comment ? 'pending' : 'pending'}">Unhide</button>`}
         </div></div>`
     }).join('')}
   </div>`
