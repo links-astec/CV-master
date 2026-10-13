@@ -9,9 +9,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import * as WebBrowser from 'expo-web-browser'
 import * as Clipboard from 'expo-clipboard'
 import Constants from 'expo-constants'
-import { Check, ChevronDown, ChevronRight } from '@/components/icons'
-import { LangPill, TopBar } from '@/components/shell'
-import { Btn, Card, Field, LinkBtn, PageTitle, SettingRow, Toggle, Txt } from '@/components/kit'
+import { Check, ChevronDown, ChevronRight, Eye, EyeOff, Lock } from '@/components/icons'
+import { LangPill, TopBar, useLargeTitle } from '@/components/shell'
+import { Btn, Card, Field, PageTitle, SettingRow, Toggle, Txt } from '@/components/kit'
 import { ReviewPrompt } from '@/components/ReviewPrompt'
 import { confirm, toast } from '@/components/dialogs'
 import { useAuth } from '@/lib/auth'
@@ -23,7 +23,7 @@ import { disablePush, enablePush, pushPreference, pushSupported } from '@/lib/pu
 import { track } from '@/lib/track'
 import { openStorePage, storePageUrl } from '@/lib/storeReview'
 import { useLang } from '@/i18n'
-import { useTheme } from '@/lib/theme'
+import { useTheme, type Palette } from '@/lib/theme'
 import { BRAND } from '@/brand'
 import { INDUSTRIES, GOALS, LEVELS } from '@web/composables/profileOptions.js'
 
@@ -40,13 +40,13 @@ function SelectRow({ label, value, options, onChange }: { label: string; value: 
   return (
     <View style={{ gap: 7 }}>
       <Txt w={500} size={14}>{label}</Txt>
-      <Pressable onPress={() => setOpen(true)} accessibilityRole="button" style={[styles.select, { borderColor: c.border, backgroundColor: c.surface }]}>
+      <Pressable onPress={() => setOpen(true)} accessibilityRole="button" style={[styles.select, { borderColor: 'transparent', backgroundColor: c.fill }]}>
         <Txt size={15.5} color={cur ? c.text : c.text3} style={{ flex: 1 }}>{cur ? text(cur) : '—'}</Txt>
         <ChevronDown size={17} color={c.text3} />
       </Pressable>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={[styles.backdrop, { backgroundColor: c.overlay }]} onPress={() => setOpen(false)}>
-          <View style={[styles.sheet, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <View style={[styles.sheet, { backgroundColor: c.surface, borderColor: 'transparent' }]}>
             <ScrollView>
               {options.map(o => (
                 <Pressable key={o.id} onPress={() => { setOpen(false); onChange(o.id) }} style={({ pressed }) => [styles.option, pressed && { backgroundColor: c.surface2 }]}>
@@ -62,6 +62,17 @@ function SelectRow({ label, value, options, onChange }: { label: string; value: 
   )
 }
 
+// Password strength, like the website: 1 too short, 2 fair, 3 good, 4 strong (length and a mix of
+// lower case, capitals, numbers and symbols)
+const PW_LABELS = ['', 'Too short', 'Fair', 'Good', 'Strong']
+function passwordLevel(p: string) {
+  if (!p) return 0
+  if (p.length < 8) return 1
+  const mix = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter(rx => rx.test(p)).length + (p.length >= 12 ? 1 : 0)
+  return mix >= 4 ? 4 : mix === 3 ? 3 : 2
+}
+const LEVEL_COLOR = (c: Palette) => [c.text3, c.danger, c.amber, c.success, c.green]
+
 export default function Settings() {
   const { user, signOut, deleteAccount, patchUser } = useAuth()
   const { t, lang } = useLang()
@@ -74,28 +85,48 @@ export default function Settings() {
 
   // ── Account ──
   const [name, setName] = useState(user?.name || '')
-  const [changingPw, setChangingPw] = useState(false)
-  const [currentPw, setCurrentPw] = useState('')
-  const [newPw, setNewPw] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [resent, setResent] = useState(false)
-  const dirty = (!!name.trim() && name.trim() !== user?.name) || !!newPw
+  const dirty = !!name.trim() && name.trim() !== user?.name
 
   async function saveProfile() {
     setSaveError('')
-    if (newPw && newPw.length < 8) { setSaveError(t('Password must be at least 8 characters.')); return }
     setSaving(true)
     try {
-      const body: Record<string, string> = {}
-      if (name.trim() && name.trim() !== user?.name) body.name = name.trim()
-      if (newPw) { body.password = newPw; body.currentPassword = currentPw }
-      const r = await api<{ user?: User }>('/api/auth/settings', { method: 'PATCH', body })
-      patchUser({ name: r.user?.name || body.name || user?.name, ...(newPw ? { hasPassword: true } : {}) })
-      setNewPw(''); setCurrentPw(''); setChangingPw(false)
+      const r = await api<{ user?: User }>('/api/auth/settings', { method: 'PATCH', body: { name: name.trim() } })
+      patchUser({ name: r.user?.name || name.trim() })
       toast(t('Saved'))
     } catch (e) { setSaveError(errorText(e)) }
     setSaving(false)
+  }
+
+  // ── Password: change it, or set a first one (Google accounts). Its own small form and button ──
+  const [changingPw, setChangingPw] = useState(false)
+  const [currentPw, setCurrentPw] = useState('')
+  const [newPw, setNewPw] = useState('')
+  const [confirmPw, setConfirmPw] = useState('')
+  const [showPw, setShowPw] = useState(false)
+  const [pwSaving, setPwSaving] = useState(false)
+  const [pwError, setPwError] = useState('')
+  const pwLevel = passwordLevel(newPw)
+  const pwMismatch = !!confirmPw && confirmPw !== newPw
+  const pwValid = newPw.length >= 8 && confirmPw === newPw && (!hasPassword || !!currentPw)
+  function closePw() {
+    setChangingPw(false); setCurrentPw(''); setNewPw(''); setConfirmPw(''); setPwError(''); setShowPw(false)
+  }
+  async function savePassword() {
+    if (!pwValid || pwSaving) return
+    setPwError('')
+    setPwSaving(true)
+    try {
+      await api('/api/auth/settings', { method: 'PATCH', body: { password: newPw, currentPassword: currentPw } })
+      const wasSet = hasPassword
+      patchUser({ hasPassword: true })
+      closePw()
+      toast(t(wasSet ? 'Password updated' : 'Password set'))
+    } catch (e) { setPwError(errorText(e)) }
+    setPwSaving(false)
   }
   async function resend() {
     try { await api('/api/auth/resend-verification', { method: 'POST' }); setResent(true); toast(t('Confirmation email sent. Check your inbox.')) } catch (e) { toast(errorText(e)) }
@@ -168,10 +199,11 @@ export default function Settings() {
   const q = quota.data
   const nl = newsletter.data
 
+  const big = useLargeTitle()
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <TopBar title={t('Settings')} />
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+      <TopBar title={t('Settings')} quiet={!big.past} />
+      <ScrollView onScroll={big.onScroll} scrollEventThrottle={32} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
         <PageTitle title={t('Settings')} />
 
         {/* Account */}
@@ -187,18 +219,51 @@ export default function Settings() {
               <Btn title={t('Sign out')} kind="secondary" size="sm" onPress={askSignOut} style={{ marginTop: 8 }} />
             </View>
           </View>
-          <Field label={t('Display name')} value={name} onChangeText={setName} autoComplete="name" />
-          <View style={{ gap: 8 }}>
-            <Txt w={500} size={14}>{t('Password')}</Txt>
-            {!changingPw ? <LinkBtn title={t('Change password')} onPress={() => setChangingPw(true)} /> : (
-              <>
-                {hasPassword && <Field value={currentPw} onChangeText={setCurrentPw} secureTextEntry placeholder={t('Current password')} autoComplete="current-password" textContentType="password" />}
-                <Field value={newPw} onChangeText={setNewPw} secureTextEntry placeholder={t('New password (8+ characters)')} autoComplete="new-password" textContentType="newPassword" />
-              </>
-            )}
-          </View>
+          <Field label={t('Display name')} value={name} onChangeText={setName} autoComplete="name" returnKeyType="done" onSubmitEditing={() => dirty && saveProfile()} />
+          {dirty && <Btn title={t(saving ? 'Saving…' : 'Save')} busy={saving} size="sm" onPress={saveProfile} style={{ alignSelf: 'flex-end', marginTop: -4 }} />}
           {!!saveError && <Txt size={13.5} color={c.danger}>{saveError}</Txt>}
-          <Btn title={t(saving ? 'Saving…' : 'Save changes')} disabled={!dirty} busy={saving} onPress={saveProfile} style={{ alignSelf: 'flex-end' }} />
+          <View style={styles.pwLine}>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Txt w={600} size={13.5} color={c.text2}>{t('Password')}</Txt>
+              {hasPassword
+                ? <Txt size={18} color={c.text2} style={{ letterSpacing: 2, lineHeight: 22 }}>••••••••••</Txt>
+                : <Txt size={14} color={c.text3}>{t('Not set. You sign in with Google.')}</Txt>}
+            </View>
+            {!changingPw && <Btn title={t(hasPassword ? 'Change' : 'Set a password')} kind="secondary" size="sm" onPress={() => setChangingPw(true)} />}
+          </View>
+
+          {changingPw && (
+            <View style={[styles.pwBox, { backgroundColor: c.fill }]}>
+              <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
+                <View style={[styles.pwIcon, { backgroundColor: c.accent, shadowColor: c.accent }]}><Lock size={18} color="#fff" strokeWidth={2} /></View>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Txt w={700} size={16.5} style={{ letterSpacing: -0.3 }}>{t(hasPassword ? 'Change your password' : 'Set a password')}</Txt>
+                  <Txt size={13.5} color={c.text3} style={{ lineHeight: 19 }}>{t(hasPassword ? 'Use at least 8 characters. Longer is stronger.' : 'Then you can also sign in with your email and this password.')}</Txt>
+                </View>
+              </View>
+              {hasPassword && <Field label={t('Current password')} value={currentPw} onChangeText={setCurrentPw} secureTextEntry autoFocus autoComplete="current-password" textContentType="password" style={{ backgroundColor: c.surface }} />}
+              <View>
+                <Field label={t('New password')} value={newPw} onChangeText={setNewPw} secureTextEntry={!showPw} autoFocus={!hasPassword} autoComplete="new-password" textContentType="newPassword" style={{ backgroundColor: c.surface, paddingRight: 52 }} />
+                <Pressable onPress={() => setShowPw(v => !v)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t(showPw ? 'Hide password' : 'Show password')} style={styles.eye}>
+                  {showPw ? <EyeOff size={19} color={c.text3} strokeWidth={1.9} /> : <Eye size={19} color={c.text3} strokeWidth={1.9} />}
+                </Pressable>
+              </View>
+              {pwLevel > 0 && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: -4 }} accessibilityLiveRegion="polite">
+                  <View style={{ flex: 1, flexDirection: 'row', gap: 5 }}>
+                    {[1, 2, 3, 4].map(n => <View key={n} style={{ flex: 1, height: 5, borderRadius: 99, backgroundColor: n <= pwLevel ? LEVEL_COLOR(c)[pwLevel] : c.fill2 }} />)}
+                  </View>
+                  <Txt w={600} size={12.5} color={LEVEL_COLOR(c)[pwLevel]}>{t(PW_LABELS[pwLevel])}</Txt>
+                </View>
+              )}
+              <Field label={t('Confirm new password')} value={confirmPw} onChangeText={setConfirmPw} secureTextEntry={!showPw} autoComplete="new-password" textContentType="newPassword" returnKeyType="done" onSubmitEditing={savePassword} error={pwMismatch ? t('Passwords don’t match') : undefined} style={{ backgroundColor: c.surface }} />
+              {!!pwError && <Txt size={13.5} color={c.danger}>{pwError}</Txt>}
+              <View style={{ gap: 4, marginTop: 2 }}>
+                <Btn title={t(pwSaving ? 'Saving…' : hasPassword ? 'Update password' : 'Set password')} disabled={!pwValid} busy={pwSaving} onPress={savePassword} full />
+                <Btn title={t('Cancel')} kind="ghost" onPress={closePw} style={{ alignSelf: 'center' }} />
+              </View>
+            </View>
+          )}
         </Card>
 
         {/* Invite friends */}
@@ -216,7 +281,7 @@ export default function Settings() {
                 ))}
               </View>
               {r.credits > 0 && <Txt size={13} color={c.green}>{t('Use a free CV at export. Choose “Use a referral credit”.')}</Txt>}
-              <View style={[styles.link, { borderColor: c.border, backgroundColor: c.bg }]}>
+              <View style={[styles.link, { borderColor: 'transparent', backgroundColor: c.fill }]}>
                 <Txt size={13.5} color={c.text2} numberOfLines={1} selectable style={{ flex: 1 }}>{r.link}</Txt>
               </View>
               <View style={styles.row}>
@@ -309,7 +374,7 @@ export default function Settings() {
             [t('Terms of service'), t('Payments, refunds and complaints'), web('/terms')],
           ].map(([title, desc, onPress]) => (
             <Pressable key={title as string} onPress={onPress as () => void} accessibilityRole="button"
-              style={({ pressed }) => [styles.help, { borderColor: c.border, backgroundColor: pressed ? c.surface2 : c.surface }]}>
+              style={({ pressed }) => [styles.help, { borderColor: 'transparent', backgroundColor: pressed ? c.fill2 : c.fill }]}>
               <View style={{ flex: 1, gap: 2 }}>
                 <Txt w={600} size={15}>{title as string}</Txt>
                 <Txt size={13} color={c.text3}>{desc as string}</Txt>
@@ -353,19 +418,23 @@ function ReviewCard() {
 }
 
 const styles = StyleSheet.create({
+  pwLine: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  pwBox: { borderRadius: 22, padding: 18, gap: 14 },
+  pwIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  eye: { position: 'absolute', right: 14, top: 40 },
   body: { padding: 16, paddingTop: 22, gap: 16, paddingBottom: 48 },
   acct: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingBottom: 16, borderBottomWidth: StyleSheet.hairlineWidth },
   avatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   stats: { flexDirection: 'row', gap: 8 },
-  stat: { flex: 1, borderRadius: 12, padding: 12, gap: 2 },
-  link: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11 },
+  stat: { flex: 1, borderRadius: 18, padding: 14, gap: 2 },
+  link: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 11 },
   row: { flexDirection: 'row', gap: 10, flexWrap: 'wrap', alignItems: 'center' },
   shareRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', alignItems: 'center' },
   sharePill: { borderWidth: 1, borderRadius: 99, paddingHorizontal: 12, paddingVertical: 6 },
   meter: { height: 8, borderRadius: 99, overflow: 'hidden' },
-  select: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12 },
+  select: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12 },
   backdrop: { flex: 1, justifyContent: 'center', padding: 28 },
-  sheet: { borderWidth: 1, borderRadius: 16, paddingVertical: 6, maxHeight: '70%' },
+  sheet: { borderWidth: 1, borderRadius: 24, paddingVertical: 8, maxHeight: '70%' },
   option: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14 },
-  help: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 12, padding: 14 },
+  help: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 18, padding: 16 },
 })

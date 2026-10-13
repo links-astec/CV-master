@@ -37,7 +37,7 @@ export function PostCard({ p, compact, featured }: { p: Post; compact?: boolean;
   const { c } = useTheme()
   return (
     <Pressable onPress={() => router.push({ pathname: '/blog/[slug]', params: { slug: p.slug } })} accessibilityRole="button"
-      style={({ pressed }) => [styles.card, { backgroundColor: c.surface, borderColor: c.border, opacity: pressed ? 0.9 : 1 }, compact && { width: 260 }]}>
+      style={({ pressed }) => [styles.card, { backgroundColor: c.surface, borderColor: 'transparent', opacity: pressed ? 0.9 : 1 }, compact && { width: 260 }]}>
       {p.cover ? <Image source={{ uri: p.cover }} style={styles.cover} contentFit="cover" transition={150} />
         : <View style={[styles.cover, styles.ph, { backgroundColor: c.accentSoft }]}><View style={{ opacity: 0.45 }}><Mark size={40} /></View></View>}
       <View style={[styles.body, featured && { padding: 18, gap: 8 }]}>
@@ -54,7 +54,7 @@ export function PostCard({ p, compact, featured }: { p: Post; compact?: boolean;
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 16, overflow: 'hidden' },
+  card: { borderWidth: 1, borderRadius: 22, overflow: 'hidden' },
   cover: { width: '100%', aspectRatio: 16 / 9 },
   ph: { alignItems: 'center', justifyContent: 'center' },
   body: { padding: 16, gap: 6 },

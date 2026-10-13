@@ -1,7 +1,7 @@
 // The app's frame, like the website's mobile layout: the top bar (menu, page title, language,
 // dark mode), the bottom tab bar with the big "+" in the middle, and the slide-in menu.
-import { useState } from 'react'
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { useCallback, useEffect, useState } from 'react'
+import { Animated, Modal, Pressable, ScrollView, StyleSheet, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
 import { router, usePathname } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as WebBrowser from 'expo-web-browser'
@@ -33,14 +33,14 @@ export function LangPill() {
     <>
       <Pressable
         onPress={() => setOpen(true)} accessibilityRole="button" accessibilityLabel={t('Language')}
-        style={({ pressed }) => [styles.pill, { borderColor: c.border, backgroundColor: c.surface, opacity: pressed ? 0.7 : 1 }]}>
+        style={({ pressed }) => [styles.pill, { backgroundColor: c.fill2, opacity: pressed ? 0.7 : 1 }]}>
         <Globe size={17} color={c.text} strokeWidth={1.8} />
         <Txt w={600} size={14}>{LANGS.find(l => l.code === lang)?.short}</Txt>
         <ChevronDown size={14} color={c.text3} strokeWidth={2} />
       </Pressable>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={[styles.backdrop, { backgroundColor: c.overlay }]} onPress={() => setOpen(false)}>
-          <View style={[styles.langSheet, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <View style={[styles.langSheet, { backgroundColor: c.surface }]}>
             {LANGS.map(l => (
               <Pressable key={l.code} onPress={() => choose(l.code)} style={({ pressed }) => [styles.langRow, pressed && { backgroundColor: c.surface2 }]} accessibilityRole="button">
                 <Txt w={l.code === lang ? 700 : 500} size={16} color={l.code === lang ? c.accent : c.text} style={{ flex: 1 }}>{l.label}</Txt>
@@ -54,16 +54,31 @@ export function LangPill() {
   )
 }
 
+// ── Large titles ─────────────────────────────────────────────────────────────
+// Screens with their own big title keep the top bar's title hidden until it scrolls away
+export function useLargeTitle(threshold = 56) {
+  const [past, setPast] = useState(false)
+  const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const p = e.nativeEvent.contentOffset.y > threshold
+    setPast(was => (was === p ? was : p))
+  }, [threshold])
+  return { past, onScroll }
+}
+
 // ── Top bar ──────────────────────────────────────────────────────────────────
-export function TopBar({ title }: { title: string }) {
+export function TopBar({ title, quiet = false }: { title: string; quiet?: boolean }) {
   const { c, dark, toggleDark } = useTheme()
   const { t } = useLang()
   const insets = useSafeAreaInsets()
   const [menu, setMenu] = useState(false)
+  const [shown] = useState(() => new Animated.Value(quiet ? 0 : 1))
+  useEffect(() => { Animated.timing(shown, { toValue: quiet ? 0 : 1, duration: 220, useNativeDriver: true }).start() }, [quiet, shown])
   return (
-    <View style={[styles.top, { paddingTop: insets.top + 6, backgroundColor: c.surface, borderBottomColor: c.border }]}>
+    <View style={[styles.top, { paddingTop: insets.top + 6, backgroundColor: c.bg }]}>
       <IconBtn icon={MenuIcon} onPress={() => setMenu(true)} label={t('Menu')} />
-      <Txt w={600} size={18} style={{ flex: 1, marginLeft: 10 }} numberOfLines={1}>{title}</Txt>
+      <Animated.View style={{ flex: 1, marginLeft: 10, opacity: shown, transform: [{ translateY: shown.interpolate({ inputRange: [0, 1], outputRange: [5, 0] }) }] }}>
+        <Txt w={600} size={17} numberOfLines={1} style={{ letterSpacing: -0.3 }}>{title}</Txt>
+      </Animated.View>
       <LangPill />
       <BellBtn />
       <IconBtn icon={dark ? Sun : Moon} onPress={toggleDark} label={t(dark ? 'Light mode' : 'Dark mode')} />
@@ -207,14 +222,14 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
 }
 
 const styles = StyleSheet.create({
-  top: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingBottom: 10, borderBottomWidth: StyleSheet.hairlineWidth },
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, marginRight: 2 },
+  top: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingBottom: 8 },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, marginRight: 2 },
   backdrop: { flex: 1, justifyContent: 'center', padding: 32 },
-  langSheet: { borderWidth: 1, borderRadius: 16, paddingVertical: 6, overflow: 'hidden' },
+  langSheet: { borderRadius: 24, paddingVertical: 8, overflow: 'hidden' },
   langRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14 },
   menu: { width: '78%', maxWidth: 340, paddingHorizontal: 14, gap: 4, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 20, elevation: 12 },
   menuHead: { flexDirection: 'row', alignItems: 'center', marginBottom: 14, paddingHorizontal: 4 },
-  navItem: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 12, paddingVertical: 12, borderRadius: 12 },
+  navItem: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 14, paddingVertical: 13, borderRadius: 16 },
   menuUser: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 8, paddingVertical: 10 },
   avatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   badge: { position: 'absolute', top: 1, right: 0, minWidth: 17, height: 17, borderRadius: 9, borderWidth: 1.5, paddingHorizontal: 3, alignItems: 'center', justifyContent: 'center' },
@@ -222,5 +237,5 @@ const styles = StyleSheet.create({
   tabs: { flexDirection: 'row', alignItems: 'flex-end', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 8 },
   tab: { flex: 1, alignItems: 'center', gap: 3, paddingBottom: 2 },
   plusWrap: { flex: 1, alignItems: 'center' },
-  plus: { width: 56, height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginTop: -18, shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  plus: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginTop: -18, shadowOpacity: 0.32, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
 })

@@ -14,6 +14,7 @@ const LIGHT = {
   amber: '#b45309', amberSoft: '#fff8eb',
   danger: '#be123c', dangerSoft: '#fff1f3',
   canvas: '#ececf0', overlay: 'rgba(20,20,43,0.45)', shadow: '#111827',
+  fill: '#f4f4f6', fill2: '#ededf1',
 }
 const DARK: typeof LIGHT = {
   bg: '#0c0c10', surface: '#15151b', surface2: '#1b1b22',
@@ -24,6 +25,7 @@ const DARK: typeof LIGHT = {
   amber: '#fbbf24', amberSoft: '#2c2108',
   danger: '#fb7185', dangerSoft: '#2d1219',
   canvas: '#0f0f14', overlay: 'rgba(0,0,0,0.6)', shadow: '#000000',
+  fill: '#1f1f25', fill2: '#26262d',
 }
 export type Palette = typeof LIGHT
 

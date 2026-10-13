@@ -74,6 +74,7 @@ if (mode === 'signedin') {
   await tap('Done'); await wait(800)
   await tap('Templates'); await wait(3000); await shot('6-templates')
   await tap('Settings'); await wait(1500); await shot('7-settings')
+  await tap('Change'); await wait(800); await p.keyboard.type('old-password'); await p.keyboard.press('Tab'); await p.keyboard.type('Sunrise-2026'); await wait(300); await p.evaluate(() => { const s = [...document.querySelectorAll('div')].filter(d => d.scrollHeight > d.clientHeight + 50 && getComputedStyle(d).overflowY !== 'visible').pop(); if (s) s.scrollTop = 330 }); await wait(600); await shot('7b-settings-password'); await tap('Cancel'); await wait(500)
   await p.evaluate(() => { const s = [...document.querySelectorAll('div')].filter(d => d.scrollHeight > d.clientHeight + 50 && getComputedStyle(d).overflowY !== 'visible').pop(); if (s) s.scrollTop = 900 }); await wait(500); await shot('8-settings-invite')
   await p.evaluate(() => { const s = [...document.querySelectorAll('div')].filter(d => d.scrollHeight > d.clientHeight + 50 && getComputedStyle(d).overflowY !== 'visible').pop(); if (s) s.scrollTop = 99999 }); await wait(500); await shot('9-settings-bottom')
 }

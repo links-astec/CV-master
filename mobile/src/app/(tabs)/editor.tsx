@@ -60,7 +60,7 @@ export default function Editor() {
         <Pressable
           onPress={() => router.push({ pathname: '/edit', params: { tab: 'design' } })} disabled={!cv}
           accessibilityRole="button" accessibilityLabel={t('Change layout and colour')}
-          style={({ pressed }) => [styles.layoutPill, { borderColor: c.border, backgroundColor: c.surface, opacity: pressed ? 0.75 : 1 }]}>
+          style={({ pressed }) => [styles.layoutPill, { borderColor: 'transparent', backgroundColor: c.fill2, opacity: pressed ? 0.75 : 1 }]}>
           <View style={[styles.dot, { backgroundColor: theme?.accent || c.accent }]} />
           <Txt w={500} size={14.5} numberOfLines={1} style={{ flexShrink: 1 }}>{cv ? templateLabel(cv.template) : '…'}</Txt>
           <ChevronDown size={15} color={c.text3} />
@@ -74,7 +74,7 @@ export default function Editor() {
 
       {/* One page: the website's notice, made compact for a phone */}
       {!!page?.overflow && (
-        <View style={[styles.notice, warn ? { backgroundColor: c.amberSoft, borderColor: c.amber + '33' } : { backgroundColor: c.surface, borderColor: c.border }]}>
+        <View style={[styles.notice, warn ? { backgroundColor: c.amberSoft, borderColor: c.amber + '33' } : { backgroundColor: c.surface, borderColor: 'transparent' }]}>
           <FileText size={17} color={warn ? c.amber : c.text2} strokeWidth={2} />
           <Txt w={600} size={13} color={warn ? c.amber : c.text2} style={{ flex: 1, lineHeight: 18 }}>
             {!shrink ? t('Your CV is {n}% longer than one A4 page.', { n: over })
@@ -104,7 +104,7 @@ export default function Editor() {
 const styles = StyleSheet.create({
   emptyWrap: { padding: 16, paddingTop: 22 },
   bar: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
-  layoutPill: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9, maxWidth: '50%' },
+  layoutPill: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 9, maxWidth: '50%' },
   dot: { width: 16, height: 16, borderRadius: 8 },
   notice: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 12, marginTop: 10, paddingVertical: 7, paddingLeft: 11, paddingRight: 7, borderRadius: 11, borderWidth: 1 },
   noticeBtn: { borderRadius: 8, paddingHorizontal: 11, paddingVertical: 7 },

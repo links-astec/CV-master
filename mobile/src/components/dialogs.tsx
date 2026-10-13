@@ -50,7 +50,7 @@ export function DialogHost() {
     <>
       <Modal visible={!!a} transparent animationType="fade" onRequestClose={() => close(false)}>
         <Pressable style={[styles.backdrop, { backgroundColor: c.overlay }]} onPress={() => close(false)}>
-          <Pressable style={[styles.box, { backgroundColor: c.surface, borderColor: c.border }]} onPress={() => {}}>
+          <Pressable style={[styles.box, { backgroundColor: c.surface, borderColor: 'transparent' }]} onPress={() => {}}>
             <Txt w={700} size={18}>{a?.title}</Txt>
             {!!a?.message && <Txt size={15} color={c.text2} style={{ lineHeight: 22 }}>{a.message}</Txt>}
             <View style={styles.row}>
@@ -71,7 +71,7 @@ export function DialogHost() {
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, justifyContent: 'center', padding: 28 },
-  box: { borderRadius: 18, borderWidth: 1, padding: 22, gap: 12 },
+  box: { borderRadius: 26, borderWidth: 1, padding: 24, gap: 12 },
   row: { flexDirection: 'row', gap: 10, marginTop: 8 },
-  toast: { position: 'absolute', left: 24, right: 24, borderRadius: 14, paddingVertical: 13, paddingHorizontal: 18, alignItems: 'center' },
+  toast: { position: 'absolute', left: 24, right: 24, borderRadius: 999, paddingVertical: 13, paddingHorizontal: 18, alignItems: 'center' },
 })

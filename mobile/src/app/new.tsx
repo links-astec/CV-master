@@ -21,7 +21,7 @@ function Option({ icon: Icon, title, desc, onPress, busy, disabled }: { icon: Lu
   return (
     <Pressable
       onPress={onPress} disabled={disabled} accessibilityRole="button"
-      style={({ pressed }) => [styles.option, { backgroundColor: c.surface, borderColor: c.border, opacity: disabled && !busy ? 0.5 : pressed ? 0.85 : 1 }]}>
+      style={({ pressed }) => [styles.option, { backgroundColor: c.surface, borderColor: 'transparent', opacity: disabled && !busy ? 0.5 : pressed ? 0.85 : 1 }]}>
       <View style={[styles.icon, { backgroundColor: c.accentSoft }]}><Icon size={22} color={c.accent} strokeWidth={1.9} /></View>
       <View style={{ flex: 1, gap: 4 }}>
         <Txt w={700} size={16.5}>{title}</Txt>
@@ -82,6 +82,6 @@ export default function NewCv() {
 
 const styles = StyleSheet.create({
   body: { padding: 16, gap: 14, paddingBottom: 48 },
-  option: { flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, borderRadius: 18, padding: 18 },
-  icon: { width: 46, height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  option: { flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, borderRadius: 24, padding: 20, shadowColor: '#14142b', shadowOpacity: 0.05, shadowRadius: 14, shadowOffset: { width: 0, height: 4 } },
+  icon: { width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
 })

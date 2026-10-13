@@ -38,7 +38,8 @@ export function ChipInput({ items, onChange, placeholder, addLabel }: { items: s
         <TextInput
           value={draft} onChangeText={setDraft} onSubmitEditing={add} placeholder={placeholder}
           returnKeyType="done" submitBehavior="submit" accessibilityLabel={placeholder}
-          style={[styles.input, { flex: 1, backgroundColor: c.surface, borderColor: c.border }]}
+          placeholderTextColor={c.text3}
+          style={[styles.input, { flex: 1, backgroundColor: c.fill, borderColor: 'transparent', color: c.text }]}
         />
         <Btn title={addLabel} onPress={add} disabled={!draft.trim()} size="sm" style={{ alignSelf: 'stretch' }} />
       </View>
@@ -57,7 +58,7 @@ export function ChipInput({ items, onChange, placeholder, addLabel }: { items: s
 }
 
 const styles = StyleSheet.create({
-  input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, fontSize: 16 },
+  input: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 15, paddingVertical: 12, fontSize: 16 },
   chipRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },

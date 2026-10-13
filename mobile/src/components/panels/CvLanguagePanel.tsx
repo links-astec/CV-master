@@ -82,7 +82,7 @@ export function CvLanguagePanel({ cv, onDone }: { cv: OpenCv; onDone: () => void
   return (
     <View style={{ gap: 12 }}>
       {!target && (
-        <View style={[styles.group, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <View style={[styles.group, { backgroundColor: c.fill, borderColor: 'transparent' }]}>
           {LANGS.map((l, i) => (
             <Pressable
               key={l.code} onPress={() => choose(l.code)} accessibilityRole="radio" accessibilityState={{ selected: l.code === d.lang }}

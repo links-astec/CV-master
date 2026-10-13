@@ -1,7 +1,7 @@
 // The launch moment (from the designer's reveal animation): the launch screen shows the mark in the
 // middle; here it glides left and settles while "CVMaster" comes in beside it, then the app appears.
 // Runs once per launch, and not at all when the phone is set to reduce motion.
-import { useEffect, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { AccessibilityInfo, Animated, Easing, StyleSheet, View } from 'react-native'
 import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg'
 import { MARK_PATH, MARK_STROKE, WORD_CV, WORD_MASTER, THEMES, LOCKUP_BOX } from '@brand/brand.mjs'
@@ -17,9 +17,10 @@ const MARK_H = 66 * S
 export function BrandIntro({ onDone }: { onDone: () => void }) {
   const { c, dark } = useTheme()
   const t = THEMES[dark ? 'dark' : 'light'] as { from: string; to: string; text: string }
-  const move = useRef(new Animated.Value(0)).current
-  const word = useRef(new Animated.Value(0)).current
-  const fade = useRef(new Animated.Value(1)).current
+  // Animated values made once (state, so they can be read while rendering)
+  const [move] = useState(() => new Animated.Value(0))
+  const [word] = useState(() => new Animated.Value(0))
+  const [fade] = useState(() => new Animated.Value(1))
 
   useEffect(() => {
     let live = true

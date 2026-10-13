@@ -6,7 +6,7 @@ import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Mail, Plus, Trash } from '@/components/icons'
-import { TopBar } from '@/components/shell'
+import { TopBar, useLargeTitle } from '@/components/shell'
 import { Btn, Card, IconBtn, LinkBtn, PageTitle, Txt } from '@/components/kit'
 import { CvThumb } from '@/components/CvThumb'
 import { confirm, toast } from '@/components/dialogs'
@@ -68,18 +68,23 @@ function CvCard({ draft, paid, onDelete }: { draft: Draft; paid: boolean; onDele
   }
   return (
     <Card pad={0} style={{ overflow: 'hidden', gap: 0 }}>
-      <View style={{ padding: 16, paddingBottom: 0, backgroundColor: c.surface2 }}>
+      <View style={{ paddingHorizontal: 22, paddingTop: 22, backgroundColor: c.fill }}>
         <CvThumb template={template} data={cv} fmt={fmt} height={230} />
       </View>
       <View style={{ padding: 16, gap: 10 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Txt w={700} size={17} numberOfLines={2} style={{ flex: 1 }}>{titleOf(cv) || draft.title || t('Untitled CV')}</Txt>
+          <Txt w={700} size={18} numberOfLines={2} style={{ flex: 1, letterSpacing: -0.3 }}>{titleOf(cv) || draft.title || t('Untitled CV')}</Txt>
           {paid && <View style={[styles.badge, { backgroundColor: c.greenSoft }]}><Txt w={600} size={12} color={c.green}>{t('Paid')}</Txt></View>}
         </View>
         <Txt size={14} color={c.text3}>{templateLabel(template)} · {ago(draft.updatedAt, t)}</Txt>
-        <View style={[styles.bar, { backgroundColor: c.border }]} accessibilityLabel={t('{n}% complete', { n: pct })}>
-          <View style={{ width: `${pct}%`, height: '100%', backgroundColor: c.accent, borderRadius: 99 }} />
-        </View>
+        {pct < 100 && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <View style={[styles.bar, { flex: 1, backgroundColor: c.fill2 }]}>
+              <View style={{ width: `${pct}%`, height: '100%', backgroundColor: c.accent, borderRadius: 99 }} />
+            </View>
+            <Txt w={500} size={12.5} color={c.text3}>{t('{n}% complete', { n: pct })}</Txt>
+          </View>
+        )}
         <View style={styles.actions}>
           <Btn title={t('Open')} kind="secondary" size="sm" onPress={go} />
           <Btn title={t(busy === 'dl' ? 'Preparing…' : 'Download')} kind="secondary" size="sm" icon={Download} onPress={download} busy={busy === 'dl'} />
@@ -136,10 +141,12 @@ export default function MyCvs() {
   const isPaid = (id: string) => !!paid.data?.legacyAll || !!paid.data?.draftIds.includes(id)
   const empty = !drafts.isLoading && !list.length
 
+  const big = useLargeTitle()
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <TopBar title={t('My CVs')} />
+      <TopBar title={t('My CVs')} quiet={!big.past} />
       <ScrollView
+        onScroll={big.onScroll} scrollEventThrottle={32}
         contentContainerStyle={styles.body}
         refreshControl={<RefreshControl refreshing={drafts.isRefetching} onRefresh={() => { drafts.refetch(); paid.refetch(); next.refetch() }} tintColor={c.accent} />}>
         <PageTitle title={t('My CVs')} sub={t('Open a CV to edit it, or download and send it.')} />
@@ -147,9 +154,9 @@ export default function MyCvs() {
 
         {/* The next step, like the website's card (from the CV, and the activity if allowed) */}
         {!!next.data && !empty && (
-          <Card style={{ borderLeftWidth: 3, borderLeftColor: c.accent, gap: 8 }}>
-            <Txt w={700} size={11.5} color={c.accent} style={{ letterSpacing: 0.8, textTransform: 'uppercase' }}>{t('Your next step')}</Txt>
-            <Txt w={700} size={17}>{t(next.data.title)}</Txt>
+          <Card style={{ backgroundColor: c.accentSoft, shadowOpacity: 0, borderWidth: 0, gap: 6 }}>
+            <Txt w={600} size={14} color={c.accent}>{t('Your next step')}</Txt>
+            <Txt w={700} size={19} style={{ letterSpacing: -0.4 }}>{t(next.data.title)}</Txt>
             <Txt size={14.5} color={c.text2} style={{ lineHeight: 21 }}>{t(next.data.body)}</Txt>
             <Btn title={t(NEXT_LABEL[next.data.action] || 'Continue')} size="sm" onPress={() => goNext(next.data!)} style={{ marginTop: 4 }} />
           </Card>

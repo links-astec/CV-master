@@ -38,7 +38,7 @@ function CvFor({ d }: { d: CvData }) {
   const cvName = norm(`${d.fn} ${d.ln}`), me = new Set(norm(user.name || ''))
   const who = d.cvFor === 'self' || d.cvFor === 'other' ? d.cvFor : !cvName.length || cvName.some(w => me.has(w)) ? 'self' : 'other'
   return (
-    <View style={[styles.cvFor, { borderColor: c.border, backgroundColor: c.surface }]}>
+    <View style={[styles.cvFor, { borderColor: 'transparent', backgroundColor: c.fill }]}>
       <Txt w={600} size={14.5}>{t('Who is this CV for?')}</Txt>
       <View style={{ alignSelf: 'flex-start', minWidth: 220 }}>
         <Segmented items={[{ key: 'self', label: t('Me') }, { key: 'other', label: t('Someone else') }]} value={who} onChange={v => setField('cvFor', v)} />
@@ -53,7 +53,7 @@ function CvFor({ d }: { d: CvData }) {
 function Accordion({ title, sub, done, open, onToggle, children }: { title: string; sub?: string; done: boolean; open: boolean; onToggle: () => void; children: React.ReactNode }) {
   const { c } = useTheme()
   return (
-    <View style={[styles.acc, { borderColor: c.border, backgroundColor: c.surface }]}>
+    <View style={[styles.acc, { borderColor: 'transparent', backgroundColor: c.surface, shadowColor: c.shadow, shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 3 } }]}>
       <Pressable onPress={onToggle} accessibilityRole="button" accessibilityState={{ expanded: open }} style={styles.accHead}>
         <View style={[styles.tick, done ? { backgroundColor: c.green, borderColor: c.green } : { borderColor: c.border2 }]}>
           {done && <Check size={15} color="#fff" strokeWidth={3} />}
@@ -123,9 +123,9 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingBottom: 14, borderBottomWidth: StyleSheet.hairlineWidth },
   tabs: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   body: { padding: 16, gap: 12 },
-  acc: { borderWidth: 1, borderRadius: 16, overflow: 'hidden' },
+  acc: { borderWidth: 1, borderRadius: 22, overflow: 'hidden' },
   accHead: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 16 },
   accBody: { borderTopWidth: StyleSheet.hairlineWidth, padding: 14, gap: 14 },
   tick: { width: 26, height: 26, borderRadius: 13, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  cvFor: { borderWidth: 1, borderRadius: 12, padding: 14, gap: 10 },
+  cvFor: { borderWidth: 1, borderRadius: 18, padding: 16, gap: 10 },
 })

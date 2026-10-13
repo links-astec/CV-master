@@ -90,7 +90,7 @@ export function Tour() {
           <Txt w={700} size={19}>{t(step.title)}</Txt>
           <Txt size={15} color={c.text2} style={{ lineHeight: 22 }}>{t(step.desc)}</Txt>
           {!!step.tip && (
-            <View style={[styles.tip, { backgroundColor: c.surface2, borderColor: c.border }]}>
+            <View style={[styles.tip, { backgroundColor: c.fill, borderColor: 'transparent' }]}>
               <Txt size={13.5} color={c.text2} style={{ lineHeight: 19 }}>{t(step.tip)}</Txt>
             </View>
           )}

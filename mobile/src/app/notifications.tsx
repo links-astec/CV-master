@@ -48,7 +48,7 @@ export default function Notifications() {
         {!q.isLoading && !list.length && <Txt color={c.text3} style={{ textAlign: 'center', marginTop: 40 }}>{t('No notifications yet')}</Txt>}
         {list.map(n => (
           <Pressable key={n.id} onPress={() => open(n)} accessibilityRole="button"
-            style={({ pressed }) => [styles.item, { backgroundColor: n.read ? c.surface : c.accentSoft, borderColor: c.border, opacity: pressed ? 0.85 : 1 }]}>
+            style={({ pressed }) => [styles.item, { backgroundColor: n.read ? c.surface : c.accentSoft, borderColor: 'transparent', opacity: pressed ? 0.85 : 1 }]}>
             {!n.read && <View style={[styles.dot, { backgroundColor: c.accent }]} />}
             <View style={{ flex: 1, gap: 3 }}>
               <Txt w={600} size={15}>{t(n.title)}</Txt>

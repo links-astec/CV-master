@@ -31,7 +31,7 @@ export function PageTitle({ title, sub }: { title: string; sub?: string }) {
   const { c } = useTheme()
   return (
     <View style={{ gap: 6 }}>
-      <Txt w={800} size={30} style={{ letterSpacing: -0.6, lineHeight: 36 }}>{title}</Txt>
+      <Txt w={800} size={34} style={{ letterSpacing: -1.3, lineHeight: 38 }}>{title}</Txt>
       {!!sub && <Txt size={16} color={c.text2} style={{ lineHeight: 23 }}>{sub}</Txt>}
     </View>
   )
@@ -44,7 +44,7 @@ type BtnProps = {
 }
 export function Btn({ title, onPress, kind = 'primary', icon: Icon, busy, disabled, size = 'md', full, style }: BtnProps) {
   const { c } = useTheme()
-  const bg = kind === 'primary' ? c.accent : kind === 'danger' ? c.danger : kind === 'secondary' ? c.surface : 'transparent'
+  const bg = kind === 'primary' ? c.accent : kind === 'danger' ? c.danger : kind === 'secondary' ? c.fill2 : 'transparent'
   const fg = kind === 'primary' || kind === 'danger' ? c.accentText : kind === 'ghost' ? c.accent : c.text
   const pad = size === 'lg' ? 15 : size === 'sm' ? 8 : 12
   return (
@@ -52,10 +52,10 @@ export function Btn({ title, onPress, kind = 'primary', icon: Icon, busy, disabl
       onPress={onPress} disabled={disabled || busy} accessibilityRole="button" accessibilityState={{ disabled: disabled || busy }}
       style={({ pressed }) => [
         styles.btn,
-        { backgroundColor: bg, paddingVertical: pad, paddingHorizontal: size === 'sm' ? 14 : 20, borderColor: kind === 'secondary' ? c.border : 'transparent' },
+        { backgroundColor: bg, paddingVertical: pad, paddingHorizontal: size === 'sm' ? 15 : 22, borderColor: 'transparent' },
         kind === 'primary' && { shadowColor: c.accent, shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
         full && { alignSelf: 'stretch' },
-        { opacity: disabled ? 0.5 : pressed ? 0.85 : 1 },
+        { opacity: disabled ? 0.45 : pressed ? 0.88 : 1, transform: [{ scale: pressed && !disabled ? 0.98 : 1 }] },
         style,
       ]}>
       {busy ? <ActivityIndicator color={fg} /> : (
@@ -92,7 +92,7 @@ export function LinkBtn({ title, onPress, color, icon: Icon, disabled }: { title
 export function Card({ children, style, pad = 20 }: { children: ReactNode; style?: StyleProp<ViewStyle>; pad?: number }) {
   const { c, dark } = useTheme()
   return (
-    <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border, padding: pad, shadowColor: c.shadow, shadowOpacity: dark ? 0 : 0.05 }, style]}>
+    <View style={[styles.card, { backgroundColor: c.surface, borderColor: dark ? c.border : 'transparent', borderWidth: dark ? StyleSheet.hairlineWidth : 0, padding: pad + 2, shadowColor: c.shadow, shadowOpacity: dark ? 0 : 0.06 }, style]}>
       {children}
     </View>
   )
@@ -104,7 +104,7 @@ export function Field({ label, hint, multiline, error, ...props }: TextInputProp
   const [focused, setFocused] = useState(false)
   return (
     <View style={{ gap: 7 }}>
-      {!!label && <Txt w={500} size={14} color={c.text}>{label}</Txt>}
+      {!!label && <Txt w={600} size={13.5} color={c.text2}>{label}</Txt>}
       <TextInput
         {...props}
         multiline={multiline}
@@ -114,8 +114,8 @@ export function Field({ label, hint, multiline, error, ...props }: TextInputProp
         onBlur={e => { setFocused(false); props.onBlur?.(e) }}
         style={[
           styles.input, multiline && styles.multiline,
-          { fontFamily: FONT[400], backgroundColor: c.surface, color: c.text, borderColor: error ? c.danger : focused ? c.accent : c.border },
-          focused && { shadowColor: c.accent, shadowOpacity: 0.18, shadowRadius: 0, shadowOffset: { width: 0, height: 0 } },
+          { fontFamily: FONT[400], backgroundColor: focused ? c.surface : c.fill, color: c.text, borderColor: error ? c.danger : focused ? c.accent : 'transparent' },
+          focused && { shadowColor: c.accent, shadowOpacity: 0.22, shadowRadius: 6, shadowOffset: { width: 0, height: 0 } },
           props.style,
         ]}
       />
@@ -127,14 +127,14 @@ export function Field({ label, hint, multiline, error, ...props }: TextInputProp
 // Small caps group label inside a form ("NAME", "CONTACT")
 export function GroupLabel({ children }: { children: string }) {
   const { c } = useTheme()
-  return <Txt w={700} size={12} color={c.text3} style={{ letterSpacing: 1, textTransform: 'uppercase', marginTop: 6 }}>{children}</Txt>
+  return <Txt w={700} size={15} color={c.text} style={{ letterSpacing: -0.2, marginTop: 8 }}>{children}</Txt>
 }
 
 // ── Segmented tabs (Content | Design | Job match) ────────────────────────────
 export function Segmented<K extends string>({ items, value, onChange }: { items: { key: K; label: string; count?: number }[]; value: K; onChange: (k: K) => void }) {
-  const { c, dark } = useTheme()
+  const { c } = useTheme()
   return (
-    <View style={[styles.seg, { backgroundColor: dark ? c.surface2 : '#f0f0f6', borderColor: c.border }]} accessibilityRole="tablist">
+    <View style={[styles.seg, { backgroundColor: c.fill2 }]} accessibilityRole="tablist">
       {items.map(it => {
         const on = it.key === value
         return (
@@ -157,7 +157,7 @@ export function Chip({ label, on, onPress, extra }: { label: string; on?: boolea
   return (
     <Pressable
       onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : 'text'} accessibilityState={{ selected: !!on }}
-      style={({ pressed }) => [styles.chip, { borderColor: on ? c.accent : c.border, backgroundColor: on ? c.accentSoft : c.surface, opacity: pressed ? 0.8 : 1 }]}>
+      style={({ pressed }) => [styles.chip, { borderColor: on ? c.accent : 'transparent', backgroundColor: on ? c.accentSoft : c.fill, opacity: pressed ? 0.8 : 1 }]}>
       <Txt w={500} size={14.5} color={on ? c.accent : c.text2}>{label}</Txt>
       {!!extra && <Txt size={13} color={c.text3}>{extra}</Txt>}
     </Pressable>
@@ -184,13 +184,13 @@ export function Toggle({ value, onChange, label }: { value: boolean; onChange: (
 }
 
 const styles = StyleSheet.create({
-  btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 10, borderWidth: 1, alignSelf: 'flex-start' },
+  btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 999, borderWidth: 1, alignSelf: 'flex-start' },
   link: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  card: { borderWidth: 1, borderRadius: 18, gap: 14, shadowRadius: 10, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
-  input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
+  card: { borderRadius: 24, gap: 14, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 2 },
+  input: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 15, paddingVertical: 13, fontSize: 16 },
   multiline: { minHeight: 120, textAlignVertical: 'top', paddingTop: 12 },
-  seg: { flexDirection: 'row', borderWidth: 1, borderRadius: 12, padding: 4 },
-  segItem: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 9 },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
-  settingRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14 },
+  seg: { flexDirection: 'row', borderRadius: 999, padding: 3 },
+  segItem: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 999 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 9 },
+  settingRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 16 },
 })

@@ -95,7 +95,7 @@ export function DesignPanel({ cv, onLanguage }: { cv: OpenCv; onLanguage: () => 
 
       <Pressable
         onPress={onLanguage} accessibilityRole="button"
-        style={({ pressed }) => [styles.langRow, { backgroundColor: c.surface, borderColor: c.border, opacity: pressed ? 0.85 : 1 }]}>
+        style={({ pressed }) => [styles.langRow, { backgroundColor: c.fill, borderColor: 'transparent', opacity: pressed ? 0.85 : 1 }]}>
         <Txt w={600} size={15.5} style={{ flex: 1 }}>{t('CV language')}</Txt>
         <Txt size={14} color={c.text3}>{LANGS.find(l => l.code === cv.data.lang)?.label || 'English'}</Txt>
         <ChevronRight size={18} color={c.text3} />

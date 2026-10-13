@@ -66,7 +66,7 @@ export default function Welcome() {
         <ScrollView style={{ width }} contentContainerStyle={styles.page}>
           <Txt w={800} size={30} style={{ letterSpacing: -0.6, lineHeight: 36 }}>{t('Three steps, about ten minutes')}</Txt>
           {steps.map((s, i) => (
-            <View key={s.t} style={[styles.step, { backgroundColor: c.surface, borderColor: c.border }]}>
+            <View key={s.t} style={[styles.step, { backgroundColor: c.surface, borderColor: 'transparent' }]}>
               <View style={[styles.num, { backgroundColor: c.accentSoft }]}><Txt w={700} size={16} color={c.accent}>{i + 1}</Txt></View>
               <View style={{ flex: 1, gap: 4 }}>
                 <Txt w={700} size={17}>{t(s.t)}</Txt>
@@ -79,7 +79,7 @@ export default function Welcome() {
         <ScrollView style={{ width }} contentContainerStyle={styles.page}>
           <Txt w={800} size={30} style={{ letterSpacing: -0.6, lineHeight: 36 }}>{t('Free to build. €0.99 when you’re ready.')}</Txt>
           <Txt size={16} color={c.text2}>{t('No subscription, no trial that renews.')}</Txt>
-          <View style={[styles.step, { backgroundColor: c.surface, borderColor: c.border, flexDirection: 'column', alignItems: 'stretch', gap: 12 }]}>
+          <View style={[styles.step, { backgroundColor: c.surface, borderColor: 'transparent', flexDirection: 'column', alignItems: 'stretch', gap: 12 }]}>
             {free.map(f => (
               <View key={f} style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
                 <Check size={18} color={c.success} strokeWidth={2.6} style={{ marginTop: 2 }} />
