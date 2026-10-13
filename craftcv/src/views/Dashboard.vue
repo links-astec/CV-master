@@ -47,8 +47,9 @@
               <span>{{ templateLabel(c.template) }}</span>
               <span v-if="c.updatedAt">· {{ timeAgo(c.updatedAt) }}</span>
             </div>
-            <div class="db-progress" :title="$t('{n}% complete', { n: progress(c.data) })">
-              <div class="db-progress-bar" :style="{ width: progress(c.data) + '%' }"></div>
+            <div v-if="progress(c.data) < 100" class="db-prog">
+              <div class="db-progress"><div class="db-progress-bar" :style="{ width: progress(c.data) + '%' }"></div></div>
+              <span>{{ $t('{n}% complete', { n: progress(c.data) }) }}</span>
             </div>
             <div class="db-actions">
               <button class="btn-secondary btn-sm" @click="open(c)">{{ $t('Open') }}</button>
@@ -345,15 +346,16 @@ async function remove(c) {
 .db-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg)}
 .db-skel{height:390px;border-radius:24px;background:linear-gradient(90deg,var(--c-surface) 25%,var(--c-surface2) 50%,var(--c-surface) 75%);background-size:200% 100%;animation:skel 1.2s infinite}
 @keyframes skel{to{background-position:-200% 0}}
-.db-thumb{display:block;border:none;padding:22px 24px 0;background:color-mix(in srgb,var(--c-text) 4%,var(--c-surface));height:244px;overflow:hidden}
+.db-thumb{display:block;border:none;padding:26px 28px 0;background:color-mix(in srgb,var(--c-text) 4%,var(--c-surface));height:250px;overflow:hidden;position:relative;-webkit-mask-image:linear-gradient(180deg,#000 78%,transparent);mask-image:linear-gradient(180deg,#000 78%,transparent)}
 .db-thumb :deep(.cvt){border-radius:4px 4px 0 0;box-shadow:0 1px 2px rgba(20,20,43,.05),0 12px 30px rgba(20,20,43,.10);transition:transform .45s var(--ease)}
 .db-card:hover .db-thumb :deep(.cvt){transform:translateY(-3px)}
-.db-body{padding:18px 20px 18px;display:flex;flex-direction:column;gap:9px}
+.db-body{padding:16px 22px 20px;display:flex;flex-direction:column;gap:10px}
 .db-title-row{display:flex;align-items:center;gap:8px}
-.db-title{flex:1;min-width:0;font-size:15.5px;font-weight:650;letter-spacing:-.015em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.db-meta{font-size:12.5px;color:var(--c-text3);display:flex;gap:4px;flex-wrap:wrap}
-.db-progress{height:3px;border-radius:3px;background:color-mix(in srgb,var(--c-text) 7%,transparent);overflow:hidden}
-.db-progress-bar{height:100%;background:var(--c-accent);border-radius:4px}
+.db-title{flex:1;min-width:0;font-size:16.5px;font-weight:700;letter-spacing:-.025em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.db-meta{font-size:13px;color:var(--c-text3);display:flex;gap:4px;flex-wrap:wrap;margin-top:-4px}
+.db-prog{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--c-text3);font-weight:500}
+.db-progress{flex:1;height:4px;border-radius:99px;background:color-mix(in srgb,var(--c-text) 7%,transparent);overflow:hidden}
+.db-progress-bar{height:100%;background:linear-gradient(90deg,#4338CA,#8B85FF);border-radius:99px}
 .db-actions{display:flex;gap:6px;align-items:center;margin-top:4px;flex-wrap:wrap}
 .db-del{margin-left:auto;width:30px;height:30px}
 .db-del:hover{color:var(--c-rose);background:var(--c-rose-lt)}

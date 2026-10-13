@@ -98,17 +98,17 @@ defineExpose({ show })
 /* Step components are reused here. Hide their wizard-style headings */
 .ced-acc :deep(.step-intro),.ced-acc :deep(.step-title),.ced-acc :deep(.step-sub){display:none}
 
-.acc{border:1px solid var(--hair);border-radius:12px;background:var(--c-surface);margin-bottom:10px;overflow:hidden;transition:box-shadow .15s}
-.acc.open{box-shadow:var(--shadow-sm)}
-.acc-hd{width:100%;display:flex;align-items:center;gap:11px;padding:13px 14px;background:none;border:none;text-align:left}
-.acc-hd:hover{background:var(--c-surface2)}
-.acc-dot{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--c-border2);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.acc{border:none;border-radius:20px;background:var(--c-surface);margin-bottom:12px;overflow:hidden;box-shadow:var(--shadow-xs);transition:box-shadow .3s var(--ease)}
+.acc.open{box-shadow:var(--shadow)}
+.acc-hd{width:100%;display:flex;align-items:center;gap:12px;padding:16px 18px;background:none;border:none;text-align:left;transition:background .2s var(--ease)}
+.acc-hd:hover{background:color-mix(in srgb,var(--c-text) 2.5%,var(--c-surface))}
+.acc-dot{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--c-border2);display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .acc-dot.done{background:var(--c-green);border-color:var(--c-green)}
 .acc-dot svg{width:12px;height:12px;fill:none;stroke:#fff;stroke-width:3}
-.acc-title{font-size:14px;font-weight:600;color:var(--c-text)}
+.acc-title{font-size:15px;font-weight:650;letter-spacing:-.015em;color:var(--c-text)}
 .acc-meta{flex:1;text-align:right;font-size:12.5px;color:var(--c-text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.acc-chev{width:16px;height:16px;fill:none;stroke:var(--c-text3);stroke-width:2;flex-shrink:0;transition:transform .15s}
+.acc-chev{width:16px;height:16px;fill:none;stroke:var(--c-text3);stroke-width:2;flex-shrink:0;transition:transform .3s var(--ease)}
 .acc.open .acc-chev{transform:rotate(180deg)}
-.acc-body{padding:4px 16px 18px;border-top:1px solid var(--c-border);padding-top:16px}
+.acc-body{padding:18px 18px 22px;border-top:1px solid var(--hair)}
 
 </style>

@@ -78,12 +78,16 @@ await png('brand/cvmaster-logo.png', center(lockupSvg({ height: 200 }), 1200, 32
 await png('brand/cvmaster-logo-dark.png', center(lockupSvg({ theme: 'dark', height: 200 }), 1200, 320, COLORS.ink), 1200, 320, false)
 await png('brand/cvmaster-logo-on-blue.png', center(lockupSvg({ theme: 'blue', height: 200 }), 1200, 320, COLORS.indigo), 1200, 320, false)
 
-// Link previews (LinkedIn, WhatsApp, X…): calm and centred, the logo and one line
+// Link previews (LinkedIn, WhatsApp, X…): the homepage hero in miniature. The fanned CVs are a capture of
+// the real hero (brand/og-stage.png, made by _srvtest/og-stage.mjs from the built site)
+const STAGE = fs.existsSync(out('brand/og-stage.png')) ? 'data:image/png;base64,' + fs.readFileSync(out('brand/og-stage.png')).toString('base64') : ''
 await png('public/og-image.png', `
-<div style="width:1200px;height:630px;box-sizing:border-box;background:radial-gradient(900px 420px at 50% 115%,#E4E3FF 0%,rgba(228,227,255,0) 70%),#FBFBFD;font-family:'Plus Jakarta Sans',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:34px">
-  ${lockupSvg({ height: 58 })}
-  <div style="font-size:78px;font-weight:800;letter-spacing:-3px;line-height:1.02;color:${COLORS.night}">A CV that gets you<br><span style="color:${COLORS.indigo}">the interview.</span></div>
-  <div style="font-size:27px;font-weight:500;color:#6B6B84;letter-spacing:-.2px">Build it in minutes. Tailor it to the job. Check it before you apply.</div>
+<div style="position:relative;width:1200px;height:630px;overflow:hidden;box-sizing:border-box;background:radial-gradient(760px 380px at 50% 104%,#DCDAFF 0%,rgba(220,218,255,0) 72%),radial-gradient(520px 260px at 50% -6%,#EEEEFF 0%,rgba(238,238,255,0) 70%),#FBFBFD;font-family:'Plus Jakarta Sans',sans-serif;text-align:center">
+  <div style="position:absolute;left:0;right:0;top:46px;display:flex;justify-content:center">${lockupSvg({ height: 40 })}</div>
+  <div style="position:absolute;left:0;right:0;top:118px;font-size:66px;font-weight:800;letter-spacing:-2.6px;line-height:1.02;color:${COLORS.night}">A CV that gets you <span style="color:${COLORS.indigo}">the interview.</span></div>
+  <div style="position:absolute;left:0;right:0;top:204px;font-size:24px;font-weight:500;color:#6B6B84;letter-spacing:-.2px">Build it in minutes. Tailor it to the job. Check it before you apply.</div>
+  ${STAGE ? `<img src="${STAGE}" style="position:absolute;left:50%;top:268px;width:940px;transform:translateX(-50%)" />` : ''}
+  <div style="position:absolute;left:0;right:0;bottom:0;height:70px;background:linear-gradient(180deg,rgba(251,251,253,0),rgba(251,251,253,.9))"></div>
 </div>`, 1200, 630, false)
 
 await browser.close()
