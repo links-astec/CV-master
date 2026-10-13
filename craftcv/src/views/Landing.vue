@@ -28,7 +28,7 @@
           <a href="#how" class="lp-more" @click.prevent="go('#how')">{{ $t('See how it works') }} <span aria-hidden="true">›</span></a>
         </div>
       </div>
-      <div class="lp-stage" aria-hidden="true" inert>
+      <div class="lp-stage" aria-hidden="true" inert :style="{ '--drift': drift }">
         <div class="lp-sheet s-l"><CvThumb template="harvard:charcoal" :data="sampleCv()" /></div>
         <div class="lp-sheet s-r"><CvThumb template="sidebar:teal" :data="sampleCv()" /></div>
         <div class="lp-sheet s-c"><CvThumb template="modern:indigo" :data="sampleCv()" /></div>
@@ -332,7 +332,13 @@ defineEmits(['start', 'sign-in'])
 
 const rootEl = ref(null)
 const scrolled = ref(false)
-function onScroll() { scrolled.value = (rootEl.value?.scrollTop || 0) > 8 }
+const drift = ref(0)
+const still = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+function onScroll() {
+  const y = rootEl.value?.scrollTop || 0
+  scrolled.value = y > 8
+  if (!still) drift.value = Math.min(1, y / 700).toFixed(3)
+}
 function go(sel) {
   const el = rootEl.value?.querySelector(sel)
   if (el) rootEl.value.scrollTo({ top: el.offsetTop - 52, behavior: 'smooth' })
@@ -432,9 +438,9 @@ const FAQ = [
 
 .lp-stage{position:relative;height:clamp(300px,44vw,520px);max-width:980px;margin:72px auto 0;animation:fup 1.1s var(--ease) .25s both}
 .lp-sheet{position:absolute;border-radius:6px;overflow:hidden;background:#fff;box-shadow:0 2px 6px rgba(20,20,43,.05),0 30px 70px rgba(20,20,43,.16)}
-.s-c{width:clamp(220px,31vw,360px);left:50%;top:0;transform:translateX(-50%);z-index:3}
-.s-l{width:clamp(190px,26vw,300px);left:50%;top:40px;transform:translateX(-128%) rotate(-7deg);z-index:2;opacity:.96}
-.s-r{width:clamp(190px,26vw,300px);left:50%;top:40px;transform:translateX(28%) rotate(7deg);z-index:2;opacity:.96}
+.s-c{width:clamp(220px,31vw,360px);left:50%;top:0;transform:translateX(-50%) translateY(calc(var(--drift,0) * -14px));z-index:3;will-change:transform}
+.s-l{width:clamp(190px,26vw,300px);left:50%;top:40px;transform:translateX(calc(-128% - var(--drift,0) * 10%)) rotate(calc(-7deg - var(--drift,0) * 3deg));z-index:2;opacity:.96;will-change:transform}
+.s-r{width:clamp(190px,26vw,300px);left:50%;top:40px;transform:translateX(calc(28% + var(--drift,0) * 10%)) rotate(calc(7deg + var(--drift,0) * 3deg));z-index:2;opacity:.96;will-change:transform}
 .lp-chip{position:absolute;z-index:4;display:flex;align-items:center;gap:10px;background:color-mix(in srgb,var(--c-surface) 80%,transparent);backdrop-filter:saturate(1.8) blur(18px);-webkit-backdrop-filter:saturate(1.8) blur(18px);border:1px solid var(--hair);border-radius:999px;padding:10px 18px 10px 12px;box-shadow:var(--shadow-lg);font-size:14px;font-weight:600;color:var(--c-text)}
 .c-score{right:calc(50% - min(31vw,360px)/2 - 120px);top:30%;padding-left:16px}
 .c-score b{font-size:26px;letter-spacing:-.03em;color:var(--c-pass)}
@@ -717,5 +723,7 @@ const FAQ = [
   .lp-faq summary{font-size:16.5px}
   .lp-final{padding:110px 0}
   .lp-news-row{flex-direction:column}
+  .lp-news-row .f-inp{flex:none;width:100%}
+  .lp-news-row .btn-primary{width:100%}
 }
 </style>

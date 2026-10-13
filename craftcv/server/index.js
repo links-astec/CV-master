@@ -3822,7 +3822,8 @@ app.get('/api/reviews/public', async (req, res) => {
   try {
     await ensureReviewsTable();
     const agg = (await query(`SELECT COUNT(*)::int AS count, ROUND(AVG(rating)::numeric, 1)::float AS average FROM reviews WHERE status <> 'hidden'`)).rows[0];
-    if (agg.count < await reviewsMinToShow()) return res.json({ count: agg.count, average: null, reviews: [] });
+    // Turned off in the admin, or not enough reviews yet: the homepage shows no reviews section at all
+    if (!(await getSetting('reviews_show', true)) || agg.count < await reviewsMinToShow()) return res.json({ count: agg.count, average: null, reviews: [] });
     const reviews = (await query(`SELECT rating, comment, display_name AS name, role, created_at FROM reviews
                                   WHERE status = 'approved' AND comment IS NOT NULL ORDER BY created_at DESC LIMIT 6`)).rows;
     res.set('Cache-Control', 'public, max-age=300');
@@ -3840,15 +3841,18 @@ app.get('/api/admin/reviews', adminAuthMiddleware, async (req, res) => {
                                      ROUND(AVG(rating) FILTER (WHERE status <> 'hidden')::numeric, 1)::float AS average,
                                      (COUNT(*) FILTER (WHERE status = 'pending' AND comment IS NOT NULL) + COUNT(*) FILTER (WHERE pending_at IS NOT NULL))::int AS pending
                               FROM reviews`)).rows[0];
-    res.json({ items: rows, ...agg, minToShow: await reviewsMinToShow() });
+    res.json({ items: rows, ...agg, minToShow: await reviewsMinToShow(), show: (await getSetting('reviews_show', true)) !== false });
   } catch (e) { res.status(500).json({ error: 'Failed to load reviews.' }); }
 });
 app.put('/api/admin/reviews/settings', adminAuthMiddleware, async (req, res) => {
   try {
-    const n = Math.round(Number(req.body?.minToShow));
-    if (!(n >= 1 && n <= 50)) return res.status(400).json({ error: 'Choose a number from 1 to 50.' });
-    await setSetting('reviews_min_to_show', n);
-    res.json({ ok: true, minToShow: n });
+    if (typeof req.body?.show === 'boolean') await setSetting('reviews_show', req.body.show);
+    if (req.body?.minToShow !== undefined) {
+      const n = Math.round(Number(req.body.minToShow));
+      if (!(n >= 1 && n <= 50)) return res.status(400).json({ error: 'Choose a number from 1 to 50.' });
+      await setSetting('reviews_min_to_show', n);
+    }
+    res.json({ ok: true, minToShow: await reviewsMinToShow(), show: (await getSetting('reviews_show', true)) !== false });
   } catch (e) { res.status(500).json({ error: 'Could not save the setting.' }); }
 });
 app.patch('/api/admin/reviews/:id', adminAuthMiddleware, async (req, res) => {

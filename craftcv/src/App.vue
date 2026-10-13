@@ -82,7 +82,7 @@
         <button class="verify-x" :aria-label="$t('Hide')" @click="verifyHidden = true">×</button>
       </div>
       <main class="content" :class="{ full: route.meta.full }">
-        <RouterView />
+        <RouterView v-slot="{ Component, route: r }"><Transition name="page" mode="out-in"><component :is="Component" :key="r.path" /></Transition></RouterView>
       </main>
     </div>
 

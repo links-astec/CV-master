@@ -238,6 +238,13 @@ a{color:var(--c-accent)}
   .f-row{grid-template-columns:1fr}
 }
 
+/* ── PAGE CHANGES ───────────────────────────────────────────── */
+.page-enter-active{transition:opacity .28s var(--ease),transform .28s var(--ease)}
+.page-leave-active{transition:opacity .14s ease}
+.page-enter-from{opacity:0;transform:translateY(6px)}
+.page-leave-to{opacity:0}
+@media (prefers-reduced-motion:reduce){ .page-enter-active,.page-leave-active{transition:none} }
+
 /* ── REVEAL ON SCROLL (v-reveal) ────────────────────────────── */
 .reveal-up{opacity:0;transform:translateY(24px);transition:opacity .9s var(--ease),transform .9s var(--ease)}
 .reveal-up.revealed{opacity:1;transform:none}
