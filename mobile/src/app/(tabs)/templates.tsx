@@ -2,7 +2,7 @@
 // Creative, and a grid of real previews, 2 per row (the user's CV once it has content, an example
 // otherwise). Tapping a layout applies it to the current CV, or starts a new CV with it.
 import { useCallback, useMemo, useState } from 'react'
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { router } from 'expo-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { TopBar } from '@/components/shell'
@@ -20,6 +20,7 @@ import { useLang } from '@/i18n'
 import { useTheme } from '@/lib/theme'
 import { LAYOUTS, THEMES, parseTemplate, render, templateId } from '@web/composables/cvRenderer.js'
 import { sampleCv } from '@web/composables/sampleCv.js'
+import { BrandLoader } from '@/components/BrandLoader'
 
 type Layout = { id: string; kind: 'ats' | 'creative'; name: string; theme: string; photo?: boolean }
 type Kind = 'all' | 'ats' | 'creative'
@@ -102,7 +103,7 @@ export default function Templates() {
         />
         <Txt size={14.5} color={c.text2} style={{ lineHeight: 21 }}>{t('ATS-friendly layouts are for online applications. Creative ones are for print, in person, or sending straight to a person.')}</Txt>
         <Txt size={13} color={c.text3}>{t(mine ? 'Previews show your CV.' : 'Previews show an example CV.')}</Txt>
-        {busy && <ActivityIndicator color={c.accent} />}
+        {busy && <BrandLoader size={28} />}
         <LayoutGrid key={kind} items={items} selected={currentLayout} onPick={use} estimate={estimate} />
       </ScrollView>
     </View>

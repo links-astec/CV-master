@@ -2,7 +2,7 @@
 // the user agrees; then the clean PDF (€0.99 for this CV, or a referral credit, or free to re-send
 // once paid) is emailed and can be downloaded. The free preview with the watermark is here too.
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native'
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Check, X } from '@/components/icons'
@@ -18,6 +18,7 @@ import { maybeAskForStoreReview } from '@/lib/storeReview'
 import { api } from '@/lib/api'
 import { useLang } from '@/i18n'
 import { useTheme } from '@/lib/theme'
+import { BrandLoader } from '@/components/BrandLoader'
 
 type State = 'checking' | 'tooLong' | 'ready' | 'sending' | 'sent' | 'emailFailed' | 'error'
 const FEATURES = ['Clean, watermark-free PDF, emailed to you', 'Download it straight away too', 'Re-send or download again free, even after edits']
@@ -120,7 +121,7 @@ export default function Export() {
 
         {(state === 'checking' || state === 'sending') && (
           <View style={styles.center}>
-            <ActivityIndicator size="large" color={c.accent} />
+            <BrandLoader size={56} />
             <Txt w={700} size={20} style={{ textAlign: 'center' }}>{t(state === 'sending' ? 'Creating your PDF…' : 'Getting your CV ready…')}</Txt>
             {state === 'sending' && <Txt color={c.text2} style={{ textAlign: 'center' }}>{t('Sending to {email}. This takes a few seconds.', { email: email.trim() || user?.email || '' })}</Txt>}
           </View>
@@ -218,7 +219,7 @@ export default function Export() {
             {!paid && !demo && <Txt size={12.5} color={c.text3} style={{ textAlign: 'center' }}>{t('Secure payment by Stripe · No subscription')}</Txt>}
             {!paid && (
               <View style={{ alignItems: 'center', paddingTop: 6 }}>
-                {busy === 'preview' ? <ActivityIndicator color={c.accent} /> : <LinkBtn title={t('Preview PDF with watermark')} onPress={() => download('preview')} />}
+                {busy === 'preview' ? <BrandLoader size={22} /> : <LinkBtn title={t('Preview PDF with watermark')} onPress={() => download('preview')} />}
               </View>
             )}
           </View>

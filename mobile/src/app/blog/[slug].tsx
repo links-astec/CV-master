@@ -1,7 +1,7 @@
 // One blog post, read inside the app: the website's article page made for the app (no site header),
 // in the app's light or dark look. Links to other posts stay here; anything else opens in the browser.
 import { useState } from 'react'
-import { ActivityIndicator, Share, StyleSheet, View } from 'react-native'
+import { Share, StyleSheet, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { WebView } from 'react-native-webview'
 import * as WebBrowser from 'expo-web-browser'
@@ -11,6 +11,7 @@ import { articleUrl } from '@/lib/blog'
 import { BRAND } from '@/brand'
 import { useLang } from '@/i18n'
 import { useTheme } from '@/lib/theme'
+import { PageLoader } from '@/components/BrandLoader'
 
 export default function Article() {
   const { slug = '' } = useLocalSearchParams<{ slug?: string }>()
@@ -42,7 +43,7 @@ export default function Article() {
           return true
         }}
       />
-      {loading && <ActivityIndicator style={StyleSheet.absoluteFill} color={c.accent} />}
+      {loading && <PageLoader style={[StyleSheet.absoluteFill, { backgroundColor: c.bg }]} />}
     </View>
   )
 }

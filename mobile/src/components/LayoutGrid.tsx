@@ -2,11 +2,12 @@
 // draws the whole grid (much lighter than a WebView per layout) and grows to its content's
 // height, so it sits inside the screen's normal scrolling.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 import { WebView, type WebViewMessageEvent } from 'react-native-webview'
 import { fontCssFor } from '@/lib/cvFonts'
 import { gridDocument, type GridItem } from '@/lib/previewHtml'
 import { useTheme } from '@/lib/theme'
+import { BrandLoader } from '@/components/BrandLoader'
 
 type Props = { items: GridItem[]; selected: string; onPick: (id: string) => void; estimate: number }
 
@@ -44,7 +45,7 @@ export function LayoutGrid({ items, selected, onPick, estimate }: Props) {
           scrollEnabled={false} bounces={false} setSupportMultipleWindows={false} textZoom={100}
           showsVerticalScrollIndicator={false} style={{ backgroundColor: c.bg }}
         />
-      ) : <ActivityIndicator style={{ marginTop: 40 }} color={c.accent} />}
+      ) : <BrandLoader size={40} style={{ marginTop: 40 }} />}
     </View>
   )
 }

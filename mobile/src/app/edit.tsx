@@ -1,7 +1,7 @@
 // The "Edit CV" sheet, like the website's mobile drawer: Content (each section as an accordion,
 // plus the "Before you export" checklist), Design (language, colour, layout) and Job match.
 import { useState } from 'react'
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Check, ChevronDown, ChevronUp } from '@/components/icons'
@@ -20,6 +20,7 @@ import { useAuth } from '@/lib/auth'
 import type { CvData } from '@/lib/cv'
 import { useLang } from '@/i18n'
 import { useTheme } from '@/lib/theme'
+import { PageLoader } from '@/components/BrandLoader'
 
 type Tab = 'content' | 'design' | 'job'
 // The website's accordion titles
@@ -92,7 +93,7 @@ export default function EditSheet() {
       <View style={[styles.tabs, { backgroundColor: c.bg, borderBottomColor: c.border }]}>
         <Segmented items={[{ key: 'content', label: t('Content') }, { key: 'design', label: t('Design') }, { key: 'job', label: t('Job match') }]} value={tab} onChange={k => { setTab(k); setLangOpen(false) }} />
       </View>
-      {loading || !cv ? <ActivityIndicator style={{ flex: 1 }} color={c.accent} /> : (
+      {loading || !cv ? <PageLoader /> : (
         <ScrollView
           contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 40 }]}
           keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive">

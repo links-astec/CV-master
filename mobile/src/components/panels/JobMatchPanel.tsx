@@ -2,7 +2,7 @@
 // keywords, and tailoring with AI where the user approves every change. Same server checks as
 // the website, and the same saved fields (jobOffer, jobFit, jobTarget, jobTailored).
 import { useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, Switch, View } from 'react-native'
+import { Pressable, StyleSheet, Switch, View } from 'react-native'
 import { Text } from '@/components/AppText'
 import { setField, update, type OpenCv } from '@/lib/editor'
 import { atsCheck, errorText, fitCheck, fitKey, tailor, type AtsResult, type TailorResult } from '@/lib/ai'
@@ -10,6 +10,7 @@ import { hasCvContent, type CvData } from '@/lib/cv'
 import { Button, Card, Field, SmallAction } from '@/components/ui'
 import { useLang } from '@/i18n'
 import { useColors } from '@/lib/theme'
+import { BrandLoader } from '@/components/BrandLoader'
 
 const MIN_CHARS = 40   // same minimum as the server
 const FIT_LABEL = { good: 'Good fit', stretch: 'A stretch', poor: 'Heads-up: may not be a good fit' } as const
@@ -88,7 +89,7 @@ function FitCard({ d }: { d: CvData }) {
     if (enough && !fit && !busy && !error) queueMicrotask(() => void run())
   }, [key, enough])   // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (busy) return <Card><View style={styles.row}><ActivityIndicator color={c.accent} /><Text style={{ color: c.text2 }}>{t('Checking whether this role is a good fit…')}</Text></View></Card>
+  if (busy) return <Card><View style={styles.row}><BrandLoader size={22} /><Text style={{ color: c.text2 }}>{t('Checking whether this role is a good fit…')}</Text></View></Card>
   if (error) return <Card><Text style={{ color: c.danger }}>{error}</Text><SmallAction label={t('Check again')} onPress={run} /></Card>
   if (!fit || fit.dismissed) return null
   const tone = fit.fit === 'good' ? c.success : fit.fit === 'stretch' ? '#D97706' : c.danger
@@ -237,7 +238,7 @@ function TailorCard({ d, ats, onApplied }: { d: CvData; ats: AtsResult | null; o
       {!res && <Text style={{ color: c.text2, fontSize: 14, lineHeight: 20 }}>{t('AI rephrases your summary, experience and skills using the job’s keywords. It never invents experience. You tick the changes you want.')}</Text>}
       {!!error && <Text style={{ color: c.danger }}>{error}</Text>}
       {!res && <Button title={busy ? '…' : t('Tailor to the job')} onPress={run} disabled={busy} />}
-      {busy && <ActivityIndicator color={c.accent} />}
+      {busy && <BrandLoader size={28} />}
       {!!res && (
         <View style={{ gap: 12 }}>
           {changes.length === 0 && res.suggestedSkills.length === 0

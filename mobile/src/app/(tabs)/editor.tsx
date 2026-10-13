@@ -2,7 +2,7 @@
 // one-page notice (shrink to fit, or undo), the live CV preview with the end of page 1 marked,
 // and a floating "Edit CV" button that opens the editing sheet.
 import { useCallback, useState } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { ChevronDown, Download, FileText, PenLine, ZoomIn, ZoomOut } from '@/components/icons'
 import { TopBar } from '@/components/shell'
@@ -16,6 +16,7 @@ import type { PageInfo } from '@/lib/previewHtml'
 import { useLang } from '@/i18n'
 import { useTheme } from '@/lib/theme'
 import { getTheme, parseTemplate, templateLabel } from '@web/composables/cvRenderer.js'
+import { PageLoader } from '@/components/BrandLoader'
 
 const SMALL_TEXT_ZOOM = 0.82   // the website's pageFit.js: below this the text is getting small
 
@@ -87,7 +88,7 @@ export default function Editor() {
         </View>
       )}
 
-      {loading || !cv ? <ActivityIndicator style={{ flex: 1 }} color={c.accent} /> : (
+      {loading || !cv ? <PageLoader /> : (
         <CvPreview template={cv.template} data={cv.data} fmt={cv.fmt} zoomed={zoom} shrink={shrink} onPage={onPage} />
       )}
 

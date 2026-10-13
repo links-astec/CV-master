@@ -2,12 +2,13 @@
 // kept for sign-up (it counts as their referral), then on to creating an account, or home if
 // already signed in.
 import { useEffect } from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { saveReferral } from '@/lib/referral'
 import { markWelcomeDone } from '@/lib/onboarding'
 import { useAuth } from '@/lib/auth'
 import { useTheme } from '@/lib/theme'
+import { PageLoader } from '@/components/BrandLoader'
 
 export default function Invite() {
   const { code } = useLocalSearchParams<{ code?: string }>()
@@ -20,5 +21,5 @@ export default function Invite() {
     router.replace('/welcome')
     setTimeout(() => router.push({ pathname: '/auth', params: { mode: 'signup' } }), 50)
   }, [code, user])
-  return <View style={{ flex: 1, backgroundColor: c.bg, justifyContent: 'center' }}><ActivityIndicator color={c.accent} /></View>
+  return <View style={{ flex: 1, backgroundColor: c.bg }}><PageLoader /></View>
 }

@@ -1,7 +1,7 @@
 // Tell your story, like the website: the user types or speaks (microphone) about their career, the
 // AI asks follow-up questions for what's missing (up to the server's limit of rounds), then builds the CV.
 import { useState } from 'react'
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native'
+import { ScrollView, StyleSheet, View } from 'react-native'
 import { Text } from '@/components/AppText'
 import { router } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -15,6 +15,7 @@ import { errorText } from '@/lib/ai'
 import { Button, Card, Field } from '@/components/ui'
 import { useLang } from '@/i18n'
 import { useColors } from '@/lib/theme'
+import { BrandLoader } from '@/components/BrandLoader'
 
 export default function Story() {
   const { t } = useLang()
@@ -92,7 +93,7 @@ export default function Story() {
           <Button kind="ghost" title={t('Edit story')} onPress={() => { setQuestions([]); setAnswers([]); setRound(0) }} disabled={busy} />
         </Card>
       )}
-      {busy && <ActivityIndicator color={c.accent} />}
+      {busy && <BrandLoader size={32} />}
       {!!error && <Text style={{ color: c.danger, textAlign: 'center' }} accessibilityLiveRegion="polite">{error}</Text>}
     </ScrollView>
   )

@@ -3,13 +3,14 @@
 // including the one-page check: `onPage` reports whether the CV is longer than one page.
 // The fonts come from the app itself, so previews work offline.
 import { useEffect, useMemo, useState } from 'react'
-import { ActivityIndicator, StyleSheet, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { WebView, type WebViewMessageEvent } from 'react-native-webview'
 import { render } from '@web/composables/cvRenderer.js'
 import { fontCssFor } from '@/lib/cvFonts'
 import { previewDocument, type PageInfo } from '@/lib/previewHtml'
 import { useLang } from '@/i18n'
 import { useColors } from '@/lib/theme'
+import { PageLoader } from '@/components/BrandLoader'
 
 type Props = {
   template: string; data: Record<string, unknown>; fmt?: Record<string, unknown>
@@ -39,7 +40,7 @@ export function CvPreview({ template, data, fmt, zoomed = false, shrink = false,
     } catch {}
   }
 
-  if (!html) return <ActivityIndicator style={styles.center} color={c.accent} />
+  if (!html) return <PageLoader style={styles.center} />
   return (
     <View style={[styles.wrap, { backgroundColor: c.canvas }]}>
       <WebView

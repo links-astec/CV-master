@@ -1,7 +1,7 @@
 // The blog, like www.cvmaster.live/blog: all posts or one kind (articles, product updates, news,
 // links shared from elsewhere), newest first, in the app's language when translated.
 import { useState } from 'react'
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ChevronLeft } from '@/components/icons'
@@ -10,6 +10,7 @@ import { CATEGORY_LABEL, usePosts } from '@/lib/blog'
 import { PostCard } from '@/components/PostCard'
 import { useLang } from '@/i18n'
 import { useTheme } from '@/lib/theme'
+import { BrandLoader } from '@/components/BrandLoader'
 
 export default function Blog() {
   const { t, lang } = useLang()
@@ -34,7 +35,7 @@ export default function Blog() {
           <Chip label={t('All')} on={!cat} onPress={() => setCat(null)} />
           {Object.entries(CATEGORY_LABEL).map(([k, v]) => <Chip key={k} label={t(v)} on={cat === k} onPress={() => setCat(k)} />)}
         </ScrollView>
-        {q.isLoading ? <ActivityIndicator color={c.accent} style={{ marginTop: 30 }} />
+        {q.isLoading ? <BrandLoader size={40} style={{ marginTop: 40 }} />
           : !q.data?.length ? <Txt color={c.text3} style={{ textAlign: 'center', marginTop: 30 }}>{t('No posts here yet.')}</Txt>
           : q.data.map((p, i) => <PostCard key={p.slug} p={p} featured={i === 0 && !cat} />)}
       </ScrollView>

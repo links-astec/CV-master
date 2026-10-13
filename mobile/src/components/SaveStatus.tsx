@@ -1,5 +1,6 @@
 // "Saving…", "Saved" or a retry button, shown in the editor's header
-import { ActivityIndicator, Pressable } from 'react-native'
+import { Pressable } from 'react-native'
+import { BrandLoader } from '@/components/BrandLoader'
 import { Text } from '@/components/AppText'
 import { flush, type SaveState } from '@/lib/editor'
 import { useLang } from '@/i18n'
@@ -8,7 +9,7 @@ import { useColors } from '@/lib/theme'
 export function SaveStatus({ state }: { state: SaveState }) {
   const { t } = useLang()
   const c = useColors()
-  if (state === 'saving') return <ActivityIndicator color={c.text3} />
+  if (state === 'saving') return <BrandLoader size={18} />
   if (state === 'error') {
     return (
       <Pressable onPress={() => void flush()} hitSlop={8} accessibilityRole="button">

@@ -1,7 +1,7 @@
 // The CV's own language (separate from the app's). Headings switch for any of the 7 languages;
 // for English ↔ French the AI can also translate the content, shown field by field to keep or not.
 import { useState } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, Switch, View } from 'react-native'
+import { Pressable, StyleSheet, Switch, View } from 'react-native'
 import { Text } from '@/components/AppText'
 import { setField, update, type OpenCv } from '@/lib/editor'
 import { errorText, translateCv, TRANSLATABLE, type TranslateResult } from '@/lib/ai'
@@ -9,6 +9,7 @@ import { hasCvContent, type CvData } from '@/lib/cv'
 import { Button, Card } from '@/components/ui'
 import { LANGS, useLang } from '@/i18n'
 import { useColors } from '@/lib/theme'
+import { BrandLoader } from '@/components/BrandLoader'
 
 type Item = { id: string; label: string; before: string; after: string; apply: (d: CvData) => CvData; on: boolean }
 
@@ -96,7 +97,7 @@ export function CvLanguagePanel({ cv, onDone }: { cv: OpenCv; onDone: () => void
       {!!target && (
         <Card>
           <Text style={{ color: c.text2, fontSize: 14, lineHeight: 20 }}>{t('Headings change automatically. We’ll also translate your content. Review it below and keep what you want. Names, companies, schools, technologies and numbers stay as they are.')}</Text>
-          {busy && <View style={styles.row}><ActivityIndicator color={c.accent} /><Text style={{ color: c.text2 }}>{t('Translating your CV…')}</Text></View>}
+          {busy && <View style={styles.row}><BrandLoader size={22} /><Text style={{ color: c.text2 }}>{t('Translating your CV…')}</Text></View>}
           {!!error && <Text style={{ color: c.danger }}>{error}</Text>}
           {items && (
             <>

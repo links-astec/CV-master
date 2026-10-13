@@ -2,7 +2,7 @@
 // the same check and rules as the website's (8+ characters, the link works once, for 1 hour).
 // Setting the new password signs the person in.
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native'
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { X } from '@/components/icons'
@@ -14,6 +14,7 @@ import { useAuth } from '@/lib/auth'
 import { errorText } from '@/lib/ai'
 import { useLang } from '@/i18n'
 import { useTheme } from '@/lib/theme'
+import { BrandLoader } from '@/components/BrandLoader'
 
 export default function ResetPassword() {
   const { token = '' } = useLocalSearchParams<{ token?: string }>()
@@ -58,7 +59,7 @@ export default function ResetPassword() {
           <IconBtn icon={X} onPress={close} label={t('Close')} color={c.text3} />
         </View>
         <Txt w={800} size={28} style={{ letterSpacing: -0.5 }}>{t('Choose a new password')}</Txt>
-        {state === 'checking' && <ActivityIndicator color={c.accent} />}
+        {state === 'checking' && <BrandLoader size={36} />}
         {state === 'bad' && (
           <>
             <Txt color={c.danger} style={{ lineHeight: 22 }}>{why}</Txt>

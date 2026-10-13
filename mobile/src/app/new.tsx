@@ -1,7 +1,7 @@
 // New CV: fill it in step by step, import an existing CV, or tell your story. The CV is saved to
 // the account, so it is on the website too.
 import { useState } from 'react'
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as DocumentPicker from 'expo-document-picker'
@@ -13,6 +13,7 @@ import { importCv, startCv } from '@/lib/start'
 import { errorText } from '@/lib/ai'
 import { useLang } from '@/i18n'
 import { useTheme } from '@/lib/theme'
+import { BrandLoader } from '@/components/BrandLoader'
 
 const TYPES = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword', 'text/plain']
 
@@ -27,7 +28,7 @@ function Option({ icon: Icon, title, desc, onPress, busy, disabled }: { icon: Lu
         <Txt w={700} size={16.5}>{title}</Txt>
         <Txt size={14} color={c.text2} style={{ lineHeight: 20 }}>{desc}</Txt>
       </View>
-      {busy ? <ActivityIndicator color={c.accent} /> : <ChevronRight size={20} color={c.text3} />}
+      {busy ? <BrandLoader size={20} /> : <ChevronRight size={20} color={c.text3} />}
     </Pressable>
   )
 }

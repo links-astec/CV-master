@@ -1,7 +1,7 @@
 // Profile photo: picked from the library, cropped square, resized to 600px and saved as a JPEG
 // data URL, which is how the website stores it (the renderer only accepts data:image/... URLs).
 import { useState } from 'react'
-import { ActivityIndicator, Image, StyleSheet, View } from 'react-native'
+import { Image, StyleSheet, View } from 'react-native'
 import { Text } from '@/components/AppText'
 import * as ImagePicker from 'expo-image-picker'
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
@@ -9,6 +9,7 @@ import { setField } from '@/lib/editor'
 import { SmallAction } from '@/components/ui'
 import { useLang } from '@/i18n'
 import { useColors } from '@/lib/theme'
+import { BrandLoader } from '@/components/BrandLoader'
 
 export function PhotoField({ photo, initials }: { photo: string | null; initials: string }) {
   const { t } = useLang()
@@ -35,7 +36,7 @@ export function PhotoField({ photo, initials }: { photo: string | null; initials
   return (
     <View style={styles.wrap}>
       <View style={[styles.avatar, { backgroundColor: c.accentSoft, borderColor: c.border }]}>
-        {busy ? <ActivityIndicator color={c.accent} />
+        {busy ? <BrandLoader size={22} />
           : photo ? <Image source={{ uri: photo }} style={styles.img} accessibilityLabel={t('Profile Photo')} />
           : <Text style={{ color: c.accent, fontSize: 22, fontWeight: '700' }}>{initials}</Text>}
       </View>

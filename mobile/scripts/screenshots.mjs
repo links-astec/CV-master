@@ -1,6 +1,6 @@
 // Screenshots of the app's screens at phone size, from its web build, with the server faked.
 // 1) cd mobile && npx expo export --platform web --output-dir dist-web
-// 2) cd ../craftcv && SP=<folder> node ../mobile/scripts/screenshots.mjs [signedin|signedout|onboard|more]
+// 2) cd ../craftcv && SP=<folder> node ../mobile/scripts/screenshots.mjs [signedin|signedout|onboard|more|loader]
 // CV previews use web stand-ins (CvPreview.web.tsx, CvThumb.web.tsx); the phone app uses WebViews.
 // Screenshots of the mobile app's web build at phone size, with the server faked.
 // Run from craftcv/ (for express + puppeteer):  node <this> [signedin|signedout|onboard|more]
@@ -34,6 +34,8 @@ p.on('request', r => {
   if (!u.host.includes('cvmaster.live')) return r.continue()
   const headers = { 'Access-Control-Allow-Origin': site, 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type, X-CVMaster-Client', 'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE' }
   if (r.method() === 'OPTIONS') return r.respond({ status: 204, headers })
+  // loader mode: the blog's articles never arrive, so the blog stays on its loader
+  if (mode === 'loader' && u.pathname.startsWith('/api/posts')) return
   const signed = mode !== 'signedout'
   let status = 200, body = {}
   if (u.pathname === '/api/auth/me') { if (signed) body = user; else { status = 401; body = { error: 'Unauthorized' } } }
@@ -64,6 +66,9 @@ if (mode === 'signedout') {
   await tap('Skip'); await wait(700); await shot('2-welcome-last')
   await tap('Create free account'); await wait(1500); await shot('3-signup')
   await tap('Have an invite code?'); await wait(400); await shot('4-signup-code')
+}
+if (mode === 'loader') {
+  await p.goto(site + '/blog'); await wait(3500); await p.screenshot({ path: SP + '/app/loader-a.png' }); await wait(450); await p.screenshot({ path: SP + '/app/loader-b.png' })
 }
 if (mode === 'signedin') {
   await shot('1-mycvs')
