@@ -97,16 +97,17 @@ async function pick(l) {
 .tp-filter-note{font-size:13.5px;color:var(--c-text2)}
 .tp-name .badge{margin-left:6px;vertical-align:1px}
 .tp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:22px}
-.tp-card{display:flex;flex-direction:column;padding:0;background:var(--c-surface);border:1px solid var(--hair);border-radius:14px;overflow:hidden;text-align:left;
-  box-shadow:var(--shadow-xs);transition:box-shadow .18s,transform .18s,border-color .18s}
-.tp-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-3px)}
-.tp-card.current{border-color:var(--c-accent);box-shadow:0 0 0 2px var(--c-accent-ring)}
-.tp-thumb{position:relative;background:var(--c-canvas);padding:14px 14px 0}
-.tp-thumb :deep(.cvt){border-radius:4px 4px 0 0;box-shadow:0 1px 3px rgba(17,24,39,.08),0 6px 18px rgba(17,24,39,.08)}
+.tp-card{display:flex;flex-direction:column;padding:0;background:var(--c-surface);border:none;border-radius:24px;overflow:hidden;text-align:left;
+  box-shadow:var(--shadow-sm);transition:box-shadow .45s var(--ease),transform .45s var(--ease)}
+.tp-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-4px)}
+.tp-card.current{box-shadow:0 0 0 2px var(--c-accent),var(--shadow-lg)}
+.tp-thumb{position:relative;background:color-mix(in srgb,var(--c-text) 4%,var(--c-surface));padding:18px 18px 0}
+.tp-thumb :deep(.cvt){border-radius:4px 4px 0 0;box-shadow:0 1px 2px rgba(20,20,43,.05),0 12px 28px rgba(20,20,43,.10);transition:transform .45s var(--ease)}
+.tp-card:hover .tp-thumb :deep(.cvt){transform:translateY(-3px)}
 .tp-cur{position:absolute;top:10px;right:10px}
-.tp-hover{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(15,15,25,.18);opacity:0;transition:opacity .18s}
+.tp-hover{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(12,12,16,.14);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);opacity:0;transition:opacity .3s var(--ease)}
 .tp-card:hover .tp-hover{opacity:1}
-.tp-info{padding:14px 16px 16px;border-top:1px solid var(--c-border)}
+.tp-info{padding:16px 18px 18px}
 .tp-name{font-size:15px;font-weight:600;color:var(--c-text)}
 .tp-desc{font-size:13px;color:var(--c-text2);margin-top:3px;line-height:1.45}
 .tp-foot{margin-top:24px;font-size:13px;color:var(--c-text3);text-align:center}
