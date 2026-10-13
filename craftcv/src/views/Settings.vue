@@ -19,24 +19,63 @@
         <div class="st-rows">
           <div class="st-row">
             <label class="st-lbl" for="st-name">{{ $t('Display name') }}</label>
-            <input id="st-name" class="f-inp" v-model="name" :placeholder="auth.user?.name" />
+            <div class="st-name">
+              <input id="st-name" class="f-inp" v-model="name" :placeholder="auth.user?.name" @keydown.enter="dirty && saveProfile()" />
+              <Transition name="st-pop"><button v-if="dirty" class="btn-primary accent btn-sm" :disabled="saving" @click="saveProfile">{{ $t(saving ? 'Saving…' : 'Save') }}</button></Transition>
+            </div>
           </div>
-          <div class="st-row">
-            <label class="st-lbl" for="st-pw">{{ $t('Password') }}</label>
-            <div v-if="!changingPw"><button class="btn-secondary btn-sm st-inline" @click="changingPw = true">{{ $t('Change password') }}</button></div>
-            <div v-else class="st-pw-col">
-              <input v-if="auth.user?.hasPassword ?? auth.user?.provider !== 'google'" class="f-inp" v-model="currentPassword" type="password" :placeholder="$t('Current password')" autocomplete="current-password" />
-              <div class="st-pw">
-              <input id="st-pw" class="f-inp" v-model="newPassword" :type="showPw ? 'text' : 'password'" :placeholder="$t('New password (8+ characters)')" autocomplete="new-password" />
-              <button type="button" class="st-eye" :aria-label="$t(showPw ? 'Hide password' : 'Show password')" @click="showPw = !showPw">{{ $t(showPw ? 'Hide' : 'Show') }}</button>
-              </div>
+          <div class="st-row st-row-pw">
+            <span class="st-lbl">{{ $t('Password') }}</span>
+            <div class="st-pw-line">
+              <span v-if="hasPw" class="st-dots" aria-hidden="true">••••••••••</span>
+              <span v-else class="st-muted">{{ $t('Not set. You sign in with Google.') }}</span>
+              <button v-if="!changingPw" class="btn-secondary btn-sm" @click="openPw">{{ $t(hasPw ? 'Change' : 'Set a password') }}</button>
             </div>
           </div>
         </div>
         <div v-if="saveError" class="st-err">{{ $t(saveError) }}</div>
-        <div class="st-actions">
-          <button class="btn-primary accent" :disabled="saving || !dirty" @click="saveProfile">{{ $t(saving ? 'Saving…' : 'Save changes') }}</button>
-        </div>
+
+        <!-- Change (or set) the password: its own small form, with its own button -->
+        <Transition name="st-pwt">
+          <form v-if="changingPw" class="st-pwbox" @submit.prevent="savePassword">
+            <div class="st-pwbox-hd">
+              <span class="st-pwbox-ic"><svg viewBox="0 0 24 24"><rect x="4" y="10.5" width="16" height="10.5" rx="3"/><path d="M8 10.5V7.5a4 4 0 018 0v3"/></svg></span>
+              <div>
+                <div class="st-pwbox-t">{{ $t(hasPw ? 'Change your password' : 'Set a password') }}</div>
+                <p class="st-muted">{{ $t(hasPw ? 'Use at least 8 characters. Longer is stronger.' : 'Then you can also sign in with your email and this password.') }}</p>
+              </div>
+            </div>
+            <input class="st-sr" type="email" :value="auth.user?.email" autocomplete="username" tabindex="-1" aria-hidden="true" readonly />
+            <label v-if="hasPw" class="st-fld">
+              <span>{{ $t('Current password') }}</span>
+              <input ref="pwFirst" class="f-inp" v-model="currentPassword" type="password" autocomplete="current-password" />
+            </label>
+            <label class="st-fld">
+              <span>{{ $t('New password') }}</span>
+              <span class="st-pw">
+                <input ref="pwNew" class="f-inp" v-model="newPassword" :type="showPw ? 'text' : 'password'" autocomplete="new-password" />
+                <button type="button" class="st-eye" :aria-label="$t(showPw ? 'Hide password' : 'Show password')" :title="$t(showPw ? 'Hide password' : 'Show password')" @click="showPw = !showPw">
+                  <svg v-if="showPw" viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.8 10.8 0 0112 5c6.5 0 10 7 10 7a17.6 17.6 0 01-3.2 4.2M6.6 6.6C3.8 8.4 2 12 2 12s3.5 7 10 7a9.9 9.9 0 005.4-1.6"/><path d="M9.9 9.9a3 3 0 004.2 4.2"/></svg>
+                  <svg v-else viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </span>
+            </label>
+            <div class="st-strength" :class="'lv' + pwLevel" aria-live="polite">
+              <span class="st-bars"><i v-for="n in 4" :key="n"></i></span>
+              <span class="st-strength-t">{{ pwLevel ? $t(PW_LABELS[pwLevel]) : '' }}</span>
+            </div>
+            <label class="st-fld">
+              <span>{{ $t('Confirm new password') }}</span>
+              <input class="f-inp" v-model="confirmPassword" :type="showPw ? 'text' : 'password'" autocomplete="new-password" :class="{ bad: pwMismatch }" />
+            </label>
+            <div v-if="pwMismatch" class="st-err">{{ $t('Passwords don’t match') }}</div>
+            <div v-if="pwError" class="st-err">{{ $t(pwError) }}</div>
+            <div class="st-pwbox-f">
+              <button type="button" class="btn-ghost" @click="closePw">{{ $t('Cancel') }}</button>
+              <button class="btn-primary accent" :disabled="!pwValid || pwSaving">{{ $t(pwSaving ? 'Saving…' : hasPw ? 'Update password' : 'Set password') }}</button>
+            </div>
+          </form>
+        </Transition>
       </section>
 
       <!-- Guest -->
@@ -265,39 +304,77 @@ async function loadAiQuota() {
 
 // ── Profile ───────────────────────────────────────────────────────────────────
 const name        = ref(auth.user?.name || '')
-const newPassword = ref('')
-const currentPassword = ref('')
-const changingPw  = ref(false)
-const showPw      = ref(false)
 const saving      = ref(false)
 const saveError   = ref('')
-const dirty = computed(() => (name.value && name.value !== auth.user?.name) || !!newPassword.value)
+const dirty = computed(() => !!name.value.trim() && name.value.trim() !== auth.user?.name)
 
 async function saveProfile() {
   saveError.value = ''
-  if (newPassword.value && newPassword.value.length < 8) {
-    saveError.value = 'Password must be at least 8 characters.'
-    return
-  }
   saving.value = true
   try {
-    const body = {}
-    if (name.value && name.value !== auth.user?.name) body.name = name.value
-    if (newPassword.value) { body.password = newPassword.value; body.currentPassword = currentPassword.value }
     const r = await fetch(apiUrl('/api/auth/settings'), {
       method: 'PATCH', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ name: name.value.trim() }),
     })
     const data = await r.json()
     if (!r.ok) throw new Error(data.error)
-    if (auth.user && name.value) auth.user.name = name.value
-    newPassword.value = ''
-    currentPassword.value = ''
-    changingPw.value = false
+    if (auth.user) auth.user.name = name.value.trim()
     showToast('Saved')
   } catch (e) { saveError.value = e.message }
   saving.value = false
+}
+
+// ── Password: change it, or set a first one (Google accounts) ────────────────
+const hasPw = computed(() => auth.user?.hasPassword ?? auth.user?.provider !== 'google')
+const changingPw      = ref(false)
+const currentPassword = ref('')
+const newPassword     = ref('')
+const confirmPassword = ref('')
+const showPw   = ref(false)
+const pwSaving = ref(false)
+const pwError  = ref('')
+const pwFirst  = ref(null)
+const pwNew    = ref(null)
+const PW_LABELS = ['', 'Too short', 'Fair', 'Good', 'Strong']
+// 1 too short, 2 fair, 3 good, 4 strong: length plus a mix of lower case, capitals, numbers and symbols
+const pwLevel = computed(() => {
+  const p = newPassword.value
+  if (!p) return 0
+  if (p.length < 8) return 1
+  const mix = [/[a-z]/, /[A-Z]/, /\d/, /[^A-Za-z0-9]/].filter(rx => rx.test(p)).length + (p.length >= 12 ? 1 : 0)
+  return mix >= 4 ? 4 : mix === 3 ? 3 : 2
+})
+const pwMismatch = computed(() => !!confirmPassword.value && confirmPassword.value !== newPassword.value)
+const pwValid = computed(() => newPassword.value.length >= 8 && confirmPassword.value === newPassword.value && (!hasPw.value || !!currentPassword.value))
+
+function openPw() {
+  changingPw.value = true
+  setTimeout(() => (pwFirst.value || pwNew.value)?.focus(), 60)
+}
+function closePw() {
+  changingPw.value = false
+  currentPassword.value = newPassword.value = confirmPassword.value = pwError.value = ''
+  showPw.value = false
+}
+async function savePassword() {
+  if (!pwValid.value || pwSaving.value) return
+  pwError.value = ''
+  pwSaving.value = true
+  try {
+    const r = await fetch(apiUrl('/api/auth/settings'), {
+      method: 'PATCH', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: newPassword.value, currentPassword: currentPassword.value }),
+    })
+    const data = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(data.error || 'Could not save, please try again.')
+    const wasSet = hasPw.value
+    if (auth.user) auth.user.hasPassword = true
+    closePw()
+    showToast(wasSet ? 'Password updated' : 'Password set')
+  } catch (e) { pwError.value = e.message }
+  pwSaving.value = false
 }
 
 // Personalisation switch and onboarding answers. Saved as soon as they change
@@ -438,12 +515,44 @@ watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota() } }
 .st-rows{display:flex;flex-direction:column;gap:14px}
 .st-row{display:grid;grid-template-columns:140px 1fr;align-items:center;gap:14px}
 .st-lbl{font-size:14px;font-weight:600;color:var(--c-text)}
-.st-inline{padding-left:0}
-.st-pw-col{display:flex;flex-direction:column;gap:8px}
-.st-pw{position:relative}
-.st-pw .f-inp{padding-right:64px}
-.st-eye{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:12px;font-weight:600;color:var(--c-accent)}
-.st-actions{display:flex;justify-content:flex-end;margin-top:22px}
+.st-name{display:flex;gap:8px;align-items:center}
+.st-name .f-inp{flex:1;min-width:0}
+.st-pop-enter-active,.st-pop-leave-active{transition:opacity .2s var(--ease),transform .2s var(--ease)}
+.st-pop-enter-from,.st-pop-leave-to{opacity:0;transform:scale(.92)}
+.st-pw-line{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px}
+.st-dots{font-size:18px;letter-spacing:.12em;color:var(--c-text2);line-height:1}
+
+/* The password form */
+.st-pwbox{margin-top:20px;padding:24px;border-radius:22px;background:color-mix(in srgb,var(--c-text) 3.5%,var(--c-surface));display:flex;flex-direction:column;gap:14px;transform-origin:top center}
+.st-pwbox .f-inp{background:var(--c-surface)}
+.st-pwbox .f-inp:hover{background:var(--c-surface)}
+.st-pwbox-hd{display:flex;gap:14px;align-items:flex-start;margin-bottom:4px}
+.st-pwbox-ic{width:40px;height:40px;border-radius:13px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;background:radial-gradient(circle at 30% 25%,#8B85FF,#4338CA 60%,#2A2390);box-shadow:0 6px 16px rgba(67,56,202,.25)}
+.st-pwbox-ic svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.st-pwbox-t{font-size:16.5px;font-weight:700;letter-spacing:-.02em;color:var(--c-text);margin-bottom:2px}
+.st-fld{display:flex;flex-direction:column;gap:7px}
+.st-fld > span:first-child{font-size:13px;font-weight:600;color:var(--c-text2)}
+.st-fld .f-inp.bad{border-color:var(--c-rose)}
+.st-pw{position:relative;display:block}
+.st-pw .f-inp{padding-right:48px}
+.st-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:999px;background:none;border:none;color:var(--c-text3);display:flex;align-items:center;justify-content:center;transition:background .2s var(--ease),color .2s var(--ease)}
+.st-eye:hover{background:color-mix(in srgb,var(--c-text) 6%,transparent);color:var(--c-text)}
+.st-eye svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.st-strength{display:flex;align-items:center;gap:12px;margin-top:-4px;min-height:16px}
+.st-bars{flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.st-bars i{height:5px;border-radius:99px;background:color-mix(in srgb,var(--c-text) 9%,transparent);transition:background .3s var(--ease)}
+.st-strength-t{font-size:12.5px;font-weight:600;min-width:64px;text-align:right}
+.st-strength.lv1 .st-bars i:nth-child(-n+1){background:var(--c-rose)}
+.st-strength.lv2 .st-bars i:nth-child(-n+2){background:var(--c-amber)}
+.st-strength.lv3 .st-bars i:nth-child(-n+3){background:#22a35a}
+.st-strength.lv4 .st-bars i{background:var(--c-green)}
+.st-strength.lv1 .st-strength-t{color:var(--c-rose)}.st-strength.lv2 .st-strength-t{color:var(--c-amber)}
+.st-strength.lv3 .st-strength-t,.st-strength.lv4 .st-strength-t{color:var(--c-green)}
+.st-pwbox .st-err{margin-top:-6px}
+.st-pwbox-f{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
+.st-sr{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.st-pwt-enter-active,.st-pwt-leave-active{transition:opacity .3s var(--ease),transform .3s var(--ease)}
+.st-pwt-enter-from,.st-pwt-leave-to{opacity:0;transform:translateY(-6px) scale(.985)}
 .st-guest{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
 
 /* Invite */
@@ -491,6 +600,9 @@ watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota() } }
   .st-acct-name{font-size:19px}
   .st-card-hd{flex-direction:column}
   .st-row{grid-template-columns:1fr;gap:6px}
+  .st-row.st-row-pw{grid-template-columns:auto 1fr;gap:16px}
+  .st-pwbox{padding:20px 18px;border-radius:20px}
+  .st-pwbox-f .btn-primary{flex:1}
   .st-stats{grid-template-columns:1fr 1fr 1fr}
   .st-stats span{font-size:20px}
   .st-link{flex-direction:column}

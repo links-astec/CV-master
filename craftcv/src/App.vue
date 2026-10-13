@@ -60,7 +60,7 @@
 
     <!-- Main -->
     <div class="main">
-      <header class="top">
+      <header class="top" :class="{ 'top-quiet': bigTitle && !scrolledPast, 'top-lift': scrolledPast }">
         <button class="icon-btn show-mobile" @click="navOpen = true" :aria-label="$t('Menu')">
           <svg viewBox="0 0 24 24"><line x1="3" y1="7" x2="21" y2="7"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="17" x2="21" y2="17"/></svg>
         </button>
@@ -81,7 +81,7 @@
         <button class="btn-secondary btn-sm" :disabled="verifySending" @click="resendVerification">{{ $t(verifySent ? 'Sent ✓' : verifySending ? 'Sending…' : 'Resend email') }}</button>
         <button class="verify-x" :aria-label="$t('Hide')" @click="verifyHidden = true">×</button>
       </div>
-      <main class="content" :class="{ full: route.meta.full }">
+      <main class="content" :class="{ full: route.meta.full }" @scroll.capture="onContentScroll">
         <RouterView v-slot="{ Component, route: r }"><Transition name="page" mode="out-in"><component :is="Component" :key="r.path" /></Transition></RouterView>
       </main>
     </div>
@@ -421,7 +421,18 @@ onMounted(async () => {
 // Signing out elsewhere (Settings) returns to the guest experience
 // …and back to the homepage, so there's a clear way to sign in again or look around
 watch(() => auth.isLoggedIn, (v, was) => { if (was && !v) { store.resetData(); notif.items = []; showHome() } })
-watch(() => route.path, () => { navOpen.value = false })
+watch(() => route.path, () => { navOpen.value = false; scrolledPast.value = false; setTimeout(checkBigTitle, 350) })
+
+// Pages with a large title of their own (My CVs, Templates, Settings): the top bar stays quiet until it scrolls away
+const bigTitle = ref(false)
+const scrolledPast = ref(false)
+function checkBigTitle() { bigTitle.value = !!document.querySelector('.content .page-intro h1, .content .st-h1') }
+function onContentScroll(e) {
+  const y = e.target?.scrollTop || 0
+  scrolledPast.value = y > 64
+  if (!bigTitle.value) checkBigTitle()
+}
+onMounted(() => setTimeout(checkBigTitle, 400))
 </script>
 
 <style scoped>
@@ -459,7 +470,10 @@ watch(() => route.path, () => { navOpen.value = false })
 /* Main */
 .main{flex:1;min-width:0;display:flex;flex-direction:column}
 .top{height:var(--topbar);flex-shrink:0;display:flex;align-items:center;gap:12px;padding:0 20px 0 32px;background:color-mix(in srgb,var(--c-bg) 82%,transparent);backdrop-filter:saturate(1.8) blur(20px);-webkit-backdrop-filter:saturate(1.8) blur(20px);border-bottom:1px solid var(--hair)}
-.top-title{font-size:15px;font-weight:650;letter-spacing:-.015em;flex:1;min-width:0}
+.top-title{font-size:15px;font-weight:650;letter-spacing:-.015em;flex:1;min-width:0;transition:opacity .3s var(--ease),transform .3s var(--ease)}
+.top{transition:background .3s var(--ease),border-color .3s var(--ease)}
+.top.top-quiet{background:transparent;border-bottom-color:transparent;backdrop-filter:none;-webkit-backdrop-filter:none}
+.top.top-quiet .top-title{opacity:0;transform:translateY(6px)}
 .top-actions{display:flex;align-items:center;gap:4px}
 .content{flex:1;min-height:0;overflow:hidden}
 .content > :deep(*){height:100%}
