@@ -34,7 +34,7 @@
       </div>
 
       <div v-else-if="cards.length" class="db-grid">
-        <article v-for="c in cards" :key="c.key" class="db-card">
+        <article v-for="(c, i) in cards" :key="c.key" class="db-card" :style="{ '--i': i }">
           <button class="db-thumb" @click="open(c)" :aria-label="$t('Open {title}', { title: c.title })">
             <CvThumb :template="c.template" :data="c.data" :fmt="c.data.fmt || {}" />
           </button>
@@ -344,6 +344,11 @@ async function remove(c) {
 .db-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:24px}
 .db-card{background:var(--c-surface);border:none;border-radius:24px;overflow:hidden;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;transition:transform .45s var(--ease),box-shadow .45s var(--ease)}
 .db-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg)}
+/* the cards rise in one after another, like the homepage */
+.db-card{animation:dbIn .7s var(--ease) backwards;animation-delay:calc(var(--i,0) * 70ms + 80ms)}
+.db-next{animation:dbIn .7s var(--ease) backwards}
+@keyframes dbIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){ .db-card,.db-next{animation:none} }
 .db-skel{height:390px;border-radius:24px;background:linear-gradient(90deg,var(--c-surface) 25%,var(--c-surface2) 50%,var(--c-surface) 75%);background-size:200% 100%;animation:skel 1.2s infinite}
 @keyframes skel{to{background-position:-200% 0}}
 .db-thumb{display:block;border:none;padding:26px 28px 0;background:color-mix(in srgb,var(--c-text) 4%,var(--c-surface));height:250px;overflow:hidden;position:relative;-webkit-mask-image:linear-gradient(180deg,#000 78%,transparent);mask-image:linear-gradient(180deg,#000 78%,transparent)}

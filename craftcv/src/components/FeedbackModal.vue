@@ -118,32 +118,35 @@ defineExpose({ show })
 </script>
 
 <style scoped>
-.fb-backdrop{position:fixed;inset:0;z-index:9500;background:rgba(20,20,43,.5);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px}
-.fb{position:relative;width:100%;max-width:520px;max-height:92dvh;overflow-y:auto;background:var(--c-surface);border-radius:18px;padding:26px 26px 20px;box-shadow:var(--shadow-xl);border:1px solid var(--hair)}
-.fb-x{position:absolute;top:14px;right:14px}
-.fb h3{font-size:19px;font-weight:700;letter-spacing:-.01em;color:var(--c-text);margin:0 30px 6px 0}
-.fb-sub{font-size:13.5px;color:var(--c-text2);line-height:1.55;margin-bottom:18px}
-.fb-lbl{display:block;font-size:13px;font-weight:600;color:var(--c-text);margin:14px 0 7px}
+.fb-backdrop{position:fixed;inset:0;z-index:9500;background:rgba(12,12,16,.34);backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);display:flex;align-items:center;justify-content:center;padding:20px}
+.fb{position:relative;width:100%;max-width:520px;max-height:92dvh;overflow-y:auto;background:var(--c-surface);border-radius:30px;padding:34px 32px 26px;box-shadow:var(--shadow-xl);border:none}
+.fb-x{position:absolute;top:18px;right:18px;background:var(--fill)}
+.fb h3{font-size:26px;font-weight:800;letter-spacing:-.035em;line-height:1.15;color:var(--c-text);margin:0 40px 8px 0}
+.fb-sub{font-size:15px;color:var(--c-text2);line-height:1.55;margin-bottom:22px}
+.fb-lbl{display:block;font-size:14.5px;font-weight:700;letter-spacing:-.01em;color:var(--c-text);margin:20px 0 10px}
 .fb-opt{font-weight:400;color:var(--c-text3)}
-.fb-kinds{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.fb-kind{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 12px;border-radius:10px;border:1px solid var(--hair);background:var(--c-surface);text-align:left;transition:border-color .12s,background .12s}
-.fb-kind:hover{border-color:var(--c-border2)}
-.fb-kind.on{border-color:var(--c-accent);background:var(--c-accent-lt)}
-.fb-kind-t{font-size:13.5px;font-weight:600;color:var(--c-text)}
+.fb-kinds{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fb-kind{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:14px 16px;border-radius:18px;border:none;background:var(--fill);text-align:left;transition:background .2s var(--ease),box-shadow .2s var(--ease),transform .2s var(--ease)}
+.fb-kind:hover{background:var(--fill-hover)}
+.fb-kind:active{transform:scale(.98)}
+.fb-kind.on{background:var(--c-accent-lt);box-shadow:inset 0 0 0 2px var(--c-accent)}
+.fb-kind-t{font-size:14.5px;font-weight:650;letter-spacing:-.01em;color:var(--c-text)}
 .fb-kind.on .fb-kind-t{color:var(--c-accent)}
-.fb-kind-d{font-size:12px;color:var(--c-text3)}
+.fb-kind-d{font-size:12.5px;color:var(--c-text3)}
 .fb-err{margin-top:12px;font-size:12.5px;color:var(--c-rose)}
-.fb-ft{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;padding-top:14px;border-top:1px solid var(--c-border)}
+.fb-ft{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:22px}
+.fb-ft .btn-primary{height:46px;padding:0 26px;font-size:15px}
 .fb-note{font-size:12px;color:var(--c-text3);line-height:1.45}
 .fb-done{text-align:center;padding:10px 6px 4px}
-.fb-done-ic{width:52px;height:52px;border-radius:50%;background:var(--c-green-lt);display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+.fb-done-ic{width:64px;height:64px;border-radius:50%;background:var(--c-green-lt);display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
 .fb-done-ic svg{width:24px;height:24px;fill:none;stroke:var(--c-green);stroke-width:3}
 .fb-done h3{margin:0 0 8px}
 .fb-done p{font-size:13.5px;color:var(--c-text2);line-height:1.55;margin-bottom:8px}
 .fb-ref{font-size:12.5px;color:var(--c-text3);margin-bottom:16px!important}
 @media (max-width:600px){
   .fb-backdrop{padding:0;align-items:flex-end}
-  .fb{border-radius:18px 18px 0 0;max-width:100%;padding:22px 18px calc(18px + env(safe-area-inset-bottom))}
+  .fb{border-radius:30px 30px 0 0;max-width:100%;padding:28px 20px calc(20px + env(safe-area-inset-bottom))}
+  .fb h3{font-size:23px}
   .fb-ft{flex-direction:column;align-items:stretch}
 }
 </style>

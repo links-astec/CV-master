@@ -91,8 +91,8 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside))
 </script>
 
 <style scoped>
-.notif-icon { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.notif-icon svg { width: 14px; height: 14px; }
-.notif-count-badge { background: var(--c-accent); color: #fff; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 20px; margin-left: 7px; }
+.notif-icon { width: 38px; height: 38px; border-radius: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.notif-icon svg { width: 17px; height: 17px; }
+.notif-count-badge { background: var(--c-accent); color: #fff; font-size: 11px; font-weight: 700; letter-spacing: 0; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; margin-left: 8px; display: inline-flex; align-items: center; justify-content: center; }
 .notif-empty { padding: 32px 20px; text-align: center; color: var(--c-text3); font-size: 13px; display: flex; flex-direction: column; align-items: center; }
 </style>

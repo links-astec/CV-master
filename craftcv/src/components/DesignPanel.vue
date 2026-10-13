@@ -7,7 +7,8 @@
         <button v-for="l in LAYOUTS.filter(x => x.kind === k)" :key="l.id" class="dp-layout" :class="{ active: current.layout === l.id }"
                 @click="setLayout(l.id)" :title="$t(l.desc)">
           <CvThumb :template="`${l.id}:${current.theme}`" :data="thumbData" :fmt="store.fmt" />
-          <span>{{ $t(l.name) }}</span>
+          <span class="dp-lname">{{ $t(l.name) }}</span>
+          <span v-if="current.layout === l.id" class="dp-tick" aria-hidden="true"><svg viewBox="0 0 24 24"><polyline points="5 12.5 10 17.5 19 7"/></svg></span>
         </button>
       </div>
       </template>
@@ -115,14 +116,20 @@ function undoTranslate() {
 
 <style scoped>
 .dp-sec{margin-bottom:24px}
-.dp-hd{font-size:12.5px;font-weight:600;color:var(--c-text);margin-bottom:10px;display:flex;align-items:center;gap:8px}
-.dp-val{font-weight:500;color:var(--c-text3)}
-.dp-layouts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
-.dp-layout{display:flex;flex-direction:column;gap:6px;padding:0;background:none;border:none;text-align:center;font-size:12px;font-weight:500;color:var(--c-text2)}
-.dp-layout :deep(.cvt){border-radius:6px;border:1px solid var(--hair);box-shadow:var(--shadow-xs);transition:box-shadow .15s,border-color .15s}
-.dp-layout:hover :deep(.cvt){border-color:var(--c-border2);box-shadow:var(--shadow-sm)}
-.dp-layout.active{color:var(--c-accent);font-weight:600}
-.dp-layout.active :deep(.cvt){border-color:var(--c-accent);box-shadow:0 0 0 3px var(--c-accent-ring)}
+.dp-hd{font-size:14px;font-weight:700;letter-spacing:-.01em;color:var(--c-text);margin-bottom:12px;display:flex;align-items:baseline;gap:8px}
+.dp-val{font-size:13px;font-weight:500;color:var(--c-text3)}
+/* Two big previews per row, each on its own soft tile, so people can really see each layout */
+.dp-layouts{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:22px}
+.dp-layout{position:relative;display:flex;flex-direction:column;gap:12px;padding:16px 16px 14px;background:var(--fill);border:none;border-radius:20px;text-align:left;
+  transition:background .25s var(--ease),box-shadow .25s var(--ease),transform .25s var(--ease)}
+.dp-layout:hover{background:var(--fill-hover);transform:translateY(-2px)}
+.dp-layout :deep(.cvt){border-radius:4px;border:none;box-shadow:0 1px 2px rgba(20,20,43,.06),0 10px 24px rgba(20,20,43,.10);transition:transform .35s var(--ease)}
+.dp-layout:hover :deep(.cvt){transform:translateY(-2px)}
+.dp-lname{font-size:14px;font-weight:600;letter-spacing:-.01em;color:var(--c-text);padding:0 2px}
+.dp-layout.active{background:var(--c-accent-lt);box-shadow:inset 0 0 0 2px var(--c-accent)}
+.dp-layout.active .dp-lname{color:var(--c-accent)}
+.dp-tick{position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:50%;background:var(--c-accent);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 10px rgba(67,56,202,.35)}
+.dp-tick svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
 .dp-undo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;padding:8px 12px;border-radius:9px;background:var(--c-green-lt);color:var(--c-green);font-size:13px;font-weight:600}
 .dp-note{font-size:12.5px;color:var(--c-text3);margin-top:10px;line-height:1.5}
 .dp-hint{font-size:12px;color:var(--c-text3);margin-top:6px;line-height:1.45}
@@ -133,7 +140,6 @@ function undoTranslate() {
 .dp-seg{display:flex;width:100%}
 .dp-seg button{flex:1;padding:0 6px}
 .dp-grid{display:grid;grid-template-columns:1fr;gap:18px}
-/* Phones: two big previews per row so people can see what each layout really looks like */
-@media (max-width:640px){ .dp-layouts{grid-template-columns:repeat(2,1fr);gap:14px 12px} .dp-layout{font-size:13px} }
+@media (max-width:640px){ .dp-layouts{gap:12px} .dp-layout{padding:12px 12px 10px;border-radius:18px} }
 @media (max-width:420px){ .dp-swatches{grid-template-columns:repeat(6,1fr);max-width:260px} }
 </style>

@@ -493,7 +493,10 @@ watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota() } }
 <style scoped>
 .st{max-width:760px;display:flex;flex-direction:column;gap:20px}
 .st-h1{font-size:clamp(32px,4vw,44px);font-weight:800;letter-spacing:-.04em;line-height:1.05;color:var(--c-text);margin:4px 0 10px}
-.st-card{background:var(--c-surface);border:none;border-radius:26px;padding:28px 30px;box-shadow:var(--shadow-sm)}
+.st-card{background:var(--c-surface);border:none;border-radius:26px;padding:28px 30px;box-shadow:var(--shadow-sm);animation:stIn .7s var(--ease) backwards}
+.st > :nth-child(3){animation-delay:.07s}.st > :nth-child(4){animation-delay:.14s}.st > :nth-child(5){animation-delay:.21s}.st > :nth-child(n+6){animation-delay:.28s}
+@keyframes stIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){ .st-card{animation:none} }
 .st-card-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
 .st-card-t{font-size:19px;font-weight:750;letter-spacing:-.025em;color:var(--c-text);margin-bottom:6px}
 .st-p{font-size:14.5px;color:var(--c-text2);line-height:1.6}
