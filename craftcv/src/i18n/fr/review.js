@@ -98,4 +98,7 @@ export default {
   'Add more detail to your experience and summary. Recruiters want substance.': 'Ajoutez plus de détails à votre expérience et à votre résumé. Les recruteurs veulent du concret.',
   'Consider trimming. Recruiters spend 6–8 seconds on a first scan. Keep it focused.': 'Pensez à raccourcir. Les recruteurs passent 6 à 8 secondes sur une première lecture. Restez ciblé.',
   'Your CV has the right amount of content for a 1–2 page PDF.': 'Votre CV a la bonne quantité de contenu pour un PDF d’une à deux pages.',
+  'Poor': 'Décevant',
+  'Great': 'Très bien',
+  'Excellent': 'Excellent',
 }

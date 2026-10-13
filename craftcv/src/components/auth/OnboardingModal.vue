@@ -75,29 +75,38 @@ const industries = INDUSTRIES, goals = GOALS, expLevels = LEVELS
 </script>
 
 <style scoped>
-.ob-root{position:fixed;inset:0;z-index:1500;background:rgba(20,20,43,.55);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px}
-.ob-card{background:var(--c-surface);border-radius:20px;width:100%;max-width:540px;max-height:92dvh;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadow-xl);border:1px solid var(--hair)}
-.ob-body{padding:30px 30px 8px;overflow-y:auto}
-.ob-body h2{font-size:24px;font-weight:800;letter-spacing:-.02em;color:var(--c-text);margin:16px 0 6px}
-.ob-lead{font-size:14px;color:var(--c-text2);line-height:1.55;margin-bottom:22px}
+.ob-root{position:fixed;inset:0;z-index:1500;background:rgba(12,12,16,.34);backdrop-filter:blur(16px) saturate(1.2);-webkit-backdrop-filter:blur(16px) saturate(1.2);display:flex;align-items:center;justify-content:center;padding:20px;animation:obFade .35s var(--ease) both}
+.ob-card{position:relative;background:var(--c-surface);border-radius:30px;width:100%;max-width:580px;max-height:92dvh;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadow-xl);animation:obIn .5s var(--ease) both}
+/* a soft indigo glow behind the welcome, like the homepage */
+.ob-card::before{content:'';position:absolute;inset:0 0 auto 0;height:220px;background:radial-gradient(420px 200px at 15% -20%,color-mix(in srgb,var(--c-accent) 16%,transparent),transparent 70%);pointer-events:none}
+@keyframes obFade{from{opacity:0}to{opacity:1}}
+@keyframes obIn{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:none}}
+.ob-body{position:relative;padding:36px 36px 10px;overflow-y:auto}
+.ob-body h2{font-size:clamp(28px,4vw,34px);font-weight:800;letter-spacing:-.04em;line-height:1.08;color:var(--c-text);margin:20px 0 8px}
+.ob-lead{font-size:15.5px;color:var(--c-text2);line-height:1.55;margin-bottom:28px;max-width:440px}
 
-.ob-q{margin-bottom:20px}
-.ob-q-lbl{font-size:13px;font-weight:600;color:var(--c-text);margin-bottom:9px}
-.ob-chips{display:flex;flex-wrap:wrap;gap:7px}
-.ob-chip{height:34px;padding:0 13px;border-radius:99px;border:1px solid var(--hair);background:var(--c-surface);
-  font-size:13px;font-weight:500;color:var(--c-text2);display:inline-flex;align-items:center;gap:6px;transition:border-color .12s,background .12s,color .12s}
-.ob-chip:hover{border-color:var(--c-border2);color:var(--c-text)}
-.ob-chip.on{background:var(--c-accent-lt);border-color:var(--c-accent);color:var(--c-accent);font-weight:600}
-.ob-chip-sub{font-size:11.5px;color:var(--c-text3);font-weight:400}
-.ob-chip.on .ob-chip-sub{color:inherit;opacity:.75}
+.ob-q{margin-bottom:24px}
+.ob-q-lbl{font-size:15px;font-weight:700;letter-spacing:-.015em;color:var(--c-text);margin-bottom:12px}
+.ob-chips{display:flex;flex-wrap:wrap;gap:8px}
+.ob-chip{height:38px;padding:0 16px;border-radius:999px;border:none;background:var(--fill);
+  font-size:14px;font-weight:500;color:var(--c-text);display:inline-flex;align-items:center;gap:6px;
+  transition:background .2s var(--ease),color .2s var(--ease),box-shadow .2s var(--ease),transform .2s var(--ease)}
+.ob-chip:hover{background:var(--fill-hover)}
+.ob-chip:active{transform:scale(.97)}
+.ob-chip.on{background:var(--c-accent);color:#fff;font-weight:600;box-shadow:0 6px 16px rgba(67,56,202,.28)}
+.ob-chip-sub{font-size:12px;color:var(--c-text3);font-weight:500}
+.ob-chip.on .ob-chip-sub{color:rgba(255,255,255,.8)}
 
-.ob-footer{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 22px 18px 24px;border-top:1px solid var(--c-border);background:var(--c-surface)}
+.ob-footer{position:relative;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:16px 28px 24px 28px;background:linear-gradient(180deg,color-mix(in srgb,var(--c-surface) 0%,transparent),var(--c-surface) 30%)}
+.ob-footer .btn-primary{height:46px;padding:0 24px;font-size:15px}
 .ob-footer svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.2}
 
 @media (max-width:600px){
   .ob-root{padding:0;align-items:flex-end}
-  .ob-card{border-radius:20px 20px 0 0;max-width:100%;max-height:94dvh}
-  .ob-body{padding:24px 20px 4px}
+  .ob-card{border-radius:30px 30px 0 0;max-width:100%;max-height:94dvh}
+  .ob-body{padding:28px 22px 4px}
   .ob-footer{padding:12px 20px calc(18px + env(safe-area-inset-bottom))}
+  .ob-footer .btn-primary{flex:1}
 }
+@media (prefers-reduced-motion:reduce){ .ob-root,.ob-card{animation:none} }
 </style>

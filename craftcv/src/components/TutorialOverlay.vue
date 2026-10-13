@@ -13,13 +13,15 @@
                 :y="spotlightRect.y - 8"
                 :width="spotlightRect.width + 16"
                 :height="spotlightRect.height + 16"
-                rx="10"
+                rx="18"
                 fill="black"
               />
             </mask>
           </defs>
-          <rect width="100%" height="100%" fill="rgba(0,0,0,0.65)" mask="url(#tut-mask)"/>
+          <rect width="100%" height="100%" fill="rgba(12,12,16,0.58)" mask="url(#tut-mask)"/>
         </svg>
+        <!-- A soft glowing ring around what the step is about -->
+        <div v-if="spotlightRect" class="tut-ring" :style="{ left: spotlightRect.x - 8 + 'px', top: spotlightRect.y - 8 + 'px', width: spotlightRect.width + 16 + 'px', height: spotlightRect.height + 16 + 'px' }"></div>
         <!-- Full overlay when no spotlight -->
         <div v-else class="tut-overlay"></div>
 
@@ -223,116 +225,57 @@ onUnmounted(() => window.removeEventListener('resize', onResize))
 </script>
 
 <style scoped>
-.tut-fade-enter-active, .tut-fade-leave-active { transition: opacity .25s; }
-.tut-fade-enter-from, .tut-fade-leave-to { opacity: 0; }
+.tut-fade-enter-active,.tut-fade-leave-active{transition:opacity .3s var(--ease)}
+.tut-fade-enter-from,.tut-fade-leave-to{opacity:0}
 
-.tut-root { position: fixed; inset: 0; z-index: 2000; }
-
-.tut-spotlight {
-  position: fixed; inset: 0; width: 100%; height: 100%;
-  pointer-events: none;
-}
-.tut-overlay {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,.65);
-  pointer-events: none;
-}
+.tut-root{position:fixed;inset:0;z-index:2000}
+.tut-spotlight{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
+.tut-overlay{position:fixed;inset:0;background:rgba(12,12,16,.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);pointer-events:none}
+.tut-ring{position:fixed;border-radius:18px;pointer-events:none;box-shadow:0 0 0 2px rgba(255,255,255,.9),0 0 0 7px rgba(139,133,255,.45),0 0 40px rgba(139,133,255,.55);
+  transition:left .45s var(--ease),top .45s var(--ease),width .45s var(--ease),height .45s var(--ease);animation:tutPulse 2.2s ease-in-out infinite}
+@keyframes tutPulse{50%{box-shadow:0 0 0 2px rgba(255,255,255,.9),0 0 0 11px rgba(139,133,255,.18),0 0 54px rgba(139,133,255,.45)}}
 
 /* Card */
-.tut-card {
-  position: fixed;
-  width: 340px;
-  background: var(--c-surface);
-  border: 1px solid var(--c-border);
-  border-radius: 16px;
-  padding: 22px 22px 18px;
-  box-shadow: 0 24px 64px rgba(0,0,0,.3);
-  z-index: 2001;
-  pointer-events: all;
-}
-.tut-card--center {
-  top: 50% !important;
-  left: 50% !important;
-  transform: translate(-50%, -50%);
-}
+.tut-card{position:fixed;width:370px;background:var(--c-surface);border:none;border-radius:28px;padding:26px 26px 20px;box-shadow:0 2px 6px rgba(0,0,0,.06),0 30px 80px rgba(0,0,0,.32);
+  z-index:2001;pointer-events:all;transition:top .45s var(--ease),left .45s var(--ease)}
+.tut-card--center{top:50% !important;left:50% !important;transform:translate(-50%,-50%)}
 
-/* Dots */
-.tut-dots { display: flex; gap: 5px; margin-bottom: 16px; }
-.tut-dot {
-  height: 4px; border-radius: 2px;
-  background: var(--c-border2); transition: all .2s; width: 18px;
-}
-.tut-dot.active { background: var(--c-accent); width: 28px; }
-.tut-dot.done   { background: var(--c-green); }
+/* Progress */
+.tut-dots{display:flex;gap:5px;margin-bottom:20px}
+.tut-dot{height:5px;border-radius:99px;background:var(--fill-hover);transition:all .35s var(--ease);width:20px}
+.tut-dot.active{background:var(--c-accent);width:34px}
+.tut-dot.done{background:color-mix(in srgb,var(--c-accent) 40%,var(--c-surface))}
 
-/* Icon */
-.tut-icon {
-  width: 46px; height: 46px; border-radius: 12px;
-  display: flex; align-items: center; justify-content: center;
-  margin-bottom: 13px; color: var(--c-accent);
-}
+/* Icon: the brand gradient, like the app icon */
+.tut-icon{width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;color:#fff !important;
+  background:radial-gradient(circle at 30% 25%,#8B85FF,#4338CA 60%,#2A2390) !important;box-shadow:0 10px 24px rgba(67,56,202,.3)}
+.tut-icon :deep(svg),.tut-icon svg{color:#fff;stroke:#fff}
 
 /* Text */
-.tut-title { font-size: 16px; font-weight: 700; color: var(--c-text); margin-bottom: 7px; }
-.tut-desc  { font-size: 13.5px; color: var(--c-text2); line-height: 1.65; margin-bottom: 12px; }
+.tut-title{font-size:20px;font-weight:750;letter-spacing:-.025em;line-height:1.25;color:var(--c-text);margin-bottom:8px}
+.tut-desc{font-size:14.5px;color:var(--c-text2);line-height:1.6;margin-bottom:16px}
 
 /* Tip */
-.tut-tip {
-  display: flex; align-items: flex-start; gap: 7px;
-  background: var(--c-amber-lt); border: 1px solid rgba(210,153,34,.2);
-  color: var(--c-amber); border-radius: 8px;
-  padding: 8px 11px; font-size: 12px; line-height: 1.5;
-  margin-bottom: 16px;
-}
+.tut-tip{display:flex;align-items:flex-start;gap:8px;background:var(--fill);border:none;color:var(--c-text2);border-radius:16px;padding:11px 14px;font-size:13px;line-height:1.5;margin-bottom:18px}
 
 /* Actions */
-.tut-actions {
-  display: flex; align-items: center;
-  justify-content: space-between; gap: 8px;
-  margin-bottom: 10px;
-}
-.tut-skip {
-  background: none; border: none; color: var(--c-text3);
-  font-size: 12.5px; cursor: pointer; font-family:inherit;
-  padding: 0; transition: color .15s;
-}
-.tut-skip:hover { color: var(--c-text); }
-.tut-nav { display: flex; gap: 6px; }
-.tut-back {
-  display: flex; align-items: center; justify-content: center;
-  width: 34px; height: 34px; border-radius: 8px;
-  border: 1px solid var(--c-border); background: var(--c-bg);
-  color: var(--c-text2); cursor: pointer; transition: all .15s;
-}
-.tut-back:hover { border-color: var(--c-border2); color: var(--c-text); }
-.tut-next {
-  display: flex; align-items: center; gap: 6px;
-  background: var(--c-accent); color: #fff; border: none;
-  padding: 9px 18px; border-radius: 8px; font-size: 13.5px;
-  font-weight: 600; cursor: pointer; font-family:inherit;
-  transition: opacity .15s;
-}
-.tut-next:hover { opacity: .88; }
+.tut-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.tut-skip{background:none;border:none;color:var(--c-text3);font-size:13.5px;font-weight:500;cursor:pointer;font-family:inherit;padding:8px 4px;transition:color .2s}
+.tut-skip:hover{color:var(--c-text)}
+.tut-nav{display:flex;gap:8px}
+.tut-back{display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:999px;border:none;background:var(--fill);color:var(--c-text);cursor:pointer;transition:background .2s var(--ease)}
+.tut-back:hover{background:var(--fill-hover)}
+.tut-next{display:flex;align-items:center;gap:7px;background:var(--c-accent);color:#fff;border:none;height:42px;padding:0 20px;border-radius:999px;font-size:14.5px;font-weight:600;cursor:pointer;font-family:inherit;
+  box-shadow:0 6px 16px rgba(67,56,202,.3);transition:background .2s var(--ease),transform .2s var(--ease)}
+.tut-next:hover{background:var(--c-accent-dk)}
+.tut-next:active,.tut-back:active{transform:scale(.97)}
 
-/* Counter */
-.tut-counter {
-  text-align: center; font-size: 11px; color: var(--c-text3);
-}
+.tut-counter{text-align:center;font-size:12px;font-weight:500;color:var(--c-text3)}
 
-/* Mobile */
-@media (max-width: 480px) {
-  .tut-card {
-    width: calc(100vw - 32px);
-    left: 16px !important;
-    right: 16px;
-    bottom: 20px;
-    top: auto !important;
-    transform: none !important;
-  }
-  .tut-card--center {
-    top: auto !important;
-    left: 16px !important;
-    transform: none !important;
-  }
+/* Phones: a sheet at the bottom */
+@media (max-width:480px){
+  .tut-card{width:auto;left:10px !important;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));top:auto !important;transform:none !important;border-radius:28px;padding:24px 22px 18px}
+  .tut-card--center{top:auto !important;left:10px !important;transform:none !important}
 }
+@media (prefers-reduced-motion:reduce){ .tut-ring{animation:none} .tut-card,.tut-ring{transition:none} }
 </style>
