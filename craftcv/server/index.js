@@ -3478,21 +3478,26 @@ async function runStatus() {
     }),
     check('Security', 'caa', 'Who may issue certificates (CAA)', async () => {
       const recs = await dns.resolveCaa(APEX).catch(() => []);
-      const issuers = recs.filter(r => r.issue).map(r => r.issue);
-      return issuers.length ? { state: 'ok', detail: `Only ${issuers.join(' and ')}` } : { state: 'warn', detail: 'No CAA record: add 0 issue "letsencrypt.org", "pki.goog" and "ssl.com"' };
+      const NAMES = { 'letsencrypt.org': 'Let’s Encrypt', 'pki.goog': 'Google Trust Services', 'ssl.com': 'SSL.com', 'digicert.com': 'DigiCert', 'comodoca.com': 'Sectigo', 'sectigo.com': 'Sectigo' };
+      const issuers = [...new Set(recs.filter(r => r.issue).map(r => { const d = r.issue.split(';')[0].trim().toLowerCase(); return NAMES[d] || d; }))];
+      return issuers.length ? { state: 'ok', detail: `Only ${issuers.join(', ')}` } : { state: 'warn', detail: 'No CAA record: add 0 issue "letsencrypt.org", "pki.goog" and "ssl.com"' };
     }),
     check('Security', 'dns', 'Domain DNS and DNSSEC', async () => {
       const ns = (await dns.resolveNs(APEX).catch(() => [])).join(', ');
-      const ds = await withTimeout(fetch(`https://cloudflare-dns.com/dns-query?name=${APEX}&type=DS`, { headers: { accept: 'application/dns-json' }, signal: AbortSignal.timeout(8000) }).then(r => r.json())).catch(() => null);
-      const dnssec = !!ds?.Answer?.length;
-      const onCf = /cloudflare\.com/i.test(ns);
-      const where = onCf ? 'DNS on Cloudflare' : `DNS at ${ns.includes('registrar-servers') ? 'Namecheap' : ns || 'unknown'}`;
-      return { state: dnssec ? 'ok' : 'warn', detail: `${where} · DNSSEC ${dnssec ? 'on' : 'off'}${dnssec ? '' : ': turn it on so the domain’s records can’t be forged'}` };
+      const where = /cloudflare\.com/i.test(ns) ? 'DNS on Cloudflare' : `DNS at ${ns.includes('registrar-servers') ? 'Namecheap' : ns || 'unknown'}`;
+      const getJson = (url, headers) => withTimeout(fetch(url, { headers, signal: AbortSignal.timeout(8000) }).then(r => r.json())).catch(() => null);
+      // the registry says whether the domain is signed (no caching); a validating resolver says whether it checks out
+      const [rdap, doh] = await Promise.all([getJson(`https://rdap.org/domain/${APEX}`), getJson(`https://cloudflare-dns.com/dns-query?name=${APEX}&type=A&do=1`, { accept: 'application/dns-json' })]);
+      const signed = rdap?.secureDNS ? !!rdap.secureDNS.delegationSigned : null;
+      if (doh?.Status === 2) return { state: 'down', detail: `${where} · DNSSEC fails: resolvers can’t verify the records, so many visitors can’t reach the site. Check the DS record at Namecheap matches Cloudflare` };
+      if (signed === false) return { state: 'warn', detail: `${where} · DNSSEC off: turn it on so the domain’s records can’t be forged` };
+      if (doh?.AD) return { state: 'ok', detail: `${where} · DNSSEC on and verified` };
+      return { state: 'ok', detail: `${where} · DNSSEC on at the registry; resolvers confirm it within a day` };
     }),
     check('Security', 'admin-2fa', 'Admin two-step sign-in', async () => {
       await ensureAdminSecurity();
       const r = (await query('SELECT COUNT(*)::int AS n, COUNT(*) FILTER (WHERE totp_secret IS NOT NULL)::int AS on FROM admins')).rows[0];
-      return r.on === r.n ? { state: 'ok', detail: `On for all ${r.n} admin${r.n === 1 ? '' : 's'}` }
+      return r.on === r.n ? { state: 'ok', detail: r.n === 1 ? 'On for the only admin' : `On for all ${r.n} admins` }
         : { state: 'warn', detail: `${r.n - r.on} of ${r.n} admins sign in with a password only. Turn it on in Settings → Account security, or remove unused admins` };
     }),
     // ── AI
