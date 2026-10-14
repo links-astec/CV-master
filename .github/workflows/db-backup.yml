@@ -1,0 +1,63 @@
+# Daily encrypted backup of the CVMaster database (Neon, PostgreSQL 18).
+# - Connects with a read-only role (secret BACKUP_DATABASE_URL), so a backup can never change data.
+# - Checks the dump can be read, then encrypts it with .github/backup-public-key.asc. Only the private key
+#   (kept offline by the owner, not on GitHub) can open it. The unencrypted dump never leaves the runner.
+# - Keeps each backup for 30 days as a private workflow artifact. GitHub emails the owner if a run fails.
+# Restore: see "Restoring a backup" in README.md.
+name: Database backup
+
+on:
+  schedule:
+    - cron: '17 2 * * *'   # every day at 02:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+          persist-credentials: false
+
+      - name: Install the PostgreSQL 18 client
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-18 > /dev/null
+
+      - name: Dump, check and encrypt
+        env:
+          DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          umask 077
+          STAMP=$(date -u +%Y-%m-%d)
+          PG=/usr/lib/postgresql/18/bin
+          $PG/pg_dump "$DATABASE_URL" --format=custom --compress=9 --no-owner --no-privileges --file=db.dump
+          # the archive must be readable, with the main tables in it
+          $PG/pg_restore --list db.dump > contents.txt
+          for t in users drafts payments admins; do grep -q "TABLE public $t " contents.txt || { echo "Table $t missing from the dump"; exit 1; }; done
+          echo "Tables in backup: $(grep -c ' TABLE public ' contents.txt)"
+          gpg --batch --yes --trust-model always --recipient-file .github/backup-public-key.asc \
+              --output "cvmaster-db-$STAMP.dump.gpg" --encrypt db.dump
+          shred -u db.dump contents.txt
+          ls -la cvmaster-db-*.dump.gpg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cvmaster-db-${{ github.run_number }}
+          path: cvmaster-db-*.dump.gpg
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
