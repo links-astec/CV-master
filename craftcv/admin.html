@@ -307,6 +307,18 @@ input[type=range]{flex:1;accent-color:var(--ac)}
 .alert-error{background:var(--red-lt);color:var(--red)}
 .flex{display:flex;align-items:center;gap:8px}
 
+/* ── Account security ── */
+.sec-row{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.sec-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.sec-qr{display:flex;justify-content:center;margin:14px 0}.sec-qr svg{width:200px;height:200px;border-radius:12px;background:#fff;padding:6px}
+.sec-key{font-family:ui-monospace,Menlo,monospace;font-size:13px;background:var(--s2);padding:2px 8px;border-radius:6px;user-select:all}
+.sec-codes{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.sec-codes code{font-family:ui-monospace,Menlo,monospace;font-size:14px;text-align:center;background:var(--s2);padding:9px;border-radius:10px;letter-spacing:.04em}
+.dlg-wide{max-width:460px}
+.li-step{display:flex;flex-direction:column;gap:4px;padding:14px 16px;border-radius:14px;background:var(--ac-lt);font-size:13px;color:var(--t2)}
+.li-step b{font-size:14px;color:var(--t1)}
+.li-code{font-family:ui-monospace,Menlo,monospace;font-size:20px;letter-spacing:.2em;text-align:center}
+
 /* ── Login ── */
 .login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:radial-gradient(700px 400px at 50% 0%,#E4E7FF,transparent 70%),var(--bg)}
 .login-card{width:100%;max-width:380px;background:var(--s1);border:1px solid var(--b1);border-radius:20px;padding:32px;box-shadow:var(--shadow-lg)}
@@ -606,7 +618,8 @@ const S = {
   email: { subject: '', plan: 'all', testTo: '', sending: false, sent: false, sentCount: 0, err: '', important: false, people: [] },
   history: null,
   blocks: [], dragSrc: null,
-  login: { email: '', password: '', err: '', loading: false, remember: false },
+  login: { email: '', password: '', err: '', loading: false, remember: false, needCode: false, code: '' },
+  sec: null,
   status: null, statusLoading: false,
   blog: { items: null, loading: false, edit: null, saving: false, tab: 'write' },
   toast: '',
@@ -671,8 +684,13 @@ async function checkAuth() {
 }
 async function login() {
   S.login.loading = true; S.login.err = ''; render()
-  try { await api('POST', '/login', { email: S.login.email, password: S.login.password, remember: S.login.remember }); S.auth = await api('GET', '/me'); await go('overview') }
-  catch (e) { S.login.err = e.message; S.login.loading = false; render() }
+  try {
+    const r = await api('POST', '/login', { email: S.login.email, password: S.login.password, remember: S.login.remember, ...(S.login.needCode ? { code: S.login.code } : {}) })
+    if (r.needCode) { S.login.needCode = true; S.login.loading = false; render(); setTimeout(() => $('li-code')?.focus(), 0); return }
+    S.login.password = ''; S.login.code = ''; S.login.needCode = false
+    S.auth = await api('GET', '/me'); await go('overview')
+  }
+  catch (e) { S.login.err = e.message; S.login.loading = false; S.login.code = ''; render(); if (S.login.needCode) setTimeout(() => $('li-code')?.focus(), 0) }
 }
 async function logout() { S.moreOpen = false; await api('POST', '/logout').catch(() => {}); S.auth = null; render() }
 
@@ -699,7 +717,7 @@ async function go(p) {
   if (p === 'reviews') await loadReviews()
   if (p === 'subscribers' || p === 'newsletter') await loadSubs()
   if (p === 'newsletter') { loadHistory(); loadMyTemplates() }
-  if (p === 'settings') await Promise.all([loadStatus(), S.stats ? null : loadStats()])
+  if (p === 'settings') await Promise.all([loadStatus(), S.stats ? null : loadStats(), loadSecurity()])
   if (p === 'overview' && !S.status) loadStatus()
   if (p === 'app') await loadActivity()
   if (p === 'blog' && !S.blog.edit) await loadPosts()
@@ -1324,11 +1342,89 @@ function renderSettings() {
       <div class="maint"><div><b>${S.maintenance ? 'The site is in maintenance' : 'The site is live'}</b><div class="muted" style="font-size:13px;margin-top:2px">Maintenance shows everyone a “back soon” page. This admin panel keeps working.</div></div>
       <label class="toggle"><input type="checkbox" id="maint-toggle" ${S.maintenance ? 'checked' : ''} ${S.maintLoading ? 'disabled' : ''}><span class="toggle-track"></span></label></div>
     </div></div>
+    <div class="card"><div class="card-hd"><h3>Account security</h3></div><div class="card-bd">${renderSecurity()}</div></div>
     <div class="card" style="grid-column:1/-1"><div class="card-hd"><h3>Status: website, server and phone app</h3>
       <button class="btn btn-sm" data-act="status-refresh" ${S.statusLoading ? 'disabled' : ''}>${svg('refresh')} Check now</button></div><div class="card-bd">
       ${renderStatus()}
     </div></div>
   </div>`
+}
+
+// ── ACCOUNT SECURITY ──────────────────────────────────────────────────────────
+async function loadSecurity() { try { S.sec = await api('GET', '/security') } catch { S.sec = null } render() }
+function renderSecurity() {
+  const x = S.sec
+  if (!x) return '<div class="loading"><span class="spinner"></span></div>'
+  return `<div class="sec-row"><div><b>Two-step sign-in</b><div class="muted" style="font-size:13px;margin-top:2px">${x.twoStep
+      ? `On. Signing in needs your password and a code from your authenticator app. ${x.backupLeft} backup code${x.backupLeft === 1 ? '' : 's'} left.`
+      : 'Off. Turn it on so a stolen password alone can’t open this admin.'}</div></div>
+    <span class="badge ${x.twoStep ? 'b-green' : 'b-amber'}">${x.twoStep ? 'On' : 'Off'}</span></div>
+  <div class="sec-acts">${x.twoStep
+      ? '<button class="btn btn-sm" data-act="sec-codes">New backup codes</button><button class="btn btn-sm btn-danger" data-act="sec-off">Turn off</button>'
+      : '<button class="btn btn-sm btn-primary" data-act="sec-setup">Turn on two-step sign-in</button>'}</div>
+  <div class="sec-row" style="border-top:1px solid var(--b1);margin-top:16px;padding-top:16px"><div><b>Sign out on all devices</b><div class="muted" style="font-size:13px;margin-top:2px">Ends every admin session, including this one, on every phone and computer.</div></div>
+    <button class="btn btn-sm" data-act="sec-signout-all">Sign out everywhere</button></div>`
+}
+// A dialog with free content (the QR code, the backup codes); resolves with the input's value, or null
+function panel({ title, html, input = null, ok = 'Done', cancel = 'Cancel', noCancel = false }) {
+  return new Promise(resolve => {
+    const wrap = document.createElement('div')
+    wrap.className = 'dlg-back'
+    wrap.innerHTML = `<div class="dlg dlg-wide" role="dialog" aria-modal="true" aria-labelledby="dlg-t"><div class="dlg-t" id="dlg-t">${esc(title)}</div>${html}
+      ${input ? `<input class="inp dlg-in" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="${esc(input)}">` : ''}
+      <div class="dlg-f">${noCancel ? '' : `<button class="btn" data-x="0">${esc(cancel)}</button>`}<button class="btn btn-primary" data-x="1">${esc(ok)}</button></div></div>`
+    const field = wrap.querySelector('.dlg-in')
+    const done = (yes) => { document.removeEventListener('keydown', onKey, true); wrap.remove(); resolve(yes ? (field ? field.value.trim() || null : true) : null) }
+    const onKey = (e) => { if (e.key === 'Escape' && !noCancel) { e.preventDefault(); done(false) } if (e.key === 'Enter' && field) { e.preventDefault(); done(true) } }
+    wrap.addEventListener('click', (e) => { const b = e.target.closest('[data-x]'); if (b) done(b.dataset.x === '1'); const c = e.target.closest('[data-copy]'); if (c) navigator.clipboard?.writeText(c.dataset.copy).then(() => toast('Copied')) ; const d = e.target.closest('[data-dl]'); if (d) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([d.dataset.dl], { type: 'text/plain' })); a.download = 'cvmaster-admin-backup-codes.txt'; a.click() } })
+    document.addEventListener('keydown', onKey, true)
+    document.body.appendChild(wrap)
+    ;(field || wrap.querySelector('[data-x="1"]')).focus()
+  })
+}
+async function showBackupCodes(codes) {
+  const text = 'CVMaster admin backup codes (each works once)\n' + S.auth.email + '\n\n' + codes.join('\n') + '\n'
+  await panel({ title: 'Save your backup codes', noCancel: true, ok: 'I’ve saved them',
+    html: `<div class="dlg-m">If you lose your phone, each of these codes signs you in once. Keep them somewhere safe, like a password manager. They won’t be shown again.</div>
+      <div class="sec-codes">${codes.map(c => `<code>${esc(c)}</code>`).join('')}</div>
+      <div class="sec-acts" style="margin-top:12px"><button class="btn btn-sm" data-copy="${esc(codes.join('\n'))}">Copy</button><button class="btn btn-sm" data-dl="${esc(text)}">Download</button></div>` })
+}
+async function setupTwoStep() {
+  let x
+  try { x = await api('POST', '/2fa/setup') } catch (e) { toast(e.message); return }
+  let err = ''
+  for (;;) {
+    const code = await panel({ title: 'Turn on two-step sign-in', ok: 'Turn on', input: '6-digit code',
+      html: `<div class="dlg-m">1. Open an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password…) and scan this code.</div>
+        <div class="sec-qr">${x.qr}</div>
+        <div class="dlg-m" style="font-size:13px">Can’t scan? Enter this key instead: <code class="sec-key">${esc(x.secret)}</code></div>
+        <div class="dlg-m">2. Enter the 6-digit code the app shows.</div>${err ? `<div class="alert alert-err" style="margin-top:10px">${esc(err)}</div>` : ''}` })
+    if (!code) return
+    try { const r = await api('POST', '/2fa/enable', { code }); await loadSecurity(); toast('Two-step sign-in is on'); await showBackupCodes(r.codes); return }
+    catch (e) { err = e.message }
+  }
+}
+async function confirmWithPassword(title, okLabel, danger) {
+  const password = await dialog({ title, message: 'Enter your admin password.', input: '', type: 'password', autocomplete: 'current-password', ok: 'Next' })
+  if (!password) return null
+  const code = await dialog({ title, message: 'Enter the 6-digit code from your authenticator app, or a backup code.', input: '', type: 'code', autocomplete: 'one-time-code', placeholder: '123 456', ok: okLabel, danger })
+  if (!code) return null
+  return { password, code }
+}
+async function turnOffTwoStep() {
+  const c = await confirmWithPassword('Turn off two-step sign-in?', 'Turn off', true)
+  if (!c) return
+  try { await api('POST', '/2fa/disable', c); await loadSecurity(); toast('Two-step sign-in is off') } catch (e) { toast(e.message) }
+}
+async function regenerateCodes() {
+  const c = await confirmWithPassword('New backup codes', 'Make new codes', false)
+  if (!c) return
+  try { const r = await api('POST', '/2fa/backup-codes', c); await loadSecurity(); await showBackupCodes(r.codes) } catch (e) { toast(e.message) }
+}
+async function signOutEverywhere() {
+  if (!(await ask({ title: 'Sign out on all devices?', message: 'Every admin session ends, including this one. You’ll need to sign in again.', ok: 'Sign out everywhere', danger: true }))) return
+  try { await api('POST', '/signout-all') } catch {}
+  S.auth = null; S.sec = null; render()
 }
 
 // ── EMAIL BUILDER ─────────────────────────────────────────────────────────────
@@ -1533,14 +1629,14 @@ async function clearBlocks() {
 // ── Dialogs ───────────────────────────────────────────────────────────────────
 // Our own confirm / text-input dialog (never the browser's confirm, prompt or alert).
 // ask({ title, message, ok, danger }) → true/false; askText({ title, message, value, ok }) → string or null
-function dialog({ title, message = '', ok = 'Confirm', cancel = 'Cancel', danger = false, input = null }) {
+function dialog({ title, message = '', ok = 'Confirm', cancel = 'Cancel', danger = false, input = null, type = 'text', placeholder = '', autocomplete = 'off' }) {
   return new Promise(resolve => {
     const wrap = document.createElement('div')
     wrap.className = 'dlg-back'
     wrap.innerHTML = `<div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-t">
       <div class="dlg-t" id="dlg-t">${esc(title)}</div>
       ${message ? `<div class="dlg-m">${esc(message)}</div>` : ''}
-      ${input !== null ? `<input class="inp dlg-in" value="${esc(input)}">` : ''}
+      ${input !== null ? `<input class="inp dlg-in" type="${type === 'code' ? 'text' : esc(type)}" value="${esc(input)}" placeholder="${esc(placeholder)}" autocomplete="${esc(autocomplete)}"${type === 'code' ? ' inputmode="numeric"' : ''}>` : ''}
       <div class="dlg-f"><button class="btn" data-x="0">${esc(cancel)}</button><button class="btn ${danger ? 'btn-danger-solid' : 'btn-primary'}" data-x="1">${esc(ok)}</button></div></div>`
     const field = wrap.querySelector('.dlg-in')
     const done = (yes) => {
@@ -1984,12 +2080,17 @@ function renderLogin() {
     <div class="login-brand">${LOGO_LOGIN}</div>
     <div class="login-sub">Admin, authorised access only</div>
     ${S.login.err ? `<div class="alert alert-err">${esc(S.login.err)}</div>` : ''}
-    <form data-form="login">
+    ${S.login.needCode ? `<form data-form="login">
+      <div class="li-step"><b>Two-step sign-in</b><span>Enter the 6-digit code from your authenticator app, or one of your backup codes.</span></div>
+      <div><label class="lbl" for="li-code">Code</label><input class="inp li-code" id="li-code" inputmode="numeric" autocomplete="one-time-code" maxlength="11" placeholder="123 456" required></div>
+      <button class="btn btn-primary" style="height:42px" ${S.login.loading ? 'disabled' : ''}>${S.login.loading ? '<span class="spinner"></span>' : 'Verify and sign in'}</button>
+      <button type="button" class="btn btn-ghost" data-act="login-back">Back</button>
+    </form>` : `<form data-form="login">
       <div><label class="lbl" for="li-email">Email</label><input class="inp" id="li-email" type="email" value="${esc(S.login.email)}" autocomplete="username" required></div>
       <div><label class="lbl" for="li-pass">Password</label><input class="inp" id="li-pass" type="password" autocomplete="current-password" required></div>
       <label class="notice-check" style="margin:0"><input type="checkbox" id="li-remember" ${S.login.remember ? 'checked' : ''}> Keep me signed in on this device for 30 days</label>
       <button class="btn btn-primary" style="height:42px" ${S.login.loading ? 'disabled' : ''}>${S.login.loading ? '<span class="spinner"></span>' : 'Sign in'}</button>
-    </form></div></div>`
+    </form>`}</div></div>`
 }
 
 function renderApp() {
@@ -2120,6 +2221,11 @@ document.addEventListener('click', (e) => {
   const a = t.dataset.act
   if (a === 'logout') logout()
   else if (a === 'stats-refresh') { S.stats = null; loadStats() }
+  else if (a === 'login-back') { S.login.needCode = false; S.login.code = ''; S.login.err = ''; render() }
+  else if (a === 'sec-setup') setupTwoStep()
+  else if (a === 'sec-off') turnOffTwoStep()
+  else if (a === 'sec-codes') regenerateCodes()
+  else if (a === 'sec-signout-all') signOutEverywhere()
   else if (a === 'config-refresh') { S.config = null; render(); loadConfig() }
   else if (a === 'status-refresh') loadStatus(true)
   else if (a === 'rv-min-save') saveReviewsMin()
@@ -2154,7 +2260,7 @@ document.addEventListener('submit', (e) => {
   const f = e.target.dataset.form
   if (!f) return
   e.preventDefault()
-  if (f === 'login') { S.login.email = $('li-email').value; S.login.password = $('li-pass').value; S.login.remember = !!$('li-remember')?.checked; login() }
+  if (f === 'login') { if (S.login.needCode) S.login.code = $('li-code').value; else { S.login.email = $('li-email').value; S.login.password = $('li-pass').value; S.login.remember = !!$('li-remember')?.checked } login() }
   if (f === 'user-search') { S.uSearch = $('u-q').value.trim(); loadUsers(1) }
 })
 window.addEventListener('hashchange', () => { const p = location.hash.slice(1); if (S.auth && p && p !== S.page) go(p) })
