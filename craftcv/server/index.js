@@ -2118,13 +2118,14 @@ async function extractTextFromBuffer(buffer, mimetype, originalname) {
 
   // PDF
   if (ext === 'pdf' || (mimetype && mimetype.includes('pdf'))) {
+    // unpdf: the current, maintained pdf.js (the old pdf-parse bundled pdf.js from 2018)
     try {
-      const mod = await import('pdf-parse').catch(() => null);
-      if (mod) {
-        const data = await mod.default(buffer);
-        if (data.text && data.text.trim().length > 50) return data.text;
-      }
-    } catch (e) { console.warn('[upload] pdf-parse:', e.message); }
+      const { getDocumentProxy, extractText } = await import('unpdf');
+      const pdf = await getDocumentProxy(new Uint8Array(buffer), { isEvalSupported: false });
+      const { text } = await extractText(pdf, { mergePages: true });
+      await pdf.destroy?.();
+      if (text && text.trim().length > 50) return text;
+    } catch (e) { console.warn('[upload] pdf:', e.message); }
     throw new Error('Could not read text from this PDF. Try exporting it as a text-based PDF or upload a DOCX/TXT version.');
   }
 

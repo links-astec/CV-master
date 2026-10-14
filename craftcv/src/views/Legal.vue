@@ -62,7 +62,7 @@ const router = useRouter()
 const openFeedback = inject('openFeedback', null)
 const scroller = ref(null)
 
-const UPDATED = { en: '12 October 2026', fr: '12 octobre 2026' }
+const UPDATED = { en: '14 October 2026', fr: '14 octobre 2026' }
 const CONTACT = 'support@cvmaster.live'
 const mail = `<a href="mailto:${CONTACT}">${CONTACT}</a>`
 // The people behind CVMaster
@@ -76,7 +76,7 @@ const DOCS = [
       'We never sell your data or show you ads.',
       'Your CV is yours. Delete it, or your whole account, whenever you like.',
       'Card details go straight to Stripe; we never see or store them.',
-      'One login cookie. No tracking or advertising cookies.',
+      'Only essential cookies. No analytics, tracking or advertising cookies.',
     ],
     sections: [
       { id: 'who', title: 'Who we are', html: `<p>CVMaster ("we", "us") is an AI-assisted CV builder at cvmaster.live, run in France by ${TEAM_EN}, who are responsible for your personal data (the “data controllers”). Contact: ${mail}.</p>` },
@@ -107,7 +107,7 @@ const DOCS = [
       </ul><p>Some of these providers are based in, or process data in, the United States. Where data leaves the EU, it is protected by the safeguards the GDPR requires, such as the European Commission’s standard contractual clauses or the EU–US Data Privacy Framework.</p>` },
       { id: 'keep', title: 'How long we keep it', html: `<p>We keep your account and CVs until you delete them or ask us to. Feedback and complaints are kept for as long as we need them to deal with the matter. Payment records may be kept longer where the law requires it.</p>` },
       { id: 'rights', title: 'Your rights', html: `<p>Under UK and EU data protection law you can ask to see, correct, export or delete your personal data, or object to how we use it. Email ${mail} and we will respond within one month.</p><p>If you are unhappy with how we handle your data, you can complain to the CNIL (cnil.fr), the French data protection authority, or to the authority where you live, for example the ICO (ico.org.uk) in the UK.</p>` },
-      { id: 'cookies', title: 'Cookies', html: `<p>We use one cookie to keep you signed in. We do not use tracking or advertising cookies. Your browser’s local storage holds your CV if you use CVMaster without an account, and your preferences (language, dark mode).</p>` },
+      { id: 'cookies', title: 'Cookies', html: `<p>We only use cookies that CVMaster needs to work, so we don’t ask for consent. We do not use analytics, tracking or advertising cookies.</p><ul><li><strong>token</strong>: keeps you signed in (7 days).</li><li><strong>cvm_gid</strong>: a random identifier that lets us apply fair-use limits to the AI before you create an account (1 year).</li><li><strong>g_state</strong>: set by Google only when you open the sign-in window, to remember the state of its sign-in prompt (up to 6 months).</li></ul><p>Your browser’s local storage holds your CV if you use CVMaster without an account, and your preferences (language, dark mode). You can clear cookies and local storage at any time in your browser’s settings.</p>` },
       { id: 'security', title: 'Security', html: `<p>Passwords are hashed with bcrypt, everything travels over HTTPS, and card payments are handled entirely by Stripe.</p>` },
       { id: 'changes', title: 'Changes to this policy', html: `<p>If we change this policy we will update the date above, and tell you by email for significant changes.</p>` },
     ],
@@ -171,7 +171,7 @@ const DOCS_FR = [
       'Nous ne vendons jamais vos données et ne vous montrons pas de publicité.',
       'Votre CV vous appartient. Supprimez-le, ou tout votre compte, quand vous voulez.',
       'Les données de carte vont directement chez Stripe ; nous ne les voyons ni ne les conservons jamais.',
-      'Un seul cookie de connexion. Aucun cookie de suivi ou publicitaire.',
+      'Uniquement des cookies essentiels. Aucun cookie de mesure d’audience, de suivi ou publicitaire.',
     ],
     sections: [
       { id: 'who', title: 'Qui sommes-nous', html: `<p>CVMaster (« nous ») est un outil de création de CV assisté par IA, disponible sur cvmaster.live et édité en France par ${TEAM_FR}, responsables du traitement de vos données personnelles. Contact : ${mail}.</p>` },
@@ -202,7 +202,7 @@ const DOCS_FR = [
       </ul><p>Certains de ces prestataires sont établis aux États-Unis ou y traitent des données. Lorsque des données quittent l’UE, elles sont protégées par les garanties exigées par le RGPD, comme les clauses contractuelles types de la Commission européenne ou le cadre de protection des données UE–États-Unis (Data Privacy Framework).</p>` },
       { id: 'keep', title: 'Durée de conservation', html: `<p>Nous conservons votre compte et vos CV jusqu’à ce que vous les supprimiez ou nous le demandiez. Les avis et réclamations sont conservés le temps nécessaire pour traiter la demande. Les justificatifs de paiement peuvent être conservés plus longtemps lorsque la loi l’exige.</p>` },
       { id: 'rights', title: 'Vos droits', html: `<p>Conformément au RGPD et à la loi Informatique et Libertés, vous pouvez demander à accéder à vos données personnelles, à les rectifier, à les exporter ou à les supprimer, ou vous opposer à leur utilisation. Écrivez à ${mail} : nous répondrons dans un délai d’un mois.</p><p>Si vous n’êtes pas satisfait de la manière dont nous traitons vos données, vous pouvez adresser une réclamation à la CNIL (cnil.fr), l’autorité française de protection des données, ou à l’autorité du pays où vous vivez, par exemple l’ICO (ico.org.uk) au Royaume-Uni.</p>` },
-      { id: 'cookies', title: 'Cookies', html: `<p>Nous utilisons un seul cookie pour vous garder connecté. Nous n’utilisons aucun cookie de suivi ou publicitaire. Le stockage local de votre navigateur conserve votre CV si vous utilisez CVMaster sans compte, ainsi que vos préférences (langue, mode sombre).</p>` },
+      { id: 'cookies', title: 'Cookies', html: `<p>Nous utilisons uniquement les cookies nécessaires au fonctionnement de CVMaster : votre consentement n’est donc pas requis. Nous n’utilisons aucun cookie de mesure d’audience, de suivi ou publicitaire.</p><ul><li><strong>token</strong> : vous garde connecté (7 jours).</li><li><strong>cvm_gid</strong> : un identifiant aléatoire qui nous permet d’appliquer des limites d’usage raisonnables à l’IA avant la création d’un compte (1 an).</li><li><strong>g_state</strong> : déposé par Google uniquement lorsque vous ouvrez la fenêtre de connexion, pour mémoriser l’état de sa fenêtre de connexion (jusqu’à 6 mois).</li></ul><p>Le stockage local de votre navigateur conserve votre CV si vous utilisez CVMaster sans compte, ainsi que vos préférences (langue, mode sombre). Vous pouvez effacer les cookies et le stockage local à tout moment dans les réglages de votre navigateur.</p>` },
       { id: 'security', title: 'Sécurité', html: `<p>Les mots de passe sont hachés avec bcrypt, toutes les communications passent par HTTPS, et les paiements par carte sont entièrement gérés par Stripe.</p>` },
       { id: 'changes', title: 'Modifications de cette politique', html: `<p>Si nous modifions cette politique, nous mettrons à jour la date ci-dessus et vous préviendrons par e-mail en cas de changement important.</p>` },
     ],
