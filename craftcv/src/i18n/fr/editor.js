@@ -141,4 +141,10 @@ export default {
   'A work-study contract (alternance)': 'Une alternance',
   'My first full-time job': 'Mon premier CDI',
   'A part-time job': 'Un emploi à temps partiel',
+  'Strong match': 'Très bon profil',
+  'Worth a go': 'À tenter',
+  'A reach': 'Un défi',
+  'What already matches': 'Ce qui correspond déjà',
+  'To strengthen your application': 'Pour renforcer votre candidature',
+  'Most people apply to roles they don’t match 100%. Tailor your CV below to show your best fit.': 'La plupart des gens postulent à des offres qui ne leur correspondent pas à 100 %. Adaptez votre CV ci-dessous pour montrer vos meilleurs atouts.',
 }
