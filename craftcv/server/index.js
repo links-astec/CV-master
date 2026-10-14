@@ -18,6 +18,7 @@ import nodemailer from 'nodemailer';
 import { query } from './db.js';
 import { ensurePushTable, isPushToken, pushHealth, registerToken, removeToken, sendPush } from './push.js';
 import { ensureActivity, nextStep, personalNudges, recordEvents, setPersonalize } from './activity.js';
+import { guestStats, linkGuest, pruneGuests, recordGuest } from './guests.js';
 import { ensureAppleCols, keepAppleRefreshToken, revokeApple, verifyAppleToken } from './apple.js';
 import { registerBlog, BLOG_JS } from './blog.js'
 import { checkSecondStep, endAllSessions, ensureAdminSecurity, finishSetup, newCodes, sessionVersion, startSetup, turnOff, twoStepOn } from './adminSecurity.js'
@@ -257,6 +258,7 @@ async function ensureReminderCols() {
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS review_emailed_at TIMESTAMPTZ`);
 }
 async function runReminders() {
+  await pruneGuests().catch(e => console.warn('[reminders] guests:', e.message));
   await ensureReminderCols();
   await ensureReviewsTable();
   await ensureNotifCols();
@@ -348,6 +350,8 @@ function signToken(userId, v = 0) {
 // www.cvmaster.live and api.cvmaster.live are the same site, so Lax works and stops other
 // websites from sending requests with the user's session.
 function setAuthCookie(res, token) {
+  const gid = res.req?.cookies?.cvm_gid;
+  if (/^[a-f0-9]{32}$/.test(gid || '')) { const sub = jwt.decode(token)?.sub; if (sub) linkGuest(gid, sub).catch(() => {}); }
   res.cookie('token', token, {
     httpOnly: true,
     secure: IS_PROD,
@@ -444,13 +448,22 @@ function ensureAiTables() {
 // uses; the network as a whole has a daily cap so clearing cookies can't get unlimited AI.
 const AI_GUEST_NETWORK_PER_DAY = 200;
 const GID = /^[a-f0-9]{32}$/;
-app.use(['/api/ai/', '/api/cv/upload'], (req, res, next) => {
+app.use(['/api/ai/', '/api/cv/upload', '/api/guest/'], (req, res, next) => {
   if (!GID.test(req.cookies?.cvm_gid || '')) {
     const g = randomBytes(16).toString('hex');
     res.cookie('cvm_gid', g, { httpOnly: true, secure: IS_PROD, sameSite: 'lax', domain: IS_PROD ? '.cvmaster.live' : undefined, maxAge: 365 * 864e5 });
     req.cookies = { ...(req.cookies || {}), cvm_gid: g };
   }
   next();
+});
+// Anonymous guest statistics (server/guests.js): only for browsers without an account, and not
+// for browsers that ask not to be tracked (Global Privacy Control)
+app.post('/api/guest/events', rateLimit({ windowMs: 60 * 1000, max: 30 }), async (req, res) => {
+  try {
+    if (req.headers['sec-gpc'] === '1' || sessionKey(req).startsWith('u:')) return res.json({ ok: true, kept: 0 });
+    const names = (Array.isArray(req.body?.events) ? req.body.events : []).map(e => String(e?.name || e || ''));
+    res.json({ ok: true, kept: await recordGuest(req.cookies.cvm_gid, req.body?.platform, names) });
+  } catch (e) { console.error('[guest events]', e.message); res.status(500).json({ error: 'Not recorded.' }); }
 });
 const aiSubject = (req) => req.user ? `u:${req.user.sub}` : GID.test(req.cookies?.cvm_gid || '') ? `g:${req.cookies.cvm_gid}` : `ip:${req.ip}`;
 
@@ -3376,6 +3389,10 @@ app.post('/api/internal/backup-report', rateLimit({ windowMs: 60 * 60 * 1000, ma
     await setSetting('backup_last', { at: new Date().toISOString(), file: String(b.file || '').slice(0, 80), bytes: Number(b.bytes) || 0, tables: Number(b.tables) || 0 });
     res.json({ ok: true });
   } catch (e) { console.error('[backup-report]', e.message); res.status(500).json({ error: 'Could not record the backup.' }); }
+});
+app.get('/api/admin/guests', adminAuthMiddleware, async (req, res) => {
+  try { res.json(await guestStats(req.query.days)); }
+  catch (e) { console.error('[admin/guests]', e.message); res.status(500).json({ error: 'Could not load guests.' }); }
 });
 app.get('/api/admin/network', adminAuthMiddleware, (req, res) => {
   res.json({ ip: req.ip, chain: req.ips, forwardedFor: req.headers['x-forwarded-for'] || null, viaCloudflare: !!req.headers['cf-ray'], cfConnectingIp: req.headers['cf-connecting-ip'] || null });

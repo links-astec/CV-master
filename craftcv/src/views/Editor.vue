@@ -56,7 +56,7 @@
               <span class="drawer-t">{{ $t('Edit CV') }}</span>
               <button class="btn-primary btn-sm accent" @click="drawer = false">{{ $t('Done') }}</button>
             </div>
-            <CvEditor @pay="drawer = false; openPaywall()" />
+            <CvEditor ref="drawerRef" @pay="drawer = false; openPaywall()" />
           </div>
         </div>
       </Transition>
@@ -65,7 +65,7 @@
 </template>
 
 <script setup>
-import { ref, computed, inject, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, inject, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useCvStore } from '../stores/cv.js'
 import { useAuthStore } from '../stores/auth.js'
@@ -89,6 +89,7 @@ phoneQuery?.addEventListener('change', onPhoneChange)
 const panelOpen = ref(true)
 const drawer = ref(false)
 const editorRef = ref(null)
+const drawerRef = ref(null)   // the editor inside the phone drawer
 
 const label = computed(() => templateLabel(store.template))
 const theme = computed(() => getTheme(parseTemplate(store.template).theme))
@@ -99,10 +100,16 @@ let tick
 const route = useRoute()
 onMounted(() => {
   tick = setInterval(() => { now.value = Date.now() }, 15000)
-  // e.g. /editor?tab=job after choosing a layout with a job offer
-  const t = route.query.tab
-  if (['content', 'design', 'job'].includes(t)) nextTick(() => editorRef.value?.show(t))
+  openTab(route.query.tab)
 })
+// e.g. /editor?tab=job ("Check your ATS score", or a layout picked with a job offer). On a phone
+// the editor lives in the drawer, so open it on that tab; on a computer, the side panel
+function openTab(t) {
+  if (!['content', 'design', 'job'].includes(t)) return
+  if (window.innerWidth <= 768) { drawer.value = true; nextTick(() => drawerRef.value?.show(t)) }
+  else { panelOpen.value = true; nextTick(() => editorRef.value?.show(t)) }
+}
+watch(() => route.query.tab, openTab)
 onUnmounted(() => { clearInterval(tick); phoneQuery?.removeEventListener('change', onPhoneChange) })
 const savedText = computed(() => {
   if (!auth.isLoggedIn) return t('Saved in this browser')

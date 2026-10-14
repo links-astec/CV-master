@@ -37,6 +37,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import { guestEvent } from '../composables/track.js'
 
 // Free watermarked download of a stored CV (token from /api/cv/store-for-unlock).
 // "Clean PDF" hands over to the paywall (emit 'unlock').
@@ -52,6 +53,7 @@ const freeDownloading = ref(false)
 
 async function downloadFree() {
   freeDownloading.value = true
+  guestEvent('download')
   try {
     const res = await fetch(apiUrl('/api/cv/download-watermarked'), {
       method: 'POST', credentials: 'include',
