@@ -287,6 +287,8 @@ var links=[].slice.call(document.querySelectorAll('.toc a'));
 if(links.length&&'IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting)links.forEach(function(l){l.classList.toggle('on',l.getAttribute('href')==='#'+e.target.id)})})},{rootMargin:'0px 0px -75% 0px'});
 links.forEach(function(l){var h=document.getElementById(l.getAttribute('href').slice(1));if(h)io.observe(h)})}
 })();`;
+// The blog page's only script, exported so the server can allow it by its hash (no inline scripts otherwise)
+export const BLOG_JS = JS;
 
 const TEAM = 'CVMaster team';
 const isTeam = (a) => !a || /cvmaster/i.test(a);
