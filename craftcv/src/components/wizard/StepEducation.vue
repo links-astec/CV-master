@@ -105,24 +105,22 @@
       {{ $t('Languages') }} <span class="opt-badge">{{ $t('optional') }}</span>
     </div>
     <div class="lang-list">
+      <!-- One card per language: the name with its remove button, then the level as chips (tap again to clear) -->
       <div v-for="(lang, i) in store.data.languages" :key="i" class="lang-card">
-        <div class="lang-fields">
-          <div class="f-grp" style="flex:1;">
-            <div class="f-lbl">{{ $t('Language') }}</div>
-            <input class="f-inp" v-model="lang.name" :placeholder="$t(store.data.lang === 'fr' ? 'e.g. English' : 'e.g. French')" />
-          </div>
-          <div class="f-grp" style="flex:1;">
-            <div class="f-lbl">{{ $t('Level') }}</div>
-            <!-- The level is printed on the CV, so its wording follows the CV's language -->
-            <select class="f-inp f-select" v-model="lang.level">
-              <option value="">{{ $t('Select level') }}</option>
-              <option v-if="lang.level && !levels.includes(lang.level)" :value="lang.level">{{ lang.level }}</option>
-              <option v-for="lv in levels" :key="lv" :value="lv">{{ lv }}</option>
-            </select>
-          </div>
-          <button class="rm-btn lang-rm" @click="store.data.languages.splice(i, 1)">
+        <div class="lang-top">
+          <input class="f-inp lang-name" v-model="lang.name" :aria-label="$t('Language')"
+            :placeholder="$t(store.data.lang === 'fr' ? 'e.g. English' : 'e.g. French')" />
+          <button class="rm-btn lang-rm" :aria-label="$t('Remove')" @click="store.data.languages.splice(i, 1)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
+        </div>
+        <!-- Short chips (Native, C2 … A1) in one row; the full wording of the chosen level is shown
+             beside the label. The level is printed on the CV, so its wording follows the CV's language -->
+        <div class="f-lbl lang-lbl">{{ $t('Level') }}<span v-if="lang.level" class="lang-cur">{{ lang.level }}</span></div>
+        <div class="lang-levels" role="radiogroup" :aria-label="$t('Level')">
+          <button v-for="lv in levels" :key="lv" type="button" class="lang-lv" role="radio" :title="lv" :aria-label="lv"
+            :class="{ on: lang.level === lv }" :aria-checked="lang.level === lv"
+            @click="lang.level = lang.level === lv ? '' : lv">{{ shortLevel(lv) }}</button>
         </div>
       </div>
     </div>
@@ -147,6 +145,8 @@ const LEVELS = {
   fr: ['Langue maternelle', 'Bilingue (C2)', 'Courant (C1)', 'Avancé (B2)', 'Intermédiaire (B1)', 'Notions (A2)', 'Débutant (A1)'],
 }
 const levels = computed(() => LEVELS[store.data.lang === 'fr' ? 'fr' : 'en'])
+// "Upper-Intermediate (B2)" → "B2"; "Native" / "Langue maternelle" stay as they are
+const shortLevel = (lv) => (lv.match(/\(([ABC][12])\)/) || [, lv])[1]
 defineEmits(['next'])
 
 // Ensure all arrays exist and education is array
@@ -220,14 +220,23 @@ p   { font-size: 13px; color: var(--c-text2); line-height: 1.5; }
 .cert-row  { display: flex; align-items: center; gap: 6px; }
 
 /* Languages */
-.lang-list   { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
-.lang-card   { background: var(--c-bg); border: 1px solid var(--c-border); border-radius: 10px; padding: 12px; }
-.lang-fields { display: flex; align-items: flex-end; gap: 8px; }
-.lang-rm     { flex-shrink: 0; }
-@media (max-width: 480px) {
-  .lang-fields { flex-direction: column; }
-  .lang-rm     { align-self: flex-end; }
+.lang-list   { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
+.lang-card   { background: var(--c-bg); border-radius: 16px; padding: 12px; }
+.lang-top    { display: flex; align-items: center; gap: 8px; }
+.lang-name   { flex: 1; min-width: 0; }
+.lang-rm     { flex-shrink: 0; width: 36px; height: 36px; border-radius: 10px; }
+.lang-lbl    { margin: 12px 0 7px; display: flex; align-items: baseline; gap: 8px; }
+.lang-cur    { font-weight: 500; color: var(--c-accent); }
+.lang-levels { display: flex; flex-wrap: wrap; gap: 6px; }
+.lang-lv {
+  height: 32px; min-width: 42px; justify-content: center; padding: 0 11px; border-radius: 99px; border: none; cursor: pointer;
+  background: var(--c-surface); box-shadow: inset 0 0 0 1px var(--hair);
+  font: inherit; font-size: 12.5px; font-weight: 500; color: var(--c-text2);
+  display: inline-flex; align-items: center; transition: background .15s, color .15s, box-shadow .15s;
 }
+.lang-lv:hover { color: var(--c-text); box-shadow: inset 0 0 0 1px var(--c-accent); }
+.lang-lv:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
+.lang-lv.on { background: var(--c-accent); color: #fff; font-weight: 600; box-shadow: none; }
 
 /* Remove button */
 .rm-btn {

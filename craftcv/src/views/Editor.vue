@@ -52,7 +52,8 @@
         <div v-if="drawer" class="drawer-backdrop" @click.self="drawer = false">
           <div class="drawer">
             <div class="drawer-hd">
-              <span>{{ $t('Edit CV') }}</span>
+              <span class="drawer-grab" aria-hidden="true"></span>
+              <span class="drawer-t">{{ $t('Edit CV') }}</span>
               <button class="btn-primary btn-sm accent" @click="drawer = false">{{ $t('Done') }}</button>
             </div>
             <CvEditor @pay="drawer = false; openPaywall()" />
@@ -141,8 +142,12 @@ function showDesign() {
 .ed-edit-fab svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2}
 
 .drawer-backdrop{position:fixed;inset:0;z-index:8000;background:rgba(15,15,25,.4);display:flex;align-items:flex-end}
-.drawer{width:100%;height:88vh;background:var(--c-bg);border-radius:18px 18px 0 0;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadow-xl)}
-.drawer-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:var(--c-surface);border-bottom:1px solid var(--c-border);font-weight:600}
+/* Sized to the visible screen (dvh, not vh: on phones vh includes the space behind the browser's
+   bars, which pushed the top of the drawer against the top edge), always leaving a gap above it */
+.drawer{width:100%;height:88vh;height:88dvh;max-height:calc(100dvh - 48px - env(safe-area-inset-top));background:var(--c-bg);border-radius:24px 24px 0 0;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadow-xl);padding-bottom:env(safe-area-inset-bottom)}
+.drawer-hd{position:relative;display:flex;align-items:center;justify-content:space-between;padding:22px 20px 14px;background:var(--c-surface);border-bottom:1px solid var(--c-border)}
+.drawer-grab{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:40px;height:5px;border-radius:3px;background:var(--c-border)}
+.drawer-t{font-size:18px;font-weight:700;letter-spacing:-.02em}
 .drawer > :deep(.ced){flex:1;min-height:0}
 .drawer-enter-active,.drawer-leave-active{transition:opacity .2s}
 .drawer-enter-active .drawer,.drawer-leave-active .drawer{transition:transform .22s ease}

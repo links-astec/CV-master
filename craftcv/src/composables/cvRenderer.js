@@ -38,7 +38,7 @@ const BASE_LAYOUTS = [
 export const LAYOUTS = [...BASE_LAYOUTS, ...MORE_LAYOUTS].sort((x, y) => (x.kind === 'ats' ? 0 : 1) - (y.kind === 'ats' ? 0 : 1))
 export const LAYOUT_KINDS = {
   ats:      { name: 'ATS-friendly', desc: 'For online applications. Tracking systems read these cleanly' },
-  creative: { name: 'Creative',     desc: 'For print, in person or sending to a person. Design first' },
+  creative: { name: 'Standard',     desc: 'For print, in person or sending to a person. Design first' },
 }
 
 export const THEMES = [
@@ -118,19 +118,19 @@ export function templateLabel(id) {
 // ── i18n ──────────────────────────────────────────────────────────────────────
 const LABELS = {
   en: { profile: 'Profile', experience: 'Experience', education: 'Education', skills: 'Skills',
-        projects: 'Projects', languages: 'Languages', certifications: 'Certifications', contact: 'Contact' },
+        projects: 'Projects', languages: 'Languages', certifications: 'Certifications', contact: 'Contact', seeking: 'Looking for:' },
   fr: { profile: 'Profil', experience: 'Expérience professionnelle', education: 'Formation', skills: 'Compétences',
-        projects: 'Projets', languages: 'Langues', certifications: 'Certifications', contact: 'Contact' },
+        projects: 'Projets', languages: 'Langues', certifications: 'Certifications', contact: 'Contact', seeking: 'Recherche :' },
   es: { profile: 'Perfil', experience: 'Experiencia profesional', education: 'Formación', skills: 'Competencias',
-        projects: 'Proyectos', languages: 'Idiomas', certifications: 'Certificaciones', contact: 'Contacto' },
+        projects: 'Proyectos', languages: 'Idiomas', certifications: 'Certificaciones', contact: 'Contacto', seeking: 'Busco:' },
   de: { profile: 'Profil', experience: 'Berufserfahrung', education: 'Ausbildung', skills: 'Kenntnisse',
-        projects: 'Projekte', languages: 'Sprachen', certifications: 'Zertifikate', contact: 'Kontakt' },
+        projects: 'Projekte', languages: 'Sprachen', certifications: 'Zertifikate', contact: 'Kontakt', seeking: 'Ich suche:' },
   it: { profile: 'Profilo', experience: 'Esperienza professionale', education: 'Formazione', skills: 'Competenze',
-        projects: 'Progetti', languages: 'Lingue', certifications: 'Certificazioni', contact: 'Contatti' },
+        projects: 'Progetti', languages: 'Lingue', certifications: 'Certificazioni', contact: 'Contatti', seeking: 'Cerco:' },
   pt: { profile: 'Perfil', experience: 'Experiência profissional', education: 'Formação', skills: 'Competências',
-        projects: 'Projetos', languages: 'Idiomas', certifications: 'Certificações', contact: 'Contato' },
+        projects: 'Projetos', languages: 'Idiomas', certifications: 'Certificações', contact: 'Contato', seeking: 'Procuro:' },
   zh: { profile: '个人简介', experience: '工作经历', education: '教育背景', skills: '技能',
-        projects: '项目经历', languages: '语言能力', certifications: '证书', contact: '联系方式' },
+        projects: '项目经历', languages: '语言能力', certifications: '证书', contact: '联系方式', seeking: '求职意向：' },
 }
 const PLACEHOLDERS = {
   en: { name: 'Your Name', title: 'Job title', email: 'you@email.com', phone: '+44 7700 900000', loc: 'City, Country',
@@ -281,6 +281,7 @@ function buildModel(raw, preview, fullLinks = false) {
     contacts,
     photo: typeof d.photo === 'string' && SAFE_PHOTO.test(d.photo) ? d.photo : null,
     sum: str(d.sum) ? esc(str(d.sum)) : ph(P.sum),
+    seeking: esc(str(d.seeking)),
     exps: exps.length ? exps : (preview ? [{ title: ph(P.expTitle), company: ph(P.expCompany), period: ph(P.expPeriod), bullets: [ph(P.expDesc)] }] : []),
     edu: edu.length ? edu : (preview ? [{ degree: ph(P.degree), school: ph(P.school), year: '' }] : []),
     skills: skills.length ? skills : (preview ? P.skills.map(ph) : []),
@@ -305,7 +306,8 @@ const B = {
   // line never starts with a separator
   contact: (m) => m.contacts.length ? `<p class="contact">${m.contacts.map(c => `<span class="ci">${c}</span>`).join('<span class="sep">&nbsp;·</span> ')}</p>` : '',
   contactList: (m) => m.contacts.length ? `<ul class="contact-list">${m.contacts.map(c => `<li>${c}</li>`).join('')}</ul>` : '',
-  profile: (m) => m.sum ? `<p class="prose">${m.sum}</p>` : '',
+  // The summary, then what the person is looking for ("Looking for: a 3-month internship…")
+  profile: (m) => (m.sum ? `<p class="prose">${m.sum}</p>` : '') + (m.seeking ? `<p class="prose seek"><strong>${m.L.seeking}</strong> ${m.seeking}</p>` : ''),
   experience: (m) => m.exps.map(e => `
     <article class="item">
       <div class="item-hd"><h3 class="item-t">${e.title}</h3>${e.period ? `<span class="item-d">${e.period}</span>` : ''}</div>
@@ -515,6 +517,7 @@ const BASE_CSS = `
 .cvr .item-sm{margin-bottom:9px}
 .cvr .item-sm .item-t{font-size:calc(10.6px*var(--s))}
 .cvr .item > .prose,.cvr .item .bl,.cvr .tl-c > .prose{margin-top:4px}
+.cvr .prose.seek{margin-top:6px}
 .cvr .bl{padding-left:14px}
 .cvr .bl li{margin-bottom:2px;padding-left:2px}
 .cvr .bl li::marker{color:var(--ac)}

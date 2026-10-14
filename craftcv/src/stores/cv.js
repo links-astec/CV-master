@@ -12,6 +12,7 @@ const emptyData = () => ({
   email: '', phone: '', loc: '', li: '', website: '',
   photo: null,
   sum: '',
+  seeking: '',         // what they're looking for, shown under the summary ("A 3-month internship…")
   experiences: [
     { id: 1, title: '', company: '', period: '', desc: '' },
   ],
@@ -106,6 +107,7 @@ function normaliseData(saved) {
   }
   if (!merged.education.length) merged.education = emptyData().education
   merged.jobOffer    = typeof merged.jobOffer === 'string' ? merged.jobOffer : ''
+  merged.seeking     = typeof merged.seeking === 'string' ? merged.seeking : ''
   merged.shrinkToFit = !!merged.shrinkToFit
   merged.jobTailored = ['applied', 'skipped'].includes(merged.jobTailored) ? merged.jobTailored : ''
   merged.checkIgnored = Array.isArray(merged.checkIgnored) ? merged.checkIgnored.filter(x => typeof x === 'string') : []
@@ -131,6 +133,8 @@ export const useCvStore = defineStore('cv', () => {
   const wizardOpen     = ref(false)
   const wizardMode     = ref(null)
   const wizardStep     = ref(0)
+  const wizardAskOffer = ref(false)   // show the job offer screen first
+  const wizardStart    = ref(null)    // way of starting to open after the job offer screen
   const wizardDraftId  = ref(null)
   const currentDraftId = ref(null)
   const lastSavedAt    = ref(null)
@@ -172,9 +176,13 @@ export const useCvStore = defineStore('cv', () => {
   // While the CV is still empty, its language follows the app language switch
   watch(uiLang, (l) => { if (!hasContent.value) data.value.lang = l === 'fr' ? 'fr' : 'en' })
 
-  function openWizard(preserveStep = false) {
+  // A new CV starts with the job offer (paste it, or skip), then how to start. `mode` jumps straight
+  // to one way of starting after that (e.g. 'narrate' from a "Tell your story" button); askOffer:
+  // false when the job offer was just asked elsewhere (the Templates page)
+  function openWizard(preserveStep = false, { mode = null, askOffer = true } = {}) {
     wizardOpen.value = true
-    if (!preserveStep) { wizardMode.value = null; wizardStep.value = 0 }
+    if (!preserveStep) { wizardMode.value = null; wizardStep.value = 0; wizardAskOffer.value = askOffer; wizardStart.value = mode }
+    if (!preserveStep && !askOffer && mode) setMode(mode)
   }
   // step is an index into the manual steps; narrate/upload have one extra step in front
   function openWizardAtStep(step) {
@@ -358,7 +366,7 @@ export const useCvStore = defineStore('cv', () => {
   }
 
   return {
-    data, template, fmt, darkMode, wizardOpen, wizardMode, wizardStep,
+    data, template, fmt, darkMode, wizardOpen, wizardMode, wizardStep, wizardAskOffer, wizardStart,
     wizardDraftId, currentDraftId, lastSavedAt,
     fullName, initials, hasContent,
     initDarkMode, openWizard, openWizardAtStep, closeWizard,
