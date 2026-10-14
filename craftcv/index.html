@@ -108,11 +108,7 @@
         <footer class="pr-foot"><a href="/privacy">Privacy policy</a> · <a href="/terms">Terms</a> · <a href="mailto:support@cvmaster.live">Contact</a></footer>
       </main>
     </div>
-    <script>
-      // Only first-time visitors on the homepage see this before the app takes over
-      // Everyone else sees the brand loader until the app is ready
-      try { if (location.pathname !== '/' || localStorage.getItem('pcv-started')) { var pr = document.getElementById('prerender'); if (pr) pr.outerHTML = '<div class="pr-boot"><svg xmlns="http://www.w3.org/2000/svg" viewBox="8 6 102 66" width="68" height="44" role="img" aria-label="Loading"><defs><linearGradient id="prbg" gradientUnits="userSpaceOnUse" x1="30" y1="0" x2="104" y2="0"><stop offset=".3" stop-color="#14142B"/><stop offset="1" stop-color="#4338CA"/></linearGradient></defs><path d="M59.9 23.3 A26 26 0 1 0 53 62.5 L104 12" pathLength="1" fill="none" stroke="url(#prbg)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="1 2" stroke-dashoffset="1"><animate attributeName="stroke-dashoffset" values="1;0;0;-1" keyTimes="0;.45;.62;1" dur="1.9s" repeatCount="indefinite" calcMode="spline" keySplines=".65 0 .35 1;.65 0 .35 1;.65 0 .35 1"/></path></svg></div>' } } catch (e) {}
-    </script>
+    <script src="/boot.js"></script>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

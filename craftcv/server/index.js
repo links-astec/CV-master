@@ -20,6 +20,7 @@ import { ensurePushTable, isPushToken, pushHealth, registerToken, removeToken, s
 import { ensureActivity, nextStep, personalNudges, recordEvents, setPersonalize } from './activity.js';
 import { ensureAppleCols, keepAppleRefreshToken, revokeApple, verifyAppleToken } from './apple.js';
 import { registerBlog } from './blog.js'
+import { checkSecondStep, endAllSessions, ensureAdminSecurity, finishSetup, newCodes, sessionVersion, startSetup, turnOff, twoStepOn } from './adminSecurity.js'
 import { lockupSvg } from '../brand/brand.mjs';
 import { createRequire } from 'module';
 import { promises as dns } from 'dns';
@@ -3117,15 +3118,24 @@ app.get('/admin.webmanifest', (req, res) => {
 const ADMIN_JWT_SECRET    = secretFromEnv('ADMIN_JWT_SECRET', 'admin-change-this-secret');
 const adminLoginAttempts  = new Map(); // ip → { count, lockedUntil }
 
-function adminAuthMiddleware(req, res, next) {
+const adminEmailFails     = new Map(); // email → { count, lockedUntil }: guessing spread over many addresses
+
+async function adminAuthMiddleware(req, res, next) {
   const token = req.cookies?.admin_token || req.headers['x-admin-token'];
   if (!token) return res.status(401).json({ error: 'Admin authentication required.' });
+  let payload;
+  try { payload = jwt.verify(token, ADMIN_JWT_SECRET); }
+  catch { return res.status(401).json({ error: 'Invalid or expired admin session.' }); }
+  // The session must still match the admin's current version (removed admins, "sign out everywhere")
   try {
-    req.admin = jwt.verify(token, ADMIN_JWT_SECRET);
-    next();
-  } catch {
-    res.status(401).json({ error: 'Invalid or expired admin session.' });
+    const v = await sessionVersion(payload.id);
+    if (v === null || (payload.v || 0) !== v) return res.status(401).json({ error: 'Your admin session has ended. Please sign in again.' });
+  } catch (e) {
+    console.error('[admin/session]', e.message);
+    return res.status(503).json({ error: 'Could not check your session. Please try again.' });
   }
+  req.admin = payload;
+  next();
 }
 
 // POST /api/admin/login
@@ -3139,21 +3149,46 @@ app.post('/api/admin/login', async (req, res) => {
   }
   const { email, password } = req.body || {};
   if (!email || !password) return res.status(400).json({ error: 'Email and password required.' });
+  const em = String(email).toLowerCase().trim().slice(0, 254);
+  const ef = adminEmailFails.get(em) || { count: 0, lockedUntil: 0 };
+  if (ef.lockedUntil > now) {
+    const wait = Math.ceil((ef.lockedUntil - now) / 60000);
+    return res.status(429).json({ error: `This account is paused after too many attempts. Try again in ${wait} minute(s).` });
+  }
+  const failed = () => {
+    att.count += 1;
+    if (att.count >= 5) att.lockedUntil = now + 15 * 60 * 1000;
+    adminLoginAttempts.set(ip, att);
+    ef.count += 1;
+    if (ef.count >= 10) { ef.lockedUntil = now + 30 * 60 * 1000; ef.count = 0; }
+    adminEmailFails.set(em, ef);
+  };
   try {
-    const { rows } = await query('SELECT * FROM admins WHERE email = $1', [String(email).toLowerCase().trim().slice(0, 254)]);
+    await ensureAdminSecurity();
+    const { rows } = await query('SELECT * FROM admins WHERE email = $1', [em]);
     const admin = rows[0];
     const valid = await bcrypt.compare(String(password).slice(0, 200), admin?.password_hash || DUMMY_HASH) && !!admin;
     if (!valid) {
-      att.count += 1;
-      if (att.count >= 5) att.lockedUntil = now + 15 * 60 * 1000;
-      adminLoginAttempts.set(ip, att);
+      failed();
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
+    // Two-step sign-in: the password was right; now the code from the authenticator app (or a backup code)
+    if (twoStepOn(admin)) {
+      const code = String(req.body?.code || '').trim().slice(0, 40);
+      if (!code) return res.json({ needCode: true });
+      const used = await checkSecondStep(admin, code);
+      if (!used) {
+        failed();
+        return res.status(401).json({ error: 'That code isn’t right. Use the latest code from your authenticator app, or a backup code.', needCode: true });
+      }
+      if (used === 'backup') console.warn('[admin/login] backup code used by', admin.email);
+    }
     adminLoginAttempts.delete(ip);
+    adminEmailFails.delete(em);
     await query('UPDATE admins SET last_login = NOW() WHERE id = $1', [admin.id]).catch(() => {});
     // "Keep me signed in on this device": 30 days (e.g. the admin on a phone's home screen), otherwise 8 hours
     const days = req.body?.remember === true ? 30 : 0;
-    const token = jwt.sign({ id: admin.id, email: admin.email, role: admin.role }, ADMIN_JWT_SECRET, { expiresIn: days ? `${days}d` : '8h' });
+    const token = jwt.sign({ id: admin.id, email: admin.email, role: admin.role, v: admin.token_version || 0 }, ADMIN_JWT_SECRET, { expiresIn: days ? `${days}d` : '8h' });
     res.cookie('admin_token', token, { httpOnly: true, secure: IS_PROD, sameSite: 'strict', maxAge: days ? days * 864e5 : 8 * 60 * 60 * 1000 });
     res.json({ ok: true, email: admin.email, role: admin.role });
   } catch (e) {
@@ -3171,6 +3206,62 @@ app.post('/api/admin/logout', (req, res) => {
 // GET /api/admin/me
 app.get('/api/admin/me', adminAuthMiddleware, (req, res) => {
   res.json({ email: req.admin.email, role: req.admin.role });
+});
+
+// ── Admin account security: two-step sign-in, backup codes, sign out everywhere ──
+const adminRow = async (id) => (await query('SELECT * FROM admins WHERE id = $1', [id])).rows[0];
+const secLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: { error: 'Too many attempts. Please wait a few minutes.' } });
+app.get('/api/admin/security', adminAuthMiddleware, async (req, res) => {
+  try {
+    const a = await adminRow(req.admin.id);
+    res.json({ twoStep: twoStepOn(a), backupLeft: Array.isArray(a?.backup_codes) ? a.backup_codes.length : 0 });
+  } catch (e) { res.status(500).json({ error: 'Could not load your security settings.' }); }
+});
+app.post('/api/admin/2fa/setup', adminAuthMiddleware, secLimiter, async (req, res) => {
+  try {
+    const a = await adminRow(req.admin.id);
+    if (twoStepOn(a)) return res.status(400).json({ error: 'Two-step sign-in is already on.' });
+    res.json(await startSetup(a));
+  } catch (e) { console.error('[admin/2fa/setup]', e.message); res.status(500).json({ error: 'Could not start the set-up.' }); }
+});
+app.post('/api/admin/2fa/enable', adminAuthMiddleware, secLimiter, async (req, res) => {
+  try {
+    const a = await adminRow(req.admin.id);
+    if (!a?.totp_pending) return res.status(400).json({ error: 'Start the set-up again.' });
+    const codes = await finishSetup(a, req.body?.code);
+    if (!codes) return res.status(400).json({ error: 'That code isn’t right. Check your phone’s time is set automatically, and use the latest code.' });
+    res.json({ ok: true, codes });
+  } catch (e) { console.error('[admin/2fa/enable]', e.message); res.status(500).json({ error: 'Could not turn on two-step sign-in.' }); }
+});
+// Turning it off, or new backup codes, needs the password and a current code
+async function confirmIdentity(req) {
+  const a = await adminRow(req.admin.id);
+  if (!a || !(await bcrypt.compare(String(req.body?.password || '').slice(0, 200), a.password_hash))) return { error: 'Your password isn’t right.' };
+  if (twoStepOn(a) && !(await checkSecondStep(a, req.body?.code))) return { error: 'That code isn’t right.' };
+  return { admin: a };
+}
+app.post('/api/admin/2fa/disable', adminAuthMiddleware, secLimiter, async (req, res) => {
+  try {
+    const r = await confirmIdentity(req);
+    if (r.error) return res.status(400).json({ error: r.error });
+    await turnOff(r.admin);
+    res.json({ ok: true });
+  } catch (e) { console.error('[admin/2fa/disable]', e.message); res.status(500).json({ error: 'Could not turn off two-step sign-in.' }); }
+});
+app.post('/api/admin/2fa/backup-codes', adminAuthMiddleware, secLimiter, async (req, res) => {
+  try {
+    const r = await confirmIdentity(req);
+    if (r.error) return res.status(400).json({ error: r.error });
+    if (!twoStepOn(r.admin)) return res.status(400).json({ error: 'Turn on two-step sign-in first.' });
+    res.json({ ok: true, codes: await newCodes(r.admin) });
+  } catch (e) { console.error('[admin/2fa/backup-codes]', e.message); res.status(500).json({ error: 'Could not make new backup codes.' }); }
+});
+app.post('/api/admin/signout-all', adminAuthMiddleware, async (req, res) => {
+  try {
+    await endAllSessions(req.admin.id);
+    res.clearCookie('admin_token');
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Could not sign out the other sessions.' }); }
 });
 
 // GET /api/admin/stats
