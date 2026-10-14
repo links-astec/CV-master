@@ -196,13 +196,16 @@ app.use(cors({
   credentials: true,
 }));
 
-// Real visitor addresses for rate limits and lockouts. The first hop is Render's proxy; after it, an address
-// is skipped only when it is one of Cloudflare's published ranges (Render's own edge, or our Cloudflare zone),
-// so a visitor can't fake their address by sending their own X-Forwarded-For.
+// Real visitor addresses for rate limits and lockouts. Reading X-Forwarded-For from the right, an address is
+// skipped only when it is Render's private network (its internal proxies) or one of Cloudflare's published
+// ranges (Render's edge, or our own Cloudflare zone). The first other address is the visitor, so anything a
+// visitor writes into X-Forwarded-For themselves sits further left and is never used.
 const CLOUDFLARE_RANGES = ['173.245.48.0/20', '103.21.244.0/22', '103.22.200.0/22', '103.31.4.0/22', '141.101.64.0/18', '108.162.192.0/18',
   '190.93.240.0/20', '188.114.96.0/20', '197.234.240.0/22', '198.41.128.0/17', '162.158.0.0/15', '104.16.0.0/13', '104.24.0.0/14',
   '172.64.0.0/13', '131.0.72.0/22', '2400:cb00::/32', '2606:4700::/32', '2803:f800::/32', '2405:b500::/32', '2405:8100::/32',
-  '2a06:98c0::/29', '2c0f:f248::/32'];
+  '2a06:98c0::/29', '2c0f:f248::/32',
+  // private networks: Render's internal hops (never reachable from the internet)
+  '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '100.64.0.0/10', '127.0.0.0/8', 'fc00::/7', '::1/128'];
 const cfBlocks = new BlockList();
 for (const r of CLOUDFLARE_RANGES) { const [a, p] = r.split('/'); cfBlocks.addSubnet(a, Number(p), a.includes(':') ? 'ipv6' : 'ipv4'); }
 function isCloudflareAddr(addr) {
@@ -3358,7 +3361,7 @@ app.post('/api/internal/backup-report', rateLimit({ windowMs: 60 * 60 * 1000, ma
   } catch (e) { console.error('[backup-report]', e.message); res.status(500).json({ error: 'Could not record the backup.' }); }
 });
 app.get('/api/admin/network', adminAuthMiddleware, (req, res) => {
-  res.json({ ip: req.ip, chain: req.ips, viaCloudflare: !!req.headers['cf-ray'], cfConnectingIp: req.headers['cf-connecting-ip'] || null });
+  res.json({ ip: req.ip, chain: req.ips, forwardedFor: req.headers['x-forwarded-for'] || null, viaCloudflare: !!req.headers['cf-ray'], cfConnectingIp: req.headers['cf-connecting-ip'] || null });
 });
 
 // ── STATUS: is everything working? ─────────────────────────────────────────────
