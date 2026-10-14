@@ -3475,7 +3475,7 @@ async function runStatus() {
     check('Security', 'caa', 'Who may issue certificates (CAA)', async () => {
       const recs = await dns.resolveCaa(APEX).catch(() => []);
       const issuers = recs.filter(r => r.issue).map(r => r.issue);
-      return issuers.length ? { state: 'ok', detail: `Only ${issuers.join(' and ')}` } : { state: 'warn', detail: 'No CAA record: add 0 issue "letsencrypt.org" and 0 issue "pki.goog"' };
+      return issuers.length ? { state: 'ok', detail: `Only ${issuers.join(' and ')}` } : { state: 'warn', detail: 'No CAA record: add 0 issue "letsencrypt.org", "pki.goog" and "ssl.com"' };
     }),
     check('Security', 'dns', 'Domain DNS and DNSSEC', async () => {
       const ns = (await dns.resolveNs(APEX).catch(() => [])).join(', ');
