@@ -305,6 +305,23 @@ input[type=range]{flex:1;accent-color:var(--ac)}
 .btn-danger-solid:hover{filter:brightness(.95)}
 @keyframes dlgIn{from{opacity:0}to{opacity:1}}
 .notice-box{margin-top:8px;padding:10px 12px;border-radius:9px;background:var(--amber-lt);color:var(--t1);font-size:12.5px;line-height:1.55}
+.kinds{display:flex;flex-direction:column;gap:6px}
+.kind{display:grid;grid-template-columns:1fr auto;align-items:center;gap:2px 12px;text-align:left;padding:11px 14px;border-radius:14px;border:none;background:var(--s2);color:var(--t1);font:inherit;cursor:pointer;transition:background .15s,box-shadow .15s}
+.kind:hover{background:var(--b1)}
+.kind b{font-size:14px}
+.kind span{grid-column:1;font-size:12px;color:var(--t2);line-height:1.4}
+.kind code{grid-column:2;grid-row:1/3;font-size:11.5px;color:var(--t3);background:none;padding:0;white-space:nowrap}
+.kind.on{background:var(--ac-lt);box-shadow:inset 0 0 0 2px var(--ac)}
+.kind.on b{color:var(--ac)}
+.kind:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+@media(max-width:480px){.kind{grid-template-columns:1fr}.kind code{grid-column:1;grid-row:auto}}
+.senders{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.sender{background:var(--s2);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.sender-hd{display:flex;flex-direction:column;gap:1px}
+.sender-hd b{font-size:14.5px;overflow-wrap:anywhere}
+.sender-hd span{font-size:12.5px;color:var(--t2)}
+.sender ul{margin:0;padding-left:18px;font-size:13px;color:var(--t1);display:flex;flex-direction:column;gap:3px}
+@media(max-width:900px){.senders{grid-template-columns:1fr}}
 .notice-check{display:flex;gap:8px;align-items:flex-start;margin-top:8px;font-weight:600;cursor:pointer}
 .notice-check input{margin-top:3px}
 .alert-error{background:var(--red-lt);color:var(--red)}
@@ -703,7 +720,7 @@ const PAGES = {
   inbox:      ['Inbox', 'Emails to support@cvmaster.live and messages from the site'],
   users:      ['Users', 'Accounts, credits and referrals'],
   reviews:    ['Reviews', 'Ratings from people who made a CV. Approve comments for the homepage'],
-  newsletter: ['Email', 'Newsletters to subscribers, and important notices to every user'],
+  newsletter: ['Email', 'Newsletters, important notices and emails to specific people'],
   subscribers:['Subscribers', 'People who agreed to get the newsletter'],
   blog:       ['Blog', 'Articles, product updates, news and links shared from elsewhere'],
   app:        ['App & activity', 'Who is active, phones with notifications, and push messages to the app'],
@@ -719,8 +736,8 @@ async function go(p) {
   if (p === 'users' && !S.users.length) await loadUsers(1)
   if (p === 'reviews') await loadReviews()
   if (p === 'subscribers' || p === 'newsletter') await loadSubs()
-  if (p === 'newsletter') { loadHistory(); loadMyTemplates() }
-  if (p === 'settings') await Promise.all([loadStatus(), S.stats ? null : loadStats(), loadSecurity()])
+  if (p === 'newsletter') { loadHistory(); loadMyTemplates(); if (!S.config) loadConfig() }
+  if (p === 'settings') await Promise.all([loadStatus(), S.stats ? null : loadStats(), loadSecurity(), S.config ? null : loadConfig()])
   if (p === 'overview' && !S.status) loadStatus()
   if (p === 'app') await loadActivity()
   if (p === 'blog' && !S.blog.edit) await loadPosts()
@@ -1053,6 +1070,12 @@ async function deleteItem() {
   try { await api('DELETE', '/inbox/' + d.id); S.inbox.sel = null; S.inbox.detail = null; toast('Deleted'); await loadInbox() } catch (e) { toast(e.message) }
 }
 
+// Which of our addresses a message was sent to, when it isn't support@ (for example a reply to a newsletter)
+function toBadge(to) {
+  const ours = (String(to || '').match(/[a-z0-9._+-]+@cvmaster\.live/gi) || []).map(a => a.toLowerCase())
+  const other = ours.find(a => !a.startsWith('support@'))
+  return other ? `<span class="badge b-gray">To ${esc(other.split('@')[0])}@</span>` : ''
+}
 function renderInbox() {
   const I = S.inbox
   const items = inboxItems()
@@ -1065,7 +1088,7 @@ function renderInbox() {
         <div class="av">${esc(initials(m.from_name || m.from_addr))}</div>
         <div class="ib-body"><div class="ib-l1"><span class="ib-from">${esc(m.from_name || m.from_addr)}</span>${!m.read ? '<span class="ib-dot"></span>' : ''}<span class="ib-time">${ago(m.received_at)}</span></div>
           <div class="ib-subj">${esc(m.subject || '(no subject)')}</div><div class="ib-snip">${esc(m.preview || '')}</div>
-          <div class="ib-l3"><span class="badge b-ac">Email</span>${m.reply_count ? `<span class="badge b-green">Replied</span>` : ''}${m.attachment_count ? `<span class="badge b-gray">${m.attachment_count} attachment${m.attachment_count > 1 ? 's' : ''}</span>` : ''}</div></div></button>`
+          <div class="ib-l3"><span class="badge b-ac">Email</span>${toBadge(m.to_addrs)}${m.reply_count ? `<span class="badge b-green">Replied</span>` : ''}${m.attachment_count ? `<span class="badge b-gray">${m.attachment_count} attachment${m.attachment_count > 1 ? 's' : ''}</span>` : ''}</div></div></button>`
       const k = KIND[m.kind] || KIND.suggestion
       return `<button class="ib-item ${on ? 'on' : ''} ${m.status === 'open' ? 'unread' : 'done'}" data-open="site:${m.id}">
         <div class="av" style="background:var(--s2);color:var(--t2)">${esc(initials(m.email || 'G'))}</div>
@@ -1346,11 +1369,24 @@ function renderSettings() {
       <label class="toggle"><input type="checkbox" id="maint-toggle" ${S.maintenance ? 'checked' : ''} ${S.maintLoading ? 'disabled' : ''}><span class="toggle-track"></span></label></div>
     </div></div>
     <div class="card"><div class="card-hd"><h3>Account security</h3></div><div class="card-bd">${renderSecurity()}</div></div>
+    <div class="card" style="grid-column:1/-1"><div class="card-hd"><h3>Email addresses</h3></div><div class="card-bd">${renderSenders()}</div></div>
     <div class="card" style="grid-column:1/-1"><div class="card-hd"><h3>Status: website, server and phone app</h3>
       <button class="btn btn-sm" data-act="status-refresh" ${S.statusLoading ? 'disabled' : ''}>${svg('refresh')} Check now</button></div><div class="card-bd">
       ${renderStatus()}
     </div></div>
   </div>`
+}
+
+// Which address sends what (from the server, so it always matches what is really sent)
+function renderSenders() {
+  const list = S.config?.senders
+  if (!list) return '<div class="loading"><span class="spinner"></span></div>'
+  const addr = (f) => (String(f).match(/<([^>]+)>/) || [, f])[1]
+  return `<div class="senders">${list.map(x => `<div class="sender">
+      <div class="sender-hd"><b>${esc(addr(x.from))}</b><span>${esc(x.label)}</span></div>
+      <ul>${x.sends.map(s => `<li>${esc(s)}</li>`).join('')}</ul>
+      <div class="muted" style="font-size:12.5px">Replies go to ${esc(x.replyTo)}</div></div>`).join('')}</div>
+    <div class="muted" style="font-size:13px;margin-top:12px">Every reply, to any of these addresses, arrives in the Inbox.</div>`
 }
 
 // ── ACCOUNT SECURITY ──────────────────────────────────────────────────────────
@@ -1668,6 +1704,18 @@ const T = (text, props = {}) => mk('text', { text, color: '#3F3F55', ...props })
 const BTN = (text, url = SITE) => mk('button', { text, url, bgColor: '#4338CA', textColor: '#ffffff', radius: 8, align: 'left' })
 const LIST = (items) => mk('list', { items, color: '#4338CA' })
 const SIGN = () => T('The CVMaster team', { size: 14, color: '#6B6B80' })
+// The three kinds of email, each from its own address (Settings → Email addresses)
+const EMAIL_KINDS = [
+  { id: 'news', name: 'Newsletter', who: 'People who subscribed. Unsubscribe link added' },
+  { id: 'notice', name: 'Important notice', who: 'Every account, only for things they must know' },
+  { id: 'people', name: 'Specific people', who: 'Users you choose. Replies come to the Inbox' },
+]
+const kindOf = (audience) => audience === 'users' ? 'notice' : audience === 'people' ? 'people' : 'news'
+const emailKind = () => kindOf(S.email.plan)
+const senderOf = (kind) => {
+  const f = kind === 'news' ? (S.config?.newsFrom || 'news@cvmaster.live') : (S.config?.supportFrom || 'support@cvmaster.live')
+  return (String(f).match(/<([^>]+)>/) || [, f])[1]
+}
 const BUILTIN = {
   welcome: { group: 'Newsletter', name: 'Welcome', audience: 'all', subject: 'Welcome to CVMaster, {{first_name}}', blocks: () => [
     mk('logo'), H('Welcome to CVMaster, {{first_name}}'),
@@ -1722,6 +1770,44 @@ const BUILTIN = {
     T('Hi {{first_name}}, the whole site is now available in English, French, Spanish, German, Italian, Portuguese and Chinese. It follows your device’s language, and you can change it any time from the globe menu at the top.'),
     T('Your CV’s own language is set separately in Design, so you can use the site in one language and write your CV in another.'),
     BTN('Open CVMaster'), SIGN() ] },
+  blog: { group: 'Newsletter', name: 'New on the blog', audience: 'all', subject: 'New on the blog: [article title]', blocks: () => [
+    mk('logo'), H('[Article title]'),
+    T('Hi {{first_name}}, [one or two sentences: what the article covers and who it helps].'),
+    BTN('Read the article', SITE + '/blog'), SIGN() ] },
+  firstjob: { group: 'Newsletter', name: 'Your first CV (students)', audience: 'all', subject: 'Writing your first CV, {{first_name}}? Start here', blocks: () => [
+    mk('logo'), H('Your first CV, made simple'),
+    T('Hi {{first_name}}, no work experience yet? That’s normal, and recruiters know it. Here’s what to put forward:'),
+    LIST(['**Education first**: your degree, key courses and projects', '**Projects**: school, personal or group work, with what you did and the result', '**Internships, part-time jobs and volunteering** all count', '**Clubs and associations**: show responsibility and teamwork', '**One page**, tailored to each offer']),
+    BTN('Start my CV'), SIGN() ] },
+  france: { group: 'Newsletter', name: 'Applying in France (international students)', audience: 'all', subject: 'Applying for jobs in France? What French recruiters expect', blocks: () => [
+    mk('logo'), H('Applying in France: what recruiters expect'),
+    T('Hi {{first_name}}, a few habits make a CV feel right to a French recruiter:'),
+    LIST(['**Write it in French** for French companies. CVMaster translates your CV between English and French in one click', '**One page** for students and graduates', '**Languages with a level**: for example “French B2, English C1”', '**Say what you’re looking for**: a *stage* (internship) or an *alternance* (work-study), with dates', '**A photo is common but optional**: leave it out if you prefer']),
+    BTN('Translate my CV'), SIGN() ] },
+  internship: { group: 'Newsletter', name: 'Internship season', audience: 'all', subject: 'Internship season is here. Is your CV ready?', blocks: () => [
+    mk('logo'), H('Internship season is here'),
+    T('Hi {{first_name}}, offers are coming out now. Three things that make a difference:'),
+    LIST(['Tailor your CV to each offer with **Job match**', 'Check your **ATS score** and add the skills you really have', 'Keep it to **one clean page**']),
+    BTN('Get my CV ready'), SIGN() ] },
+  aipack: { group: 'Newsletter', name: 'Extra AI requests', audience: 'all', subject: 'Busy week of applications, {{first_name}}?', blocks: () => [
+    mk('logo'), H('More AI help when you need it'),
+    T('Hi {{first_name}}, you get **30 free AI requests a day** once your email is confirmed. Applying to lots of jobs this week? Get **100 extra requests for €0.50**. They never expire.'),
+    BTN('Get extra requests', SITE + '/settings'), SIGN() ] },
+  event: { group: 'Newsletter', name: 'Event or workshop invitation', audience: 'all', subject: 'You’re invited: [event name] on [date]', blocks: () => [
+    mk('logo'), H('[Event name]'),
+    T('Hi {{first_name}}, join us for **[what happens]** at **[place]** on **[date] at [time]**.'),
+    LIST(['**Who it’s for:** [students, graduates…]', '**Bring:** your laptop, or just your phone', '**Free.** [How to sign up]']),
+    BTN('Save my place', SITE), SIGN() ] },
+  milestone: { group: 'Newsletter', name: 'Thank you (milestone)', audience: 'all', subject: 'Thank you, {{first_name}}', blocks: () => [
+    mk('logo'), H('Thank you'),
+    T('Hi {{first_name}}, CVMaster just passed **[milestone, e.g. 1,000 CVs made]**. That’s thanks to people like you who built their CV here and told their friends.'),
+    T('[One line about what’s coming next.]'),
+    BTN('Open CVMaster'), SIGN() ] },
+  fresh: { group: 'Newsletter', name: 'Fresh start (new season)', audience: 'all', subject: 'A fresh start for your CV', blocks: () => [
+    mk('logo'), H('New season, fresh CV'),
+    T('Hi {{first_name}}, five minutes now saves a rush later:'),
+    LIST(['Add your **latest role, course or project**', 'Refresh your **skills** section', 'Check your CV against **a job you’d love**']),
+    BTN('Update my CV'), SIGN() ] },
 
   terms: { group: 'Important notice', name: 'Terms update', audience: 'users', subject: 'An update to our Terms of Service', blocks: () => [
     mk('logo'), H('We’re updating our Terms of Service', { size: 22 }),
@@ -1748,6 +1834,35 @@ const BUILTIN = {
     T('Hi {{first_name}}, [what happened, in one or two plain sentences].'),
     mk('callout', { text: '**What to do:** [for example, change your password in Settings]. If you use the same password elsewhere, change it there too.', bgColor: '#FFF8EB', borderColor: '#D97706' }),
     BTN('Go to Settings', SITE + '/settings'), T('We’re sorry for the trouble. Reply to this email if you have any questions.', { size: 13, color: '#6B6B80' }), SIGN() ] },
+  incident: { group: 'Important notice', name: 'Problem fixed (after an outage)', audience: 'users', subject: 'We had a problem on [date], and it’s fixed', blocks: () => [
+    mk('logo'), H('Sorry for the trouble', { size: 22 }),
+    T('Hi {{first_name}}, on **[date] between [time] and [time] (Paris time)**, [what didn’t work]. It’s fixed now.'),
+    mk('callout', { text: '**Your CVs are safe.** [What people need to do, or: you don’t need to do anything.]', bgColor: '#ECFDF3', borderColor: '#15803D' }),
+    T('Thanks for your patience. Reply to this email if anything still looks wrong.', { size: 13, color: '#6B6B80' }), SIGN() ] },
+
+  hello: { group: 'Specific people', name: 'Personal hello', audience: 'people', subject: 'Welcome, {{first_name}}. Anything I can help with?', blocks: () => [
+    T('Hi {{first_name}},'),
+    T('I’m [your name], and I built CVMaster. Thanks for signing up.'),
+    T('If anything is confusing or missing, just reply to this email. I read every message.'),
+    T('[Your name]', { size: 14, color: '#6B6B80' }) ] },
+  fixed: { group: 'Specific people', name: 'Thanks for your feedback (fixed)', audience: 'people', subject: 'You told us, we fixed it', blocks: () => [
+    mk('logo'), T('Hi {{first_name}},'),
+    T('Thanks for telling us about **[the problem]**. It’s fixed now: [one line on what changed].'),
+    T('Thanks for helping make CVMaster better. If anything else looks off, just reply.'), SIGN() ] },
+  refund: { group: 'Specific people', name: 'Refund confirmation', audience: 'people', subject: 'Your refund from CVMaster', blocks: () => [
+    mk('logo'), T('Hi {{first_name}},'),
+    T('We’ve refunded **[amount]** to the card you paid with. It usually shows on your statement within 5 to 10 working days.'),
+    T('Sorry it didn’t work out. If there’s anything we could do better, just reply.'), SIGN() ] },
+  pdfhelp: { group: 'Specific people', name: 'Help with a PDF', audience: 'people', subject: 'About your CV PDF', blocks: () => [
+    mk('logo'), T('Hi {{first_name}},'),
+    T('We’ve looked into **[the problem with your PDF]**. [What we did.]'),
+    T('You can download it again from **My CVs**, and re-sends are always free, even after you edit it.'),
+    BTN('Open my CVs'), SIGN() ] },
+  account: { group: 'Specific people', name: 'Help with an account', audience: 'people', subject: 'About your CVMaster account', blocks: () => [
+    mk('logo'), T('Hi {{first_name}},'),
+    T('[What you did, for example: we’ve added your free CV, or merged your two accounts.]'),
+    T('Sign in as usual to see it. If anything isn’t right, just reply.'),
+    BTN('Sign in', SITE), SIGN() ] },
 }
 
 async function loadTemplate(key) {
@@ -1954,21 +2069,15 @@ function renderEmail() {
       <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
         <div class="form-group"><label class="form-label">Subject line</label><input class="inp" id="e-subject" placeholder="e.g. New CV layouts to try" value="${esc(S.email.subject)}" />
           <div class="muted" style="font-size:12px;margin-top:5px">Tip: write <code>{{first_name}}</code> in the subject or text. Each person sees their own first name (or “there”).</div></div>
-        <div class="form-group"><label class="form-label">Send to</label>
-          <select class="inp" id="e-plan-sel">
-            <optgroup label="Newsletter, people who subscribed">
+        <div class="form-group"><label class="form-label">What are you sending?</label>
+          <div class="kinds" role="radiogroup" aria-label="Kind of email">${EMAIL_KINDS.map(k => `<button type="button" class="kind ${emailKind() === k.id ? 'on' : ''}" role="radio" aria-checked="${emailKind() === k.id}" data-act="email-kind" data-kind="${k.id}">
+            <b>${k.name}</b><span>${k.who}</span><code>From ${esc(senderOf(k.id))}</code></button>`).join('')}</div>
+          ${emailKind() === 'news' ? `<select class="inp" id="e-plan-sel" style="margin-top:10px" aria-label="Which subscribers">
               <option value="all"${S.email.plan==='all'?' selected':''}>All subscribers${S.subs ? ' (' + fmt(S.subs.counts.subscribed) + ')' : ''}</option>
               <option value="free"${S.email.plan==='free'?' selected':''}>Subscribers on the free plan${S.subs ? ' (' + fmt(S.subs.byPlan.free || 0) + ')' : ''}</option>
               <option value="pro"${S.email.plan==='pro'?' selected':''}>Subscribers on Pro${S.subs ? ' (' + fmt(S.subs.byPlan.pro || 0) + ')' : ''}</option>
               <option value="unpaid"${S.email.plan==='unpaid'?' selected':''}>Subscribers who made a CV but haven’t bought one${S.subs?.unpaid != null ? ' (' + fmt(S.subs.unpaid) + ')' : ''}</option>
-            </optgroup>
-            <optgroup label="Particular people">
-              <option value="people"${S.email.plan==='people'?' selected':''}>Specific users${S.email.people.length ? ' (' + S.email.people.length + ')' : ''}</option>
-            </optgroup>
-            <optgroup label="Important notice, every account">
-              <option value="users"${S.email.plan==='users'?' selected':''}>Every user${S.subs?.allUsers != null ? ' (' + fmt(S.subs.allUsers) + ')' : ''}</option>
-            </optgroup>
-          </select>
+            </select>` : ''}
           ${S.email.plan === 'people' ? `<div style="margin-top:8px">
             <input class="inp" id="e-people" placeholder="Add emails of users (comma or Enter)…" autocomplete="off">
             <div class="ppl">${S.email.people.map(e => `<span>${esc(e)}<button data-act="ppl-remove" data-email="${esc(e)}" title="Remove">×</button></span>`).join('')}</div>
@@ -1990,8 +2099,8 @@ function renderEmail() {
       <span class="tb-label">Templates</span>
       <select class="inp tpl-sel" id="tpl-sel">
         <option value="">Start from a template…</option>
-        ${['Newsletter', 'Important notice'].map(g => `<optgroup label="${g === 'Newsletter' ? 'Newsletter (subscribers)' : 'Important notices (every user)'}">${Object.entries(BUILTIN).filter(([, t]) => t.group === g).map(([k, t]) => `<option value="${k}">${esc(t.name)}</option>`).join('')}</optgroup>`).join('')}
-        ${(S.myTemplates || []).length ? `<optgroup label="Saved by you">${S.myTemplates.map(t => `<option value="my:${t.id}">${esc(t.name)}</option>`).join('')}</optgroup>` : ''}
+        <optgroup label="${esc(EMAIL_KINDS.find(k => k.id === emailKind()).name)} templates">${Object.entries(BUILTIN).filter(([, t]) => kindOf(t.audience) === emailKind()).map(([k, t]) => `<option value="${k}">${esc(t.name)}</option>`).join('')}</optgroup>
+        ${(S.myTemplates || []).filter(t => kindOf(t.audience) === emailKind()).length ? `<optgroup label="Saved by you">${S.myTemplates.filter(t => kindOf(t.audience) === emailKind()).map(t => `<option value="my:${t.id}">${esc(t.name)}</option>`).join('')}</optgroup>` : ''}
       </select>
       <div class="tpl-acts">
         <button class="tb-btn" data-nl="save-tpl">💾 Save as template</button>
@@ -2166,7 +2275,7 @@ function bind() {
   $('sub-q')?.addEventListener('change', (e) => { S.subQ = e.target.value.trim(); render() })
   $('e-test-btn')?.addEventListener('click', () => sendEmail(true))
   $('e-send-btn')?.addEventListener('click', async () => {
-    const plan = $('e-plan-sel')?.value || 'all'
+    const plan = $('e-plan-sel')?.value || S.email.plan
     if (plan === 'people') {
       const n = S.email.people.length
       if (!n) { toast('Add at least one person to send to.'); return }
@@ -2206,6 +2315,7 @@ document.addEventListener('click', (e) => {
   if (t.dataset.review) { setReview(t.dataset.review, t.dataset.st); return }
   if (t.dataset.sub) { subAction(t.dataset.sub, t.dataset.sact, t.dataset.email); return }
   if (t.dataset.act === 'sub-export') { exportSubs(); return }
+  if (t.dataset.act === 'email-kind') { const k = t.dataset.kind; S.email.plan = k === 'notice' ? 'users' : k === 'people' ? 'people' : 'all'; S.email.important = false; render(); return }
   if (t.dataset.act === 'ppl-remove') { S.email.people = S.email.people.filter(x => x !== t.dataset.email); render(); return }
   if (t.dataset.act === 'email-user') { S.email.plan = 'people'; S.email.people = [...new Set([...S.email.people, t.dataset.email])]; go('newsletter'); return }
   if (t.dataset.act === 'email-history') { loadHistory(); return }

@@ -54,8 +54,17 @@ const FRONTEND_URL     = process.env.FRONTEND_URL || 'http://localhost:5173';
 // so Gmail SMTP only works locally. Resend only sends from a verified domain, so the
 // sender must be @cvmaster.live (RESEND_FROM), never a gmail.com address.
 const resend      = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+// Who sends what: one address per purpose, so people (and spam filters) can tell the emails apart.
+//   noreply@  account and CV emails a person asked for: confirm email, reset password, your CV.
+//             Replies go to support@.
+//   support@  conversations: Inbox replies, emails to particular people, important notices to every
+//             account. Replies come back to the Inbox.
+//   news@     the newsletter, its confirmation and review requests (subscribers only). Each has an
+//             unsubscribe link; replies come to news@ and land in the Inbox too.
 const SUPPORT_REPLY_TO = process.env.SUPPORT_EMAIL || 'support@cvmaster.live';
 const RESEND_FROM = process.env.RESEND_FROM || 'CVMaster <noreply@cvmaster.live>';
+const NEWS_FROM   = process.env.NEWS_FROM || 'CVMaster <news@cvmaster.live>';
+const NEWS_ADDR   = NEWS_FROM.match(/<([^>]+)>/)?.[1] || NEWS_FROM;
 // Logo at the top of every email (public/email-logo-tile.png: public/email-logo.png on a white tile)
 // The logo sits on its own white rounded tile: invisible on a white email, and still readable when a
 // mail app's dark mode turns the email dark (Gmail's apps darken the colours but never the images)
@@ -650,7 +659,6 @@ async function rewardReferrer(userId) {
 // Every newsletter carries a one-click unsubscribe link (also as List-Unsubscribe headers),
 // and we keep when and where each person agreed.
 const API_PUBLIC_URL  = process.env.API_PUBLIC_URL || (IS_PROD ? 'https://api.cvmaster.live' : `http://localhost:${process.env.PORT || 3001}`);
-const NEWSLETTER_FROM = process.env.NEWSLETTER_FROM || 'CVMaster <support@cvmaster.live>';
 let _nlTable = null;
 function ensureNewsletterTable() {
   if (!_nlTable) {
@@ -708,7 +716,7 @@ async function sendNewsletterConfirm(sub) {
   const link = `${API_PUBLIC_URL}/api/newsletter/confirm?t=${sub.token}`;
   await sendMail({
     to: sub.email,
-    from: NEWSLETTER_FROM,
+    from: NEWS_FROM, replyTo: NEWS_ADDR,
     subject: 'Confirm your CVMaster newsletter subscription',
     html: `
       <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#fff;color:#14142B">
@@ -3305,7 +3313,12 @@ app.get('/api/admin/config', adminAuthMiddleware, (req, res) => {
   res.json({
     ai: AI_PROVIDER, aiLast,
     stripe: !!STRIPE_KEY, stripeWebhook: !!process.env.STRIPE_WEBHOOK_SECRET, stripeMode: STRIPE_KEY.startsWith('sk_live') ? 'live' : STRIPE_KEY ? 'test' : null,
-    email: !!(resend || smtpTransport), sendingFrom: RESEND_FROM, supportFrom: SUPPORT_FROM,
+    email: !!(resend || smtpTransport), sendingFrom: RESEND_FROM, supportFrom: SUPPORT_FROM, newsFrom: NEWS_FROM,
+    senders: [
+      { from: RESEND_FROM, replyTo: SUPPORT_REPLY_TO, label: 'Account and CV emails', sends: ['Confirm your email', 'Reset your password', 'Your CV (the PDF)', 'Status alerts to you'] },
+      { from: SUPPORT_FROM, replyTo: SUPPORT_REPLY_TO, label: 'Conversations and notices', sends: ['Replies from the Inbox', 'Emails to specific people', 'Important notices to every account'] },
+      { from: NEWS_FROM, replyTo: NEWS_ADDR, label: 'Newsletter', sends: ['Newsletters to subscribers', 'Newsletter sign-up confirmation', 'Review requests (subscribers only)'] },
+    ],
     inbound: !!process.env.RESEND_INBOUND_SECRET, inboundUrl: 'https://api.cvmaster.live/api/webhooks/resend-inbound',
     inboundReadKey: !!process.env.RESEND_INBOUND_API_KEY,
     feedbackEmail: FEEDBACK_TO || null,
@@ -3718,8 +3731,8 @@ function newsletterMail(to, token, subject, body, name = '') {
     You’re getting this because you subscribed to CVMaster news.<br>
     <a href="${url}" style="color:#8A8AA3;text-decoration:underline">Unsubscribe</a> · <a href="https://www.cvmaster.live/privacy" style="color:#8A8AA3;text-decoration:underline">Privacy</a></div>`;
   const html = /<\/body>/i.test(body) ? body.replace(/<\/body>/i, foot + '</body>') : body + foot;
-  return { to, from: NEWSLETTER_FROM, subject, html,
-    headers: { 'List-Unsubscribe': `<${url}>, <mailto:${SUPPORT_REPLY_TO}?subject=unsubscribe>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } };
+  return { to, from: NEWS_FROM, replyTo: NEWS_ADDR, subject, html,
+    headers: { 'List-Unsubscribe': `<${url}>, <mailto:${NEWS_ADDR}?subject=unsubscribe>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } };
 }
 const UNPAID_SQL = `EXISTS (SELECT 1 FROM drafts d WHERE d.user_id = u.id)
   AND NOT EXISTS (SELECT 1 FROM payments pay WHERE pay.user_id = u.id AND pay.paid AND pay.product = 'email_export')`;
@@ -3861,7 +3874,7 @@ app.post('/api/admin/email/preview', adminAuthMiddleware, (req, res) => {
   const m = req.body?.audience === 'all_users' ? noticeMail('someone@example.com', subject, body, 'Alex Martin')
     : req.body?.audience === 'people' ? directMail('someone@example.com', subject, body, 'Alex Martin')
     : newsletterMail('someone@example.com', 'preview', subject, body, 'Alex Martin');
-  res.json({ html: m.html, from: m.from, subject: m.subject, replyTo: SUPPORT_REPLY_TO });
+  res.json({ html: m.html, from: m.from, subject: m.subject, replyTo: m.replyTo || SUPPORT_REPLY_TO });
 });
 
 let _tplTable = null;
@@ -4243,7 +4256,7 @@ app.get('/api/admin/inbox', adminAuthMiddleware, async (req, res) => {
     await ensureInboxTables();
     const status = ['open', 'done'].includes(req.query.status) ? req.query.status : null;
     const { rows } = await query(
-      `SELECT id, from_addr, from_name, subject, LEFT(COALESCE(text_body, ''), 400) AS preview, read, status, received_at,
+      `SELECT id, from_addr, from_name, to_addrs, subject, LEFT(COALESCE(text_body, ''), 400) AS preview, read, status, received_at,
               jsonb_array_length(attachments) AS attachment_count,
               (SELECT COUNT(*)::int FROM admin_replies r WHERE r.ref_id = m.id) AS reply_count
        FROM inbox_messages m ${status ? 'WHERE status = $1' : ''} ORDER BY received_at DESC LIMIT 300`,
