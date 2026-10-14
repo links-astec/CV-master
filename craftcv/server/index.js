@@ -3137,6 +3137,10 @@ app.get('/admin', (req, res) => {
 // The admin as an app on a phone's home screen (Add to Home Screen)
 app.get('/admin-icon.png', (req, res) => res.sendFile(_join(_dirname, '../public/apple-touch-icon.png')));
 app.get('/admin-icon-512.png', (req, res) => res.sendFile(_join(_dirname, '../public/icon-512.png')));
+// Tab icons for the admin and the blog (the same files as the website)
+for (const f of ['favicon.ico', 'favicon.svg', 'favicon-48.png', 'favicon-192.png']) {
+  app.get('/' + f, (req, res) => res.set('Cache-Control', 'public, max-age=604800').sendFile(_join(_dirname, '../public/' + f)));
+}
 app.get('/admin.webmanifest', (req, res) => {
   res.type('application/manifest+json').send(JSON.stringify({
     name: 'CVMaster Admin', short_name: 'CVM Admin', start_url: '/admin', scope: '/', display: 'standalone',
