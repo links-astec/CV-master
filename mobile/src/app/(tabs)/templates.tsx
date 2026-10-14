@@ -56,7 +56,7 @@ export default function Templates() {
       id: l.id,
       html: render(templateId(l.id, colour === 'suggested' ? l.theme : colour), d, fmt || {}, { preview: false }),
       name: t(l.name),
-      badge: l.kind === 'ats' ? { text: t('ATS-friendly'), bg: c.greenSoft, fg: c.green } : { text: t('Creative'), bg: c.accentSoft, fg: c.accent },
+      badge: l.kind === 'ats' ? { text: t('ATS-friendly'), bg: c.greenSoft, fg: c.green } : { text: t('Standard'), bg: c.accentSoft, fg: c.accent },
     }))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shown, colour, data, fmt, lang, c])
@@ -98,10 +98,10 @@ export default function Templates() {
           ))}
         </View>
         <Segmented
-          items={[{ key: 'all', label: t('All'), count: counts.all }, { key: 'ats', label: t('ATS-friendly'), count: counts.ats }, { key: 'creative', label: t('Creative'), count: counts.creative }]}
+          items={[{ key: 'all', label: t('All'), count: counts.all }, { key: 'ats', label: t('ATS-friendly'), count: counts.ats }, { key: 'creative', label: t('Standard'), count: counts.creative }]}
           value={kind} onChange={setKind}
         />
-        <Txt size={14.5} color={c.text2} style={{ lineHeight: 21 }}>{t('ATS-friendly layouts are for online applications. Creative ones are for print, in person, or sending straight to a person.')}</Txt>
+        <Txt size={14.5} color={c.text2} style={{ lineHeight: 21 }}>{t('ATS-friendly layouts are for online applications. Standard ones are for print, in person, or sending straight to a person.')}</Txt>
         <Txt size={13} color={c.text3}>{t(mine ? 'Previews show your CV.' : 'Previews show an example CV.')}</Txt>
         {busy && <BrandLoader size={28} />}
         <LayoutGrid key={kind} items={items} selected={currentLayout} onPick={use} estimate={estimate} />

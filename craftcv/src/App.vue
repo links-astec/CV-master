@@ -350,10 +350,17 @@ async function newCV() {
 }
 
 // Landing → app
-function startBuilding() {
+// mode (the homepage's quick starts): 'narrate' → Tell your story; 'ats' → check a CV against a job
+function startBuilding(mode) {
   lsSet('pcv-started', '1')
   showLanding.value = false
+  if (mode === 'ats' && store.hasContent) { router.push({ path: '/editor', query: { tab: 'job' } }); return }
   router.push(auth.isLoggedIn ? '/' : '/templates')   // signed in → My CVs
+  // With no CV yet, open the new-CV flow: the job offer first, then (for 'narrate') Tell your story
+  if ((mode === 'narrate' || mode === 'ats') && !store.hasContent) {
+    store.resetData()
+    store.openWizard(false, { mode: mode === 'narrate' ? 'narrate' : null })
+  }
 }
 
 // ── Maintenance ───────────────────────────────────────────────────────────────

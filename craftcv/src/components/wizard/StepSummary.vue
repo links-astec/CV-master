@@ -13,6 +13,18 @@
       <div class="f-hint">{{ $t('Aim for 40–60 words. Focus on value, not just experience.') }}</div>
     </div>
 
+    <!-- What they're looking for: shown on the CV right under the summary -->
+    <div class="f-grp">
+      <label class="f-lbl" for="seek-in">{{ $t('What are you looking for?') }}</label>
+      <input id="seek-in" class="f-inp" v-model="store.data.seeking" maxlength="140"
+        :placeholder="$t('e.g. A 3-month internship in marketing, from March 2027')" />
+      <div class="seek-chips">
+        <button v-for="c in SEEK_CHIPS" :key="c" type="button" class="tone-pill" :class="{ active: store.data.seeking === $t(c) }"
+          @click="store.data.seeking = $t(c)">{{ $t(c) }}</button>
+      </div>
+      <div class="f-hint">{{ $t('Shown under your summary, so a recruiter sees straight away what you want. Add the length, field and start date.') }}</div>
+    </div>
+
     <div v-if="aiLoading" class="thinking">
       <div class="thinking-dots"><span></span><span></span><span></span></div>
       <div class="thinking-txt">{{ $t('AI is writing your summary…') }}</div>
@@ -55,6 +67,9 @@ const aiLoading = ref(false)
 const aiResult = ref('')
 const selectedTone = ref('professional')
 
+// Starting points for "What are you looking for?"; the person adds the field and dates
+const SEEK_CHIPS = ['A 3-month internship', 'A 6-month internship', 'A work-study contract (alternance)', 'My first full-time job', 'A part-time job']
+
 const tones = [
   { id: 'professional', label: '🎯 Professional' },
   { id: 'confident',    label: '💪 Confident' },
@@ -94,6 +109,7 @@ p{font-size:13px;color:var(--c-text2);line-height:1.5;}
 .btn-sug-use{background:var(--c-green);color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;}
 .btn-sug-dismiss{background:none;border:1px solid var(--hair);padding:6px 12px;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;color:var(--c-text2);font-family:inherit;}
 .tone-row{margin-top:4px;}
+.seek-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
 .tone-pills{display:flex;flex-wrap:wrap;gap:6px;}
 .tone-pill{background:var(--c-bg);border:1px solid var(--hair);padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;color:var(--c-text2);transition:all .14s;font-family:inherit;}
 .tone-pill:hover,.tone-pill.active{background:var(--c-accent-lt);border-color:var(--c-accent);color:var(--c-accent);font-weight:600;}

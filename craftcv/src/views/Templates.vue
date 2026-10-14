@@ -57,11 +57,11 @@ const router = useRouter()
 // 'auto' = show each layout in its own suggested colour
 const theme  = ref('auto')
 const previewData = computed(() => store.hasContent ? store.data : sampleCv())
-const FILTERS = [{ id: 'all', label: 'All' }, { id: 'ats', label: 'ATS-friendly' }, { id: 'creative', label: 'Creative' }]
+const FILTERS = [{ id: 'all', label: 'All' }, { id: 'ats', label: 'ATS-friendly' }, { id: 'creative', label: 'Standard' }]
 const filter = ref('all')
 const shown = computed(() => filter.value === 'all' ? LAYOUTS : LAYOUTS.filter(l => l.kind === filter.value))
 const filterNote = computed(() => filter.value === 'all'
-  ? 'ATS-friendly layouts are for online applications. Creative ones are for print, in person, or sending straight to a person.'
+  ? 'ATS-friendly layouts are for online applications. Standard ones are for print, in person, or sending straight to a person.'
   : LAYOUT_KINDS[filter.value].desc)
 const tplFor    = (l) => templateId(l.id, theme.value === 'auto' ? l.theme : theme.value)
 const isCurrent = (l) => store.hasContent && parseTemplate(store.template).layout === l.id
@@ -78,7 +78,7 @@ async function pick(l) {
     // Existing CV: go to the editor; with a job offer, straight to tailoring
     router.push({ path: '/editor', query: offer ? { tab: 'job' } : {} })
   } else {
-    store.openWizard()
+    store.openWizard(false, { askOffer: false })   // the job offer was just asked above
   }
 }
 </script>

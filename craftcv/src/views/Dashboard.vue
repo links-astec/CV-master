@@ -7,9 +7,23 @@
           <p v-if="auth.isLoggedIn">{{ $t(cards.length ? 'Open a CV to edit it, or download and send it.' : 'Your saved CVs will appear here.') }}</p>
           <p v-else>{{ $t('You’re using CVMaster as a guest. Your CV is saved in this browser.') }}</p>
         </div>
-        <button class="btn-primary accent" @click="newCV">
+        <button class="btn-primary accent" @click="newCV()">
           <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           {{ $t('New CV') }}
+        </button>
+      </div>
+
+      <!-- The two features people miss: telling their story, and checking against a job (ATS) -->
+      <div class="db-feats">
+        <button class="db-feat" @click="newCV('narrate')">
+          <span class="db-feat-ic"><svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg></span>
+          <span class="db-feat-txt"><b>{{ $t('Tell your story') }}</b><span>{{ $t('Speak or type about your career. AI writes your CV from it.') }}</span></span>
+          <svg class="db-feat-go" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <button class="db-feat" @click="checkAts">
+          <span class="db-feat-ic"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span>
+          <span class="db-feat-txt"><b>{{ $t('Check your ATS score') }}</b><span>{{ $t(cards.length ? 'Paste a job offer and see how well your CV matches it.' : 'Paste a job offer and build a CV that matches it.') }}</span></span>
+          <svg class="db-feat-go" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
       </div>
 
@@ -229,18 +243,25 @@ function open(c) {
   router.push('/editor')
 }
 
-async function newCV() {
+// mode: 'narrate' opens "Tell your story" straight after the job offer screen
+async function newCV(mode = null) {
   if (!auth.isLoggedIn && store.hasContent) {
     const ok = await confirm({ title: t('Start a new CV?'), message: t('Your current CV is only saved in this browser, so it will be replaced. Create a free account first if you want to keep both.'), ok: t('Start new CV'), cancel: t('Keep current'), mode: 'warning' })
     if (!ok) return
   }
   store.resetData()
-  store.openWizard()
+  store.openWizard(false, { mode })
+}
+// The latest CV, straight to Job match (job offer and ATS score); without a CV, a new one built for a job
+function checkAts() {
+  const c = cards.value[0]
+  if (!c) return newCV()
+  if (c.id && c.id !== store.currentDraftId) store.loadDraft(drafts.value.find(d => d.id === c.id))
+  router.push({ path: '/editor', query: { tab: 'job' } })
 }
 function importCv() {
   store.resetData()
-  store.openWizard()
-  store.setMode('upload')
+  store.openWizard(false, { mode: 'upload' })
 }
 
 function fileName(c) {
@@ -337,6 +358,17 @@ async function remove(c) {
 .db-next-t{font-size:18px;font-weight:700;letter-spacing:-.025em;color:var(--c-text);margin-top:3px}
 .db-next p{font-size:14px;color:var(--c-text2);line-height:1.5;margin-top:3px}
 @media (max-width:560px){ .db-next{flex-direction:column;align-items:stretch} }
+.db-feats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px}
+.db-feat{display:flex;align-items:center;gap:14px;padding:16px 18px;border:none;border-radius:20px;background:var(--c-surface);box-shadow:var(--shadow-xs);text-align:left;font:inherit;color:var(--c-text);cursor:pointer;transition:transform .15s,box-shadow .15s}
+.db-feat:hover{transform:translateY(-1px);box-shadow:var(--shadow-sm,0 4px 14px rgba(20,20,43,.08))}
+.db-feat:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}
+.db-feat-ic{width:42px;height:42px;flex-shrink:0;border-radius:13px;background:var(--c-accent-lt);display:flex;align-items:center;justify-content:center}
+.db-feat-ic svg{width:21px;height:21px;fill:none;stroke:var(--c-accent);stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.db-feat-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.db-feat-txt b{font-size:15px;font-weight:650}
+.db-feat-txt span{font-size:13px;color:var(--c-text2);line-height:1.45}
+.db-feat-go{width:16px;height:16px;flex-shrink:0;fill:none;stroke:var(--c-text3);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+@media (max-width:640px){ .db-feats{grid-template-columns:1fr} }
 .db-review{position:relative;margin-top:28px;padding:22px 24px;border:none;border-radius:24px}
 .db-review :deep(.rv){border:none;padding:0;background:none}
 .db-review-later{position:absolute;top:14px;right:16px;font-size:12.5px}

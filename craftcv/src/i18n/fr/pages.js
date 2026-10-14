@@ -80,7 +80,7 @@ export default {
   'Each layout in its own suggested colour': 'Chaque mise en page dans sa couleur suggérée',
   'Suggested': 'Suggérée',
   'All': 'Toutes',
-  'ATS-friendly layouts are for online applications. Creative ones are for print, in person, or sending straight to a person.': 'Les mises en page compatibles ATS sont faites pour les candidatures en ligne. Les créatives, pour l’impression, en main propre ou l’envoi direct à une personne.',
+  'ATS-friendly layouts are for online applications. Standard ones are for print, in person, or sending straight to a person.': 'Les mises en page compatibles ATS sont faites pour les candidatures en ligne. Les standard, pour l’impression, en main propre ou l’envoi direct à une personne.',
   'Current': 'Actuelle',
   'Use this layout': 'Utiliser cette mise en page',
   'Previews show your CV.': 'Les aperçus montrent votre CV.',
@@ -110,4 +110,8 @@ export default {
   'Saved in this browser': 'Enregistré dans ce navigateur',
   'Saved just now': 'Enregistré à l’instant',
   'Saved {n} min ago': 'Enregistré il y a {n} min',
+  'Speak or type about your career. AI writes your CV from it.': 'Racontez votre parcours à l’écrit ou à l’oral. L’IA en fait votre CV.',
+  'Check your ATS score': 'Vérifiez votre score ATS',
+  'Paste a job offer and see how well your CV matches it.': 'Collez une offre d’emploi et voyez à quel point votre CV y correspond.',
+  'Paste a job offer and build a CV that matches it.': 'Collez une offre d’emploi et créez un CV qui y correspond.',
 }

@@ -51,7 +51,7 @@ export default {
   'Check & export': 'Vérifiez et exportez',
   'See your ATS match and what’s missing, fix it, then download a clean one-page PDF.': 'Voyez votre score ATS et ce qui manque, corrigez, puis téléchargez un PDF propre d’une page.',
   '50 templates, 12 colours': '50 modèles, 12 couleurs',
-  'Plain ATS-friendly ones for online applications, creative ones for print and in person.': 'Des modèles sobres compatibles ATS pour les candidatures en ligne, des modèles créatifs pour l’impression et les entretiens.',
+  'Plain ATS-friendly ones for online applications, standard ones for print and in person.': 'Des modèles sobres compatibles ATS pour les candidatures en ligne, des modèles standard pour l’impression et les entretiens.',
   'Browse all templates': 'Voir tous les modèles',
   'Rated {n} out of 5': 'Noté {n} sur 5',
   '{n} out of 5 stars': '{n} étoiles sur 5',
@@ -97,4 +97,5 @@ export default {
   'Please enter a valid email address.': 'Veuillez saisir une adresse e-mail valide.',
   'Could not subscribe you, please try again.': 'Inscription impossible, veuillez réessayer.',
   'Could not subscribe you right now. Please try again later.': 'Inscription impossible pour le moment. Veuillez réessayer plus tard.',
+  'Or start with:': 'Ou commencez par :',
 }

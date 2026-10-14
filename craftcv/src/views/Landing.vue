@@ -27,6 +27,16 @@
           <button class="btn-primary accent btn-lg" @click="$emit('start')">{{ $t('Build my CV for free') }}</button>
           <a href="#how" class="lp-more" @click.prevent="go('#how')">{{ $t('See how it works') }} <span aria-hidden="true">›</span></a>
         </div>
+        <!-- The two things people should not miss -->
+        <div class="lp-quick">
+          <span class="lp-quick-lbl">{{ $t('Or start with:') }}</span>
+          <button class="lp-q" @click="$emit('start', 'narrate')">
+            <svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>{{ $t('Tell your story') }}
+          </button>
+          <button class="lp-q" @click="$emit('start', 'ats')">
+            <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>{{ $t('Check your ATS score') }}
+          </button>
+        </div>
       </div>
       <div class="lp-stage" aria-hidden="true" inert :style="{ '--drift': drift }">
         <div class="lp-sheet s-l"><CvThumb template="harvard:charcoal" :data="sampleCv()" /></div>
@@ -149,14 +159,14 @@
     <section class="lp-sec" id="templates">
       <div class="lp-wrap">
         <h2 class="lp-h2" v-reveal>{{ $t('50 layouts. 12 colours.') }}</h2>
-        <p class="lp-sub" v-reveal>{{ $t('Plain ATS-friendly ones for online applications, creative ones for print and in person.') }}</p>
+        <p class="lp-sub" v-reveal>{{ $t('Plain ATS-friendly ones for online applications, standard ones for print and in person.') }}</p>
         <div class="lp-dots" role="radiogroup" :aria-label="$t('Colour')" v-reveal>
           <button v-for="c in THEMES" :key="c.id" class="lp-dot" :class="{ on: color === c.id }" :style="{ '--dot': c.accent }" role="radio" :aria-checked="color === c.id" :title="$t(c.name)" :aria-label="$t(c.name)" @click="color = c.id"></button>
         </div>
         <div class="lp-tpls">
           <figure v-for="(t, i) in SHOWCASE" :key="t.id" class="lp-tpl" v-reveal="i * 80">
             <div class="lp-tpl-img"><CvThumb :template="`${t.id}:${color}`" :data="sampleCv()" /></div>
-            <figcaption>{{ t.name }}<span>{{ $t(t.kind === 'ats' ? 'ATS-friendly' : 'Creative') }}</span></figcaption>
+            <figcaption>{{ t.name }}<span>{{ $t(t.kind === 'ats' ? 'ATS-friendly' : 'Standard') }}</span></figcaption>
           </figure>
         </div>
         <div class="lp-center"><button class="btn-secondary btn-lg" @click="$emit('start')">{{ $t('Browse all templates') }}</button></div>
@@ -377,7 +387,7 @@ const GALLERY = [
 
 const feat = ref(0)
 const FEATURES = [
-  { k: 'layouts', t: '50 templates, 12 colours', d: 'Plain ATS-friendly ones for online applications, creative ones for print and in person.' },
+  { k: 'layouts', t: '50 templates, 12 colours', d: 'Plain ATS-friendly ones for online applications, standard ones for print and in person.' },
   { k: 'import',  t: 'Import an existing CV',    d: 'Upload a PDF or Word file and everything is filled in for you, in your own words.' },
   { k: 'lang',    t: 'Your language',            d: 'Use CVMaster in seven languages, and switch your CV between English and French in one click.' },
   { k: 'honest',  t: 'AI that never invents',    d: 'It rewords what you wrote using the job’s language, and you approve every change. Skills you don’t show are only suggested.' },
@@ -433,6 +443,12 @@ const FAQ = [
 .lp-lead{font-size:clamp(18px,2vw,22px);line-height:1.5;color:var(--c-text2);max-width:620px;margin:24px auto 0;letter-spacing:-.01em;animation:fup .9s var(--ease) .1s both}
 .lp-cta{display:flex;align-items:center;justify-content:center;gap:26px;margin-top:36px;flex-wrap:wrap;animation:fup .9s var(--ease) .18s both}
 .lp-more{color:var(--c-accent);text-decoration:none;font-size:16px;font-weight:600;white-space:nowrap}
+.lp-quick{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px 10px;margin-top:22px;animation:fup .9s var(--ease) .26s both}
+.lp-quick-lbl{font-size:14px;color:var(--c-text3);font-weight:500}
+.lp-q{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 16px;border-radius:99px;border:none;background:var(--c-surface);box-shadow:var(--shadow-xs),inset 0 0 0 1px var(--hair);font:inherit;font-size:14px;font-weight:600;color:var(--c-text);cursor:pointer;transition:transform .15s,box-shadow .15s}
+.lp-q:hover{transform:translateY(-1px);box-shadow:var(--shadow-sm,0 4px 14px rgba(20,20,43,.08)),inset 0 0 0 1px var(--c-accent)}
+.lp-q:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}
+.lp-q svg{width:16px;height:16px;fill:none;stroke:var(--c-accent);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .lp-more:hover{text-decoration:underline}
 .lp-more span{font-size:1.2em;margin-left:2px}
 
