@@ -8,6 +8,7 @@ import { WebView, type WebViewMessageEvent } from 'react-native-webview'
 import { render } from '@web/composables/cvRenderer.js'
 import { fontCssFor } from '@/lib/cvFonts'
 import { previewDocument, type PageInfo } from '@/lib/previewHtml'
+import { stayOnPage } from '@/lib/webGuard'
 import { useLang } from '@/i18n'
 import { useColors } from '@/lib/theme'
 import { PageLoader } from '@/components/BrandLoader'
@@ -50,8 +51,8 @@ export function CvPreview({ template, data, fmt, zoomed = false, shrink = false,
         setSupportMultipleWindows={false}
         textZoom={100}
         onMessage={onMessage}
-        // Links on the CV don't navigate away inside the preview
-        onShouldStartLoadWithRequest={req => req.navigationType !== 'click'}
+        // Links on the CV open in the browser, never inside the preview (iPhone and Android)
+        onShouldStartLoadWithRequest={req => stayOnPage(req, true)}
       />
     </View>
   )

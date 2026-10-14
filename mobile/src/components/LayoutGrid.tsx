@@ -6,6 +6,7 @@ import { View } from 'react-native'
 import { WebView, type WebViewMessageEvent } from 'react-native-webview'
 import { fontCssFor } from '@/lib/cvFonts'
 import { gridDocument, type GridItem } from '@/lib/previewHtml'
+import { stayOnPage } from '@/lib/webGuard'
 import { useTheme } from '@/lib/theme'
 import { BrandLoader } from '@/components/BrandLoader'
 
@@ -43,6 +44,7 @@ export function LayoutGrid({ items, selected, onPick, estimate }: Props) {
         <WebView
           ref={web} originWhitelist={['*']} source={{ html }} onMessage={onMessage}
           scrollEnabled={false} bounces={false} setSupportMultipleWindows={false} textZoom={100}
+          onShouldStartLoadWithRequest={req => stayOnPage(req)}
           showsVerticalScrollIndicator={false} style={{ backgroundColor: c.bg }}
         />
       ) : <BrandLoader size={40} style={{ marginTop: 40 }} />}

@@ -33,14 +33,16 @@ export default function Article() {
         onLoadEnd={() => setLoading(false)} setSupportMultipleWindows={false}
         onShouldStartLoadWithRequest={req => {
           const u = req.url
-          // Other posts open here (made for the app); everything else in the browser
+          // Other posts open here (made for the app); everything else in the browser. Hosts are
+          // matched with their slash, so a look-alike such as api.cvmaster.live.example.com is not ours
+          const fromApi = u.startsWith(BRAND.api + '/'), fromSite = u.startsWith(BRAND.website + '/')
           const m = /\/blog\/([^/?#]+)/.exec(u)
-          if (m && (u.startsWith(BRAND.api) || u.startsWith(BRAND.website))) {
-            if (m[1] !== current && !u.startsWith(BRAND.api)) { setCurrent(m[1]); router.setParams({ slug: m[1] }); return false }
-            return u.startsWith(BRAND.api)
+          if (m && (fromApi || fromSite)) {
+            if (m[1] !== current && !fromApi) { setCurrent(m[1]); router.setParams({ slug: m[1] }); return false }
+            return fromApi
           }
-          if (u.startsWith('http')) { WebBrowser.openBrowserAsync(u).catch(() => {}); return false }
-          return true
+          if (/^https?:\/\//i.test(u)) { WebBrowser.openBrowserAsync(u).catch(() => {}); return false }
+          return /^about:/i.test(u) // nothing else (intent:, file:, …) loads here
         }}
       />
       {loading && <PageLoader style={[StyleSheet.absoluteFill, { backgroundColor: c.bg }]} />}

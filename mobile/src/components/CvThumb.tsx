@@ -8,6 +8,7 @@ import { StyleSheet, View, type LayoutChangeEvent } from 'react-native'
 import { WebView } from 'react-native-webview'
 import { render, PAGE_W, PAGE_H } from '@web/composables/cvRenderer.js'
 import { fontCssFor } from '@/lib/cvFonts'
+import { stayOnPage } from '@/lib/webGuard'
 import { useColors } from '@/lib/theme'
 
 type Props = { template: string; data: Record<string, unknown>; fmt?: Record<string, unknown>; height?: number; radius?: number }
@@ -39,6 +40,7 @@ export function CvThumb({ template, data, fmt, height, radius = 6 }: Props) {
         <WebView
           originWhitelist={['*']} source={{ html }} scrollEnabled={false} bounces={false} textZoom={100}
           style={{ backgroundColor: '#fff' }} androidLayerType="hardware" setSupportMultipleWindows={false}
+          onShouldStartLoadWithRequest={req => stayOnPage(req)}
           showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}
         />
       )}
