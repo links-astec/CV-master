@@ -30,9 +30,17 @@
           <span class="jm-fit-badge">{{ $t(FIT_LABEL[fit.fit]) }}</span>
           <span class="jm-fit-ttl">{{ fit.headline }}</span>
         </div>
-        <ul v-if="fit.reasons?.length" class="jm-fit-list"><li v-for="(r, i) in fit.reasons" :key="i">{{ r }}</li></ul>
+        <!-- What already matches first, then what would strengthen the application -->
+        <template v-if="fit.strengths?.length">
+          <div class="jm-fit-sub">{{ $t('What already matches') }}</div>
+          <ul class="jm-fit-list good"><li v-for="(r, i) in fit.strengths" :key="'s' + i">{{ r }}</li></ul>
+        </template>
+        <template v-if="fit.reasons?.length">
+          <div class="jm-fit-sub">{{ $t('To strengthen your application') }}</div>
+          <ul class="jm-fit-list"><li v-for="(r, i) in fit.reasons" :key="i">{{ r }}</li></ul>
+        </template>
         <p v-if="fit.advice" class="jm-fit-advice">💡 {{ fit.advice }}</p>
-        <p v-if="fit.fit !== 'good'" class="jm-fit-note">{{ $t('It’s your call. You can still tailor your CV and apply.') }}</p>
+        <p v-if="fit.fit !== 'good'" class="jm-fit-note">{{ $t('Most people apply to roles they don’t match 100%. Tailor your CV below to show your best fit.') }}</p>
         <div class="jm-fit-acts">
           <button class="btn-ghost btn-sm" :disabled="fitLoading" @click="checkFit(true)">{{ $t('Check again') }}</button>
           <button class="btn-ghost btn-sm" @click="fit.dismissed = true">{{ $t('Hide') }}</button>
@@ -191,12 +199,14 @@ function onBoosted(n) {
 
 // ── Fit check ─────────────────────────────────────────────────────────────────
 // Runs once per job offer (and per person the CV is for) as soon as the CV has some content
-const FIT_LABEL = { good: 'Good fit', stretch: 'A stretch', poor: 'Heads-up: may not be a good fit' }
+// Encouraging labels: a weaker match is "a reach", never "not a good fit"
+const FIT_LABEL = { good: 'Strong match', stretch: 'Worth a go', poor: 'A reach' }
 const fit = computed(() => (store.data.jobFit && store.data.jobFit.key === fitKey()) ? store.data.jobFit : null)
 const fitLoading = ref(false)
 const fitError = ref('')
 function fitKey() {
-  const s = `${store.data.jobOffer || ''}|${store.data.cvFor || ''}|${store.data.fn || ''} ${store.data.ln || ''}`
+  // "v2": results from the older, harsher check are checked again
+  const s = `v2|${store.data.jobOffer || ''}|${store.data.cvFor || ''}|${store.data.fn || ''} ${store.data.ln || ''}`
   let h = 0
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0
   return String(h)
@@ -218,7 +228,7 @@ async function checkFit(force = false) {
     })
     const j = await r.json().catch(() => ({}))
     if (!r.ok) throw Object.assign(new Error(j.error || 'AI is unavailable right now. Please try again in a moment.'), { status: r.status })
-    store.data.jobFit = { key: fitKey(), fit: j.fit, headline: j.headline, reasons: j.reasons, advice: j.advice, dismissed: false }
+    store.data.jobFit = { key: fitKey(), fit: j.fit, headline: j.headline, strengths: j.strengths || [], reasons: j.reasons, advice: j.advice, dismissed: false }
     if (j.job?.title) store.data.jobTarget = { title: j.job.title, company: j.job.company || '' }
   } catch (e) {
     fitError.value = e.status === 429 ? '' : e.message   // the AI-limit pop-up explains a 429
@@ -257,10 +267,15 @@ onMounted(() => { if (!hasJob.value) draft.value = store.data.jobOffer || ''; ch
 .jm-fit.loading{display:flex;align-items:center;gap:10px;color:var(--c-text2)}
 .jm-fit.good{border-color:color-mix(in srgb,var(--c-green) 40%,transparent);background:color-mix(in srgb,var(--c-green) 6%,var(--c-surface))}
 .jm-fit.stretch{border-color:color-mix(in srgb,var(--c-amber) 45%,transparent);background:color-mix(in srgb,var(--c-amber) 7%,var(--c-surface))}
-.jm-fit.poor{border-color:color-mix(in srgb,var(--c-rose) 45%,transparent);background:color-mix(in srgb,var(--c-rose) 7%,var(--c-surface))}
+/* "A reach" is shown in the brand colour, not red: it is a nudge, not a warning */
+.jm-fit.poor{border-color:color-mix(in srgb,var(--c-accent) 35%,transparent);background:color-mix(in srgb,var(--c-accent) 6%,var(--c-surface))}
+.jm-fit-sub{margin-top:10px;font-size:12.5px;font-weight:650;color:var(--c-text)}
+.jm-fit-list.good{list-style:none;margin-left:0}
+.jm-fit-list.good li{position:relative;padding-left:20px}
+.jm-fit-list.good li::before{content:'✓';position:absolute;left:2px;color:var(--c-green);font-weight:700}
 .jm-fit-hd{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}
 .jm-fit-badge{font-size:13px;font-weight:650;letter-spacing:-.005em}
-.jm-fit.good .jm-fit-badge{color:var(--c-green)}.jm-fit.stretch .jm-fit-badge{color:var(--c-amber)}.jm-fit.poor .jm-fit-badge{color:var(--c-rose)}
+.jm-fit.good .jm-fit-badge{color:var(--c-green)}.jm-fit.stretch .jm-fit-badge{color:var(--c-amber)}.jm-fit.poor .jm-fit-badge{color:var(--c-accent)}
 .jm-fit-ttl{font-weight:600;color:var(--c-text)}
 .jm-fit-list{margin:8px 0 0 18px;color:var(--c-text2)}
 .jm-fit-list li{margin-bottom:3px}

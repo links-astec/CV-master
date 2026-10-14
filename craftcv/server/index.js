@@ -1727,8 +1727,10 @@ async function personalContext(req, cv) {
 }
 
 // ── IS THIS ROLE A GOOD FIT? ──────────────────────────────────────────────────
-// After a job offer is added: an honest heads-up when the role looks like a poor match
-// for the person on the CV, with the reasons and what would help.
+// After a job offer is added: how the person on the CV matches the role. Encouraging, like a good
+// careers adviser: what already matches first, then a few concrete things that would strengthen
+// the application. It never tells anyone not to apply; reaching for a role is normal, above all
+// for students and graduates.
 app.post('/api/ai/fit', needsCvContent, aiAccess, async (req, res) => {
   try {
     const cv = cvFromBody(req.body);
@@ -1750,20 +1752,22 @@ app.post('/api/ai/fit', needsCvContent, aiAccess, async (req, res) => {
       `Languages: ${arr(cv.languages).map(l => [str(l?.name), str(l?.level)].filter(Boolean).join(' ')).filter(Boolean).join(', ') || 'none'}`,
     ].join('\n');
     const who = personal.forSelf === false ? 'this candidate (the CV is for someone else, call them "this candidate")' : 'the user (speak to them as "you")';
-    const system = `You are a frank, kind career adviser. Judge whether the person on this CV is a realistic candidate for the job, from the CV's facts only.
-Weigh: hard requirements (qualifications, certifications, licences, years of experience, seniority), the field and type of work, required languages, and location or work rights if the advert states them.
-Be honest, if it's a long shot, say so clearly, but constructive. Never judge on age, gender, nationality, origin or any other protected trait. A missing CV section is not a reason the role is unsuitable.
-Reply with ONLY JSON: {"fit":"good|stretch|poor","headline":"one short sentence","reasons":["2-4 specific reasons that name the requirement and what the CV shows"],"advice":"one sentence: what would make them a stronger candidate for this job, or a better-matched role to look at"}
-"good" = meets the main requirements; "stretch" = some important gaps but a credible application; "poor" = misses several hard requirements or is a different field or level.
+    const system = `You are an encouraging careers adviser who helps students and job seekers apply with confidence. Look at how the person on this CV matches the job, from the CV's facts only.
+Weigh the main requirements (skills, tools, qualifications, experience, level, languages, and location or work rights if the advert states them), but remember: many people get roles they don't match 100%, adverts list wishes as well as needs, and a student or graduate reaching for a role is normal and often worth it.
+Tone: warm, specific and motivating, like a mentor. Start from what already matches. Present gaps as next steps the person can act on, often things they may already have done but not put on the CV ("if you've used Docker in a project, add it"). Never say they shouldn't apply, never tell them to look for other roles, and never use discouraging words such as "no evidence", "absent", "lacks", "clear mismatch" or "not a good fit". Mention a difference in level (for example an internship-seeker and a mid-level role) once, gently, with how to handle it. Never judge on age, gender, nationality, origin or any other protected trait. A missing CV section is not a reason the role is unsuitable.
+Reply with ONLY JSON: {"fit":"good|stretch|poor","headline":"one short encouraging sentence about the match","strengths":["2-3 things on the CV that already match this job, naming them"],"gaps":["0-3 concrete next steps that would strengthen the application, each naming the requirement"],"advice":"one motivating sentence: the single most useful thing to do before applying"}
+"good" = matches the main requirements; "stretch" = a credible application with a few things to strengthen; "poor" = a reach: several important requirements to show, a different field or a higher level. Stay encouraging in all three.
 Write in ${outLang} and address ${who}.`;
     const reqMissing = brief.keywords.filter(k => k.required && !ats.matched.includes(k.term)).map(k => k.term);
     const out = parseJsonObject(await callAi(
       `JOB:\n${briefForPrompt(brief)}\n\nCV:\n${facts}\n\nAUTOMATIC CHECK: ATS match ${ats.score}%. Required keywords not found on the CV: ${reqMissing.join(', ') || 'none'}.${personal.text}`,
       AI_MODEL, system, 900, 'medium'));
     const fit = ['good', 'stretch', 'poor'].includes(out.fit) ? out.fit : 'stretch';
+    const gaps = arr(out.gaps || out.reasons).map(str).filter(Boolean).slice(0, 3).map(r => r.slice(0, 300));
     res.json({
       fit, headline: str(out.headline).slice(0, 200),
-      reasons: arr(out.reasons).map(str).filter(Boolean).slice(0, 4).map(r => r.slice(0, 300)),
+      strengths: arr(out.strengths).map(str).filter(Boolean).slice(0, 3).map(r => r.slice(0, 300)),
+      gaps, reasons: gaps,   // "reasons": what the app (and older pages) show
       advice: str(out.advice).slice(0, 300), score: ats.score, forSelf: personal.forSelf,
       job: { title: brief.title, company: brief.company },
     });

@@ -13,9 +13,10 @@ import { useColors } from '@/lib/theme'
 import { BrandLoader } from '@/components/BrandLoader'
 
 const MIN_CHARS = 40   // same minimum as the server
-const FIT_LABEL = { good: 'Good fit', stretch: 'A stretch', poor: 'Heads-up: may not be a good fit' } as const
+// Encouraging labels: a weaker match is "a reach", never "not a good fit"
+const FIT_LABEL = { good: 'Strong match', stretch: 'Worth a go', poor: 'A reach' } as const
 
-type Fit = { key: string; fit: keyof typeof FIT_LABEL; headline: string; reasons: string[]; advice: string; dismissed: boolean }
+type Fit = { key: string; fit: keyof typeof FIT_LABEL; headline: string; strengths?: string[]; reasons: string[]; advice: string; dismissed: boolean }
 
 function JobOffer({ d }: { d: CvData }) {
   const { t } = useLang()
@@ -76,7 +77,7 @@ function FitCard({ d }: { d: CvData }) {
       const r = await fitCheck(d)
       update(x => ({
         ...x,
-        jobFit: { key, fit: r.fit, headline: r.headline, reasons: r.reasons, advice: r.advice, dismissed: false },
+        jobFit: { key, fit: r.fit, headline: r.headline, strengths: r.strengths || [], reasons: r.reasons, advice: r.advice, dismissed: false },
         jobTarget: r.job?.title ? { title: r.job.title, company: r.job.company || '' } : x.jobTarget,
       }))
     } catch (e) { setError(errorText(e)) }
@@ -92,14 +93,17 @@ function FitCard({ d }: { d: CvData }) {
   if (busy) return <Card><View style={styles.row}><BrandLoader size={22} /><Text style={{ color: c.text2 }}>{t('Checking whether this role is a good fit…')}</Text></View></Card>
   if (error) return <Card><Text style={{ color: c.danger }}>{error}</Text><SmallAction label={t('Check again')} onPress={run} /></Card>
   if (!fit || fit.dismissed) return null
-  const tone = fit.fit === 'good' ? c.success : fit.fit === 'stretch' ? '#D97706' : c.danger
+  const tone = fit.fit === 'good' ? c.success : fit.fit === 'stretch' ? '#D97706' : c.accent   // a reach is a nudge, not a warning
   return (
     <Card>
       <Text style={{ color: tone, fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 }}>{t(FIT_LABEL[fit.fit])}</Text>
       <Text style={{ color: c.text, fontSize: 16, fontWeight: '600', lineHeight: 22 }}>{fit.headline}</Text>
+      {!!fit.strengths?.length && <Text style={{ color: c.text, fontSize: 13.5, fontWeight: '600', marginTop: 4 }}>{t('What already matches')}</Text>}
+      {(fit.strengths || []).map((r, i) => <Text key={'s' + i} style={{ color: c.text2, fontSize: 14, lineHeight: 20 }}><Text style={{ color: c.success, fontWeight: '700' }}>✓</Text>  {r}</Text>)}
+      {!!fit.reasons.length && <Text style={{ color: c.text, fontSize: 13.5, fontWeight: '600', marginTop: 4 }}>{t('To strengthen your application')}</Text>}
       {fit.reasons.map((r, i) => <Text key={i} style={{ color: c.text2, fontSize: 14, lineHeight: 20 }}>•  {r}</Text>)}
       {!!fit.advice && <Text style={{ color: c.text, fontSize: 14, lineHeight: 20 }}>{fit.advice}</Text>}
-      {fit.fit !== 'good' && <Text style={{ color: c.text3, fontSize: 13 }}>{t('It’s your call. You can still tailor your CV and apply.')}</Text>}
+      {fit.fit !== 'good' && <Text style={{ color: c.text3, fontSize: 13 }}>{t('Most people apply to roles they don’t match 100%. Tailor your CV below to show your best fit.')}</Text>}
       <View style={styles.row}>
         <SmallAction label={t('Check again')} onPress={run} />
         <SmallAction label={t('Hide')} color={c.text2} onPress={() => update(x => ({ ...x, jobFit: { ...(x.jobFit as Fit), dismissed: true } }))} />

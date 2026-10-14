@@ -32,7 +32,7 @@ export type AtsResult = {
 }
 export const atsCheck = (d: CvData) => ai<AtsResult>('/api/ai/ats', d, { jobOffer: d.jobOffer })
 
-export type FitResult = { fit: 'good' | 'stretch' | 'poor'; headline: string; reasons: string[]; advice: string; job?: { title?: string; company?: string } }
+export type FitResult = { fit: 'good' | 'stretch' | 'poor'; headline: string; strengths?: string[]; reasons: string[]; advice: string; job?: { title?: string; company?: string } }
 export const fitCheck = (d: CvData) => ai<FitResult>('/api/ai/fit', d, { jobOffer: d.jobOffer })
 
 export type TailorResult = {
@@ -63,7 +63,8 @@ export const translateCv = (d: CvData, to: 'en' | 'fr') => ai<TranslateResult>('
 // Same key as the website's Job match (JobMatch.vue fitKey), so a fit check done on either
 // side is reused by the other for the same job and person
 export function fitKey(d: CvData) {
-  const s = `${d.jobOffer || ''}|${d.cvFor || ''}|${d.fn || ''} ${d.ln || ''}`
+  // "v2": results from the older, harsher check are checked again
+  const s = `v2|${d.jobOffer || ''}|${d.cvFor || ''}|${d.fn || ''} ${d.ln || ''}`
   let h = 0
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0
   return String(h)
