@@ -19,7 +19,7 @@ import { query } from './db.js';
 import { ensurePushTable, isPushToken, pushHealth, registerToken, removeToken, sendPush } from './push.js';
 import { ensureActivity, nextStep, personalNudges, recordEvents, setPersonalize } from './activity.js';
 import { ensureAppleCols, keepAppleRefreshToken, revokeApple, verifyAppleToken } from './apple.js';
-import { registerBlog } from './blog.js'
+import { registerBlog, BLOG_JS } from './blog.js'
 import { checkSecondStep, endAllSessions, ensureAdminSecurity, finishSetup, newCodes, sessionVersion, startSetup, turnOff, twoStepOn } from './adminSecurity.js'
 import { lockupSvg } from '../brand/brand.mjs';
 import { createRequire } from 'module';
@@ -116,11 +116,20 @@ async function sendMail(opts) {
 }
 
 // ── Security ──────────────────────────────────────────────────────────────────
+// Pages served from here (admin, blog, app return) may only run their own known scripts: each inline
+// script is allowed by its exact SHA-256 hash, so an injected script can't run even if text slipped through.
+// browsers hash the script text after turning CRLF/CR line endings into LF
+const cspHash = (code) => `'sha256-${createHash('sha256').update(String(code).replace(/\r\n?/g, '\n'), 'utf8').digest('base64')}'`;
+const APP_RETURN_JS = "location.href=document.getElementById('go').href";
+const ADMIN_JS_HASH = (() => {
+  try { const m = _readFileSync(join(__dirname, '../admin.html'), 'utf8').match(/<script>([\s\S]*?)<\/script>/); return m ? cspHash(m[1]) : null; }
+  catch { return null; }
+})();
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc:  ["'self'", "'unsafe-inline'", "https://js.stripe.com", "https://accounts.google.com"],
+      scriptSrc:  ["'self'", ...[ADMIN_JS_HASH, cspHash(BLOG_JS), cspHash(APP_RETURN_JS)].filter(Boolean), "https://js.stripe.com", "https://accounts.google.com"],
       styleSrc:   ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc:    ["'self'", "https://fonts.gstatic.com"],
       imgSrc:     ["'self'", "data:", "blob:", "https:"],   // https: so the admin email preview shows the logo and image blocks
@@ -131,6 +140,7 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
   crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
 }));
+app.use((req, res, next) => { res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()'); next(); });
 app.use(compression());
 app.use(cookieParser());
 
@@ -2640,8 +2650,9 @@ async function hasEmailExport(userId, draftId) {
 async function verifyEmailSession(sessionId) {
   const stripe = await getStripe();
   if (!stripe || !sessionId) return null;
-  const session = await stripe.checkout.sessions.retrieve(sessionId);
-  if (session.payment_status !== 'paid') return null;
+  // a made-up or unknown session id is simply "not paid"
+  const session = await stripe.checkout.sessions.retrieve(String(sessionId).slice(0, 200)).catch(() => null);
+  if (!session || session.payment_status !== 'paid') return null;
   if (session.metadata?.product && session.metadata.product !== 'email_export') return null;
   const userId  = session.client_reference_id || session.metadata?.userId;
   const draftId = session.metadata?.draftId;
@@ -2870,7 +2881,7 @@ app.get('/api/payment/app-return', (req, res) => {
 <title>CVMaster</title><style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:420px;margin:0 auto;padding:48px 24px;text-align:center;color:#14142b}
 a{display:inline-block;margin-top:18px;background:#4338CA;color:#fff;text-decoration:none;padding:13px 26px;border-radius:10px;font-weight:700}</style></head>
 <body><h2>${req.query.cancelled ? 'Payment cancelled' : 'Payment received'}</h2><p>Return to the CVMaster app to continue.</p>
-<a href="${target}">Open the app</a><script>location.href=${JSON.stringify(target)}</script></body></html>`);
+<a id="go" href="${target}">Open the app</a><script>${APP_RETURN_JS}</script></body></html>`);
 });
 
 app.post('/api/payment/create-session', authMiddleware, async (req, res) => {
