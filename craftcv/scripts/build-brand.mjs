@@ -1,5 +1,5 @@
 // Builds every CVMaster brand asset from the brand definition (brand/brand.mjs) and the
-// designer's artwork (../final, copied into brand/ without its metadata).
+// designer's artwork (../brand-kit, copied into brand/ without its metadata).
 //   node scripts/build-brand.mjs
 // Writes the logo SVGs and logo animations to brand/, and the favicons, app and install icons,
 // email logo, Stripe images, social profile picture and link-preview image (rendered with Puppeteer).
@@ -10,7 +10,7 @@ import { COLORS, lockupSvg, appIconSvg, faviconSvg, MARK_PATH } from '../brand/b
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1')), '..')
 const out = (...p) => path.join(ROOT, ...p)
-const SOURCE = path.resolve(ROOT, '..', 'final')
+const SOURCE = path.resolve(ROOT, '..', 'brand-kit')
 fs.mkdirSync(out('brand', 'animations'), { recursive: true })
 
 // 1. The designer's files, without the embedded content-credentials block (it's most of each file)
