@@ -9,26 +9,7 @@
             <button class="icon-btn wiz-x" @click="handleClose" :aria-label="$t('Close')">
               <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
-            <div class="wiz-pick-in wiz-jo">
-              <div class="wiz-jo-ic"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg></div>
-              <h2>{{ $t('Applying for a specific job?') }}</h2>
-              <p>{{ $t('Paste the job offer first. The AI writes every section with it in mind, and at the end you check your ATS score and tailor the wording.') }}</p>
-              <ul class="wiz-jo-pts">
-                <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ $t('Wording that uses the job’s own keywords') }}</li>
-                <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ $t('Your ATS score before you apply') }}</li>
-                <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ $t('Nothing changes without your OK') }}</li>
-              </ul>
-              <label class="f-lbl wiz-jo-lbl" for="wiz-jo-text">{{ $t('Job description') }}</label>
-              <textarea id="wiz-jo-text" v-model="offerDraft" class="f-ta wiz-jo-ta" rows="7"
-                :placeholder="$t('Paste the full job advert here. Title, responsibilities and requirements…')"></textarea>
-              <div class="wiz-jo-hint" :class="{ warn: offerTooShort }">
-                {{ offerTooShort ? $t('Paste the full description. A few sentences at least.') : (offerDraft.trim() ? $t('{n} characters', { n: offerDraft.trim().length }) : $t('Not applying to one job yet? Skip this. You can add an offer later in Job match.')) }}
-              </div>
-              <div class="wiz-jo-acts">
-                <button class="btn-secondary" @click="skipOffer">{{ $t('Skip, no job offer') }}</button>
-                <button class="btn-primary accent" :disabled="!offerDraft.trim() || offerTooShort" @click="useOffer">{{ $t('Continue with this job') }} →</button>
-              </div>
-            </div>
+            <div class="wiz-jo-wrap"><JobOfferForm :initial="store.data.jobOffer" @use="useOffer" @skip="skipOffer" /></div>
           </div>
 
           <!-- ── 2 · HOW TO START ── -->
@@ -117,7 +98,9 @@ import { ref, computed, watch, nextTick, defineAsyncComponent } from 'vue'
 import { useCvStore } from '../stores/cv.js'
 import { LAYOUTS, THEMES, parseTemplate, templateId, getLayout } from '../composables/cvRenderer.js'
 import CvPreview from './CvPreview.vue'
+import JobOfferForm from './JobOfferForm.vue'
 import { t } from '../i18n/index.js'
+import { guestEvent } from '../composables/track.js'
 
 const StepPersonal   = defineAsyncComponent(() => import('./wizard/StepPersonal.vue'))
 const StepSummary    = defineAsyncComponent(() => import('./wizard/StepSummary.vue'))
@@ -175,18 +158,14 @@ function shiftLayout(dir) {
 function setTheme(id) { store.template = templateId(current.value.layout, id) }
 
 // The job offer screen (first, before choosing how to start)
-const MIN_OFFER = 40   // what /api/ai/tailor needs
-const offerDraft = ref('')
-const offerTooShort = computed(() => { const n = offerDraft.value.trim().length; return n > 0 && n < MIN_OFFER })
-watch(() => store.wizardAskOffer, (v) => { if (v) offerDraft.value = store.data.jobOffer || '' }, { immediate: true })
 function afterOffer() {
   store.wizardAskOffer = false
   if (store.wizardStart) { store.setMode(store.wizardStart); store.wizardStart = null }
 }
-function useOffer() {
-  const offer = offerDraft.value.trim()
+function useOffer(offer) {
   if (offer !== (store.data.jobOffer || '').trim()) store.data.jobTailored = ''
   store.data.jobOffer = offer
+  if (offer) guestEvent('job_offer')
   afterOffer()
 }
 function skipOffer() {
@@ -243,6 +222,8 @@ function handlePreviewClick(e) {
 }
 
 watch(() => store.wizardOpen, v => { document.body.style.overflow = v ? 'hidden' : '' })
+// Guest statistics: a CV started, and whether it was with Tell your story
+watch(() => store.wizardMode, m => { if (!m) return; guestEvent('cv_started'); if (m === 'narrate') guestEvent('story') })
 </script>
 
 <style scoped>
@@ -267,23 +248,10 @@ watch(() => store.wizardOpen, v => { document.body.style.overflow = v ? 'hidden'
 .wiz-mode-tag{font-size:12px;font-weight:600;color:var(--c-accent);margin-top:6px}
 .wiz-offer{margin:22px auto 0;max-width:560px;text-align:left;align-items:center}
 .wiz-offer .link-btn{margin-left:auto;white-space:nowrap;font-weight:600}
+.wiz-jo-wrap{max-width:600px;width:100%}
 .wiz-mode{position:relative}
 .wiz-mode.featured{border-color:var(--c-accent);box-shadow:0 0 0 3px var(--c-accent-ring),var(--shadow-xs);background:linear-gradient(180deg,var(--c-accent-lt),var(--c-surface) 70%)}
 .wiz-mode-rec{position:absolute;top:14px;right:14px;font-size:11.5px;font-weight:700;color:#fff;background:var(--c-accent);padding:3px 10px;border-radius:99px}
-
-/* Job offer screen */
-.wiz-jo{max-width:600px;text-align:left}
-.wiz-jo h2,.wiz-jo > p{text-align:left}
-.wiz-jo-ic{width:48px;height:48px;border-radius:14px;background:var(--c-accent-lt);display:flex;align-items:center;justify-content:center;margin-bottom:16px}
-.wiz-jo-ic svg{width:24px;height:24px;fill:none;stroke:var(--c-accent);stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-.wiz-jo-pts{list-style:none;margin:16px 0 20px;padding:0;display:flex;flex-wrap:wrap;gap:8px}
-.wiz-jo-pts li{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--c-text);background:var(--c-surface);border:1px solid var(--hair);border-radius:99px;padding:6px 12px}
-.wiz-jo-pts svg{width:14px;height:14px;fill:none;stroke:var(--c-green);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
-.wiz-jo-lbl{display:block}
-.wiz-jo-ta{width:100%;min-height:150px;resize:vertical}
-.wiz-jo-hint{font-size:12.5px;color:var(--c-text3);margin-top:6px}
-.wiz-jo-hint.warn{color:var(--c-amber)}
-.wiz-jo-acts{display:flex;justify-content:space-between;gap:10px;margin-top:20px}
 
 /* Steps */
 .wiz-body{flex:1;display:flex;min-width:0}
@@ -326,8 +294,6 @@ watch(() => store.wizardOpen, v => { document.body.style.overflow = v ? 'hidden'
   .wiz-modes{grid-template-columns:1fr}
   .wiz-pick{padding:56px 18px 24px;align-items:flex-start}
   .wiz-pick-in h2{font-size:23px}
-  .wiz-jo-acts{flex-direction:column-reverse}
-  .wiz-jo-acts button{width:100%;justify-content:center}
   .wiz-offer{flex-wrap:wrap}
   .wiz-content{padding:20px 18px 24px}
 }

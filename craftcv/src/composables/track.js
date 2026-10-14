@@ -5,6 +5,22 @@ import { useAuthStore } from '../stores/auth.js'
 
 const apiUrl = (p) => (import.meta.env.VITE_API_URL || '') + p
 
+// Anonymous counts for visitors without an account (server/guests.js): what they do, never who
+// they are. Signed-in people are never counted here; browsers with Global Privacy Control are
+// ignored by the server. A visit is counted once per browser session.
+export function guestEvent(name) {
+  const auth = useAuthStore()
+  if (auth.loading || auth.isLoggedIn) return
+  if (name === 'visit') {
+    try { if (sessionStorage.getItem('cvm-visit')) return; sessionStorage.setItem('cvm-visit', '1') } catch {}
+  }
+  fetch(apiUrl('/api/guest/events'), {
+    method: 'POST', credentials: 'include', keepalive: true,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ platform: 'web', events: [name] }),
+  }).catch(() => {})
+}
+
 export function track(name, props = {}) {
   const auth = useAuthStore()
   if (!auth.isLoggedIn || auth.user?.personalizeActivity === false) return

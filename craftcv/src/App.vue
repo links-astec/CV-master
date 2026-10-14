@@ -140,6 +140,7 @@ import ConfirmModal from './components/ConfirmModal.vue'
 import FeedbackModal from './components/FeedbackModal.vue'
 import { setSeo, seoForRoute, homeSeo } from './composables/seo.js'
 import AiLimitModal from './components/AiLimitModal.vue'
+import { guestEvent } from './composables/track.js'
 import TutorialOverlay from './components/TutorialOverlay.vue'
 import BrandLogo from './components/BrandLogo.vue'
 import BrandLoader from './components/BrandLoader.vue'
@@ -282,6 +283,7 @@ provide('fmt', computed(() => store.fmt))
 const authState = reactive({ open: false, view: 'register', reason: '' })
 let authResolve = null
 function openAuth(view = 'signin', reason = '') {
+  if (view === 'register') guestEvent('signup_open')
   authState.view = view; authState.reason = reason; authState.open = true
   return new Promise(r => { authResolve = r })
 }
@@ -398,6 +400,7 @@ onMounted(async () => {
   await checkMaintenance()
   if (maintenance.value) return
   await auth.fetchMe()
+  guestEvent('visit')
 
   const params = new URLSearchParams(window.location.search)
   if (auth.isLoggedIn) {

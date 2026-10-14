@@ -51,6 +51,7 @@ import { LAYOUTS, LAYOUT_KINDS, THEMES, parseTemplate, templateId } from '../com
 import { sampleCv } from '../composables/sampleCv.js'
 import CvThumb from '../components/CvThumb.vue'
 import JobOfferModal from '../components/JobOfferModal.vue'
+import { guestEvent } from '../composables/track.js'
 
 const store  = useCvStore()
 const router = useRouter()
@@ -72,6 +73,7 @@ async function pick(l) {
   const offer = await jobOfferRef.value?.ask(store.data.jobOffer)
   if (offer === null || offer === undefined) return   // dismissed, nothing changes
   store.template = tplFor(l)
+  guestEvent('template'); if (offer) guestEvent('job_offer')
   if (offer !== store.data.jobOffer) store.data.jobTailored = ''
   store.data.jobOffer = offer
   if (store.hasContent) {

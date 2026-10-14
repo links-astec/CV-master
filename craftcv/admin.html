@@ -104,6 +104,8 @@ textarea.inp{height:auto;padding:10px 12px;line-height:1.55;resize:vertical}
 
 /* ── Overview ── */
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.kpis:has(> .kpi:nth-child(3):last-child){grid-template-columns:repeat(3,1fr)}
+.g-period{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
 .kpi{padding:18px 20px}
 .kpi-l{font-size:12.5px;font-weight:600;color:var(--t3)}
 .kpi-v{font-size:28px;font-weight:800;letter-spacing:-.03em;margin:4px 0 2px}
@@ -668,6 +670,7 @@ const ICON = {
   blog: '<path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>',
   menu: '<line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>',
   app: '<rect x="7" y="2" width="10" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/>',
+  guests: '<circle cx="12" cy="8" r="4" stroke-dasharray="3 2.2"/><path d="M4 21v-1a6 6 0 016-6h4a6 6 0 016 6v1" stroke-dasharray="3 2.2"/>',
   overview: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
   inbox: '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/>',
   users: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>',
@@ -719,6 +722,7 @@ const PAGES = {
   overview:   ['Overview', 'How CVMaster is doing'],
   inbox:      ['Inbox', 'Emails to support@cvmaster.live and messages from the site'],
   users:      ['Users', 'Accounts, credits and referrals'],
+  guests:     ['Guests', 'People using CVMaster without an account. Anonymous counts only'],
   reviews:    ['Reviews', 'Ratings from people who made a CV. Approve comments for the homepage'],
   newsletter: ['Email', 'Newsletters, important notices and emails to specific people'],
   subscribers:['Subscribers', 'People who agreed to get the newsletter'],
@@ -734,6 +738,7 @@ async function go(p) {
   if (p === 'overview') await loadStats()
   if (p === 'inbox') await loadInbox()
   if (p === 'users' && !S.users.length) await loadUsers(1)
+  if (p === 'guests') await loadGuests()
   if (p === 'reviews') await loadReviews()
   if (p === 'subscribers' || p === 'newsletter') await loadSubs()
   if (p === 'newsletter') { loadHistory(); loadMyTemplates(); if (!S.config) loadConfig() }
@@ -972,6 +977,50 @@ async function sendAppPush(test) {
   } catch (e) { toast(e.message) }
   S.pushBusy = false; render()
 }
+// ── Guests: people using CVMaster without an account (anonymous counts, server/guests.js) ──
+async function loadGuests() {
+  try { S.guests = await api('GET', '/guests?days=' + (S.guestDays || 30)) } catch (e) { S.guests = null; toast(e.message) }
+  render()
+}
+function renderGuests() {
+  const g = S.guests
+  if (!g) return `<div class="loading"><div class="spinner"></div></div>`
+  const days = g.days, s = g.seen
+  const tot = Object.fromEntries(g.totals.map(x => [x.name, x]))
+  const pct = (a, b) => b ? Math.round(a / b * 100) + '%' : '0%'
+  // one bar per day, days without guests included
+  const byDay = Object.fromEntries(g.daily.map(x => [x.day.slice(0, 10), x.guests]))
+  const series = Array.from({ length: days }, (_, i) => { const d = new Date(Date.now() - (days - 1 - i) * 864e5).toISOString().slice(0, 10); return { day: d, n: byDay[d] || 0 } })
+  const max = Math.max(1, ...series.map(x => x.n))
+  const every = Math.ceil(days / 15)
+  const order = Object.keys(g.labels)
+  const actRows = order.map(k => { const t = tot[k]; return `<div class="pay-row"><div class="pay-who"><div>${esc(g.labels[k])}</div><div class="muted" style="font-size:12px">${t ? `by ${fmt(t.guests)} guest${t.guests === 1 ? '' : 's'}` : 'none yet'}</div></div><div class="pay-amt">${fmt(t ? t.n : 0)}</div></div>` }).join('')
+    + `<div class="pay-row"><div class="pay-who"><div>AI requests</div><div class="muted" style="font-size:12px">by ${fmt(g.ai.guests)} guest${g.ai.guests === 1 ? '' : 's'}</div></div><div class="pay-amt">${fmt(g.ai.n)}</div></div>`
+  const c = (r, k) => fmt(r.counts?.[k] || 0)
+  return `
+  <div class="g-period" role="group" aria-label="Period">${[7, 30, 90].map(d => `<button class="btn btn-sm ${days === d ? 'btn-primary' : ''}" data-act="guests-days" data-d="${d}">Last ${d} days</button>`).join('')}</div>
+  <div class="kpis">
+    <div class="card kpi"><div class="kpi-l">Guests today</div><div class="kpi-v">${fmt(s.today)}</div><div class="kpi-s"><b>${fmt(s.week)}</b> in the last 7 days</div></div>
+    <div class="card kpi"><div class="kpi-l">Guests, last ${days} days</div><div class="kpi-v">${fmt(s.period)}</div><div class="kpi-s"><b>${fmt(s.new_in_period)}</b> new</div></div>
+    <div class="card kpi"><div class="kpi-l">Created an account</div><div class="kpi-v">${fmt(s.converted)}</div><div class="kpi-s"><b>${pct(s.converted, s.new_in_period)}</b> of new guests</div></div>
+  </div>
+  <div class="ov-grid">
+    <div class="card"><div class="card-hd"><h3>Guests per day</h3></div>
+      <div class="card-bd"><div class="chart">${series.map((x, i) => `<div class="bar-col" title="${fmtDate(x.day)}: ${x.n} guest${x.n === 1 ? '' : 's'}">
+        <div class="bars"><div class="bar p" style="height:${x.n / max * 100}%;width:70%"></div></div>
+        <div class="bar-x">${i % every === 0 ? new Date(x.day).getDate() : '&nbsp;'}</div></div>`).join('')}</div></div></div>
+    <div class="card"><div class="card-hd"><h3>What guests do</h3></div>${actRows}</div>
+  </div>
+  <div class="card"><div class="card-hd"><h3>Latest guests</h3></div>
+    ${g.recent.length ? `<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Guest</th><th>First seen</th><th>Last seen</th><th>Days</th><th>CVs</th><th>AI</th><th>PDFs</th><th></th></tr></thead><tbody>
+      ${g.recent.map(r => `<tr><td><b>${esc(r.label)}</b><div class="muted" style="font-size:12px">${esc({ web: 'Website', ios: 'iPhone app', android: 'Android app' }[r.platform] || 'Website')}</div></td>
+        <td>${fmtDate(r.first_seen)}</td><td>${ago(r.last_seen)}</td><td>${fmt(r.days_active)}</td><td>${c(r, 'cv_started')}</td><td>${fmt(r.ai)}</td><td>${c(r, 'download')}</td>
+        <td>${r.converted_at ? '<span class="badge b-green">Created an account</span>' : ''}</td></tr>`).join('')}
+    </tbody></table></div>` : `<div class="empty"><strong>No guests yet</strong>They appear here as people use the site without an account.</div>`}
+  </div>
+  <p class="muted" style="font-size:12.5px;margin-top:14px">Anonymous: each guest is a random browser ID (the same one used for the free AI allowance). No name, email, address or CV content is kept, browsers with Global Privacy Control aren’t counted, and everything is deleted after 13 months.</p>`
+}
+
 function renderAppPage() {
   const a = S.act
   if (!a) return `<div class="loading"><div class="spinner"></div></div>`
@@ -2208,8 +2257,8 @@ function renderLogin() {
 function renderApp() {
   const [title, sub] = PAGES[S.page]
   const inboxCount = (S.stats?.inbox_unread || 0) + (S.stats?.feedback_open || 0)
-  const nav = [['overview', 'Overview'], ['inbox', 'Inbox', inboxCount], ['users', 'Users'], ['reviews', 'Reviews', S.rv?.pending], ['newsletter', 'Email'], ['subscribers', 'Subscribers'], ['blog', 'Blog'], ['app', 'App & activity'], ['settings', 'Settings']]
-  const body = { overview: renderOverview, inbox: renderInbox, users: renderUsers, reviews: renderReviews, newsletter: renderEmail, subscribers: renderSubs, blog: renderBlog, app: renderAppPage, settings: renderSettings }[S.page]()
+  const nav = [['overview', 'Overview'], ['inbox', 'Inbox', inboxCount], ['users', 'Users'], ['guests', 'Guests'], ['reviews', 'Reviews', S.rv?.pending], ['newsletter', 'Email'], ['subscribers', 'Subscribers'], ['blog', 'Blog'], ['app', 'App & activity'], ['settings', 'Settings']]
+  const body = { overview: renderOverview, inbox: renderInbox, users: renderUsers, guests: renderGuests, reviews: renderReviews, newsletter: renderEmail, subscribers: renderSubs, blog: renderBlog, app: renderAppPage, settings: renderSettings }[S.page]()
   return `<div class="app">
     <aside class="sb">
       <div class="sb-head"><span class="sb-logo">${LOGO_SIDEBAR}</span><span class="sb-tag">Admin</span></div>
@@ -2315,6 +2364,7 @@ document.addEventListener('click', (e) => {
   if (t.dataset.review) { setReview(t.dataset.review, t.dataset.st); return }
   if (t.dataset.sub) { subAction(t.dataset.sub, t.dataset.sact, t.dataset.email); return }
   if (t.dataset.act === 'sub-export') { exportSubs(); return }
+  if (t.dataset.act === 'guests-days') { S.guestDays = Number(t.dataset.d); loadGuests(); return }
   if (t.dataset.act === 'email-kind') { const k = t.dataset.kind; S.email.plan = k === 'notice' ? 'users' : k === 'people' ? 'people' : 'all'; S.email.important = false; render(); return }
   if (t.dataset.act === 'ppl-remove') { S.email.people = S.email.people.filter(x => x !== t.dataset.email); render(); return }
   if (t.dataset.act === 'email-user') { S.email.plan = 'people'; S.email.people = [...new Set([...S.email.people, t.dataset.email])]; go('newsletter'); return }
