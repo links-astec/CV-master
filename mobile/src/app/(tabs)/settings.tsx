@@ -3,15 +3,15 @@
 // quick tour), the review, help and feedback, and deleting the account. Everything is saved to the
 // account, so it is the same on the website.
 import { useEffect, useState } from 'react'
-import { Linking, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native'
+import { Linking, Platform, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import * as WebBrowser from 'expo-web-browser'
 import * as Clipboard from 'expo-clipboard'
 import Constants from 'expo-constants'
-import { Check, ChevronDown, ChevronRight, Eye, EyeOff, Lock } from '@/components/icons'
+import { ChevronRight, Eye, EyeOff, Lock } from '@/components/icons'
 import { LangPill, TopBar, useLargeTitle } from '@/components/shell'
-import { Btn, Card, Field, PageTitle, SettingRow, Toggle, Txt } from '@/components/kit'
+import { Btn, Card, Chip, Field, PageTitle, SettingRow, Toggle, Txt } from '@/components/kit'
 import { ReviewPrompt } from '@/components/ReviewPrompt'
 import { confirm, toast } from '@/components/dialogs'
 import { useAuth } from '@/lib/auth'
@@ -31,33 +31,14 @@ type Referral = { code: string; credits: number; count: number; rewarded: number
 type Option = { id: string; label: string; years?: string }
 
 // A setting chosen from a list (the website's <select>)
-function SelectRow({ label, value, options, onChange }: { label: string; value: string; options: Option[]; onChange: (id: string) => void }) {
+function ChoiceRow({ label, value, options, onChange }: { label: string; value: string; options: Option[]; onChange: (id: string) => void }) {
   const { t } = useLang()
-  const { c } = useTheme()
-  const [open, setOpen] = useState(false)
-  const cur = options.find(o => o.id === value)
-  const text = (o: Option) => t(o.label) + (o.years ? ` (${t(o.years)})` : '')
   return (
-    <View style={{ gap: 7 }}>
-      <Txt w={500} size={14}>{label}</Txt>
-      <Pressable onPress={() => setOpen(true)} accessibilityRole="button" style={[styles.select, { borderColor: 'transparent', backgroundColor: c.fill }]}>
-        <Txt size={15.5} color={cur ? c.text : c.text3} style={{ flex: 1 }}>{cur ? text(cur) : '—'}</Txt>
-        <ChevronDown size={17} color={c.text3} />
-      </Pressable>
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <Pressable style={[styles.backdrop, { backgroundColor: c.overlay }]} onPress={() => setOpen(false)}>
-          <View style={[styles.sheet, { backgroundColor: c.surface, borderColor: 'transparent' }]}>
-            <ScrollView>
-              {options.map(o => (
-                <Pressable key={o.id} onPress={() => { setOpen(false); onChange(o.id) }} style={({ pressed }) => [styles.option, pressed && { backgroundColor: c.surface2 }]}>
-                  <Txt w={o.id === value ? 700 : 500} size={16} color={o.id === value ? c.accent : c.text} style={{ flex: 1 }}>{text(o)}</Txt>
-                  {o.id === value && <Check size={18} color={c.accent} />}
-                </Pressable>
-              ))}
-            </ScrollView>
-          </View>
-        </Pressable>
-      </Modal>
+    <View style={{ gap: 9 }} accessibilityRole="radiogroup" accessibilityLabel={label}>
+      <Txt w={600} size={14}>{label}</Txt>
+      <View style={styles.chips}>
+        {options.map(o => <Chip key={o.id} label={t(o.label)} extra={o.years} on={value === o.id} onPress={() => onChange(value === o.id ? '' : o.id)} />)}
+      </View>
     </View>
   )
 }
@@ -329,9 +310,9 @@ export default function Settings() {
           </View>
           {user?.aiPersonalize !== false && (
             <>
-              <SelectRow label={t('Your field')} value={user?.industry || ''} options={INDUSTRIES as Option[]} onChange={v => saveAi({ industry: v })} />
-              <SelectRow label={t('What are you aiming for?')} value={user?.goal || ''} options={GOALS as Option[]} onChange={v => saveAi({ goal: v })} />
-              <SelectRow label={t('Experience')} value={user?.experience || ''} options={LEVELS as Option[]} onChange={v => saveAi({ experience: v })} />
+              <ChoiceRow label={t('Your field')} value={user?.industry || ''} options={INDUSTRIES as Option[]} onChange={v => saveAi({ industry: v })} />
+              <ChoiceRow label={t('What are you aiming for?')} value={user?.goal || ''} options={GOALS as Option[]} onChange={v => saveAi({ goal: v })} />
+              <ChoiceRow label={t('Experience')} value={user?.experience || ''} options={LEVELS as Option[]} onChange={v => saveAi({ experience: v })} />
             </>
           )}
         </Card>
@@ -432,9 +413,6 @@ const styles = StyleSheet.create({
   shareRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', alignItems: 'center' },
   sharePill: { borderWidth: 1, borderRadius: 99, paddingHorizontal: 12, paddingVertical: 6 },
   meter: { height: 8, borderRadius: 99, overflow: 'hidden' },
-  select: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12 },
-  backdrop: { flex: 1, justifyContent: 'center', padding: 28 },
-  sheet: { borderWidth: 1, borderRadius: 24, paddingVertical: 8, maxHeight: '70%' },
-  option: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
   help: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 18, padding: 16 },
 })

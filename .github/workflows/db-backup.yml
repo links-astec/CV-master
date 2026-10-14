@@ -49,6 +49,7 @@ jobs:
           $PG/pg_restore --list db.dump > contents.txt
           for t in users drafts payments admins; do grep -q "TABLE public $t " contents.txt || { echo "Table $t missing from the dump"; exit 1; }; done
           echo "Tables in backup: $(grep -c ' TABLE public ' contents.txt)"
+          echo "TABLES=$(grep -c ' TABLE public ' contents.txt)" >> "$GITHUB_ENV"
           gpg --batch --yes --trust-model always --recipient-file .github/backup-public-key.asc \
               --output "cvmaster-db-$STAMP.dump.gpg" --encrypt db.dump
           shred -u db.dump contents.txt
@@ -61,3 +62,14 @@ jobs:
           retention-days: 30
           compression-level: 0
           if-no-files-found: error
+
+      # Tells the admin status page the backup worked (Settings → Status → Database backups)
+      - name: Report to the status page
+        env:
+          BACKUP_REPORT_TOKEN: ${{ secrets.BACKUP_REPORT_TOKEN }}
+        run: |
+          [ -n "$BACKUP_REPORT_TOKEN" ] || { echo "No BACKUP_REPORT_TOKEN secret: skipping"; exit 0; }
+          F=$(ls cvmaster-db-*.dump.gpg)
+          curl -fsS --retry 3 --retry-delay 20 -X POST https://api.cvmaster.live/api/internal/backup-report \
+            -H "x-backup-token: $BACKUP_REPORT_TOKEN" -H "Content-Type: application/json" \
+            -d "{\"file\":\"$F\",\"bytes\":$(stat -c %s "$F"),\"tables\":${TABLES:-0}}"

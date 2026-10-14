@@ -24,6 +24,8 @@ import { checkSecondStep, endAllSessions, ensureAdminSecurity, finishSetup, newC
 import { lockupSvg } from '../brand/brand.mjs';
 import { createRequire } from 'module';
 import { promises as dns } from 'dns';
+import { BlockList, isIP } from 'net';
+import tls from 'tls';
 
 const __dirname    = dirname(fileURLToPath(import.meta.url));
 const app          = express();
@@ -194,8 +196,21 @@ app.use(cors({
   credentials: true,
 }));
 
-// Trust Render/Vercel proxy so rate-limit sees real client IPs
-app.set('trust proxy', 1);
+// Real visitor addresses for rate limits and lockouts. The first hop is Render's proxy; after it, an address
+// is skipped only when it is one of Cloudflare's published ranges (Render's own edge, or our Cloudflare zone),
+// so a visitor can't fake their address by sending their own X-Forwarded-For.
+const CLOUDFLARE_RANGES = ['173.245.48.0/20', '103.21.244.0/22', '103.22.200.0/22', '103.31.4.0/22', '141.101.64.0/18', '108.162.192.0/18',
+  '190.93.240.0/20', '188.114.96.0/20', '197.234.240.0/22', '198.41.128.0/17', '162.158.0.0/15', '104.16.0.0/13', '104.24.0.0/14',
+  '172.64.0.0/13', '131.0.72.0/22', '2400:cb00::/32', '2606:4700::/32', '2803:f800::/32', '2405:b500::/32', '2405:8100::/32',
+  '2a06:98c0::/29', '2c0f:f248::/32'];
+const cfBlocks = new BlockList();
+for (const r of CLOUDFLARE_RANGES) { const [a, p] = r.split('/'); cfBlocks.addSubnet(a, Number(p), a.includes(':') ? 'ipv6' : 'ipv4'); }
+function isCloudflareAddr(addr) {
+  const a = String(addr || '').replace(/^::ffff:/, '');
+  const v = isIP(a);
+  return v ? cfBlocks.check(a, v === 6 ? 'ipv6' : 'ipv4') : false;
+}
+app.set('trust proxy', (addr, i) => i === 0 || isCloudflareAddr(addr));
 
 
 // ── IN-APP NOTIFICATIONS ──────────────────────────────────────────────────────
@@ -3041,6 +3056,7 @@ async function handleWatermarkWebhook(req, res) {
   } catch (e) {
     return res.status(400).json({ error: 'Webhook signature invalid.' });
   }
+  setSetting('stripe_webhook_at', new Date().toISOString()).catch(() => {});
   try {
     const obj  = event.data.object;
     const meta = obj.metadata || {};
@@ -3329,6 +3345,22 @@ app.get('/api/admin/activity', adminAuthMiddleware, async (req, res) => {
   } catch (e) { console.error('[admin/activity]', e.message); res.status(500).json({ error: 'Could not load activity.' }); }
 });
 
+// ── Backups and network diagnostics ───────────────────────────────────────────
+// The nightly backup (GitHub Actions) reports here after uploading; only a hash of its token is stored
+app.post('/api/internal/backup-report', rateLimit({ windowMs: 60 * 60 * 1000, max: 20 }), async (req, res) => {
+  try {
+    const want = await getSetting('backup_report_hash', null);
+    const got = createHash('sha256').update(String(req.headers['x-backup-token'] || '')).digest('hex');
+    if (!want || got.length !== want.length || !timingSafeEqual(Buffer.from(got), Buffer.from(want))) return res.status(401).json({ error: 'Not allowed.' });
+    const b = req.body || {};
+    await setSetting('backup_last', { at: new Date().toISOString(), file: String(b.file || '').slice(0, 80), bytes: Number(b.bytes) || 0, tables: Number(b.tables) || 0 });
+    res.json({ ok: true });
+  } catch (e) { console.error('[backup-report]', e.message); res.status(500).json({ error: 'Could not record the backup.' }); }
+});
+app.get('/api/admin/network', adminAuthMiddleware, (req, res) => {
+  res.json({ ip: req.ip, chain: req.ips, viaCloudflare: !!req.headers['cf-ray'], cfConnectingIp: req.headers['cf-connecting-ip'] || null });
+});
+
 // ── STATUS: is everything working? ─────────────────────────────────────────────
 // Every part of CVMaster the website and the phone app rely on, checked live. Each check is
 // ok / warn (works, but something needs doing) / down (broken). The admin sees them in
@@ -3340,12 +3372,30 @@ async function httpOk(url, init = {}) {
   const r = await withTimeout(fetch(url, { ...init, signal: AbortSignal.timeout(8000) }));
   return { ok: r.ok, status: r.status, text: r.ok ? await r.text().catch(() => '') : '' };
 }
+async function headersOf(url) {
+  const r = await withTimeout(fetch(url, { method: 'GET', redirect: 'follow', signal: AbortSignal.timeout(8000) }));
+  return { ok: r.ok, status: r.status, h: r.headers };
+}
+function certDaysLeft(host) {
+  return new Promise((resolve, reject) => {
+    const sock = tls.connect({ host, port: 443, servername: host, timeout: 8000 }, () => {
+      const c = sock.getPeerCertificate(); const okChain = sock.authorized;
+      sock.end();
+      if (!c?.valid_to) return reject(new Error('no certificate'));
+      resolve({ days: Math.floor((Date.parse(c.valid_to) - Date.now()) / 864e5), trusted: okChain, issuer: c.issuer?.O || '' });
+    });
+    sock.on('error', reject); sock.on('timeout', () => { sock.destroy(); reject(new Error('timed out')); });
+  });
+}
+const txt = async (name) => (await dns.resolveTxt(name).catch(() => [])).map(r => r.join(''));
+const APEX = 'cvmaster.live';
 let _statusCache = null;
 async function runStatus() {
-  const C = [];
+  const C = []; let seq = 0;
   const check = async (group, key, name, fn) => {
-    try { const r = await withTimeout(fn(), 10000); C.push({ group, key, name, ...r }); }
-    catch (e) { C.push({ group, key, name, state: 'down', detail: e.message.slice(0, 200) }); }
+    const n = seq++; // the page keeps the order the checks are written in
+    try { const r = await withTimeout(fn(), 10000); C.push({ group, key, name, ...r, n }); }
+    catch (e) { C.push({ group, key, name, state: 'down', detail: e.message.slice(0, 200), n }); }
   };
   const site = IS_PROD ? FRONTEND_URL : 'https://www.cvmaster.live';
   await Promise.all([
@@ -3366,6 +3416,77 @@ async function runStatus() {
     check('Website & server', 'secrets', 'Security keys', async () => {
       const missing = ['JWT_SECRET', 'ADMIN_JWT_SECRET'].filter(k => !process.env[k]);
       return missing.length && IS_PROD ? { state: 'down', detail: `${missing.join(', ')} not set: sign-ins reset whenever the server restarts` } : { state: 'ok', detail: 'Session keys set' };
+    }),
+    check('Website & server', 'blog', 'Blog', async () => {
+      const r = await httpOk(`${site}/blog`);
+      return r.ok && /<html/i.test(r.text) ? { state: 'ok', detail: 'Online' } : { state: 'down', detail: `Answered ${r.status}` };
+    }),
+    check('Website & server', 'admin-page', 'Admin panel', async () => (ADMIN_JS_HASH
+      ? { state: 'ok', detail: 'Served, and its script is allowed by the security policy' }
+      : { state: 'down', detail: 'admin.html could not be read: the admin would not load' })),
+    check('Website & server', 'backups', 'Database backups', async () => {
+      const b = await getSetting('backup_last', null);
+      if (!b?.at) return { state: 'warn', detail: 'No backup reported yet. GitHub → Actions → Database backup' };
+      const h = (Date.now() - Date.parse(b.at)) / 36e5;
+      const what = `Last backup ${ago(b.at)}${b.tables ? ` · ${b.tables} tables` : ''}${b.bytes ? ` · ${(b.bytes / 1e6).toFixed(1)} MB encrypted` : ''}`;
+      return h < 30 ? { state: 'ok', detail: what } : h < 54 ? { state: 'warn', detail: `${what}: last night's run is missing` } : { state: 'down', detail: `${what}: backups have stopped. Check GitHub → Actions → Database backup` };
+    }),
+    // ── Security
+    check('Security', 'site-headers', 'Website security headers', async () => {
+      const r = await headersOf(site);
+      const csp = r.h.get('content-security-policy') || '';
+      const miss = [];
+      if (!csp) miss.push('content policy');
+      else if (/script-src[^;]*'unsafe-inline'/.test(csp)) miss.push('inline scripts allowed');
+      if (!/frame-ancestors 'none'/.test(csp) && !r.h.get('x-frame-options')) miss.push('framing protection');
+      if (!r.h.get('x-content-type-options')) miss.push('nosniff');
+      if (!r.h.get('strict-transport-security')) miss.push('HSTS');
+      return miss.length ? { state: 'warn', detail: `Missing: ${miss.join(', ')} (craftcv/vercel.json)` } : { state: 'ok', detail: 'Content policy without inline scripts, no framing, nosniff, HTTPS only' };
+    }),
+    check('Security', 'api-headers', 'API, blog and admin security headers', async () => {
+      const r = await headersOf('https://api.cvmaster.live/api/health');
+      const csp = r.h.get('content-security-policy') || '';
+      const miss = [];
+      if (!csp || /script-src[^;]*'unsafe-inline'/.test(csp)) miss.push('content policy without inline scripts');
+      if (!r.h.get('strict-transport-security')) miss.push('HSTS');
+      if (!r.h.get('permissions-policy')) miss.push('permissions policy');
+      return miss.length ? { state: 'warn', detail: `Missing: ${miss.join(', ')}` } : { state: 'ok', detail: 'Scripts allowed only by fingerprint, HTTPS only, permissions policy' };
+    }),
+    check('Security', 'tls', 'HTTPS certificates', async () => {
+      const [w, a] = await Promise.all([certDaysLeft('www.cvmaster.live'), certDaysLeft('api.cvmaster.live')]);
+      const min = Math.min(w.days, a.days);
+      const detail = `www: ${w.days} days left · api: ${a.days} days left (they renew automatically)`;
+      if (!w.trusted || !a.trusted) return { state: 'down', detail: `A certificate is not trusted · ${detail}` };
+      return { state: min < 3 ? 'down' : min < 14 ? 'warn' : 'ok', detail: min < 14 ? `${detail}: renewal is overdue` : detail };
+    }),
+    check('Security', 'email-auth', 'Email anti-spoofing (SPF, DKIM, DMARC)', async () => {
+      const [root, dkim, dmarc] = await Promise.all([txt(APEX), txt(`resend._domainkey.${APEX}`), txt(`_dmarc.${APEX}`)]);
+      const spf = root.some(t => t.startsWith('v=spf1'));
+      const dk = dkim.some(t => /p=/.test(t));
+      const policy = (dmarc.find(t => t.startsWith('v=DMARC1')) || '').match(/p=(\w+)/)?.[1] || null;
+      if (!dk) return { state: 'down', detail: 'DKIM signing record missing: emails may land in spam' };
+      if (!spf || !policy) return { state: 'warn', detail: `${!spf ? 'No SPF on the main domain. ' : ''}${!policy ? 'No DMARC record.' : ''}`.trim() };
+      return policy === 'none' ? { state: 'warn', detail: "SPF and DKIM set · DMARC is 'none': switch to 'quarantine' once reports are clean" }
+        : { state: 'ok', detail: `SPF, DKIM set · DMARC '${policy}': spoofed emails are blocked` };
+    }),
+    check('Security', 'caa', 'Who may issue certificates (CAA)', async () => {
+      const recs = await dns.resolveCaa(APEX).catch(() => []);
+      const issuers = recs.filter(r => r.issue).map(r => r.issue);
+      return issuers.length ? { state: 'ok', detail: `Only ${issuers.join(' and ')}` } : { state: 'warn', detail: 'No CAA record: add 0 issue "letsencrypt.org" and 0 issue "pki.goog"' };
+    }),
+    check('Security', 'dns', 'Domain DNS and DNSSEC', async () => {
+      const ns = (await dns.resolveNs(APEX).catch(() => [])).join(', ');
+      const ds = await withTimeout(fetch(`https://cloudflare-dns.com/dns-query?name=${APEX}&type=DS`, { headers: { accept: 'application/dns-json' }, signal: AbortSignal.timeout(8000) }).then(r => r.json())).catch(() => null);
+      const dnssec = !!ds?.Answer?.length;
+      const onCf = /cloudflare\.com/i.test(ns);
+      const where = onCf ? 'DNS on Cloudflare' : `DNS at ${ns.includes('registrar-servers') ? 'Namecheap' : ns || 'unknown'}`;
+      return { state: dnssec ? 'ok' : 'warn', detail: `${where} · DNSSEC ${dnssec ? 'on' : 'off'}${dnssec ? '' : ': turn it on so the domain’s records can’t be forged'}` };
+    }),
+    check('Security', 'admin-2fa', 'Admin two-step sign-in', async () => {
+      await ensureAdminSecurity();
+      const r = (await query('SELECT COUNT(*)::int AS n, COUNT(*) FILTER (WHERE totp_secret IS NOT NULL)::int AS on FROM admins')).rows[0];
+      return r.on === r.n ? { state: 'ok', detail: `On for all ${r.n} admin${r.n === 1 ? '' : 's'}` }
+        : { state: 'warn', detail: `${r.n - r.on} of ${r.n} admins sign in with a password only. Turn it on in Settings → Account security, or remove unused admins` };
     }),
     // ── AI
     check('AI', 'ai-claude', 'AI writing (Claude)', async () => {
@@ -3400,7 +3521,8 @@ async function runStatus() {
       await withTimeout(stripe.balance.retrieve());
       const mode = STRIPE_KEY.startsWith('sk_live') ? 'live' : 'test';
       if (!process.env.STRIPE_WEBHOOK_SECRET) return { state: 'warn', detail: `Connected (${mode}) · webhook secret missing (STRIPE_WEBHOOK_SECRET)` };
-      return { state: mode === 'live' ? 'ok' : 'warn', detail: `Connected in ${mode} mode · webhook secret set` };
+      const hook = await getSetting('stripe_webhook_at', null);
+      return { state: mode === 'live' ? 'ok' : 'warn', detail: `Connected in ${mode} mode · webhook secret set · last verified webhook ${ago(hook)}` };
     }),
     // ── Sign-in
     check('Sign-in', 'google', 'Google sign-in (website and app)', async () => (GOOGLE_CLIENT_ID
@@ -3447,8 +3569,8 @@ async function runStatus() {
       return { state: 'ok', detail: jobHealth.at ? `Last run ${ago(jobHealth.at)}` : 'Runs every few hours while people use CVMaster' };
     }),
   ]);
-  const order = ['Website & server', 'AI', 'Email', 'Payments', 'Sign-in', 'Phone app', 'Background jobs'];
-  C.sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group));
+  const order = ['Website & server', 'Security', 'AI', 'Email', 'Payments', 'Sign-in', 'Phone app', 'Background jobs'];
+  C.sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group) || a.n - b.n);
   _statusCache = { at: new Date().toISOString(), checks: C };
   return _statusCache;
 }
@@ -3456,6 +3578,7 @@ async function runStatus() {
 // Email the admin when a check goes down, and when it is back
 let _statusTable = null;
 async function statusAlerts({ checks }) {
+  if (!IS_PROD) return; // only the live server records states and emails alerts
   if (!_statusTable) _statusTable = query('CREATE TABLE IF NOT EXISTS status_state (key TEXT PRIMARY KEY, state TEXT NOT NULL, changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW())').catch(e => { _statusTable = null; throw e; });
   await _statusTable;
   const before = Object.fromEntries((await query('SELECT key, state FROM status_state')).rows.map(r => [r.key, r.state]));

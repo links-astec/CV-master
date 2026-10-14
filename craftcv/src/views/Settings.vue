@@ -150,27 +150,16 @@
             <div class="toggle-track"><div class="toggle-thumb"></div></div>
           </label>
         </div>
-        <div v-if="auth.user?.aiPersonalize !== false" class="st-rows">
-          <div class="st-row">
-            <label class="st-lbl" for="st-ind">{{ $t('Your field') }}</label>
-            <select id="st-ind" class="f-inp" :value="auth.user?.industry || ''" @change="saveAiProfile({ industry: $event.target.value })">
-              <option value="">—</option>
-              <option v-for="o in INDUSTRIES" :key="o.id" :value="o.id">{{ $t(o.label) }}</option>
-            </select>
-          </div>
-          <div class="st-row">
-            <label class="st-lbl" for="st-goal">{{ $t('What are you aiming for?') }}</label>
-            <select id="st-goal" class="f-inp" :value="auth.user?.goal || ''" @change="saveAiProfile({ goal: $event.target.value })">
-              <option value="">—</option>
-              <option v-for="o in GOALS" :key="o.id" :value="o.id">{{ $t(o.label) }}</option>
-            </select>
-          </div>
-          <div class="st-row">
-            <label class="st-lbl" for="st-lvl">{{ $t('Experience') }}</label>
-            <select id="st-lvl" class="f-inp" :value="auth.user?.experience || ''" @change="saveAiProfile({ experience: $event.target.value })">
-              <option value="">—</option>
-              <option v-for="o in LEVELS" :key="o.id" :value="o.id">{{ $t(o.label) }} ({{ $t(o.years) }})</option>
-            </select>
+        <div v-if="auth.user?.aiPersonalize !== false" class="st-ai">
+          <div v-for="g in aiGroups" :key="g.key" class="st-ai-g" role="radiogroup" :aria-label="$t(g.label)">
+            <div class="st-lbl">{{ $t(g.label) }}</div>
+            <div class="st-chips">
+              <button v-for="o in g.options" :key="o.id" type="button" class="st-chip" role="radio"
+                :class="{ on: auth.user?.[g.key] === o.id }" :aria-checked="auth.user?.[g.key] === o.id" :disabled="profileSaving"
+                @click="saveAiProfile({ [g.key]: auth.user?.[g.key] === o.id ? '' : o.id })">
+                {{ $t(o.label) }}<span v-if="o.years" class="st-chip-sub">{{ $t(o.years) }}</span>
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -379,6 +368,11 @@ async function savePassword() {
 
 // Personalisation switch and onboarding answers. Saved as soon as they change
 const profileSaving = ref(false)
+const aiGroups = [
+  { key: 'industry', label: 'Your field', options: INDUSTRIES },
+  { key: 'goal', label: 'What are you aiming for?', options: GOALS },
+  { key: 'experience', label: 'Experience', options: LEVELS },
+]
 async function saveAiProfile(change) {
   profileSaving.value = true
   try {
@@ -518,6 +512,19 @@ watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota() } }
 .st-rows{display:flex;flex-direction:column;gap:14px}
 .st-row{display:grid;grid-template-columns:140px 1fr;align-items:center;gap:14px}
 .st-lbl{font-size:14px;font-weight:600;color:var(--c-text)}
+.st-ai{display:flex;flex-direction:column;gap:20px}
+.st-ai-g{display:flex;flex-direction:column;gap:10px}
+.st-chips{display:flex;flex-wrap:wrap;gap:8px}
+.st-chip{height:38px;padding:0 16px;border-radius:999px;border:none;background:var(--fill);color:var(--c-text);
+  font:inherit;font-size:14px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+  transition:background .18s ease,color .18s ease,box-shadow .18s ease,transform .12s ease}
+.st-chip:hover{background:var(--fill-hover)}
+.st-chip:active{transform:scale(.97)}
+.st-chip:focus-visible{outline:none;box-shadow:0 0 0 4px var(--c-accent-ring)}
+.st-chip.on{background:var(--c-accent);color:#fff;font-weight:600;box-shadow:0 6px 16px rgba(67,56,202,.28)}
+.st-chip:disabled{cursor:default}
+.st-chip-sub{font-size:12px;color:var(--c-text3);font-weight:500}
+.st-chip.on .st-chip-sub{color:rgba(255,255,255,.8)}
 .st-name{display:flex;gap:8px;align-items:center}
 .st-name .f-inp{flex:1;min-width:0}
 .st-pop-enter-active,.st-pop-leave-active{transition:opacity .2s var(--ease),transform .2s var(--ease)}
