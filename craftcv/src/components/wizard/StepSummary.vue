@@ -8,15 +8,15 @@
 
     <div class="f-grp">
       <div class="f-lbl">{{ $t('Summary') }}</div>
-      <textarea class="f-ta" v-model="store.data.sum" rows="5"
-        :placeholder="$t('Results-driven professional with X years experience in…')"></textarea>
+      <ProofField multiline kind="summary" class="f-ta" v-model="store.data.sum" rows="5"
+        :placeholder="$t('Results-driven professional with X years experience in…')" />
       <div class="f-hint">{{ $t('Aim for 40–60 words. Focus on value, not just experience.') }}</div>
     </div>
 
     <!-- What they're looking for: shown on the CV right under the summary -->
     <div class="f-grp">
       <label class="f-lbl" for="seek-in">{{ $t('What are you looking for?') }}</label>
-      <input id="seek-in" class="f-inp" v-model="store.data.seeking" maxlength="140"
+      <ProofField id="seek-in" kind="seeking" class="f-inp" v-model="store.data.seeking" maxlength="140"
         :placeholder="$t('e.g. A 3-month internship in marketing, from March 2027')" />
       <div class="seek-chips">
         <button v-for="c in SEEK_CHIPS" :key="c" type="button" class="tone-pill" :class="{ active: store.data.seeking === $t(c) }"
@@ -58,6 +58,7 @@
 <script setup>
 import { ref, inject } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
+import ProofField from '../ProofField.vue'
 
 const store = useCvStore()
 const showToast = inject('showToast', null)

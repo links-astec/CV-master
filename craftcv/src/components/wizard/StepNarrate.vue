@@ -19,9 +19,9 @@
 
       <!-- TYPE mode -->
       <div v-if="inputMode === 'type'" class="f-grp">
-        <textarea class="f-ta" v-model="story" rows="9"
+        <ProofField multiline kind="story" class="f-ta" v-model="story" rows="9"
           :placeholder="$t('e.g. I’ve been in product management for 8 years. I started at a startup in London where I built their first mobile app from scratch. Then I moved to a fintech where I led a team of 12 and grew the user base from 50K to 2M. I’m passionate about data-driven decisions…')"
-          style="line-height:1.7;"></textarea>
+          style="line-height:1.7;" />
         <div class="f-hint">{{ $t('Be as detailed as you like. More context gives a better CV.') }}</div>
       </div>
 
@@ -70,7 +70,7 @@
           </div>
           <!-- After stopping: editable textarea -->
           <div v-else>
-            <textarea class="f-ta" v-model="story" rows="5" style="margin-top:6px;line-height:1.65;" :placeholder="$t('Your recorded text appears here. Edit freely before continuing…')"></textarea>
+            <ProofField multiline kind="story" class="f-ta" v-model="story" rows="5" style="margin-top:6px;line-height:1.65;" :placeholder="$t('Your recorded text appears here. Edit freely before continuing…')" />
           </div>
           <div class="f-hint" style="margin-top:6px;">
             {{ $t(isRecording ? 'Recording in progress…' : 'Edit your transcript above if needed, then build your CV.') }}
@@ -139,7 +139,7 @@
             <div class="nq-list">
               <div v-for="(q, i) in questions" :key="round + '-' + i" class="nq-item">
                 <label class="nq-q" :for="'nq-' + i">{{ q.q }}</label>
-                <textarea :id="'nq-' + i" v-model="q.a" class="f-ta" rows="2" :placeholder="q.hint || $t('Your answer')" :disabled="aiLoading"></textarea>
+                <ProofField multiline kind="story" :id="'nq-' + i" v-model="q.a" class="f-ta" rows="2" :placeholder="q.hint || $t('Your answer')" :disabled="aiLoading" />
               </div>
             </div>
 
@@ -161,6 +161,7 @@
 <script setup>
 import { ref, computed, nextTick, onUnmounted, inject } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
+import ProofField from '../ProofField.vue'
 import { useAuthStore } from '../../stores/auth.js'
 import CvForSwitch from '../CvForSwitch.vue'
 

@@ -1999,6 +1999,62 @@ Reply with ONLY a JSON object, no markdown:
 
 // ── TRANSLATE A CV (EN ↔ FR) ──────────────────────────────────────────────────
 // Returns proposals only; the client shows before/after and the user applies them.
+// ── WRITING CHECK (like a spell checker, for the form fields, never on the CV) ──
+// One field's text in, a short list of problems out: spelling, grammar, clearer wording and
+// consistency (tense, punctuation), each with the exact words and a replacement. Positions are
+// found here, not trusted from the AI. It doesn't use the person's AI allowance; instead it has
+// its own daily limit, and the same text is never checked twice (cache).
+const PROOF_TYPES = ['spelling', 'grammar', 'style', 'consistency'];
+const PROOF_FIELDS = { summary: 'a CV profile summary', seeking: 'what the person is looking for (one line on their CV)', title: 'a job title or headline', bullets: 'the description of a job or project on a CV (often bullet points)', degree: 'a degree or course name', story: 'someone describing their career in their own words (notes for an AI, not the CV itself)', text: 'text for a CV' };
+const proofCache = new Map();
+const proofDaily = new Map();   // person → { day, n }
+const PROOF_PER_DAY = 400;
+app.post('/api/ai/proofread', async (req, res) => {
+  try {
+    const text = typeof req.body?.text === 'string' ? req.body.text.slice(0, 4000) : '';
+    if (text.trim().length < 8) return res.json({ issues: [] });
+    const field = PROOF_FIELDS[req.body?.field] ? req.body.field : 'text';
+    const cvLang = UI_LANG_NAME[req.body?.lang] || 'English';
+    const outLang = uiLangName(req.body?.uiLang);
+    const key = createHash('sha1').update([field, cvLang, outLang, text].join('\u0000')).digest('hex');
+    if (proofCache.has(key)) return res.json({ issues: proofCache.get(key), cached: true });
+    const who = aiSubject(req), day = new Date().toISOString().slice(0, 10);
+    const used = proofDaily.get(who);
+    const n = used?.day === day ? used.n : 0;
+    if (n >= PROOF_PER_DAY) return res.json({ issues: [], paused: true });
+    proofDaily.set(who, { day, n: n + 1 });
+
+    const system = `You proofread ${PROOF_FIELDS[field]}, written in ${cvLang}. Find real problems only:
+- spelling mistakes and typos
+- grammar mistakes (agreement, articles, verb forms, missing words)
+- wording a recruiter would find weak or unclear, with a stronger version that keeps the exact meaning (for example "was responsible for managing" → "managed"); never add facts, numbers or skills
+- inconsistencies inside this text: mixed tenses (past roles in the past tense), bullets that end with and without full stops, a mix of British and American spelling (keep the one used most)
+Do not touch names, company or school names, product names, technical terms, acronyms, URLs or numbers. Do not flag a style choice that is acceptable. If the text is fine, return no issues.
+For each issue give "text": the exact words from the input, copied character for character (a few words, enough to be unique), "fix": the replacement for exactly those words, "why": at most 8 words in ${outLang}, "type": one of spelling, grammar, style, consistency.
+Reply with ONLY JSON: {"issues":[{"text":"...","fix":"...","why":"...","type":"..."}]} with at most 8 issues, most important first.`;
+    const out = parseJsonObject(await callAi(`TEXT:\n${text}`, AI_MODEL, system, 900, 'low'));
+    // Place each issue on the text: the first occurrence after the previous one, else anywhere
+    const issues = [];
+    let from = 0;
+    for (const it of (Array.isArray(out?.issues) ? out.issues : []).slice(0, 8)) {
+      const orig = typeof it?.text === 'string' ? it.text : '', fix = typeof it?.fix === 'string' ? it.fix : '';
+      if (!orig.trim() || orig === fix || orig.length > 300 || fix.length > 400) continue;
+      let at = text.indexOf(orig, from);
+      if (at < 0) at = text.indexOf(orig);
+      if (at < 0 || issues.some(x => at < x.end && at + orig.length > x.start)) continue;
+      issues.push({ start: at, end: at + orig.length, text: orig, fix, why: String(it.why || '').slice(0, 80), type: PROOF_TYPES.includes(it.type) ? it.type : 'grammar' });
+      from = at + orig.length;
+    }
+    issues.sort((a, b) => a.start - b.start);
+    if (proofCache.size > 3000) proofCache.delete(proofCache.keys().next().value);
+    proofCache.set(key, issues);
+    res.json({ issues });
+  } catch (e) {
+    console.error('[ai/proofread]', e.message);
+    res.json({ issues: [], error: true });   // a check that fails just shows nothing
+  }
+});
+
 app.post('/api/ai/translate', needsCvContent, aiAccess, async (req, res) => {
   try {
     const { cv = {}, to } = req.body || {};

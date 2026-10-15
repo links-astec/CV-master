@@ -49,7 +49,7 @@
       <div class="f-grp"><div class="f-lbl">{{ $t('First Name') }}</div><input class="f-inp" v-model="store.data.fn" :placeholder="$t('Alexandra')" autocomplete="given-name" /></div>
       <div class="f-grp"><div class="f-lbl">{{ $t('Last Name') }}</div><input class="f-inp" v-model="store.data.ln" :placeholder="$t('Morrison')" autocomplete="family-name" /></div>
     </div>
-    <div class="f-grp"><div class="f-lbl">{{ $t('Job Title / Desired Role') }}</div><input class="f-inp" v-model="store.data.title" :placeholder="$t('Senior Product Manager')" /></div>
+    <div class="f-grp"><div class="f-lbl">{{ $t('Job Title / Desired Role') }}</div><ProofField kind="title" class="f-inp" v-model="store.data.title" :placeholder="$t('Senior Product Manager')" /></div>
 
     <div class="f-sec">{{ $t('Contact') }}</div>
     <div class="f-row">
@@ -79,6 +79,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
+import ProofField from '../ProofField.vue'
 import { getLayout, parseTemplate } from '../../composables/cvRenderer.js'
 import CvForSwitch from '../CvForSwitch.vue'
 const store = useCvStore()

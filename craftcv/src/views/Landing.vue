@@ -8,6 +8,7 @@
           <a href="#how" @click.prevent="go('#how')">{{ $t('How it works') }}</a>
           <a href="#templates" @click.prevent="go('#templates')">{{ $t('Templates') }}</a>
           <a href="#pricing" @click.prevent="go('#pricing')">{{ $t('Pricing') }}</a>
+          <a href="#invite" @click.prevent="go('#invite')">{{ $t('Invite friends') }}</a>
           <a :href="`/blog?lang=${lang}`">{{ $t('Blog') }}</a>
         </nav>
         <div class="lp-nav-cta">
@@ -47,56 +48,65 @@
       </div>
     </section>
 
-    <!-- How it works: a dark gallery of large cards (scroll sideways) -->
-    <section class="lp-dark" id="how">
-      <div class="lp-wrap"><h2 class="lp-h2 left" v-reveal>{{ $t('Everything you need to get the job.') }}</h2></div>
-      <div class="lp-gal" ref="galEl" @scroll.passive="galScroll">
-        <article v-for="(c, i) in GALLERY" :key="c.k" class="lp-card" v-reveal="i * 70">
-          <div class="lp-media" :class="'m-' + c.k">
-            <!-- Story -->
-            <template v-if="c.k === 'story'">
-              <div class="m-mic"><span class="m-mic-btn"><svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z" /><path d="M19 10v2a7 7 0 01-14 0v-2" /><line x1="12" y1="19" x2="12" y2="22" /></svg></span>
-                <span class="m-wave"><i v-for="n in 14" :key="n" :style="{ animationDelay: (n * 0.07) + 's' }"></i></span>
-                <span class="m-mic-txt">{{ $t('Recording… tap to stop') }}</span></div>
-              <div class="m-page"><CvThumb template="modern:indigo" :data="sampleCv()" /></div>
-            </template>
-            <!-- Tailor -->
-            <template v-else-if="c.k === 'tailor'">
-              <div class="m-panel">
-                <div class="m-tick"><span class="m-box"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg></span>{{ $t('Summary') }}
-                  <span class="m-ba"><em>{{ $t('Before') }}</em><i class="old"></i><em>{{ $t('After') }}</em><i class="new"></i></span></div>
-                <div v-for="s in ['Experience', 'Skills']" :key="s" class="m-tick"><span class="m-box"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg></span>{{ $t(s) }}<i class="m-line"></i></div>
-                <span class="m-apply">{{ $t('Apply {n} changes', { n: 3 }) }}</span>
-              </div>
-            </template>
-            <!-- Fit check -->
-            <template v-else-if="c.k === 'fit'">
-              <div class="m-panel m-fit">
-                <span class="m-verdict">{{ $t('A stretch') }}</span>
-                <div class="m-reason ok"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg><i style="width:82%"></i></div>
-                <div class="m-reason ok"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg><i style="width:64%"></i></div>
-                <div class="m-reason gap"><svg viewBox="0 0 24 24"><line x1="12" y1="7" x2="12" y2="13" /><circle cx="12" cy="17" r=".6" /></svg><i style="width:74%"></i></div>
-                <span class="m-good">{{ $t('Good fit') }}</span>
-              </div>
-            </template>
-            <!-- ATS score -->
-            <template v-else-if="c.k === 'ats'">
-              <div class="m-ring"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="50" class="track" /><circle cx="60" cy="60" r="50" class="bar" pathLength="100" /></svg><b>86</b></div>
-              <div class="m-checks"><div class="m-ats-ttl">{{ $t('Your ATS score') }}</div>
-                <div v-for="k in CHECKS" :key="k" class="m-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg>{{ $t(k) }}</div></div>
-            </template>
-            <!-- PDF -->
-            <template v-else>
-              <div class="m-sheet"><CvThumb template="harvard:indigo" :data="sampleCv()" /><span class="m-pdf-tag">PDF</span></div>
-            </template>
-          </div>
-          <p class="lp-cap"><b>{{ $t(c.t) }}</b> {{ $t(c.d) }}</p>
-        </article>
-        <div class="lp-gal-end" aria-hidden="true"></div>
+    <!-- The story: from blank page to interview, one chapter per feature (each one sells) -->
+    <section class="lp-sec lp-story" id="how">
+      <div class="lp-wrap">
+        <h2 class="lp-h2" v-reveal>{{ $t('From blank page to interview.') }}</h2>
+        <p class="lp-sub" v-reveal>{{ $t('Five steps, each one built to get you closer to the job.') }}</p>
+        <nav class="lp-rail" :aria-label="$t('How it works')" v-reveal>
+          <a v-for="(c, i) in CHAPTERS" :key="c.k" :href="'#ch-' + c.k" @click.prevent="go('#ch-' + c.k)"><span>{{ i + 1 }}</span>{{ $t(c.short) }}</a>
+        </nav>
       </div>
-      <div class="lp-wrap lp-gal-nav">
-        <button class="lp-arrow" :disabled="galAt <= 0" :aria-label="$t('Previous')" @click="galMove(-1)"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6" /></svg></button>
-        <button class="lp-arrow" :disabled="galAt >= 1" :aria-label="$t('Next')" @click="galMove(1)"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6" /></svg></button>
+    </section>
+
+    <section v-for="(c, i) in CHAPTERS" :key="c.k" :id="'ch-' + c.k" class="lp-ch" :class="[i === CHAPTERS.length - 1 ? 'dark' : i % 2 === 0 ? 'lp-alt' : '', { rev: i % 2 === 1 }]">
+      <div class="lp-wrap lp-ch-in">
+        <div class="lp-ch-copy" v-reveal>
+          <span class="lp-ch-step">{{ $t('Step {n} of {total}', { n: i + 1, total: CHAPTERS.length }) }} · {{ $t(c.short) }}</span>
+          <h2>{{ $t(c.t) }}</h2>
+          <p>{{ $t(c.lead) }}</p>
+          <ul><li v-for="p in c.pts" :key="p"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg>{{ $t(p) }}</li></ul>
+          <button class="btn-primary accent btn-lg" @click="$emit('start', c.mode)">{{ $t(c.cta) }}</button>
+        </div>
+        <div class="lp-media lp-ch-media" :class="'m-' + c.k" aria-hidden="true" inert v-reveal="120">
+          <!-- Story -->
+          <template v-if="c.k === 'story'">
+            <div class="m-mic"><span class="m-mic-btn"><svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z" /><path d="M19 10v2a7 7 0 01-14 0v-2" /><line x1="12" y1="19" x2="12" y2="22" /></svg></span>
+              <span class="m-wave"><i v-for="n in 14" :key="n" :style="{ animationDelay: (n * 0.07) + 's' }"></i></span>
+              <span class="m-mic-txt">{{ $t('Recording… tap to stop') }}</span></div>
+            <div class="m-page"><CvThumb template="modern:indigo" :data="sampleCv()" /></div>
+          </template>
+          <!-- Tailor -->
+          <template v-else-if="c.k === 'tailor'">
+            <div class="m-panel">
+              <div class="m-tick"><span class="m-box"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg></span>{{ $t('Summary') }}
+                <span class="m-ba"><em>{{ $t('Before') }}</em><i class="old"></i><em>{{ $t('After') }}</em><i class="new"></i></span></div>
+              <div v-for="sct in ['Experience', 'Skills']" :key="sct" class="m-tick"><span class="m-box"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg></span>{{ $t(sct) }}<i class="m-line"></i></div>
+              <span class="m-apply">{{ $t('Apply {n} changes', { n: 3 }) }}</span>
+            </div>
+          </template>
+          <!-- How you match -->
+          <template v-else-if="c.k === 'fit'">
+            <div class="m-panel m-fit">
+              <span class="m-good">{{ $t('Worth a go') }}</span>
+              <div class="m-fit-sub">{{ $t('What already matches') }}</div>
+              <div class="m-reason ok"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg><i style="width:82%"></i></div>
+              <div class="m-reason ok"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg><i style="width:64%"></i></div>
+              <div class="m-fit-sub">{{ $t('To strengthen your application') }}</div>
+              <div class="m-reason gap"><svg viewBox="0 0 24 24"><line x1="12" y1="6" x2="12" y2="18" /><line x1="6" y1="12" x2="18" y2="12" /></svg><i style="width:74%"></i></div>
+            </div>
+          </template>
+          <!-- ATS score -->
+          <template v-else-if="c.k === 'ats'">
+            <div class="m-ring"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="50" class="track" /><circle cx="60" cy="60" r="50" class="bar" pathLength="100" /></svg><b>86</b></div>
+            <div class="m-checks"><div class="m-ats-ttl">{{ $t('Your ATS score') }}</div>
+              <div v-for="k in CHECKS" :key="k" class="m-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg>{{ $t(k) }}</div></div>
+          </template>
+          <!-- PDF -->
+          <template v-else>
+            <div class="m-sheet"><CvThumb template="harvard:indigo" :data="sampleCv()" /><span class="m-pdf-tag">PDF</span></div>
+          </template>
+        </div>
       </div>
     </section>
 
@@ -204,6 +214,34 @@
           </div>
         </div>
         <p class="lp-small">{{ $t('Need more AI? 100 extra requests cost €0.50 and never expire.') }}</p>
+      </div>
+    </section>
+
+    <!-- Referral: invite friends, get free CVs -->
+    <section class="lp-ref" id="invite">
+      <div class="lp-wrap lp-ref-in">
+        <div class="lp-ref-copy" v-reveal>
+          <span class="lp-ref-kick">{{ $t('Invite friends') }}</span>
+          <h2>{{ $t('Help a friend.') }}<br><span>{{ $t('Get your CV free.') }}</span></h2>
+          <p>{{ $t('Share your invite link with classmates and friends. They get 25 extra AI requests to build their CV, and every friend who gets their first clean CV earns you a free one.') }}</p>
+          <ol class="lp-ref-steps">
+            <li><b>1</b><div><strong>{{ $t('Share your link') }}</strong><span>{{ $t('By WhatsApp, email or anywhere you like.') }}</span></div></li>
+            <li><b>2</b><div><strong>{{ $t('They build their CV') }}</strong><span>{{ $t('With 25 extra AI requests, on you.') }}</span></div></li>
+            <li><b>3</b><div><strong>{{ $t('You get a free CV') }}</strong><span>{{ $t('For every friend who gets their first clean CV. No limit.') }}</span></div></li>
+          </ol>
+          <button class="btn-lg lp-ref-btn" @click="$emit('start', 'invite')">{{ $t('Get my invite link') }}</button>
+        </div>
+        <div class="lp-ref-art" aria-hidden="true" inert v-reveal="120">
+          <div class="lp-ref-card">
+            <div class="lp-ref-card-hd"><span class="lp-ref-gift"><svg viewBox="0 0 24 24"><polyline points="20 12 20 22 4 22 4 12" /><rect x="2" y="7" width="20" height="5" rx="1" /><line x1="12" y1="22" x2="12" y2="7" /><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z" /><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z" /></svg></span>{{ $t('Your invite link') }}</div>
+            <div class="lp-ref-link">cvmaster.live/invite/AMARA</div>
+            <div class="lp-ref-share"><span>WhatsApp</span><span>{{ $t('Email') }}</span><span class="pri">{{ $t('Copy') }}</span></div>
+            <div class="lp-ref-stats"><div><b>3</b><span>{{ $t('friends joined') }}</span></div><div><b>2</b><span>{{ $t('free CVs earned') }}</span></div></div>
+          </div>
+          <span class="lp-ref-chip c1">+1 {{ $t('free CV') }}</span>
+          <span class="lp-ref-chip c2">+25 {{ $t('AI requests') }}</span>
+          <div class="lp-ref-faces"><i>K</i><i>Y</i><i>S</i></div>
+        </div>
       </div>
     </section>
 
@@ -354,15 +392,6 @@ function go(sel) {
   if (el) rootEl.value.scrollTo({ top: el.offsetTop - 52, behavior: 'smooth' })
 }
 
-// Gallery: arrows scroll one card; they grey out at either end
-const galEl = ref(null)
-const galAt = ref(0)
-function galScroll() { const g = galEl.value; if (g) galAt.value = g.scrollLeft / Math.max(1, g.scrollWidth - g.clientWidth) }
-function galMove(dir) {
-  const g = galEl.value; if (!g) return
-  const card = g.querySelector('.lp-card')
-  g.scrollBy({ left: dir * ((card?.offsetWidth || 600) + 20), behavior: 'smooth' })
-}
 
 // The final section's mark draws itself the first time it's on screen
 const finalEl = ref(null)
@@ -377,12 +406,23 @@ onUnmounted(() => { rootEl.value?.removeEventListener('scroll', onScroll); io?.d
 
 const CHECKS = ['Keywords from the job', 'One A4 page', 'Readable by ATS']
 
-const GALLERY = [
-  { k: 'story',  t: 'Tell your story.',     d: 'Type or speak about your work. AI turns it into a full CV, and asks a few short questions where a recruiter would want more.' },
-  { k: 'tailor', t: 'Tailor it to the job.', d: 'Paste the job advert. AI rewords your CV in the employer’s language, and you approve every change.' },
-  { k: 'fit',    t: 'An honest fit check.',  d: 'See whether the role is a good fit or a stretch, with the reasons and what would make you a stronger candidate.' },
-  { k: 'ats',    t: 'Check your ATS score.', d: 'See how well your CV matches the job’s keywords, and fix what’s missing before you apply.' },
-  { k: 'pdf',    t: 'One clean page.',       d: 'Download a polished one-page PDF, ready to send. Edit it and download it again any time.' },
+// The story of an application, one chapter per feature. "mode" is what the button starts
+const CHAPTERS = [
+  { k: 'story', short: 'Tell your story', mode: 'narrate', cta: 'Tell your story',
+    t: 'Just tell your story.', lead: 'No blank page. Type or speak about your studies, jobs and projects, the way you would to a friend. AI turns it into a complete CV, and asks a few short questions where a recruiter would want more.',
+    pts: ['Speak or type, in your own words', 'A full CV in minutes, not hours', 'Already have a CV? Import your PDF or Word file instead'] },
+  { k: 'tailor', short: 'Tailor it', mode: 'ats', cta: 'Tailor my CV to a job',
+    t: 'Made for the job you want.', lead: 'Paste the job advert and AI rewords your CV in the employer’s own language, so it speaks to the people, and the software, reading it.',
+    pts: ['Uses the job’s keywords, never invents experience', 'Every change shown before and after', 'Nothing changes without your OK'] },
+  { k: 'fit', short: 'See how you match', mode: 'ats', cta: 'See how I match',
+    t: 'Know where you stand.', lead: 'Before you apply, see how well you match the role: what already fits, and the few things that would make your application stronger.',
+    pts: ['Your strengths for this job, named', 'Clear next steps, not a verdict', 'Apply with confidence, even for a reach'] },
+  { k: 'ats', short: 'Check your ATS score', mode: 'ats', cta: 'Check my ATS score',
+    t: 'Get past the robots.', lead: 'Most companies scan CVs with an applicant tracking system before anyone reads them. See your ATS score for the job and exactly which keywords are missing.',
+    pts: ['A score out of 100 for each job', 'Missing keywords, ready to add', 'ATS-friendly layouts with plain, readable text'] },
+  { k: 'pdf', short: 'Send it', mode: null, cta: 'Build my CV for free',
+    t: 'One clean page, ready to send.', lead: 'Download a polished one-page PDF without a watermark, and get it by email. Edit it any time and download it again for free.',
+    pts: ['One A4 page, checked for you', 'Emailed and downloadable', '€0.99 per CV, no subscription'] },
 ]
 
 const feat = ref(0)
@@ -474,20 +514,65 @@ const FAQ = [
 .lp-row-hd{display:flex;align-items:baseline;justify-content:space-between;gap:20px;flex-wrap:wrap}
 
 /* Dark gallery */
-.lp-dark{background:#0C0C10;color:#F3F4F6;padding:120px 0 90px}
-.lp-dark .lp-h2{color:#F3F4F6}
-.lp-gal{display:flex;gap:20px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;margin-top:56px;padding:0 max(24px,calc((100vw - 1080px)/2 + 24px));scroll-padding:0 max(24px,calc((100vw - 1080px)/2 + 24px))}
-.lp-gal::-webkit-scrollbar{display:none}
-.lp-gal-end{flex:0 0 1px}
-.lp-card{flex:0 0 min(720px,82vw);scroll-snap-align:start}
-.lp-media{position:relative;aspect-ratio:16/10;border-radius:28px;overflow:hidden;display:flex;align-items:center;justify-content:center;gap:5%;padding:6%}
-.lp-cap{margin-top:22px;max-width:560px;padding:0 16px;font-size:17px;line-height:1.5;color:#8B909C;letter-spacing:-.01em}
-.lp-cap b{color:#F3F4F6;font-weight:650}
-.lp-gal-nav{display:flex;justify-content:flex-end;gap:12px;margin-top:34px}
-.lp-arrow{width:44px;height:44px;border-radius:50%;border:none;background:#26262E;color:#F3F4F6;display:flex;align-items:center;justify-content:center;transition:background .2s,opacity .2s}
-.lp-arrow:hover:not(:disabled){background:#34343E}
-.lp-arrow:disabled{opacity:.35;cursor:default}
-.lp-arrow svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+/* The story: a header with a step rail, then one chapter per feature */
+.lp-story{padding-bottom:64px}
+.lp-rail{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:36px}
+.lp-rail a{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px 0 6px;border-radius:999px;background:var(--c-bg);color:var(--c-text);text-decoration:none;font-size:14px;font-weight:600;transition:background .2s,transform .2s}
+.lp-rail a:hover{background:var(--c-accent-lt);transform:translateY(-1px)}
+.lp-rail a span{width:28px;height:28px;border-radius:50%;background:var(--c-accent);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.lp-ch{padding:110px 0}
+.lp-ch-in{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:64px;align-items:center}
+.lp-ch.rev .lp-ch-copy{order:2}
+.lp-ch-step{display:inline-block;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--c-accent);margin-bottom:14px}
+.lp-ch-copy h2{font-size:clamp(32px,4.4vw,50px);font-weight:800;letter-spacing:-.034em;line-height:1.05}
+.lp-ch-copy > p{margin-top:18px;font-size:clamp(16.5px,1.6vw,19px);line-height:1.55;color:var(--c-text2);letter-spacing:-.01em}
+.lp-ch-copy ul{list-style:none;margin:22px 0 30px;padding:0;display:flex;flex-direction:column;gap:10px}
+.lp-ch-copy li{display:flex;align-items:flex-start;gap:10px;font-size:16px;font-weight:550;color:var(--c-text)}
+.lp-ch-copy li svg{width:20px;height:20px;flex-shrink:0;margin-top:1px;padding:3.5px;border-radius:50%;background:var(--c-accent-lt);fill:none;stroke:var(--c-accent);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
+.lp-ch.dark{background:#0C0C10;color:#F3F4F6}
+.lp-ch.dark .lp-ch-step{color:#A5A0FF}
+.lp-ch.dark .lp-ch-copy > p{color:#B4B8C2}
+.lp-ch.dark .lp-ch-copy li{color:#F3F4F6}
+.lp-ch.dark .lp-ch-copy li svg{background:rgba(165,160,255,.16);stroke:#A5A0FF}
+.lp-media{position:relative;aspect-ratio:16/12;border-radius:32px;overflow:hidden;display:flex;align-items:center;justify-content:center;gap:5%;padding:6%}
+.m-fit-sub{font-size:11.5px;font-weight:700;color:#6B6B84;text-transform:uppercase;letter-spacing:.04em}
+
+/* Referral: invite friends, get free CVs */
+.lp-ref{position:relative;overflow:hidden;padding:120px 0;color:#fff;background:radial-gradient(900px 500px at 85% 20%,rgba(167,139,250,.55),transparent 60%),radial-gradient(800px 500px at 10% 100%,rgba(56,189,248,.28),transparent 60%),linear-gradient(135deg,#2A2390 0%,#4338CA 55%,#5B4FE0 100%)}
+.lp-ref-in{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:64px;align-items:center}
+.lp-ref-kick{display:inline-flex;align-items:center;height:30px;padding:0 14px;border-radius:999px;background:rgba(255,255,255,.14);font-size:13px;font-weight:700;letter-spacing:.03em}
+.lp-ref-copy h2{margin-top:18px;font-size:clamp(36px,5vw,58px);font-weight:800;letter-spacing:-.036em;line-height:1.02}
+.lp-ref-copy h2 span{background:linear-gradient(90deg,#FDE68A,#FBCFE8);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lp-ref-copy > p{margin-top:18px;font-size:clamp(16.5px,1.6vw,19px);line-height:1.55;color:rgba(255,255,255,.82);max-width:520px}
+.lp-ref-steps{list-style:none;margin:28px 0 32px;padding:0;display:flex;flex-direction:column;gap:12px}
+.lp-ref-steps li{display:flex;gap:14px;align-items:flex-start;background:rgba(255,255,255,.08);border-radius:18px;padding:14px 16px;backdrop-filter:blur(6px)}
+.lp-ref-steps b{width:32px;height:32px;flex-shrink:0;border-radius:50%;background:#fff;color:#4338CA;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.lp-ref-steps strong{display:block;font-size:16px;font-weight:700}
+.lp-ref-steps span{display:block;font-size:14px;color:rgba(255,255,255,.75);margin-top:2px}
+.lp-ref-btn{border:none;background:#fff;color:#2A2390;font-weight:700;border-radius:999px;padding:0 28px;height:52px;font-size:16px;box-shadow:0 14px 34px rgba(0,0,0,.25);transition:transform .2s}
+.lp-ref-btn:hover{transform:translateY(-2px)}
+.lp-ref-art{position:relative;min-height:420px;display:flex;align-items:center;justify-content:center}
+.lp-ref-card{position:relative;z-index:1;width:min(100%,380px);background:#fff;color:#14142B;border-radius:28px;padding:26px;box-shadow:0 40px 90px rgba(10,8,60,.45);transform:rotate(-3deg)}
+.lp-ref-card-hd{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700}
+.lp-ref-gift{width:38px;height:38px;border-radius:12px;background:#EEF0FF;display:flex;align-items:center;justify-content:center}
+.lp-ref-gift svg{width:20px;height:20px;fill:none;stroke:#4338CA;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.lp-ref-link{margin-top:16px;padding:12px 14px;border-radius:14px;background:#F2F2F7;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13.5px;color:#4A4A63;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lp-ref-share{display:flex;gap:8px;margin-top:12px}
+.lp-ref-share span{flex:1;text-align:center;padding:9px 0;border-radius:999px;background:#F2F2F7;font-size:13px;font-weight:650}
+.lp-ref-share span.pri{background:#4338CA;color:#fff}
+.lp-ref-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.lp-ref-stats div{background:#EEF0FF;border-radius:16px;padding:12px 14px}
+.lp-ref-stats b{display:block;font-size:28px;font-weight:800;letter-spacing:-.03em;color:#4338CA}
+.lp-ref-stats span{font-size:12.5px;color:#4A4A63;font-weight:600}
+.lp-ref-chip{position:absolute;z-index:2;padding:10px 16px;border-radius:999px;background:#fff;color:#14142B;font-size:14px;font-weight:750;box-shadow:0 16px 36px rgba(10,8,60,.35);animation:refFloat 4s ease-in-out infinite}
+.lp-ref-chip.c1{top:8%;right:4%;color:#15803D}
+.lp-ref-chip.c2{bottom:10%;left:0;color:#4338CA;animation-delay:-2s}
+.lp-ref-faces{position:absolute;z-index:2;top:14%;left:6%;display:flex}
+.lp-ref-faces i{width:42px;height:42px;border-radius:50%;border:3px solid #4338CA;margin-left:-10px;display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:800;color:#fff;background:linear-gradient(135deg,#F472B6,#A78BFA)}
+.lp-ref-faces i:nth-child(2){background:linear-gradient(135deg,#34D399,#38BDF8)}
+.lp-ref-faces i:nth-child(3){background:linear-gradient(135deg,#FBBF24,#F97316)}
+@keyframes refFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@media (prefers-reduced-motion:reduce){.lp-ref-chip{animation:none}}
 
 /* Card pictures */
 .m-story{background:linear-gradient(140deg,#EEF0FF,#D9DCFF)}
@@ -686,7 +771,12 @@ const FAQ = [
   .c-score{right:6%;top:46%}
   .c-ats{left:4%;top:72%}
   .lp-sec{padding:88px 0}
-  .lp-dark{padding:88px 0 70px}
+  .lp-ch{padding:80px 0}
+  .lp-ch-in,.lp-ref-in{grid-template-columns:1fr;gap:36px}
+  .lp-ch.rev .lp-ch-copy{order:0}
+  .lp-ch-media{order:-1}
+  .lp-ref{padding:88px 0}
+  .lp-ref-art{min-height:380px}
   .lp-explore{grid-template-columns:1fr;padding:28px;gap:28px;min-height:0}
   .lp-show{min-height:360px;order:-1}
   .v-fan{height:330px}
@@ -715,12 +805,14 @@ const FAQ = [
   .c-score b{font-size:20px}
   .c-score{right:2%;top:52%}
   .c-ats{left:2%;top:76%}
-  .lp-card{flex-basis:86vw}
   .lp-media{aspect-ratio:4/3.4;border-radius:24px}
   .m-mic{width:52%;padding:16px 12px}
   .m-mic-btn{width:48px;height:48px}
   .m-panel{padding:16px}
-  .lp-cap{font-size:16px;padding:0 6px}
+  .lp-ch-copy .btn-lg,.lp-ref-btn{width:100%}
+  .lp-rail a{font-size:13px}
+  .lp-ref-art{min-height:340px}
+  .lp-ref-faces{left:0}
   .lp-explore{padding:18px;border-radius:26px}
   .lp-pill-hd{font-size:15px;padding:13px 18px 13px 12px}
   .lp-show{min-height:300px}
