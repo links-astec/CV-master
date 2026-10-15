@@ -153,6 +153,7 @@ const REASONS = {
   download: 'Create a free account to download. The CV you built comes with you.',
   save:     'Create a free account to keep your CV safe and edit it anywhere.',
   ai:       'Create a free account to buy extra AI requests. They’re saved to your account.',
+  invite:   'Create a free account to get your invite link. Every friend who gets their first clean CV earns you a free one.',
 }
 
 const view   = ref(props.initialView === 'signin' || props.initialView === 'forgot' || props.initialView === 'reset' ? props.initialView : 'register')

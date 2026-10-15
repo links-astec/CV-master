@@ -91,7 +91,7 @@
       </section>
 
       <!-- Invite friends -->
-      <section v-if="auth.isLoggedIn" class="st-card">
+      <section v-if="auth.isLoggedIn" id="invite" class="st-card">
         <div class="st-card-hd">
           <div>
             <div class="st-card-t">{{ $t('Invite friends') }}</div>
@@ -542,6 +542,8 @@ function shareEmail()    { track('invite_shared', { channel: 'email' }); window.
 onMounted(() => {
   loadAiQuota(); if (auth.isLoggedIn) { loadReferral(); loadNewsletter(); loadDetails() }
   // Arriving from a "leave a rating" link or notification
+  // Arriving from the homepage's referral section
+  if (location.hash === '#invite') setTimeout(() => document.getElementById('invite')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 600)
   if (location.hash === '#review') setTimeout(() => document.getElementById('review')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 600)
 })
 watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota(); loadDetails() } })

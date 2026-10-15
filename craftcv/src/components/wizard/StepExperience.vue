@@ -21,7 +21,7 @@
         </div>
         <div class="f-grp">
           <div class="f-lbl">{{ $t('Job Title') }}</div>
-          <input class="f-inp" v-model="exp.title" :placeholder="$t('Senior Product Manager')" />
+          <ProofField kind="title" class="f-inp" v-model="exp.title" :placeholder="$t('Senior Product Manager')" />
         </div>
         <div class="f-row">
           <div class="f-grp">
@@ -35,8 +35,8 @@
         </div>
         <div class="f-grp">
           <div class="f-lbl">{{ $t('Description / Achievements') }}</div>
-          <textarea class="f-ta" v-model="exp.desc" rows="4"
-            :placeholder="$t('• Led product strategy…\n• Grew revenue by 30%…\n• Managed a team of 8…')"></textarea>
+          <ProofField multiline kind="bullets" class="f-ta" v-model="exp.desc" rows="4"
+            :placeholder="$t('• Led product strategy…\n• Grew revenue by 30%…\n• Managed a team of 8…')" />
           <div class="f-hint">{{ $t('Tip: start each line with • for bullet points on your CV') }}</div>
         </div>
         <button class="btn-ai-sm" @click="quantifyExp(exp, idx)" :disabled="quantifyIdx === idx">
@@ -68,6 +68,7 @@
 <script setup>
 import { ref, reactive, inject, computed } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
+import ProofField from '../ProofField.vue'
 import { useReorder, isOutOfOrder, sortByDate } from '../../composables/reorder.js'
 import ReorderControls from '../ReorderControls.vue'
 

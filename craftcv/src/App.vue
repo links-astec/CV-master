@@ -337,7 +337,9 @@ async function restoreLatestDraft() {
 }
 
 // ── New CV ────────────────────────────────────────────────────────────────────
-async function newCV() {
+// mode: 'narrate' opens "Tell your story" straight after the job offer screen
+async function newCV(mode = null) {
+  if (typeof mode !== 'string') mode = null   // called from a click
   navOpen.value = false
   if (!auth.isLoggedIn && store.hasContent) {
     const ok = await confirmRef.value?.ask({
@@ -348,7 +350,7 @@ async function newCV() {
     if (!ok) return
   }
   store.resetData()
-  store.openWizard()
+  store.openWizard(false, { mode })
 }
 
 // Landing → app
@@ -356,13 +358,17 @@ async function newCV() {
 function startBuilding(mode) {
   lsSet('pcv-started', '1')
   showLanding.value = false
+  // The homepage's referral section: the invite link lives in Settings (an account is needed)
+  if (mode === 'invite') {
+    if (auth.isLoggedIn) router.push({ path: '/settings', hash: '#invite' })
+    else { router.push('/templates'); openAuth('register', 'invite') }
+    return
+  }
   if (mode === 'ats' && store.hasContent) { router.push({ path: '/editor', query: { tab: 'job' } }); return }
   router.push(auth.isLoggedIn ? '/' : '/templates')   // signed in → My CVs
-  // With no CV yet, open the new-CV flow: the job offer first, then (for 'narrate') Tell your story
-  if ((mode === 'narrate' || mode === 'ats') && !store.hasContent) {
-    store.resetData()
-    store.openWizard(false, { mode: mode === 'narrate' ? 'narrate' : null })
-  }
+  // A new CV: the job offer first, then (for 'narrate') Tell your story. Always, even with CVs already
+  // saved (a guest is asked before their browser CV is replaced)
+  if (mode === 'narrate' || mode === 'ats') newCV(mode === 'narrate' ? 'narrate' : null)
 }
 
 // ── Maintenance ───────────────────────────────────────────────────────────────

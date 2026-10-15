@@ -43,4 +43,5 @@ export default {
   'This reset link is incomplete. Request a new one.': 'Ce lien de réinitialisation est incomplet. Demandez-en un nouveau.',
   'This reset link is invalid or has expired.': 'Ce lien de réinitialisation n’est pas valide ou a expiré.',
   'We could not check this reset link. Please try again.': 'Impossible de vérifier ce lien. Veuillez réessayer.',
+  'Create a free account to get your invite link. Every friend who gets their first clean CV earns you a free one.': 'Créez un compte gratuit pour obtenir votre lien d’invitation. Chaque ami qui obtient son premier CV sans filigrane vous en offre un gratuit.',
 }

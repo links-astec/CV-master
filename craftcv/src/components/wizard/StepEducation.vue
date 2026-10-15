@@ -26,7 +26,7 @@
         </div>
         <div class="f-grp">
           <div class="f-lbl">{{ $t('Degree / Qualification') }}</div>
-          <input class="f-inp" v-model="edu.degree" :placeholder="$t('MSc Product Management')" />
+          <ProofField kind="degree" class="f-inp" v-model="edu.degree" :placeholder="$t('MSc Product Management')" />
         </div>
         <div class="f-row">
           <div class="f-grp">
@@ -70,7 +70,7 @@
         </div>
         <div class="f-grp">
           <div class="f-lbl">{{ $t('Description') }}</div>
-          <textarea class="f-inp f-area" v-model="proj.desc" :placeholder="$t('What did you build? What problem did it solve? Any key results?')" rows="2" />
+          <ProofField multiline kind="bullets" class="f-inp f-area" v-model="proj.desc" :placeholder="$t('What did you build? What problem did it solve? Any key results?')" rows="2" />
         </div>
         <div class="f-grp">
           <div class="f-lbl">{{ $t('URL') }} <span class="opt-badge">{{ $t('optional') }}</span></div>
@@ -134,6 +134,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
+import ProofField from '../ProofField.vue'
 import { useReorder, isOutOfOrder, sortByDate } from '../../composables/reorder.js'
 import ReorderControls from '../ReorderControls.vue'
 const store = useCvStore()
