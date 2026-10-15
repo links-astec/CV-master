@@ -120,6 +120,7 @@ export default {
   "Add your qualifications, personal projects, certifications, and languages.": "Aggiungi le tue qualifiche, progetti personali, certificazioni e lingue.",
   "Add your roles. AI can quantify your achievements with real metrics.": "Aggiungi i tuoi ruoli. L'IA può quantificare i risultati con metriche reali.",
   "Add your work experience": "Aggiungi la tua esperienza lavorativa",
+  "Added as the last sentence of your profile, so a recruiter sees straight away what you want. Add the length, field and start date.": "Aggiunta come ultima frase del tuo profilo, così il recruiter vede subito cosa desideri. Inserisci la durata, il settore e la data di inizio.",
   "Added to your skills": "Aggiunto alle tue competenze",
   "Adding a LinkedIn URL increases recruiter confidence significantly.": "Aggiungere l’URL LinkedIn aumenta notevolmente la fiducia dei recruiter.",
   "Adding a phone number increases response rate.": "Aggiungere un numero di telefono aumenta il tasso di risposta.",

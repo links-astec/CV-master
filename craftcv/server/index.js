@@ -1799,12 +1799,16 @@ app.post('/api/ai/write', needsCvContent, aiAccess, async (req, res) => {
       `Education: ${arr(cv.education).map(e => [str(e?.degree), str(e?.school)].filter(Boolean).join(', ')).filter(Boolean).join('; ') || 'none'}`,
     ].join('\n');
     const personal = (await personalContext(req, cv).catch(() => null))?.text || '';
-    const RULES = `Never invent employers, dates, numbers, qualifications, tools or achievements. Use only what the CV says. Write in ${language}.`;
+    const RULES = `Never invent employers, dates, numbers, qualifications, tools or achievements. Use only what the CV says. Today is ${new Date().toISOString().slice(0, 10)}: a degree whose year is later than today is still being studied, so the person is a student, not a graduate. Write in ${language}.`;
 
     if (task === 'summary') {
       const tone = ['professional', 'confident', 'creative', 'academic'].includes(req.body?.tone) ? req.body.tone : 'professional';
+      // What they're looking for is added after the summary as its last sentence (the CV does that), so the
+      // summary leads into it instead of repeating it
+      const seeking = str(cv.seeking);
+      const seekNote = seeking ? ' The CV adds one more sentence after this summary saying what kind of role or contract they want. So never mention what they are looking for, the kind of contract, internship or job, or that they are eager to join or apply somewhere: describe who they are and what they bring, and end on a strength.' : '';
       const out = await callAi(`CV:\n${facts}${job}${personal}`, AI_MODEL,
-        `You write CV summaries. Write one ${tone} professional summary: 2-3 sentences, under 60 words, no "I", no clichés. ${brief ? 'Aim it at the job: lead with what matters most for it and use its keywords where the CV shows that skill. ' : ''}${RULES} Return only the summary text, no quotes.`, 600);
+        `You write CV summaries. Write one ${tone} professional summary: 2-3 sentences, under 60 words, no "I", no clichés.${seekNote} ${brief ? 'Aim it at the job: lead with what matters most for it and use its keywords where the CV shows that skill. ' : ''}${RULES} Return only the summary text, no quotes.`, 600);
       return res.json({ result: str(out).replace(/^["“]|["”]$/g, '') });
     }
     if (task === 'skills') {

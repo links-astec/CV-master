@@ -120,6 +120,7 @@ export default {
   "Add your qualifications, personal projects, certifications, and languages.": "添加您的学历、个人项目、证书和语言能力。",
   "Add your roles. AI can quantify your achievements with real metrics.": "添加您的职位经历。AI 可以用真实指标量化您的成果。",
   "Add your work experience": "添加你的工作经历",
+  "Added as the last sentence of your profile, so a recruiter sees straight away what you want. Add the length, field and start date.": "已添加在个人简介的最后一句，招聘者可立即看到您的求职意向。请填写时长、领域和开始日期。",
   "Added to your skills": "已添加到您的技能",
   "Adding a LinkedIn URL increases recruiter confidence significantly.": "添加 LinkedIn 网址能显著提升招聘人员的信任度。",
   "Adding a phone number increases response rate.": "添加电话号码可以提高回复率。",
