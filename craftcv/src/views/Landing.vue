@@ -14,7 +14,7 @@
         <div class="lp-nav-cta">
           <LangSwitch />
           <button v-if="!signedIn" class="lp-signin" @click="$emit('sign-in')">{{ $t('Sign in') }}</button>
-          <button class="btn-primary accent btn-sm" @click="$emit('start')">{{ $t(signedIn ? 'Open my CVs' : 'Build my CV') }}</button>
+          <button class="btn-primary accent btn-sm" @click="$emit('start', signedIn ? 'mycvs' : 'new')">{{ $t(signedIn ? 'Open my CVs' : 'Build my CV') }}</button>
         </div>
       </div>
     </header>
@@ -25,7 +25,7 @@
         <h1>{{ $t('A CV that gets you') }}<br><span>{{ $t('the interview.') }}</span></h1>
         <p class="lp-lead">{{ $t('Build it in minutes, tailor it to the job, and see how well it matches, before you apply.') }}</p>
         <div class="lp-cta">
-          <button class="btn-primary accent btn-lg" @click="$emit('start')">{{ $t('Build my CV for free') }}</button>
+          <button class="btn-primary accent btn-lg" @click="$emit('start', 'new')">{{ $t('Build my CV for free') }}</button>
           <a href="#how" class="lp-more" @click.prevent="go('#how')">{{ $t('See how it works') }} <span aria-hidden="true">›</span></a>
         </div>
         <!-- The two things people should not miss -->
@@ -179,7 +179,7 @@
             <figcaption>{{ t.name }}<span>{{ $t(t.kind === 'ats' ? 'ATS-friendly' : 'Standard') }}</span></figcaption>
           </figure>
         </div>
-        <div class="lp-center"><button class="btn-secondary btn-lg" @click="$emit('start')">{{ $t('Browse all templates') }}</button></div>
+        <div class="lp-center"><button class="btn-secondary btn-lg" @click="$emit('start', 'templates')">{{ $t('Browse all templates') }}</button></div>
       </div>
     </section>
 
@@ -210,7 +210,7 @@
             <ul>
               <li v-for="it in p.items" :key="it"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg>{{ $t(it) }}</li>
             </ul>
-            <button class="btn-block btn-lg" :class="p.featured ? 'btn-primary accent' : 'btn-secondary'" @click="$emit('start')">{{ $t(p.cta) }}</button>
+            <button class="btn-block btn-lg" :class="p.featured ? 'btn-primary accent' : 'btn-secondary'" @click="$emit('start', 'new')">{{ $t(p.cta) }}</button>
           </div>
         </div>
         <p class="lp-small">{{ $t('Need more AI? 100 extra requests cost €0.50 and never expire.') }}</p>
@@ -300,7 +300,7 @@
         <BrandLogo v-if="finalSeen" mark-only large animate dark class="lp-final-mark" />
         <div v-else class="lp-final-mark lp-final-ph"></div>
         <h2>{{ $t('Your next job starts with one page.') }}</h2>
-        <button class="btn-primary accent btn-lg lp-final-btn" @click="$emit('start')">{{ $t('Build my CV for free') }}</button>
+        <button class="btn-primary accent btn-lg lp-final-btn" @click="$emit('start', 'new')">{{ $t('Build my CV for free') }}</button>
       </div>
     </section>
 
@@ -420,7 +420,7 @@ const CHAPTERS = [
   { k: 'ats', short: 'Check your ATS score', mode: 'ats', cta: 'Check my ATS score',
     t: 'Get past the robots.', lead: 'Most companies scan CVs with an applicant tracking system before anyone reads them. See your ATS score for the job and exactly which keywords are missing.',
     pts: ['A score out of 100 for each job', 'Missing keywords, ready to add', 'ATS-friendly layouts with plain, readable text'] },
-  { k: 'pdf', short: 'Send it', mode: null, cta: 'Build my CV for free',
+  { k: 'pdf', short: 'Send it', mode: 'new', cta: 'Build my CV for free',
     t: 'One clean page, ready to send.', lead: 'Download a polished one-page PDF without a watermark, and get it by email. Edit it any time and download it again for free.',
     pts: ['One A4 page, checked for you', 'Emailed and downloadable', '€0.99 per CV, no subscription'] },
 ]

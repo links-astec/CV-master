@@ -374,7 +374,8 @@ async function newCV(mode = null) {
 }
 
 // Landing → app
-// mode (the homepage's quick starts): 'narrate' → Tell your story; 'ats' → check a CV against a job
+// Where each homepage button goes: 'new' → a new CV (job offer first); 'narrate' → Tell your story;
+// 'ats' → check a CV against a job; 'templates' → Templates; 'mycvs' → My CVs; 'invite' → the invite link
 function startBuilding(mode) {
   lsSet('pcv-started', '1')
   showLanding.value = false
@@ -384,6 +385,9 @@ function startBuilding(mode) {
     else { router.push('/templates'); openAuth('register', 'invite') }
     return
   }
+  if (mode === 'mycvs') { router.push('/'); return }
+  if (mode === 'templates') { router.push('/templates'); return }
+  if (mode === 'new') { router.push(auth.isLoggedIn ? '/' : '/templates'); newCV(); return }
   if (mode === 'ats' && store.hasContent) { router.push({ path: '/editor', query: { tab: 'job' } }); return }
   router.push(auth.isLoggedIn ? '/' : '/templates')   // signed in → My CVs
   // A new CV: the job offer first, then (for 'narrate') Tell your story. Always, even with CVs already

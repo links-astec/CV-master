@@ -450,6 +450,7 @@ const AI_GUEST_NETWORK_PER_DAY = 200;
 const GID = /^[a-f0-9]{32}$/;
 app.use(['/api/ai/', '/api/cv/upload', '/api/guest/', '/api/proofread'], (req, res, next) => {
   if (!GID.test(req.cookies?.cvm_gid || '')) {
+    req.newGuest = true;
     const g = randomBytes(16).toString('hex');
     res.cookie('cvm_gid', g, { httpOnly: true, secure: IS_PROD, sameSite: 'lax', domain: IS_PROD ? '.cvmaster.live' : undefined, maxAge: 365 * 864e5 });
     req.cookies = { ...(req.cookies || {}), cvm_gid: g };
@@ -458,9 +459,21 @@ app.use(['/api/ai/', '/api/cv/upload', '/api/guest/', '/api/proofread'], (req, r
 });
 // Anonymous guest statistics (server/guests.js): only for browsers without an account, and not
 // for browsers that ask not to be tracked (Global Privacy Control)
+const GUEST_NEW_PER_NETWORK_DAY = 300;
+const guestNew = new Map();
+let guestNewDay = '';
 app.post('/api/guest/events', rateLimit({ windowMs: 60 * 1000, max: 30 }), async (req, res) => {
   try {
     if (req.headers['sec-gpc'] === '1' || sessionKey(req).startsWith('u:')) return res.json({ ok: true, kept: 0 });
+    // New guests per internet address per day are capped, so a script that never keeps its cookie
+    // can't fill the database with made-up guests
+    if (req.newGuest) {
+      const day = new Date().toISOString().slice(0, 10);
+      if (day !== guestNewDay) { guestNew.clear(); guestNewDay = day; }
+      const n = guestNew.get(req.ip) || 0;
+      if (n >= GUEST_NEW_PER_NETWORK_DAY) return res.json({ ok: true, kept: 0 });
+      guestNew.set(req.ip, n + 1);
+    }
     const names = (Array.isArray(req.body?.events) ? req.body.events : []).map(e => String(e?.name || e || ''));
     res.json({ ok: true, kept: await recordGuest(req.cookies.cvm_gid, req.body?.platform, names) });
   } catch (e) { console.error('[guest events]', e.message); res.status(500).json({ error: 'Not recorded.' }); }
@@ -2067,10 +2080,12 @@ Reply with ONLY a JSON object, no markdown:
 const PROOF_TYPES = ['spelling', 'grammar', 'style', 'consistency'];
 const PROOF_FIELDS = { summary: 'a CV profile summary', seeking: 'what the person is looking for (one line on their CV)', title: 'a job title or headline', bullets: 'the description of a job or project on a CV (often bullet points)', degree: 'a degree or course name', story: 'someone describing their career in their own words (notes for an AI, not the CV itself)', text: 'text for a CV' };
 const proofCache = new Map();
-const proofDaily = new Map();   // person → { day, n }
-const PROOF_PER_DAY = 400;
+const proofDaily = new Map();   // person, and internet address → checks today
+let proofDay = '';
+const PROOF_PER_DAY = 400;          // per person (account or browser)
+const PROOF_PER_NETWORK_DAY = 1500; // per internet address: a whole classroom, but not a script that drops its cookie
 // Its own route (not under /api/ai/), so checking while someone types fast never hits the AI rate limit
-app.post('/api/proofread', rateLimit({ windowMs: 60 * 1000, max: perPerson(120, 900), keyGenerator: sessionKey, standardHeaders: true, legacyHeaders: false }), async (req, res) => {
+app.post('/api/proofread', rateLimit({ windowMs: 60 * 1000, max: perPerson(120, 240), keyGenerator: sessionKey, standardHeaders: true, legacyHeaders: false }), async (req, res) => {
   try {
     const text = typeof req.body?.text === 'string' ? req.body.text.slice(0, 4000) : '';
     if (text.trim().length < 8) return res.json({ issues: [] });
@@ -2079,11 +2094,14 @@ app.post('/api/proofread', rateLimit({ windowMs: 60 * 1000, max: perPerson(120, 
     const outLang = uiLangName(req.body?.uiLang);
     const key = createHash('sha1').update([field, cvLang, outLang, text].join('\u0000')).digest('hex');
     if (proofCache.has(key)) return res.json({ issues: proofCache.get(key), cached: true });
-    const who = aiSubject(req), day = new Date().toISOString().slice(0, 10);
-    const used = proofDaily.get(who);
-    const n = used?.day === day ? used.n : 0;
-    if (n >= PROOF_PER_DAY) return res.json({ issues: [], paused: true });
-    proofDaily.set(who, { day, n: n + 1 });
+    // Daily limits: per person, and per internet address (a script sending no cookie gets a new
+    // "person" each time, but not a new address). The counters start again each day.
+    const day = new Date().toISOString().slice(0, 10);
+    if (day !== proofDay) { proofDaily.clear(); proofDay = day; }
+    const who = aiSubject(req), net = 'net:' + req.ip;
+    const n = proofDaily.get(who) || 0, m = proofDaily.get(net) || 0;
+    if (n >= PROOF_PER_DAY || m >= PROOF_PER_NETWORK_DAY) return res.json({ issues: [], paused: true });
+    proofDaily.set(who, n + 1); proofDaily.set(net, m + 1);
 
     const system = `You proofread ${PROOF_FIELDS[field]}, written in ${cvLang}. Find real problems only:
 - spelling mistakes and typos
