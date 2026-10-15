@@ -1,9 +1,9 @@
 // Fictional example CV used for template thumbnails and the landing page.
 import { lang as uiLang } from '../i18n/index.js'
 export const SAMPLE_CV = {
-  fn: 'Amara', ln: 'Mensah', title: 'Senior Product Manager',
-  email: 'amara.mensah@email.com', phone: '+44 7700 900123', loc: 'London, UK',
-  li: 'linkedin.com/in/amaramensah', website: '', photo: null, lang: 'en',
+  fn: 'Christabel Nayram', ln: 'Tengey', title: 'Senior Product Manager',
+  email: 'christabel.tengey@email.com', phone: '+44 7700 900123', loc: 'London, UK',
+  li: 'linkedin.com/in/christabeltengey', website: '', photo: null, lang: 'en',
   sum: 'Product manager with 8 years of experience building B2B SaaS products. Leads cross-functional teams from discovery to launch, with a focus on data-informed decisions and clear communication.',
   experiences: [
     { id: 1, title: 'Senior Product Manager', company: 'Northwind Analytics', period: '2021 – Present',
