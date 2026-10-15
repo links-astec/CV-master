@@ -147,4 +147,6 @@ export default {
   'What already matches': 'Ce qui correspond déjà',
   'To strengthen your application': 'Pour renforcer votre candidature',
   'Most people apply to roles they don’t match 100%. Tailor your CV below to show your best fit.': 'La plupart des gens postulent à des offres qui ne leur correspondent pas à 100 %. Adaptez votre CV ci-dessous pour montrer vos meilleurs atouts.',
+  'Job saved. Your CV is still empty.': 'Offre enregistrée. Votre CV est encore vide.',
+  'Add your experience, skills or education, or tell your story, and we’ll show how well you match this job and tailor your CV to it.': 'Ajoutez votre expérience, vos compétences ou votre formation, ou racontez votre parcours : nous vous montrerons à quel point vous correspondez à cette offre et adapterons votre CV.',
 }

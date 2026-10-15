@@ -580,6 +580,8 @@ function ensureReferralColumns() {
       .then(() => query('ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT NOT NULL DEFAULT 0'))
       .then(() => query('ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_personalize BOOLEAN NOT NULL DEFAULT TRUE'))
       .then(() => query('ALTER TABLE users ADD COLUMN IF NOT EXISTS ui_lang TEXT'))
+      .then(() => query("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile JSONB NOT NULL DEFAULT '{}'"))
+      .then(() => query('ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_autofill BOOLEAN NOT NULL DEFAULT TRUE'))
       .then(() => ensureAiTables())
       .catch(e => { _refCols = null; throw e; });
   }
@@ -2854,6 +2856,65 @@ const MAX_DRAFTS = 60;
 const MAX_DRAFT_BYTES = 4 * 1024 * 1024;   // a CV with a photo is well under this
 const draftTooBig = (data) => data && JSON.stringify(data).length > MAX_DRAFT_BYTES;
 
+// ── Saved personal details ────────────────────────────────────────────────────
+// Name, contact details, links, photo and languages are kept from the CVs a user makes for
+// THEMSELVES (never from a CV for someone else), so each new CV starts with them filled in.
+// The latest CV wins for each field; empty fields never erase what was kept. Users see, switch
+// off ("profile_autofill") and forget these details in Settings.
+const PROFILE_TEXT = ['fn', 'ln', 'email', 'phone', 'loc', 'li', 'github', 'website'];
+const PROFILE_PHOTO = /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/;
+function profileFromCv(cv) {
+  const p = {};
+  for (const k of PROFILE_TEXT) { const v = typeof cv?.[k] === 'string' ? cv[k].trim() : ''; if (v) p[k] = v.slice(0, 200); }
+  if (typeof cv?.photo === 'string' && cv.photo.length <= 600_000 && PROFILE_PHOTO.test(cv.photo)) p.photo = cv.photo;
+  const langs = (Array.isArray(cv?.languages) ? cv.languages : [])
+    .filter(l => l && typeof l.name === 'string' && l.name.trim())
+    .slice(0, 10).map(l => ({ name: l.name.trim().slice(0, 60), level: typeof l.level === 'string' ? l.level.slice(0, 60) : '' }));
+  if (langs.length) p.languages = langs;
+  return p;
+}
+// Keep the details of a CV the user made for themselves
+async function rememberProfile(userId, cv) {
+  if (!cv || typeof cv !== 'object' || cv.cvFor === 'other') return;
+  const p = profileFromCv(cv);
+  if (!Object.keys(p).length) return;
+  await ensureReferralColumns();
+  const u = (await query('SELECT name, profile, profile_autofill FROM users WHERE id = $1', [userId])).rows[0];
+  if (!u || u.profile_autofill === false) return;
+  // CVs save every few seconds while someone types: only write when a detail really changed
+  if (!Object.entries(p).some(([k, v]) => JSON.stringify(u.profile?.[k]) !== JSON.stringify(v))) return;
+  // No explicit "Me": only when the name on the CV matches the account (or the CV has no name yet)
+  if (cv.cvFor !== 'self') {
+    const cvName = normName([cv.fn, cv.ln].filter(Boolean).join(' '));
+    if (cvName && u.name && !samePerson(normName(u.name), cvName)) return;
+  }
+  await query(`UPDATE users SET profile = profile || $2::jsonb WHERE id = $1`, [userId, JSON.stringify(p)]);
+}
+app.get('/api/me/profile', authMiddleware, async (req, res) => {
+  try {
+    await ensureReferralColumns();
+    const u = (await query('SELECT profile, profile_autofill FROM users WHERE id = $1', [req.user.sub])).rows[0];
+    if (!u) return res.status(404).json({ error: 'User not found.' });
+    res.json({ autofill: u.profile_autofill !== false, profile: u.profile || {} });
+  } catch (e) { console.error('[me/profile]', e.message); res.status(500).json({ error: 'Could not load your details.' }); }
+});
+// Switch filling new CVs on or off. Turning it off also forgets what was kept
+app.patch('/api/me/profile', authMiddleware, async (req, res) => {
+  try {
+    await ensureReferralColumns();
+    const on = req.body?.autofill !== false;
+    await query(`UPDATE users SET profile_autofill = $2${on ? '' : ", profile = '{}'"} WHERE id = $1`, [req.user.sub, on]);
+    res.json({ ok: true, autofill: on });
+  } catch (e) { console.error('[me/profile]', e.message); res.status(500).json({ error: 'Could not save.' }); }
+});
+app.delete('/api/me/profile', authMiddleware, async (req, res) => {
+  try {
+    await ensureReferralColumns();
+    await query(`UPDATE users SET profile = '{}' WHERE id = $1`, [req.user.sub]);
+    res.json({ ok: true });
+  } catch (e) { console.error('[me/profile]', e.message); res.status(500).json({ error: 'Could not forget your details.' }); }
+});
+
 app.post('/api/drafts', authMiddleware, async (req, res) => {
   try {
     const { title, data, template } = req.body;
@@ -2867,6 +2928,7 @@ app.post('/api/drafts', authMiddleware, async (req, res) => {
     );
     const d = rows[0];
     track(req, 'cv_created', { source: String(req.body?.source || '').slice(0, 20) || 'blank' });
+    rememberProfile(req.user.sub, d.cv_data).catch(e => console.warn('[profile]', e.message));
     res.json({ id: d.id, userId: d.user_id, title: d.title, data: d.cv_data, template: d.template, createdAt: d.created_at, updatedAt: d.updated_at });
   } catch (e) { res.status(500).json({ error: 'Failed to create draft.' }); }
 });
@@ -2890,6 +2952,7 @@ app.put('/api/drafts/:id', authMiddleware, async (req, res) => {
       const [layout, theme] = String(d.template).split(':');
       track(req, 'template_chosen', { layout, theme });
     }
+    if (data) rememberProfile(req.user.sub, d.cv_data).catch(e => console.warn('[profile]', e.message));
     res.json({ id: d.id, userId: d.user_id, title: d.title, data: d.cv_data, template: d.template, createdAt: d.created_at, updatedAt: d.updated_at });
   } catch (e) { res.status(500).json({ error: 'Failed to update draft.' }); }
 });

@@ -247,7 +247,7 @@ function buildModel(raw, preview, fullLinks = false) {
   const tel = phone.replace(/[^\d+]/g, '')
   if (phone) contacts.push(tel.replace('+', '').length >= 6 ? `<a href="tel:${esc(tel)}">${esc(phone)}</a>` : `<span>${esc(phone)}</span>`)
   if (loc)   contacts.push(`<span>${esc(loc)}</span>`)
-  for (const u of [str(d.li), str(d.website)]) {
+  for (const u of [str(d.li), str(d.github), str(d.website)]) {
     if (!u) continue
     const h = hrefFor(u)
     contacts.push(h ? `<a href="${esc(h)}">${linkText(u, 'site', lang, fullLinks)}</a>` : `<span>${esc(u)}</span>`)

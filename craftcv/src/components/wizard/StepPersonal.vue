@@ -63,9 +63,15 @@
         <input class="f-inp" v-model="store.data.li" :placeholder="$t('linkedin.com/in/you')" autocomplete="off" />
       </div>
     </div>
-    <div class="f-grp">
-      <div class="f-lbl">{{ $t('Website / Portfolio') }} <span class="opt-lbl">{{ $t('optional') }}</span></div>
-      <input class="f-inp" v-model="store.data.website" :placeholder="$t('yourportfolio.com')" autocomplete="url" />
+    <div class="f-row">
+      <div class="f-grp">
+        <div class="f-lbl">GitHub <span class="opt-lbl">{{ $t('optional') }}</span></div>
+        <input class="f-inp" v-model="store.data.github" placeholder="github.com/you" autocomplete="off" />
+      </div>
+      <div class="f-grp">
+        <div class="f-lbl">{{ $t('Website / Portfolio') }} <span class="opt-lbl">{{ $t('optional') }}</span></div>
+        <input class="f-inp" v-model="store.data.website" :placeholder="$t('yourportfolio.com')" autocomplete="url" />
+      </div>
     </div>
   </div>
 </template>

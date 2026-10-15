@@ -47,7 +47,13 @@
         </div>
       </div>
       <div v-else-if="hasJob && !editingJob && fitError" class="jm-hint warn">{{ $t(fitError) }}</div>
-      <template v-else>
+      <!-- The job is saved, but there's nothing on the CV to compare it with yet -->
+      <div v-else-if="hasJob && !editingJob && !cvReady" class="jm-empty">
+        <b>{{ $t('Job saved. Your CV is still empty.') }}</b>
+        <span>{{ $t('Add your experience, skills or education, or tell your story, and we’ll show how well you match this job and tailor your CV to it.') }}</span>
+      </div>
+      <!-- The job box: only while there's no job yet, or while changing it -->
+      <template v-if="!hasJob || editingJob">
         <textarea ref="jobRef" v-model="draft" class="f-ta" rows="7"
           :placeholder="$t('Paste the full job description. Title, responsibilities and requirements…')"></textarea>
         <div v-if="draftTooShort" class="jm-hint warn">{{ $t('Paste the full description. A few sentences at least.') }}</div>
@@ -211,6 +217,7 @@ function fitKey() {
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0
   return String(h)
 }
+const cvReady = computed(() => enoughCv())
 const enoughCv = () => hasDraftableContent(store.data) &&
   ((store.data.experiences || []).some(e => e.title || e.desc) || (store.data.skills || []).length >= 3 || (store.data.education || []).some(e => e.degree))
 async function checkFit(force = false) {
@@ -237,6 +244,8 @@ async function checkFit(force = false) {
   fitLoading.value = false
 }
 watch(() => [store.data.jobOffer, editingJob.value], () => { if (!editingJob.value) checkFit() })
+// The CV was empty when the job was added: check the match once it has some content
+watch(cvReady, (ok) => { if (ok && !editingJob.value) checkFit() })
 
 onMounted(() => { if (!hasJob.value) draft.value = store.data.jobOffer || ''; checkFit() })
 </script>
@@ -287,6 +296,8 @@ onMounted(() => { if (!hasJob.value) draft.value = store.data.jobOffer || ''; ch
   display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .jm-txt{font-size:12.5px;color:var(--c-text2);line-height:1.55}
 .jm-hint{font-size:12px;color:var(--c-text3)}
+.jm-empty{margin-top:12px;display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:14px;background:var(--c-accent-lt);font-size:13px;line-height:1.5;color:var(--c-text2)}
+.jm-empty b{color:var(--c-text);font-weight:650}
 .jm-hint.warn{color:var(--c-amber)}
 .jm-row{display:flex;gap:8px;flex-wrap:wrap}
 .jm-remove{margin-left:auto;color:var(--c-rose)}

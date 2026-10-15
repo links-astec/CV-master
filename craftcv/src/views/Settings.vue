@@ -164,6 +164,27 @@
         </div>
       </section>
 
+      <!-- Saved personal details: new CVs start with them filled in -->
+      <section v-if="auth.isLoggedIn" class="st-card">
+        <div class="st-card-hd">
+          <div>
+            <div class="st-card-t">{{ $t('Your details') }}</div>
+            <p class="st-p">{{ $t('Your name, contact details, links, photo and languages are kept from the CVs you make for yourself, so every new CV starts with them filled in. CVs for someone else are never used.') }}</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" :checked="details?.autofill !== false" :disabled="!details || detailsSaving" @change="setAutofill($event.target.checked)" :aria-label="$t('Your details')" />
+            <div class="toggle-track"><div class="toggle-thumb"></div></div>
+          </label>
+        </div>
+        <template v-if="details?.autofill !== false">
+          <dl v-if="detailRows.length" class="st-details">
+            <template v-for="r in detailRows" :key="r.k"><dt>{{ $t(r.label) }}</dt><dd>{{ r.value }}</dd></template>
+          </dl>
+          <p v-else-if="details" class="st-p">{{ $t('Nothing saved yet. Your details are kept the next time you save a CV for yourself.') }}</p>
+          <button v-if="detailRows.length" class="btn-secondary btn-sm st-forget" :disabled="detailsSaving" @click="forgetDetails">{{ $t('Forget my details') }}</button>
+        </template>
+      </section>
+
       <!-- Preferences -->
       <section class="st-card">
         <div class="st-card-t">{{ $t('Preferences') }}</div>
@@ -262,6 +283,48 @@ const openAuth  = inject('openAuth')
 const openFeedback    = inject('openFeedback')
 const openAiAllowance = inject('openAiAllowance')
 const resendVerification = inject('resendVerification')
+
+// ── Saved personal details (filled into new CVs) ─────────────────────────────
+const confirmDialog = inject('confirm')
+const details = ref(null)          // { autofill, profile }
+const detailsSaving = ref(false)
+const DETAIL_LABELS = { fn: 'First Name', ln: 'Last Name', email: 'Email', phone: 'Phone', loc: 'Location', li: 'LinkedIn URL', github: 'GitHub', website: 'Website / Portfolio', photo: 'Photo', languages: 'Languages' }
+const detailRows = computed(() => {
+  const p = details.value?.profile || {}
+  return Object.entries(DETAIL_LABELS).filter(([k]) => p[k] && (!Array.isArray(p[k]) || p[k].length)).map(([k, label]) => ({
+    k, label,
+    value: k === 'photo' ? t('Saved') : k === 'languages' ? p.languages.map(l => [l.name, l.level].filter(Boolean).join(' · ')).join(', ') : p[k],
+  }))
+})
+async function loadDetails() {
+  try { const r = await fetch(apiUrl('/api/me/profile'), { credentials: 'include' }); if (r.ok) details.value = await r.json() } catch {}
+}
+async function setAutofill(on) {
+  if (!on && detailRows.value.length) {
+    const ok = await confirmDialog({ title: t('Stop filling in new CVs?'), message: t('Your saved details are forgotten. Your existing CVs don’t change.'), ok: t('Turn off'), cancel: t('Keep'), mode: 'warning' })
+    if (!ok) { details.value = { ...details.value }; return }
+  }
+  detailsSaving.value = true
+  try {
+    const r = await fetch(apiUrl('/api/me/profile'), { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ autofill: on }) })
+    if (!r.ok) throw new Error()
+    details.value = { autofill: on, profile: on ? details.value?.profile || {} : {} }
+    showToast(t('Saved'))
+  } catch { showToast(t('Could not save, please try again.')) }
+  detailsSaving.value = false
+}
+async function forgetDetails() {
+  const ok = await confirmDialog({ title: t('Forget your details?'), message: t('New CVs will start empty until you save a CV for yourself again. Your existing CVs don’t change.'), ok: t('Forget'), cancel: t('Keep'), mode: 'warning' })
+  if (!ok) return
+  detailsSaving.value = true
+  try {
+    const r = await fetch(apiUrl('/api/me/profile'), { method: 'DELETE', credentials: 'include' })
+    if (!r.ok) throw new Error()
+    details.value = { ...details.value, profile: {} }
+    showToast(t('Your details were forgotten'))
+  } catch { showToast(t('Could not save, please try again.')) }
+  detailsSaving.value = false
+}
 
 // ── Newsletter ────────────────────────────────────────────────────────────────
 const nlStatus = ref(null)     // null (loading) | none | pending | subscribed | unsubscribed
@@ -477,11 +540,11 @@ function shareLinkedIn() { track('invite_shared', { channel: 'linkedin' }); wind
 function shareEmail()    { track('invite_shared', { channel: 'email' }); window.location.href = `mailto:?subject=${encodeURIComponent(t('Try CVMaster for your CV'))}&body=${encodeURIComponent(shareMsg())}` }
 
 onMounted(() => {
-  loadAiQuota(); if (auth.isLoggedIn) { loadReferral(); loadNewsletter() }
+  loadAiQuota(); if (auth.isLoggedIn) { loadReferral(); loadNewsletter(); loadDetails() }
   // Arriving from a "leave a rating" link or notification
   if (location.hash === '#review') setTimeout(() => document.getElementById('review')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 600)
 })
-watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota() } })
+watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota(); loadDetails() } })
 </script>
 
 <style scoped>
@@ -494,6 +557,9 @@ watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota() } }
 .st-card-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
 .st-card-t{font-size:19px;font-weight:750;letter-spacing:-.025em;color:var(--c-text);margin-bottom:6px}
 .st-p{font-size:14.5px;color:var(--c-text2);line-height:1.6}
+.st-details{display:grid;grid-template-columns:minmax(110px,max-content) 1fr;gap:8px 16px;margin:0 0 16px;font-size:14px}
+.st-details dt{color:var(--c-text3)}
+.st-details dd{margin:0;color:var(--c-text);min-width:0;overflow-wrap:anywhere}
 .st-p strong{color:var(--c-text)}
 .st-muted{font-size:13px;color:var(--c-text3)}
 .st-err{font-size:12.5px;color:var(--c-rose);margin-top:8px}

@@ -4,7 +4,7 @@
     <span class="cvf-lbl">{{ $t('Who is this CV for?') }}</span>
     <div class="seg cvf-seg">
       <button type="button" :class="{ active: who === 'self' }" @click="store.data.cvFor = 'self'">{{ $t('Me') }}</button>
-      <button type="button" :class="{ active: who === 'other' }" @click="store.data.cvFor = 'other'">{{ $t('Someone else') }}</button>
+      <button type="button" :class="{ active: who === 'other' }" @click="store.data.cvFor = 'other'; store.clearPrefill()">{{ $t('Someone else') }}</button>
     </div>
     <p class="cvf-note">{{ $t(who === 'self'
       ? 'The AI personalises suggestions with your profile and your other CVs.'
