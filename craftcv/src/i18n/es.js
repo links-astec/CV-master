@@ -133,7 +133,6 @@ export default {
   "AI can work the missing keywords into what you’ve already written. Without making your CV longer. You review every change, and anything you might not have is only suggested.": "La IA inserta las palabras clave que faltan en lo que ya has escrito, sin alargar el CV. Revisas cada cambio; lo que no tengas solo se sugiere.",
   "AI fix": "Corrección por IA",
   "AI help: 30 requests a day with a free account": "Ayuda IA: 30 peticiones al día con cuenta gratuita",
-  "AI is not configured. Add ANTHROPIC_API_KEY or GROQ_API_KEY to your environment.": "La IA no está configurada. Añade ANTHROPIC_API_KEY o GROQ_API_KEY a tu entorno.",
   "AI is reading your story…": "La IA está leyendo tu historia…",
   "AI is unavailable right now. Please try again in a moment.": "La IA no está disponible ahora. Vuelve a intentarlo en un momento.",
   "AI is writing your summary…": "La IA está redactando tu resumen…",

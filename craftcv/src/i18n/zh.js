@@ -133,7 +133,6 @@ export default {
   "AI can work the missing keywords into what you’ve already written. Without making your CV longer. You review every change, and anything you might not have is only suggested.": "AI 可以把缺失的关键词融入您已写好的内容，且不会让简历变长。每项更改都由您审核，您可能不具备的内容只会作为建议。",
   "AI fix": "AI 修复",
   "AI help: 30 requests a day with a free account": "AI 助手：免费账号每天 30 次请求",
-  "AI is not configured. Add ANTHROPIC_API_KEY or GROQ_API_KEY to your environment.": "AI 尚未配置。请在您的环境中添加 ANTHROPIC_API_KEY 或 GROQ_API_KEY。",
   "AI is reading your story…": "AI 正在阅读您的经历…",
   "AI is unavailable right now. Please try again in a moment.": "AI 目前不可用，请稍后重试。",
   "AI is writing your summary…": "AI 正在撰写您的简介…",

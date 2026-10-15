@@ -67,7 +67,6 @@ export default {
   'Invalid payment session.': 'Session de paiement non valide.',
   'This payment has not completed.': 'Ce paiement n’est pas terminé.',
   'Could not confirm your payment. Contact us if you were charged.': 'Impossible de confirmer votre paiement. Contactez-nous si vous avez été débité.',
-  'AI is not configured. Add ANTHROPIC_API_KEY or GROQ_API_KEY to your environment.': 'L’IA n’est pas configurée pour le moment.',
   'Prompt too long.': 'Demande trop longue.',
   'We could not find enough about your work or studies in that text.': 'Nous n’avons pas trouvé assez d’informations sur votre travail ou vos études dans ce texte.',
   'We couldn\'t read your story just now, please try again.': 'Impossible de lire votre parcours pour le moment, veuillez réessayer.',

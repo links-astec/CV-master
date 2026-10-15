@@ -1476,7 +1476,7 @@ async function callAiRaw(prompt, model, systemPrompt, maxTokens, reasoningEffort
 // smaller model, which has its own rate limit, before giving up.
 const AI_FALLBACK_MODEL = process.env.GROQ_FALLBACK_MODEL || 'openai/gpt-oss-20b';
 async function callGroq(prompt, model = AI_MODEL, systemPrompt = null, maxTokens = 800, reasoningEffort = 'low') {
-  if (!GROQ_KEY) throw new Error('AI is not configured. Add ANTHROPIC_API_KEY or GROQ_API_KEY to your environment.');
+  if (!GROQ_KEY) throw new Error('AI is unavailable right now. Please try again in a moment.');
   const messages = [];
   if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
   messages.push({ role: 'user', content: prompt });

@@ -134,7 +134,6 @@ export default {
   "AI fix": "Correção por IA",
   "AI help: 30 requests a day with a free account": "Ajuda IA: 30 solicitações por dia com conta gratuita",
   "AI help. 30 requests a day with a free account": "Ajuda de IA. 30 solicitações por dia com conta gratuita",
-  "AI is not configured. Add ANTHROPIC_API_KEY or GROQ_API_KEY to your environment.": "A IA não está configurada. Adicione ANTHROPIC_API_KEY ou GROQ_API_KEY ao seu ambiente.",
   "AI is reading your story…": "A IA está lendo sua história…",
   "AI is unavailable right now. Please try again in a moment.": "A IA não está disponível neste momento. Tente novamente dentro de instantes.",
   "AI is writing your summary…": "IA está a escrever o seu resumo…",
