@@ -6,9 +6,19 @@
       <!-- Account -->
       <section v-if="auth.isLoggedIn" class="st-card">
         <div class="st-acct">
-          <span class="st-ava">{{ (auth.user?.name || auth.user?.email || '?')[0].toUpperCase() }}</span>
+          <!-- Profile picture: the account's avatar everywhere, and the photo offered for CV layouts with one -->
+          <button type="button" class="st-ava" :class="{ busy: detailsSaving }" :aria-label="$t('Change profile picture')" :title="$t('Change profile picture')" @click="picInput?.click()">
+            <img v-if="auth.user?.photo" :src="auth.user.photo" alt="" />
+            <template v-else>{{ (auth.user?.name || auth.user?.email || '?')[0].toUpperCase() }}</template>
+            <span class="st-ava-cam" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
+          </button>
+          <input ref="picInput" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="onPicture" />
           <div class="st-acct-txt">
             <div class="st-acct-name">{{ auth.user?.name }}</div>
+            <div class="st-ava-acts">
+              <button type="button" class="st-link-btn" :disabled="detailsSaving" @click="picInput?.click()">{{ $t(auth.user?.photo ? 'Change picture' : 'Add a profile picture') }}</button>
+              <template v-if="auth.user?.photo"> · <button type="button" class="st-link-btn" :disabled="detailsSaving" @click="setPicture(null)">{{ $t('Remove') }}</button></template>
+            </div>
             <div class="st-acct-mail">{{ auth.user?.email }}
               <span v-if="auth.user?.emailVerified === false" class="st-unv">· {{ $t('not confirmed') }}, <button class="st-link-btn" @click="resendVerification()">{{ $t('resend link') }}</button></span>
               <span v-else class="st-ver">· {{ $t('confirmed') }}</span></div>
@@ -177,22 +187,6 @@
           </label>
         </div>
         <template v-if="details && details.autofill !== false">
-          <!-- Profile picture: the account's avatar, and the photo for layouts that show one -->
-          <div class="st-pic">
-            <button type="button" class="st-pic-img" :aria-label="$t('Change profile picture')" @click="picInput?.click()">
-              <img v-if="form.photo" :src="form.photo" alt="" />
-              <span v-else>{{ (form.fn || auth.user?.name || 'U')[0]?.toUpperCase() }}</span>
-            </button>
-            <div class="st-pic-txt">
-              <b>{{ $t('Profile picture') }}</b>
-              <span>{{ $t('Shown on your account, and offered for CV layouts with a photo.') }}</span>
-              <div class="st-pic-acts">
-                <button type="button" class="btn-secondary btn-sm" :disabled="detailsSaving" @click="picInput?.click()">{{ $t(form.photo ? 'Change picture' : 'Upload a picture') }}</button>
-                <button v-if="form.photo" type="button" class="link-btn" :disabled="detailsSaving" @click="setPicture(null)">{{ $t('Remove') }}</button>
-              </div>
-              <input ref="picInput" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="onPicture" />
-            </div>
-          </div>
           <!-- The details new CVs start with -->
           <div class="st-dgrid">
             <label v-for="f in DETAIL_FIELDS" :key="f.k" class="st-dfield" :class="{ wide: f.wide }">
@@ -327,10 +321,10 @@ const DETAIL_FIELDS = [
   { k: 'loc', label: 'Location', ph: 'London, UK' }, { k: 'li', label: 'LinkedIn URL', ph: 'linkedin.com/in/you' },
   { k: 'github', label: 'GitHub', ph: 'github.com/you' }, { k: 'website', label: 'Website / Portfolio', ph: 'yourportfolio.com' },
 ]
-const EDITABLE = [...DETAIL_FIELDS.map(f => f.k), 'photo']
+const EDITABLE = DETAIL_FIELDS.map(f => f.k)
 const form = reactive({})
 const picInput = ref(null)
-function resetForm() { const p = details.value?.profile || {}; for (const k of EDITABLE) form[k] = p[k] || (k === 'photo' ? null : '') }
+function resetForm() { const p = details.value?.profile || {}; for (const k of EDITABLE) form[k] = p[k] || '' }
 const detailsChanged = computed(() => EDITABLE.some(k => (form[k] || '') !== ((details.value?.profile || {})[k] || '')))
 async function loadDetails() {
   try { const r = await fetch(apiUrl('/api/me/profile'), { credentials: 'include' }); if (r.ok) { details.value = await r.json(); resetForm() } } catch {}
@@ -338,14 +332,13 @@ async function loadDetails() {
 async function saveDetails() {
   detailsSaving.value = true
   try {
-    const body = Object.fromEntries(EDITABLE.map(k => [k, form[k] || (k === 'photo' ? null : '')]))
+    const body = Object.fromEntries(EDITABLE.map(k => [k, form[k] || '']))
     const r = await fetch(apiUrl('/api/me/profile'), { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     const j = await r.json().catch(() => ({}))
     if (!r.ok) throw new Error(j.error || t('Could not save, please try again.'))
     details.value = { autofill: true, profile: j.profile || {} }
     resetForm()
     store.profile = details.value
-    if (auth.user) auth.user.photo = j.profile?.photo || null   // the sidebar avatar follows
     showToast(t('Saved'))
   } catch (e) { showToast(e.message) }
   detailsSaving.value = false
@@ -357,8 +350,8 @@ async function onPicture(e) {
 }
 // The picture is saved straight away (no need to press Save)
 async function setPicture(dataUrl) {
-  const before = form.photo
-  form.photo = dataUrl
+  const before = auth.user?.photo || null
+  if (auth.user) auth.user.photo = dataUrl   // shown straight away
   detailsSaving.value = true
   try {
     const r = await fetch(apiUrl('/api/me/profile'), { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ photo: dataUrl }) })
@@ -368,7 +361,7 @@ async function setPicture(dataUrl) {
     store.profile = details.value
     if (auth.user) auth.user.photo = j.profile?.photo || null
     showToast(t(dataUrl ? 'Profile picture saved' : 'Profile picture removed'))
-  } catch (err) { form.photo = before; showToast(err.message) }
+  } catch (err) { if (auth.user) auth.user.photo = before; showToast(err.message) }
   detailsSaving.value = false
 }
 async function setAutofill(on) {
@@ -632,14 +625,6 @@ watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota(); lo
 .st-card-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
 .st-card-t{font-size:19px;font-weight:750;letter-spacing:-.025em;color:var(--c-text);margin-bottom:6px}
 .st-p{font-size:14.5px;color:var(--c-text2);line-height:1.6}
-.st-pic{display:flex;align-items:center;gap:16px;margin-bottom:18px}
-.st-pic-img{width:76px;height:76px;flex-shrink:0;border-radius:50%;border:none;padding:0;overflow:hidden;cursor:pointer;background:radial-gradient(circle at 30% 25%,#8B85FF,#4338CA 55%,#2A2390);color:#fff;font-size:28px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(67,56,202,.25)}
-.st-pic-img img{width:100%;height:100%;object-fit:cover}
-.st-pic-img:focus-visible{outline:2px solid var(--c-accent);outline-offset:3px}
-.st-pic-txt{display:flex;flex-direction:column;gap:3px;min-width:0}
-.st-pic-txt b{font-size:15px}
-.st-pic-txt > span{font-size:13px;color:var(--c-text3)}
-.st-pic-acts{display:flex;align-items:center;gap:12px;margin-top:6px}
 .st-dgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
 .st-dfield{display:flex;flex-direction:column;gap:6px;min-width:0}
 .st-dfield .f-lbl{margin:0}
@@ -656,7 +641,13 @@ watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota(); lo
 
 /* Account */
 .st-acct{display:flex;align-items:center;gap:18px;padding-bottom:24px;margin-bottom:20px;border-bottom:1px solid var(--hair)}
-.st-ava{width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 30% 25%,#8B85FF,#4338CA 55%,#2A2390);color:#fff;font-size:26px;font-weight:750;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 10px 24px rgba(67,56,202,.28),inset 0 1px 0 rgba(255,255,255,.25)}
+.st-ava{position:relative;border:none;padding:0;cursor:pointer;overflow:visible;width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 30% 25%,#8B85FF,#4338CA 55%,#2A2390);color:#fff;font-size:26px;font-weight:750;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 10px 24px rgba(67,56,202,.28),inset 0 1px 0 rgba(255,255,255,.25)}
+.st-ava img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+.st-ava.busy{opacity:.6}
+.st-ava:focus-visible{outline:2px solid var(--c-accent);outline-offset:3px}
+.st-ava-cam{position:absolute;right:-2px;bottom:-2px;width:24px;height:24px;border-radius:50%;background:var(--c-surface);box-shadow:0 2px 8px rgba(20,20,43,.18);display:flex;align-items:center;justify-content:center}
+.st-ava-cam svg{width:13px;height:13px;fill:none;stroke:var(--c-accent);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.st-ava-acts{font-size:13px;color:var(--c-text3);margin-top:4px}
 .st-acct-txt{flex:1;min-width:0}
 .st-acct-name{font-size:22px;font-weight:750;letter-spacing:-.03em;color:var(--c-text);line-height:1.2}
 .st-acct-mail{font-size:14px;color:var(--c-text3);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
