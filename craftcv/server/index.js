@@ -1358,19 +1358,31 @@ const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5';
 const AI_READY        = !!(ANTHROPIC_KEY || GROQ_KEY);
 const AI_PROVIDER     = ANTHROPIC_KEY ? `claude (${ANTHROPIC_MODEL})` : GROQ_KEY ? `groq (${AI_MODEL})` : null;
 
+// Prompt tokens since the server started: read from the cache, written to it, and not cached
+const aiCache = { calls: 0, read: 0, written: 0, input: 0 };
+const cacheShare = () => {
+  const all = aiCache.read + aiCache.written + aiCache.input;
+  return all ? Math.round(aiCache.read / all * 100) : 0;
+};
 async function callClaude(prompt, systemPrompt, maxTokens) {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
     body:    JSON.stringify({
       model: ANTHROPIC_MODEL, max_tokens: maxTokens,
-      ...(systemPrompt ? { system: systemPrompt } : {}),
+      // The instructions (security rules + task) are the same on every call of a feature, so Claude
+      // keeps them cached for 5 minutes and repeats cost about a tenth. The user's text comes after
+      // the cache point and is never cached. Prompts under Claude's minimum length simply aren't cached.
+      ...(systemPrompt ? { system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }] } : {}),
       messages: [{ role: 'user', content: prompt }],
     }),
     signal: AbortSignal.timeout(90000),
   });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error?.message || `AI request failed (${r.status}).`);
+  const u = j.usage || {};
+  aiCache.calls++; aiCache.input += u.input_tokens || 0;
+  aiCache.read += u.cache_read_input_tokens || 0; aiCache.written += u.cache_creation_input_tokens || 0;
   return (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
 }
 
@@ -3550,7 +3562,7 @@ app.post('/api/admin/signout-all', adminAuthMiddleware, async (req, res) => {
 // What's configured on the server (no secrets. Just yes/no and public addresses)
 app.get('/api/admin/config', adminAuthMiddleware, (req, res) => {
   res.json({
-    ai: AI_PROVIDER, aiLast,
+    ai: AI_PROVIDER, aiLast, aiCache: { ...aiCache, share: cacheShare() },
     stripe: !!STRIPE_KEY, stripeWebhook: !!process.env.STRIPE_WEBHOOK_SECRET, stripeMode: STRIPE_KEY.startsWith('sk_live') ? 'live' : STRIPE_KEY ? 'test' : null,
     email: !!(resend || smtpTransport), sendingFrom: RESEND_FROM, supportFrom: SUPPORT_FROM, newsFrom: NEWS_FROM,
     senders: [
@@ -3761,7 +3773,7 @@ async function runStatus() {
       if (!ANTHROPIC_KEY) return { state: GROQ_KEY ? 'warn' : 'down', detail: GROQ_KEY ? 'No Claude key: Groq does all AI' : 'No AI key set' };
       const r = await httpOk('https://api.anthropic.com/v1/models', { headers: { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' } });
       if (!r.ok) return { state: GROQ_KEY ? 'warn' : 'down', detail: `Claude key refused (${r.status})${GROQ_KEY ? ', Groq is used instead' : ''}` };
-      return { state: aiLast.claudeError ? 'warn' : 'ok', detail: `Model ${ANTHROPIC_MODEL}${aiLast.claudeError ? ` · last error ${ago(aiLast.at)}: ${aiLast.claudeError}` : ''}` };
+      return { state: aiLast.claudeError ? 'warn' : 'ok', detail: `Model ${ANTHROPIC_MODEL}${aiCache.calls ? ` · ${cacheShare()}% of prompts read from cache (${aiCache.calls} calls since restart)` : ''}${aiLast.claudeError ? ` · last error ${ago(aiLast.at)}: ${aiLast.claudeError}` : ''}` };
     }),
     check('AI', 'ai-groq', 'AI backup and voice input (Groq)', async () => {
       if (!GROQ_KEY) return { state: 'down', detail: 'GROQ_API_KEY not set: no AI backup, and the app’s microphone can’t work' };
