@@ -133,7 +133,6 @@ export default {
   "AI can work the missing keywords into what you’ve already written. Without making your CV longer. You review every change, and anything you might not have is only suggested.": "KI kann fehlende Schlüsselwörter in Ihren Text einarbeiten, ohne den Lebenslauf zu verlängern. Sie prüfen jede Änderung, und nur Vorschläge werden angezeigt.",
   "AI fix": "KI‑Korrektur",
   "AI help: 30 requests a day with a free account": "KI‑Hilfe: 30 Anfragen pro Tag mit einem kostenlosen Konto",
-  "AI is not configured. Add ANTHROPIC_API_KEY or GROQ_API_KEY to your environment.": "KI ist nicht konfiguriert. Fügen Sie ANTHROPIC_API_KEY oder GROQ_API_KEY zu Ihrer Umgebung hinzu.",
   "AI is reading your story…": "KI liest Ihre Geschichte…",
   "AI is unavailable right now. Please try again in a moment.": "KI ist momentan nicht verfügbar. Bitte versuchen Sie es gleich erneut.",
   "AI is writing your summary…": "KI schreibt Ihre Zusammenfassung …",
