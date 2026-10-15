@@ -11,6 +11,11 @@
         {{ $t('Profile Photo') }}
         <span class="opt-badge">{{ $t('Optional') }}</span>
       </div>
+      <div v-if="!store.data.photo && profilePhoto" class="photo-suggest">
+        <img :src="profilePhoto" alt="" />
+        <span>{{ $t('This layout shows a photo. Use your profile picture?') }}</span>
+        <button type="button" class="btn-primary accent btn-sm" @click="store.data.photo = profilePhoto">{{ $t('Use my profile picture') }}</button>
+      </div>
       <div class="photo-upload-row">
         <div class="photo-circle" @click="triggerPick" :class="{ 'has-photo': !!store.data.photo }">
           <img v-if="store.data.photo" :src="store.data.photo" class="photo-img" />
@@ -77,13 +82,18 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useAuthStore } from '../../stores/auth.js'
 import { useCvStore } from '../../stores/cv.js'
 import ProofField from '../ProofField.vue'
 import { getLayout, parseTemplate } from '../../composables/cvRenderer.js'
 import CvForSwitch from '../CvForSwitch.vue'
 const store = useCvStore()
+const auth = useAuthStore()
 const fileInput = ref(null)
+// The profile picture, offered when the layout shows a photo and this CV (their own) has none
+const profilePhoto = computed(() => store.data.cvFor === 'other' ? null : (store.profile?.profile?.photo || auth.user?.photo || null))
+onMounted(() => { if (!store.profile && auth.isLoggedIn) store.loadProfile() })
 const dragging  = ref(false)
 const photoError = ref('')
 
@@ -109,6 +119,10 @@ function processFile(file) {
 .step-title { font-family:inherit;letter-spacing:-.01em;font-size:20px;color:var(--c-text);margin-bottom:5px; }
 .step-sub { font-size:13px;color:var(--c-text2);margin-bottom:20px; }
 .opt-lbl { font-size:10px;font-weight:500;color:var(--c-text3);margin-left:4px; }
+.photo-suggest{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:12px;border-radius:16px;background:var(--c-accent-lt);font-size:13.5px;color:var(--c-text)}
+.photo-suggest img{width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0}
+.photo-suggest span{flex:1;min-width:0;font-weight:500}
+@media (max-width:480px){.photo-suggest{flex-wrap:wrap}.photo-suggest button{width:100%}}
 .photo-section { border:1.5px solid var(--c-border);border-radius:var(--radius-lg);padding:16px;margin-bottom:20px;transition:border-color .2s; }
 .photo-section.photo-required { border-color:var(--c-accent);background:var(--c-accent-lt); }
 .photo-section-lbl { display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--c-text);margin-bottom:14px; }

@@ -1,8 +1,8 @@
 <template>
   <div class="ed">
     <!-- Editing panel (desktop) -->
-    <aside class="ed-panel hide-mobile" :class="{ collapsed: !panelOpen }">
-      <CvEditor ref="editorRef" @pay="openPaywall" />
+    <aside class="ed-panel hide-mobile" :class="{ collapsed: !panelOpen, wide: panelTab === 'design' }">
+      <CvEditor ref="editorRef" @pay="openPaywall" @tab="t => panelTab = t" />
     </aside>
 
     <!-- Preview -->
@@ -90,6 +90,11 @@ const panelOpen = ref(true)
 const drawer = ref(false)
 const editorRef = ref(null)
 const drawerRef = ref(null)   // the editor inside the phone drawer
+// Design: a wider panel with bigger layout previews, and the sidebar folds to icons meanwhile
+const panelTab = ref('content')
+const sidebarAuto = inject('sidebarAuto', null)
+watch(panelTab, (t) => { if (sidebarAuto) sidebarAuto.value = t === 'design' }, { immediate: true })
+onUnmounted(() => { if (sidebarAuto) sidebarAuto.value = false })
 
 const label = computed(() => templateLabel(store.template))
 const theme = computed(() => getTheme(parseTemplate(store.template).theme))
@@ -130,6 +135,8 @@ function showDesign() {
 .ed-panel{width:420px;flex-shrink:0;border-right:1px solid var(--c-border);background:var(--c-bg);transition:width .2s,opacity .2s;overflow:hidden}
 .ed-panel.collapsed{width:0;opacity:0;border:none}
 .ed-panel > :deep(.ced){width:420px}
+.ed-panel.wide:not(.collapsed){width:clamp(560px,46vw,760px)}
+.ed-panel.wide > :deep(.ced){width:clamp(560px,46vw,760px)}
 .ed-preview{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--c-canvas);position:relative}
 .ed-bar{height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 16px;background:var(--c-surface);border-bottom:1px solid var(--c-border);flex-shrink:0}
 .ed-bar-l,.ed-bar-r{display:flex;align-items:center;gap:10px;min-width:0}

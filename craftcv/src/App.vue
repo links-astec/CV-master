@@ -11,44 +11,53 @@
 
   <LandingPage v-else-if="showLanding" :signed-in="auth.isLoggedIn" @start="startBuilding" @sign-in="openAuth('signin')" />
 
-  <div v-else-if="ready" class="shell">
+  <div v-else-if="ready" class="shell" :class="{ 'sb-mini': sbMini }">
     <!-- Sidebar -->
     <div class="sb-dim" :class="{ on: navOpen }" @click="navOpen = false"></div>
     <aside class="sb" :class="{ open: navOpen }">
-      <button type="button" class="sb-brand" :title="$t('CVMaster home')" @click="navOpen = false; showHome()"><BrandLogo /></button>
+      <div class="sb-top">
+        <button type="button" class="sb-brand" :title="$t('CVMaster home')" @click="navOpen = false; showHome()"><BrandLogo :mark-only="sbMini" /></button>
+        <!-- Collapse to icons (computers only); remembered -->
+        <button type="button" class="sb-toggle hide-mobile" :aria-label="$t(sbMini ? 'Expand sidebar' : 'Collapse sidebar')" :title="$t(sbMini ? 'Expand sidebar' : 'Collapse sidebar')" :aria-expanded="!sbMini" @click="toggleSidebar">
+          <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><line x1="9" y1="4" x2="9" y2="20"/><polyline v-if="sbMini" points="13 10 15 12 13 14"/><polyline v-else points="15 10 13 12 15 14"/></svg>
+        </button>
+      </div>
 
-      <button class="btn-primary accent btn-block sb-new" data-tour="new-cv" @click="newCV">
+      <button class="btn-primary accent btn-block sb-new" data-tour="new-cv" @click="newCV" :title="sbMini ? $t('New CV') : null" :aria-label="$t('New CV')">
         <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        {{ $t('New CV') }}
+        <span class="sb-lbl">{{ $t('New CV') }}</span>
       </button>
 
       <nav class="sb-nav">
         <RouterLink v-for="n in NAV" :key="n.to" :to="n.to" class="sb-link" :data-tour="`nav-${n.id}`"
-                    :class="{ active: route.path === n.to }" @click="navOpen = false">
+                    :class="{ active: route.path === n.to }" :title="sbMini ? $t(n.label) : null" @click="navOpen = false">
           <svg viewBox="0 0 24 24" v-html="n.icon"></svg>
-          {{ $t(n.label) }}
+          <span class="sb-lbl">{{ $t(n.label) }}</span>
         </RouterLink>
-        <a :href="`/blog?lang=${lang}`" class="sb-link" @click="navOpen = false">
+        <a :href="`/blog?lang=${lang}`" class="sb-link" :title="sbMini ? $t('Blog') : null" @click="navOpen = false">
           <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
-          {{ $t('Blog') }}
+          <span class="sb-lbl">{{ $t('Blog') }}</span>
         </a>
       </nav>
 
       <div class="sb-foot">
-        <div v-if="!auth.isLoggedIn" class="sb-guest">
+        <button v-if="!auth.isLoggedIn && sbMini" type="button" class="sb-mini-join" :title="$t('Create free account')" :aria-label="$t('Create free account')" @click="openAuth('register')">
+          <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+        </button>
+        <div v-else-if="!auth.isLoggedIn" class="sb-guest">
           <div class="sb-guest-ttl">{{ $t('You’re using CVMaster as a guest') }}</div>
           <p>{{ $t('Your CV is saved in this browser. Create a free account to keep it safe and export it.') }}</p>
           <button class="btn-primary accent btn-block btn-sm" @click="openAuth('register')">{{ $t('Create free account') }}</button>
           <button class="btn-ghost btn-block btn-sm" @click="openAuth('signin')">{{ $t('Sign in') }}</button>
         </div>
-        <RouterLink v-else to="/settings" class="sb-user" @click="navOpen = false">
-          <span class="sb-ava">{{ auth.user?.avatar || auth.user?.name?.[0] || 'U' }}</span>
+        <RouterLink v-else to="/settings" class="sb-user" :title="sbMini ? auth.user?.email : null" @click="navOpen = false">
+          <span class="sb-ava"><img v-if="auth.user?.photo" :src="auth.user.photo" alt="" /><template v-else>{{ auth.user?.avatar || auth.user?.name?.[0] || 'U' }}</template></span>
           <span class="sb-user-txt">
             <span class="sb-user-name">{{ auth.user?.name }}</span>
             <span class="sb-user-mail">{{ auth.user?.email }}</span>
           </span>
         </RouterLink>
-        <div class="sb-legal">
+        <div v-if="!sbMini" class="sb-legal">
           <button type="button" @click="navOpen = false; openFeedback()">{{ $t('Feedback') }}</button>
           <span>·</span>
           <RouterLink to="/privacy" @click="navOpen = false">{{ $t('Privacy') }}</RouterLink>
@@ -226,6 +235,17 @@ function showHome() { showLanding.value = true }
 // The homepage keeps its own title/description while it's showing
 watch([showLanding, lang], () => { setSeo(showLanding.value ? homeSeo() : seoForRoute(route)) })
 provide('showHome', showHome)
+
+// ── Sidebar: collapsed to icons on computers (remembered), and while the editor shows Design ──
+const sbPinned = ref(lsGet('cvm-sb-mini') === '1')
+const sbAuto = ref(false)
+const sbMini = computed(() => (sbPinned.value || sbAuto.value) && !navOpen.value)
+function toggleSidebar() {
+  if (sbAuto.value && !sbPinned.value) { sbAuto.value = false; return }   // opened by hand while Design is on
+  sbPinned.value = !sbPinned.value
+  lsSet('cvm-sb-mini', sbPinned.value ? '1' : '0')
+}
+provide('sidebarAuto', sbAuto)
 
 // AI allowance: any AI call refused for the daily limit opens the "get more" pop-up.
 // Watching fetch here means every AI feature gets this without its own handling.
@@ -475,7 +495,8 @@ onMounted(() => setTimeout(checkBigTitle, 400))
 .sb-guest p{font-size:12.5px;color:var(--c-text2);line-height:1.5;margin-bottom:4px}
 .sb-user{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:18px;text-decoration:none;color:inherit;background:var(--c-surface);box-shadow:var(--shadow-sm);transition:box-shadow .25s var(--ease),transform .25s var(--ease)}
 .sb-user:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
-.sb-ava{width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 30% 25%,#8B85FF,#4338CA 55%,#2A2390);color:#fff;box-shadow:0 4px 10px rgba(67,56,202,.25);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0}
+.sb-ava img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+.sb-ava{overflow:hidden;width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 30% 25%,#8B85FF,#4338CA 55%,#2A2390);color:#fff;box-shadow:0 4px 10px rgba(67,56,202,.25);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0}
 .sb-user-txt{display:flex;flex-direction:column;min-width:0}
 .sb-user-name{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sb-user-mail{font-size:12px;color:var(--c-text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -483,6 +504,26 @@ onMounted(() => setTimeout(checkBigTitle, 400))
 .sb-legal a,.sb-legal button{color:var(--c-text3);text-decoration:none;background:none;border:none;padding:0;font:inherit;cursor:pointer}
 .sb-legal a:hover,.sb-legal button:hover{color:var(--c-text)}
 .sb-dim{display:none}
+.sb{transition:width .25s var(--ease),padding .25s var(--ease)}
+.sb-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sb-toggle{width:34px;height:34px;flex-shrink:0;border:none;border-radius:10px;background:transparent;color:var(--c-text3);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .2s,color .2s}
+.sb-toggle:hover{background:color-mix(in srgb,var(--c-text) 6%,transparent);color:var(--c-text)}
+.sb-toggle:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}
+.sb-toggle svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.sb-mini-join{width:44px;height:44px;align-self:center;border:none;border-radius:50%;background:var(--c-surface);box-shadow:var(--shadow-sm);color:var(--c-accent);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.sb-mini-join svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+@media (min-width:769px){
+  .shell.sb-mini .sb{width:76px;padding:22px 12px 18px;align-items:stretch}
+  .shell.sb-mini .sb-top{flex-direction:column;gap:12px}
+  .shell.sb-mini .sb-brand{align-self:center;padding:2px 0}
+  .shell.sb-mini .sb-lbl{display:none}
+  .shell.sb-mini .sb-new{width:48px;height:48px;padding:0;border-radius:50%;align-self:center;justify-content:center}
+  .shell.sb-mini .sb-new svg{width:20px;height:20px}
+  .shell.sb-mini .sb-link{justify-content:center;padding:0;gap:0}
+  .shell.sb-mini .sb-link svg{width:20px;height:20px}
+  .shell.sb-mini .sb-user{justify-content:center;padding:8px;border-radius:50%;align-self:center}
+  .shell.sb-mini .sb-user-txt{display:none}
+}
 .top-lang{margin-right:4px}
 
 /* Main */

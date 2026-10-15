@@ -233,17 +233,22 @@ export const useCvStore = defineStore('cv', () => {
   // A new CV starts with the person's name, contact details, links, photo and languages: from the
   // account (kept by the server from CVs they made for themselves, see server rememberProfile) or,
   // for a guest, from this browser. Only empty fields are filled.
-  async function fillFromProfile() {
-    const ticket = ++fillSeq
+  // The saved details ({ autofill, profile }), shared by new CVs, Settings and the photo suggestions
+  const profile = ref(null)
+  async function loadProfile() {
     const auth = useAuthStore()
-    let p = null
     if (auth.isLoggedIn) {
       try {
         const r = await fetch(apiUrl('/api/me/profile'), { credentials: 'include' })
-        const j = r.ok ? await r.json() : null
-        if (j?.autofill) p = j.profile
+        if (r.ok) profile.value = await r.json()
       } catch {}
-    } else p = safeParse(lsGet('cvm-profile'))
+    } else profile.value = { autofill: true, profile: safeParse(lsGet('cvm-profile')) || {} }
+    return profile.value
+  }
+  async function fillFromProfile() {
+    const ticket = ++fillSeq
+    const j = await loadProfile()
+    const p = j?.autofill ? j.profile : null
     // Too late: another CV was opened meanwhile
     if (ticket !== fillSeq || currentDraftId.value || !p || typeof p !== 'object') return
     const d = data.value, filled = {}
@@ -436,7 +441,7 @@ export const useCvStore = defineStore('cv', () => {
     data, template, fmt, darkMode, wizardOpen, wizardMode, wizardStep, wizardAskOffer, wizardStart,
     wizardDraftId, currentDraftId, lastSavedAt,
     fullName, initials, hasContent,
-    initDarkMode, openWizard, openWizardAtStep, closeWizard, clearPrefill,
+    initDarkMode, openWizard, openWizardAtStep, closeWizard, clearPrefill, profile, loadProfile,
     setMode, nextStep, prevStep,
     addExperience, removeExperience, addSkill, removeSkill,
     resetData, loadDraft, refreshFromServer, applyExtracted, saveDraft, ensureSavedDraftId, aiWrite,

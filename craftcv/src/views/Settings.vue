@@ -176,12 +176,35 @@
             <div class="toggle-track"><div class="toggle-thumb"></div></div>
           </label>
         </div>
-        <template v-if="details?.autofill !== false">
-          <dl v-if="detailRows.length" class="st-details">
-            <template v-for="r in detailRows" :key="r.k"><dt>{{ $t(r.label) }}</dt><dd>{{ r.value }}</dd></template>
-          </dl>
-          <p v-else-if="details" class="st-p">{{ $t('Nothing saved yet. Your details are kept the next time you save a CV for yourself.') }}</p>
-          <button v-if="detailRows.length" class="btn-secondary btn-sm st-forget" :disabled="detailsSaving" @click="forgetDetails">{{ $t('Forget my details') }}</button>
+        <template v-if="details && details.autofill !== false">
+          <!-- Profile picture: the account's avatar, and the photo for layouts that show one -->
+          <div class="st-pic">
+            <button type="button" class="st-pic-img" :aria-label="$t('Change profile picture')" @click="picInput?.click()">
+              <img v-if="form.photo" :src="form.photo" alt="" />
+              <span v-else>{{ (form.fn || auth.user?.name || 'U')[0]?.toUpperCase() }}</span>
+            </button>
+            <div class="st-pic-txt">
+              <b>{{ $t('Profile picture') }}</b>
+              <span>{{ $t('Shown on your account, and offered for CV layouts with a photo.') }}</span>
+              <div class="st-pic-acts">
+                <button type="button" class="btn-secondary btn-sm" :disabled="detailsSaving" @click="picInput?.click()">{{ $t(form.photo ? 'Change picture' : 'Upload a picture') }}</button>
+                <button v-if="form.photo" type="button" class="link-btn" :disabled="detailsSaving" @click="setPicture(null)">{{ $t('Remove') }}</button>
+              </div>
+              <input ref="picInput" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="onPicture" />
+            </div>
+          </div>
+          <!-- The details new CVs start with -->
+          <div class="st-dgrid">
+            <label v-for="f in DETAIL_FIELDS" :key="f.k" class="st-dfield" :class="{ wide: f.wide }">
+              <span class="f-lbl">{{ $t(f.label) }}</span>
+              <input class="f-inp" v-model="form[f.k]" :type="f.type || 'text'" :autocomplete="f.ac || 'off'" :placeholder="f.ph ? $t(f.ph) : ''" maxlength="200" />
+            </label>
+          </div>
+          <p v-if="details.profile?.languages?.length" class="st-p st-dlangs">{{ $t('Languages') }}: {{ details.profile.languages.map(l => [l.name, l.level].filter(Boolean).join(' · ')).join(', ') }}</p>
+          <div class="st-dacts">
+            <button class="btn-primary accent btn-sm" :disabled="!detailsChanged || detailsSaving" @click="saveDetails">{{ $t(detailsSaving ? 'Saving…' : 'Save details') }}</button>
+            <button v-if="detailRows.length" class="btn-ghost btn-sm st-forget" :disabled="detailsSaving" @click="forgetDetails">{{ $t('Forget my details') }}</button>
+          </div>
         </template>
       </section>
 
@@ -264,7 +287,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, inject, watch } from 'vue'
+import { ref, reactive, computed, onMounted, inject, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { useCvStore } from '../stores/cv.js'
@@ -272,6 +295,7 @@ import ReviewPrompt from '../components/ReviewPrompt.vue'
 import LangSwitch from '../components/LangSwitch.vue'
 import { INDUSTRIES, GOALS, LEVELS } from '../composables/profileOptions.js'
 import { t } from '../i18n/index.js'
+import { resizePhoto } from '../composables/photo.js'
 import { track } from '../composables/track.js'
 
 const apiUrl    = (p) => (import.meta.env.VITE_API_URL || '') + p
@@ -296,8 +320,56 @@ const detailRows = computed(() => {
     value: k === 'photo' ? t('Saved') : k === 'languages' ? p.languages.map(l => [l.name, l.level].filter(Boolean).join(' · ')).join(', ') : p[k],
   }))
 })
+// The editable form (a copy of the saved details until "Save details")
+const DETAIL_FIELDS = [
+  { k: 'fn', label: 'First Name', ac: 'given-name' }, { k: 'ln', label: 'Last Name', ac: 'family-name' },
+  { k: 'email', label: 'Email', type: 'email', ac: 'email' }, { k: 'phone', label: 'Phone', type: 'tel', ac: 'tel' },
+  { k: 'loc', label: 'Location', ph: 'London, UK' }, { k: 'li', label: 'LinkedIn URL', ph: 'linkedin.com/in/you' },
+  { k: 'github', label: 'GitHub', ph: 'github.com/you' }, { k: 'website', label: 'Website / Portfolio', ph: 'yourportfolio.com' },
+]
+const EDITABLE = [...DETAIL_FIELDS.map(f => f.k), 'photo']
+const form = reactive({})
+const picInput = ref(null)
+function resetForm() { const p = details.value?.profile || {}; for (const k of EDITABLE) form[k] = p[k] || (k === 'photo' ? null : '') }
+const detailsChanged = computed(() => EDITABLE.some(k => (form[k] || '') !== ((details.value?.profile || {})[k] || '')))
 async function loadDetails() {
-  try { const r = await fetch(apiUrl('/api/me/profile'), { credentials: 'include' }); if (r.ok) details.value = await r.json() } catch {}
+  try { const r = await fetch(apiUrl('/api/me/profile'), { credentials: 'include' }); if (r.ok) { details.value = await r.json(); resetForm() } } catch {}
+}
+async function saveDetails() {
+  detailsSaving.value = true
+  try {
+    const body = Object.fromEntries(EDITABLE.map(k => [k, form[k] || (k === 'photo' ? null : '')]))
+    const r = await fetch(apiUrl('/api/me/profile'), { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(j.error || t('Could not save, please try again.'))
+    details.value = { autofill: true, profile: j.profile || {} }
+    resetForm()
+    store.profile = details.value
+    if (auth.user) auth.user.photo = j.profile?.photo || null   // the sidebar avatar follows
+    showToast(t('Saved'))
+  } catch (e) { showToast(e.message) }
+  detailsSaving.value = false
+}
+async function onPicture(e) {
+  const file = e.target.files?.[0]; e.target.value = ''
+  if (!file) return
+  try { await setPicture(await resizePhoto(file)) } catch (err) { showToast(t(err.message)) }
+}
+// The picture is saved straight away (no need to press Save)
+async function setPicture(dataUrl) {
+  const before = form.photo
+  form.photo = dataUrl
+  detailsSaving.value = true
+  try {
+    const r = await fetch(apiUrl('/api/me/profile'), { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ photo: dataUrl }) })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(j.error || t('Could not save, please try again.'))
+    details.value = { autofill: true, profile: j.profile || {} }
+    store.profile = details.value
+    if (auth.user) auth.user.photo = j.profile?.photo || null
+    showToast(t(dataUrl ? 'Profile picture saved' : 'Profile picture removed'))
+  } catch (err) { form.photo = before; showToast(err.message) }
+  detailsSaving.value = false
 }
 async function setAutofill(on) {
   if (!on && detailRows.value.length) {
@@ -321,6 +393,7 @@ async function forgetDetails() {
     const r = await fetch(apiUrl('/api/me/profile'), { method: 'DELETE', credentials: 'include' })
     if (!r.ok) throw new Error()
     details.value = { ...details.value, profile: {} }
+    resetForm(); store.profile = details.value; if (auth.user) auth.user.photo = null
     showToast(t('Your details were forgotten'))
   } catch { showToast(t('Could not save, please try again.')) }
   detailsSaving.value = false
@@ -559,6 +632,20 @@ watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota(); lo
 .st-card-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
 .st-card-t{font-size:19px;font-weight:750;letter-spacing:-.025em;color:var(--c-text);margin-bottom:6px}
 .st-p{font-size:14.5px;color:var(--c-text2);line-height:1.6}
+.st-pic{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+.st-pic-img{width:76px;height:76px;flex-shrink:0;border-radius:50%;border:none;padding:0;overflow:hidden;cursor:pointer;background:radial-gradient(circle at 30% 25%,#8B85FF,#4338CA 55%,#2A2390);color:#fff;font-size:28px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(67,56,202,.25)}
+.st-pic-img img{width:100%;height:100%;object-fit:cover}
+.st-pic-img:focus-visible{outline:2px solid var(--c-accent);outline-offset:3px}
+.st-pic-txt{display:flex;flex-direction:column;gap:3px;min-width:0}
+.st-pic-txt b{font-size:15px}
+.st-pic-txt > span{font-size:13px;color:var(--c-text3)}
+.st-pic-acts{display:flex;align-items:center;gap:12px;margin-top:6px}
+.st-dgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
+.st-dfield{display:flex;flex-direction:column;gap:6px;min-width:0}
+.st-dfield .f-lbl{margin:0}
+.st-dlangs{font-size:13px;margin-top:12px}
+.st-dacts{display:flex;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap}
+@media (max-width:560px){.st-dgrid{grid-template-columns:1fr}}
 .st-details{display:grid;grid-template-columns:minmax(110px,max-content) 1fr;gap:8px 16px;margin:0 0 16px;font-size:14px}
 .st-details dt{color:var(--c-text3)}
 .st-details dd{margin:0;color:var(--c-text);min-width:0;overflow-wrap:anywhere}

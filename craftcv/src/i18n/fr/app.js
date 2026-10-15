@@ -73,4 +73,6 @@ export default {
   'Present': 'Présent',
   'English': 'Anglais',
   'French': 'Français',
+  'Expand sidebar': 'Déplier le menu',
+  'Collapse sidebar': 'Replier le menu',
 }
