@@ -17,11 +17,11 @@ const dir = require('path').resolve(process.cwd(), '../mobile/dist-web')
 const st = express(); st.use(express.static(dir)); st.get(/.*/, (q, s) => s.sendFile(dir + '/index.html'))
 const s2 = st.listen(0); const site = 'http://127.0.0.1:' + s2.address().port
 
-const user = { id: 'u1', email: 'amara@example.com', name: 'Amara Mensah', plan: 'free', onboarded: mode !== 'onboard', provider: 'email', emailVerified: true, hasPassword: true, aiPersonalize: true, industry: 'tech', goal: 'new-job', experience: 'senior' }
+const user = { id: 'u1', email: 'christabel@example.com', name: 'Christabel Nayram Tengey', plan: 'free', onboarded: mode !== 'onboard', provider: 'email', emailVerified: true, hasPassword: true, aiPersonalize: true, industry: 'tech', goal: 'new-job', experience: 'senior' }
 const long = { ...SAMPLE_CV, experiences: [...SAMPLE_CV.experiences, ...SAMPLE_CV.experiences.map((e, i) => ({ ...e, id: 10 + i })), ...SAMPLE_CV.experiences.map((e, i) => ({ ...e, id: 20 + i }))] }
 const drafts = [
-  { id: '11111111-1111-1111-1111-111111111111', title: 'Amara Mensah · Senior Product Manager', template: 'modern:indigo', data: { ...(mode === 'more' ? long : SAMPLE_CV), jobOffer: '' }, createdAt: new Date().toISOString(), updatedAt: new Date(Date.now() - 3600e3).toISOString() },
-  { id: '22222222-2222-2222-2222-222222222222', title: 'Amara Mensah · Product Lead', template: 'classic:charcoal', data: { ...(mode === 'more' ? long : SAMPLE_CV), title: 'Product Lead' }, createdAt: new Date().toISOString(), updatedAt: new Date(Date.now() - 86400e3 * 3).toISOString() },
+  { id: '11111111-1111-1111-1111-111111111111', title: 'Christabel Nayram Tengey · Senior Product Manager', template: 'modern:indigo', data: { ...(mode === 'more' ? long : SAMPLE_CV), jobOffer: '' }, createdAt: new Date().toISOString(), updatedAt: new Date(Date.now() - 3600e3).toISOString() },
+  { id: '22222222-2222-2222-2222-222222222222', title: 'Christabel Nayram Tengey · Product Lead', template: 'classic:charcoal', data: { ...(mode === 'more' ? long : SAMPLE_CV), title: 'Product Lead' }, createdAt: new Date().toISOString(), updatedAt: new Date(Date.now() - 86400e3 * 3).toISOString() },
 ]
 
 const b = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] })
@@ -42,7 +42,7 @@ p.on('request', r => {
   else if (u.pathname === '/api/drafts') body = signed ? drafts : []
   else if (u.pathname === '/api/ai/quota') body = { tier: 'verified', limit: 30, freeLeft: 27, credits: 0 }
   else if (u.pathname === '/api/notifications') body = [{ id: 'n1', type: 'referral', title: 'You earned a free CV', body: 'Kofi got their CV with your link. Your next clean PDF is on us.', link: null, read: false, time: Date.now() - 3600e3 }, { id: 'n2', type: 'welcome', title: 'Welcome to CVMaster', body: 'Your account is ready. Start building your CV now.', link: null, read: true, time: Date.now() - 86400e3 * 2 }]
-  else if (u.pathname === '/api/referral/info') body = { code: 'AMARA7', credits: 1, count: 3, rewarded: 1, recentCount: 1, welcomeAi: 25, link: 'https://www.cvmaster.live?ref=AMARA7' }
+  else if (u.pathname === '/api/referral/info') body = { code: 'CHRISTABEL7', credits: 1, count: 3, rewarded: 1, recentCount: 1, welcomeAi: 25, link: 'https://www.cvmaster.live?ref=CHRISTABEL7' }
   else if (u.pathname === '/api/newsletter/me') body = { status: 'subscribed' }
   else if (u.pathname === '/api/payment/paid-drafts') body = { draftIds: ['22222222-2222-2222-2222-222222222222'], legacyAll: false }
   else if (u.pathname.startsWith('/api/payment/status/')) body = { paid: false }

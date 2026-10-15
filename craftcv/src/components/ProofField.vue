@@ -89,7 +89,7 @@ async function check() {
   if (cache.has(key)) { issues.value = cache.get(key); return }
   ctl?.abort(); ctl = new AbortController()
   try {
-    const r = await fetch((import.meta.env.VITE_API_URL || '') + '/api/ai/proofread', {
+    const r = await fetch((import.meta.env.VITE_API_URL || '') + '/api/proofread', {
       method: 'POST', credentials: 'include', signal: ctl.signal,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text, kind: props.kind, field: props.kind, lang: store.data.lang, uiLang: uiLang.value }),
@@ -106,7 +106,7 @@ function onInput(e) {
   emit('update:modelValue', e.target.value)
   issues.value = relocate(e.target.value, issues.value)
   onCaret(e)
-  schedule(1400)
+  schedule(450)
 }
 function onBlur() { focused.value = false; schedule(150) }
 function onCaret(e) { caret.value = e?.target?.selectionStart ?? -1; nextTick(syncScroll) }

@@ -234,7 +234,7 @@
         <div class="lp-ref-art" aria-hidden="true" inert v-reveal="120">
           <div class="lp-ref-card">
             <div class="lp-ref-card-hd"><span class="lp-ref-gift"><svg viewBox="0 0 24 24"><polyline points="20 12 20 22 4 22 4 12" /><rect x="2" y="7" width="20" height="5" rx="1" /><line x1="12" y1="22" x2="12" y2="7" /><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z" /><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z" /></svg></span>{{ $t('Your invite link') }}</div>
-            <div class="lp-ref-link">cvmaster.live/invite/AMARA</div>
+            <div class="lp-ref-link">cvmaster.live/invite/CHRISTABEL</div>
             <div class="lp-ref-share"><span>WhatsApp</span><span>{{ $t('Email') }}</span><span class="pri">{{ $t('Copy') }}</span></div>
             <div class="lp-ref-stats"><div><b>3</b><span>{{ $t('friends joined') }}</span></div><div><b>2</b><span>{{ $t('free CVs earned') }}</span></div></div>
           </div>

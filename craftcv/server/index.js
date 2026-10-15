@@ -448,7 +448,7 @@ function ensureAiTables() {
 // uses; the network as a whole has a daily cap so clearing cookies can't get unlimited AI.
 const AI_GUEST_NETWORK_PER_DAY = 200;
 const GID = /^[a-f0-9]{32}$/;
-app.use(['/api/ai/', '/api/cv/upload', '/api/guest/'], (req, res, next) => {
+app.use(['/api/ai/', '/api/cv/upload', '/api/guest/', '/api/proofread'], (req, res, next) => {
   if (!GID.test(req.cookies?.cvm_gid || '')) {
     const g = randomBytes(16).toString('hex');
     res.cookie('cvm_gid', g, { httpOnly: true, secure: IS_PROD, sameSite: 'lax', domain: IS_PROD ? '.cvmaster.live' : undefined, maxAge: 365 * 864e5 });
@@ -2009,7 +2009,8 @@ const PROOF_FIELDS = { summary: 'a CV profile summary', seeking: 'what the perso
 const proofCache = new Map();
 const proofDaily = new Map();   // person → { day, n }
 const PROOF_PER_DAY = 400;
-app.post('/api/ai/proofread', async (req, res) => {
+// Its own route (not under /api/ai/), so checking while someone types fast never hits the AI rate limit
+app.post('/api/proofread', rateLimit({ windowMs: 60 * 1000, max: perPerson(120, 900), keyGenerator: sessionKey, standardHeaders: true, legacyHeaders: false }), async (req, res) => {
   try {
     const text = typeof req.body?.text === 'string' ? req.body.text.slice(0, 4000) : '';
     if (text.trim().length < 8) return res.json({ issues: [] });
@@ -4180,11 +4181,11 @@ app.post('/api/reviews', authMiddleware, rateLimit({ windowMs: 60 * 60 * 1000, m
     const comment = String(req.body?.comment || '').trim().slice(0, 600) || null;
     const drafts = (await query('SELECT COUNT(*)::int AS n FROM drafts WHERE user_id = $1', [req.user.sub])).rows[0].n;
     if (!drafts) return res.status(403).json({ error: 'Make a CV first, then tell us how it went.' });
-    // Name for the review, plus the job title from their latest CV ("Amara M., Product Manager")
+    // Name for the review, plus the job title from their latest CV ("Christabel T., Product Manager")
     const u = (await query(
       `SELECT u.name, (SELECT d.cv_data->>'title' FROM drafts d WHERE d.user_id = u.id ORDER BY d.updated_at DESC LIMIT 1) AS title
        FROM users u WHERE u.id = $1`, [req.user.sub])).rows[0] || {};
-    // Shown as "Amara M." — first name and initial only
+    // Shown as "Christabel T." — first name and initial only
     const parts = String(u.name || 'CVMaster user').trim().split(/\s+/);
     const displayName = parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.` : parts[0];
     const prev = (await query('SELECT id, rating, comment, status FROM reviews WHERE user_id = $1', [req.user.sub])).rows[0];
