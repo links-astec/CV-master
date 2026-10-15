@@ -22,7 +22,7 @@
         <button v-for="c in SEEK_CHIPS" :key="c" type="button" class="tone-pill" :class="{ active: store.data.seeking === $t(c) }"
           @click="store.data.seeking = $t(c)">{{ $t(c) }}</button>
       </div>
-      <div class="f-hint">{{ $t('Shown under your summary, so a recruiter sees straight away what you want. Add the length, field and start date.') }}</div>
+      <div class="f-hint">{{ $t('Added as the last sentence of your profile, so a recruiter sees straight away what you want. Add the length, field and start date.') }}</div>
     </div>
 
     <div v-if="aiLoading" class="thinking">

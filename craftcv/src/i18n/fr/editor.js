@@ -155,4 +155,5 @@ export default {
   'Clearer wording': 'Formulation plus claire',
   'Consistency': 'Cohérence',
   'Apply all': 'Tout appliquer',
+  'Added as the last sentence of your profile, so a recruiter sees straight away what you want. Add the length, field and start date.': 'Ajouté comme dernière phrase de votre profil, pour que le recruteur voie tout de suite ce que vous cherchez. Précisez la durée, le domaine et la date de début.',
 }

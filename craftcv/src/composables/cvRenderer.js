@@ -118,17 +118,17 @@ export function templateLabel(id) {
 // ── i18n ──────────────────────────────────────────────────────────────────────
 const LABELS = {
   en: { profile: 'Profile', experience: 'Experience', education: 'Education', skills: 'Skills',
-        projects: 'Projects', languages: 'Languages', certifications: 'Certifications', contact: 'Contact', seeking: 'Looking for:' },
+        projects: 'Projects', languages: 'Languages', certifications: 'Certifications', contact: 'Contact', seeking: 'Looking for' },
   fr: { profile: 'Profil', experience: 'Expérience professionnelle', education: 'Formation', skills: 'Compétences',
-        projects: 'Projets', languages: 'Langues', certifications: 'Certifications', contact: 'Contact', seeking: 'Recherche :' },
+        projects: 'Projets', languages: 'Langues', certifications: 'Certifications', contact: 'Contact', seeking: 'Recherche' },
   es: { profile: 'Perfil', experience: 'Experiencia profesional', education: 'Formación', skills: 'Competencias',
-        projects: 'Proyectos', languages: 'Idiomas', certifications: 'Certificaciones', contact: 'Contacto', seeking: 'Busco:' },
+        projects: 'Proyectos', languages: 'Idiomas', certifications: 'Certificaciones', contact: 'Contacto', seeking: 'Busco' },
   de: { profile: 'Profil', experience: 'Berufserfahrung', education: 'Ausbildung', skills: 'Kenntnisse',
-        projects: 'Projekte', languages: 'Sprachen', certifications: 'Zertifikate', contact: 'Kontakt', seeking: 'Ich suche:' },
+        projects: 'Projekte', languages: 'Sprachen', certifications: 'Zertifikate', contact: 'Kontakt', seeking: 'Ich suche' },
   it: { profile: 'Profilo', experience: 'Esperienza professionale', education: 'Formazione', skills: 'Competenze',
-        projects: 'Progetti', languages: 'Lingue', certifications: 'Certificazioni', contact: 'Contatti', seeking: 'Cerco:' },
+        projects: 'Progetti', languages: 'Lingue', certifications: 'Certificazioni', contact: 'Contatti', seeking: 'Cerco' },
   pt: { profile: 'Perfil', experience: 'Experiência profissional', education: 'Formação', skills: 'Competências',
-        projects: 'Projetos', languages: 'Idiomas', certifications: 'Certificações', contact: 'Contato', seeking: 'Procuro:' },
+        projects: 'Projetos', languages: 'Idiomas', certifications: 'Certificações', contact: 'Contato', seeking: 'Procuro' },
   zh: { profile: '个人简介', experience: '工作经历', education: '教育背景', skills: '技能',
         projects: '项目经历', languages: '语言能力', certifications: '证书', contact: '联系方式', seeking: '求职意向：' },
 }
@@ -229,6 +229,26 @@ function linkText(raw, kind, lang, full = false) {
 const toBullets = (desc) =>
   str(desc).split(/\n|•/).map(l => l.replace(/^\s*[-*–]\s+/, '').trim()).filter(l => l.length > 1)
 
+// "A work-study contract (alternance)" → "Looking for a work-study contract (alternance)." in the CV's
+// language. An article or "my" at the start is lower-cased (never a noun: German nouns keep their
+// capital); text that is already a sentence ("I'm looking for…") is kept as written.
+const SEEK_ARTICLES = {
+  en: ['a', 'an', 'the', 'my'], fr: ['un', 'une', 'le', 'la', 'les', 'des', 'mon', 'ma', 'mes'],
+  es: ['un', 'una', 'el', 'la', 'mi'], de: ['ein', 'eine', 'einen', 'den', 'die', 'das', 'mein', 'meine', 'meinen'],
+  it: ['un', 'una', 'uno', 'il', 'la', 'lo', 'mio', 'mia'], pt: ['um', 'uma', 'o', 'a', 'meu', 'minha'],
+}
+const SEEK_SENTENCE = /^(i\s|i'm|i’m|looking|seeking|je\s|j'|j’|recherche|ich\s|suche|busco|estoy|cerco|sto\s|procuro|estou|我|求职)/i
+function seekingSentence(raw, lang) {
+  let t = raw.trim()
+  if (!t) return ''
+  if (!/[.!?。！？]$/.test(t)) t += lang === 'zh' ? '。' : '.'
+  if (SEEK_SENTENCE.test(t)) return esc(t)
+  if (lang === 'zh') return esc(LABELS.zh.seeking + t)
+  const first = t.split(/\s+/)[0]
+  if ((SEEK_ARTICLES[lang] || []).includes(first.toLowerCase())) t = first.toLowerCase() + t.slice(first.length)
+  return esc(`${LABELS[lang].seeking} ${t}`)
+}
+
 // Raw CV data → escaped view model. `preview` fills empty fields with muted placeholders;
 // exports never contain placeholders.
 function buildModel(raw, preview, fullLinks = false) {
@@ -281,7 +301,7 @@ function buildModel(raw, preview, fullLinks = false) {
     contacts,
     photo: typeof d.photo === 'string' && SAFE_PHOTO.test(d.photo) ? d.photo : null,
     sum: str(d.sum) ? esc(str(d.sum)) : ph(P.sum),
-    seeking: esc(str(d.seeking)),
+    seeking: seekingSentence(str(d.seeking), lang),
     exps: exps.length ? exps : (preview ? [{ title: ph(P.expTitle), company: ph(P.expCompany), period: ph(P.expPeriod), bullets: [ph(P.expDesc)] }] : []),
     edu: edu.length ? edu : (preview ? [{ degree: ph(P.degree), school: ph(P.school), year: '' }] : []),
     skills: skills.length ? skills : (preview ? P.skills.map(ph) : []),
@@ -306,8 +326,8 @@ const B = {
   // line never starts with a separator
   contact: (m) => m.contacts.length ? `<p class="contact">${m.contacts.map(c => `<span class="ci">${c}</span>`).join('<span class="sep">&nbsp;·</span> ')}</p>` : '',
   contactList: (m) => m.contacts.length ? `<ul class="contact-list">${m.contacts.map(c => `<li>${c}</li>`).join('')}</ul>` : '',
-  // The summary, then what the person is looking for ("Looking for: a 3-month internship…")
-  profile: (m) => (m.sum ? `<p class="prose">${m.sum}</p>` : '') + (m.seeking ? `<p class="prose seek"><strong>${m.L.seeking}</strong> ${m.seeking}</p>` : ''),
+  // The summary, ending with what the person is looking for ("… Looking for a 3-month internship.")
+  profile: (m) => (m.sum || m.seeking ? `<p class="prose">${[m.sum, m.seeking].filter(Boolean).join(m.lang === 'zh' ? '' : ' ')}</p>` : ''),
   experience: (m) => m.exps.map(e => `
     <article class="item">
       <div class="item-hd"><h3 class="item-t">${e.title}</h3>${e.period ? `<span class="item-d">${e.period}</span>` : ''}</div>
