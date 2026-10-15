@@ -6,10 +6,13 @@ import { lang as uiLang } from '../i18n/index.js'
 
 const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
 
+// The personal details kept between CVs (see fillFromProfile)
+const PERSONAL = ['fn', 'ln', 'email', 'phone', 'loc', 'li', 'github', 'website', 'photo', 'languages']
+
 const emptyData = () => ({
   fn: '', ln: '',
   title: '',
-  email: '', phone: '', loc: '', li: '', website: '',
+  email: '', phone: '', loc: '', li: '', github: '', website: '',
   photo: null,
   sum: '',
   seeking: '',         // what they're looking for, shown under the summary ("A 3-month internship…")
@@ -61,7 +64,7 @@ function plainClone(obj) {
 export function hasDraftableContent(d) {
   if (!d || typeof d !== 'object') return false
   return Boolean(
-    d.fn || d.ln || d.title || d.email || d.phone || d.loc || d.li || d.website || d.photo || d.sum ||
+    d.fn || d.ln || d.title || d.email || d.phone || d.loc || d.li || d.github || d.website || d.photo || d.sum ||
     d.skills?.length ||
     d.projects?.some(p => p?.name || p?.desc || p?.tech || p?.url) ||
     d.certifications?.length ||
@@ -136,6 +139,9 @@ export const useCvStore = defineStore('cv', () => {
   const wizardAskOffer = ref(false)   // show the job offer screen first
   const wizardStart    = ref(null)    // way of starting to open after the job offer screen
   const wizardDraftId  = ref(null)
+  // What was filled into a new CV from the saved personal details (until the CV changes)
+  const prefill        = ref(null)
+  let fillSeq = 0
   const currentDraftId = ref(null)
   const lastSavedAt    = ref(null)
   // The server's time of the open CV's last save, to spot a newer version saved elsewhere
@@ -148,12 +154,13 @@ export const useCvStore = defineStore('cv', () => {
     clearTimeout(saveTimer)
     saveTimer = setTimeout(() => {
       saveTimer = null
-      if (currentDraftId.value || hasDraftableContent(data.value)) saveDraft().catch(() => {})
+      if (currentDraftId.value || (hasDraftableContent(data.value) && !onlyPrefill(data.value))) saveDraft().catch(() => {})
     }, delay)
   }
   watch(data, (v) => {
     const clone = plainClone(v)
-    if (clone) lsSet('pcv-draft', JSON.stringify(clone))
+    if (clone) lsSet('pcv-draft', onlyPrefill(clone) ? '' : JSON.stringify(clone))
+    rememberGuestProfile(clone)
     scheduleSave()
   }, { deep: true, flush: 'post' })
   watch(template, (v) => { lsSet('pcv-template', v); scheduleSave(800) }, { flush: 'post' })
@@ -172,7 +179,7 @@ export const useCvStore = defineStore('cv', () => {
 
   const fullName = computed(() => `${data.value.fn} ${data.value.ln}`.trim() || 'Your Name')
   const initials = computed(() => ((data.value.fn?.[0] || '') + (data.value.ln?.[0] || '')).toUpperCase())
-  const hasContent = computed(() => hasDraftableContent(data.value))
+  const hasContent = computed(() => hasDraftableContent(data.value) && !onlyPrefill(data.value))
   // While the CV is still empty, its language follows the app language switch
   watch(uiLang, (l) => { if (!hasContent.value) data.value.lang = l === 'fr' ? 'fr' : 'en' })
 
@@ -217,12 +224,72 @@ export const useCvStore = defineStore('cv', () => {
     data.value = { ...emptyData(), lang: uiLang.value === 'fr' ? 'fr' : 'en', jobOffer: keepJob }
     wizardDraftId.value  = null
     currentDraftId.value = null
+    prefill.value = null
     lsSet('pcv-draft', '')
+    fillFromProfile()
+  }
+
+  // ── Saved personal details ──────────────────────────────────────────────────
+  // A new CV starts with the person's name, contact details, links, photo and languages: from the
+  // account (kept by the server from CVs they made for themselves, see server rememberProfile) or,
+  // for a guest, from this browser. Only empty fields are filled.
+  async function fillFromProfile() {
+    const ticket = ++fillSeq
+    const auth = useAuthStore()
+    let p = null
+    if (auth.isLoggedIn) {
+      try {
+        const r = await fetch(apiUrl('/api/me/profile'), { credentials: 'include' })
+        const j = r.ok ? await r.json() : null
+        if (j?.autofill) p = j.profile
+      } catch {}
+    } else p = safeParse(lsGet('cvm-profile'))
+    // Too late: another CV was opened meanwhile
+    if (ticket !== fillSeq || currentDraftId.value || !p || typeof p !== 'object') return
+    const d = data.value, filled = {}
+    for (const k of PERSONAL) {
+      const v = p[k]
+      if (k === 'languages') {
+        if (!Array.isArray(v) || !v.length || (d.languages || []).some(l => l?.name)) continue
+        d.languages = v.map(l => ({ name: String(l?.name || ''), level: String(l?.level || '') }))
+        filled.languages = plainClone(d.languages)
+      } else if (typeof v === 'string' && v && !d[k]) { d[k] = v; filled[k] = v }
+    }
+    if (Object.keys(filled).length) prefill.value = filled
+  }
+  function onlyPrefill(d) {
+    const p = prefill.value
+    if (!p || !d) return false
+    const same = (a, b) => JSON.stringify(a ?? '') === JSON.stringify(b ?? '')
+    const empty = (v) => v == null || v === '' || (Array.isArray(v) && !v.some(l => l?.name || l?.level))
+    return PERSONAL.every(k => (k in p ? same(d[k], p[k]) : empty(d[k]))) && !hasCvContent({ ...d, languages: [] })
+  }
+  // "Someone else": take out the details that were filled in from the user's own
+  function clearPrefill() {
+    const p = prefill.value
+    if (!p) return
+    for (const k of Object.keys(p)) {
+      if (JSON.stringify(data.value[k]) === JSON.stringify(p[k])) data.value[k] = k === 'languages' ? [] : (k === 'photo' ? null : '')
+    }
+    prefill.value = null
+  }
+  // A guest's details stay in this browser for their next CV
+  function rememberGuestProfile(d) {
+    if (!d || useAuthStore().isLoggedIn || d.cvFor === 'other') return
+    const p = {}
+    for (const k of PERSONAL) {
+      const v = d[k]
+      if (k === 'languages') { const l = (v || []).filter(x => x?.name); if (l.length) p.languages = l }
+      else if (k === 'photo') { if (typeof v === 'string' && v.length <= 400_000) p.photo = v }
+      else if (typeof v === 'string' && v.trim()) p[k] = v.trim()
+    }
+    if (Object.keys(p).length) lsSet('cvm-profile', JSON.stringify({ ...(safeParse(lsGet('cvm-profile')) || {}), ...p }))
   }
 
   // Open a saved draft (from the account) in the editor
   function loadDraft(draft) {
     if (!draft) return
+    fillSeq++; prefill.value = null
     currentDraftId.value = draft.id || null
     wizardDraftId.value  = draft.id || null
     data.value     = normaliseData(draft.data)
@@ -369,7 +436,7 @@ export const useCvStore = defineStore('cv', () => {
     data, template, fmt, darkMode, wizardOpen, wizardMode, wizardStep, wizardAskOffer, wizardStart,
     wizardDraftId, currentDraftId, lastSavedAt,
     fullName, initials, hasContent,
-    initDarkMode, openWizard, openWizardAtStep, closeWizard,
+    initDarkMode, openWizard, openWizardAtStep, closeWizard, clearPrefill,
     setMode, nextStep, prevStep,
     addExperience, removeExperience, addSkill, removeSkill,
     resetData, loadDraft, refreshFromServer, applyExtracted, saveDraft, ensureSavedDraftId, aiWrite,
