@@ -156,4 +156,7 @@ export default {
   'Consistency': 'Cohérence',
   'Apply all': 'Tout appliquer',
   'Added as the last sentence of your profile, so a recruiter sees straight away what you want. Add the length, field and start date.': 'Ajouté comme dernière phrase de votre profil, pour que le recruteur voie tout de suite ce que vous cherchez. Précisez la durée, le domaine et la date de début.',
+  'This layout shows a photo. Use your profile picture?': 'Cette mise en page affiche une photo. Utiliser votre photo de profil ?',
+  'Use my profile picture': 'Utiliser ma photo de profil',
+  'This layout shows a photo. Add one in Content, under Personal details.': 'Cette mise en page affiche une photo. Ajoutez-en une dans Contenu, rubrique Informations personnelles.',
 }

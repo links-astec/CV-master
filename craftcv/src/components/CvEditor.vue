@@ -32,7 +32,7 @@
 </template>
 
 <script setup>
-import { ref, nextTick, provide } from 'vue'
+import { ref, nextTick, provide, watch } from 'vue'
 import { useCvStore } from '../stores/cv.js'
 import DesignPanel from './DesignPanel.vue'
 import StepPersonal from './wizard/StepPersonal.vue'
@@ -43,7 +43,7 @@ import StepEducation from './wizard/StepEducation.vue'
 import JobMatch from './JobMatch.vue'
 import { t } from '../i18n/index.js'
 
-defineEmits(['pay'])
+const emit = defineEmits(['pay', 'tab'])
 const store = useCvStore()
 
 const TABS = [
@@ -86,6 +86,8 @@ provide('fixSection', (stepIndex) => {
 // Let parents jump to a tab (e.g. "Change design" in the preview toolbar)
 function show(t) { tab.value = t; nextTick(() => bodyRef.value?.scrollTo({ top: 0 })) }
 defineExpose({ show })
+// The editor page widens for Design (bigger layout previews)
+watch(tab, (t) => emit('tab', t), { immediate: true })
 </script>
 
 <style scoped>

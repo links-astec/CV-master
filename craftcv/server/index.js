@@ -542,6 +542,7 @@ function publicUser(row) {
     plan:       row.plan,
     onboarded:  row.onboarded,
     avatar:     row.avatar,
+    photo:      typeof row.profile?.photo === 'string' && row.profile.photo.length <= 300_000 ? row.profile.photo : null,
     provider:   row.provider,
     industry:   row.industry   || null,
     goal:       row.goal       || null,
@@ -3021,6 +3022,31 @@ app.patch('/api/me/profile', authMiddleware, async (req, res) => {
     await query(`UPDATE users SET profile_autofill = $2${on ? '' : ", profile = '{}'"} WHERE id = $1`, [req.user.sub, on]);
     res.json({ ok: true, autofill: on });
   } catch (e) { console.error('[me/profile]', e.message); res.status(500).json({ error: 'Could not save.' }); }
+});
+// Edited in Settings: the fields sent replace the saved ones (an empty field removes it). The picture
+// arrives already resized to a small square; null removes it. Languages are only kept from CVs.
+const PROFILE_PICTURE_MAX = 300_000;
+app.put('/api/me/profile', authMiddleware, async (req, res) => {
+  try {
+    await ensureReferralColumns();
+    const b = req.body || {};
+    const set = {}, drop = [];
+    for (const k of PROFILE_TEXT) {
+      if (!(k in b)) continue;
+      const v = typeof b[k] === 'string' ? b[k].trim().slice(0, 200) : '';
+      if (v) set[k] = v; else drop.push(k);
+    }
+    if (set.email && !isEmail(set.email)) return res.status(400).json({ error: 'That email address doesn’t look right.' });
+    if ('photo' in b) {
+      if (b.photo === null || b.photo === '') drop.push('photo');
+      else if (typeof b.photo === 'string' && b.photo.length <= PROFILE_PICTURE_MAX && PROFILE_PHOTO.test(b.photo)) set.photo = b.photo;
+      else return res.status(400).json({ error: 'That picture can’t be used. Try a JPG or PNG photo.' });
+    }
+    const row = (await query(`UPDATE users SET profile = (profile - $3::text[]) || $2::jsonb, profile_autofill = TRUE WHERE id = $1 RETURNING profile`,
+      [req.user.sub, JSON.stringify(set), drop])).rows[0];
+    if (!row) return res.status(404).json({ error: 'User not found.' });
+    res.json({ ok: true, autofill: true, profile: row.profile });
+  } catch (e) { console.error('[me/profile put]', e.message); res.status(500).json({ error: 'Could not save your details.' }); }
 });
 app.delete('/api/me/profile', authMiddleware, async (req, res) => {
   try {

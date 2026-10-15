@@ -1,5 +1,12 @@
 <template>
   <div class="dp">
+    <!-- A layout with a photo, and no photo on this CV yet -->
+    <div v-if="needsPhoto" class="dp-photo">
+      <img v-if="profilePhoto" :src="profilePhoto" alt="" />
+      <span v-else class="dp-photo-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
+      <span class="dp-photo-t">{{ $t(profilePhoto ? 'This layout shows a photo. Use your profile picture?' : 'This layout shows a photo. Add one in Content, under Personal details.') }}</span>
+      <button v-if="profilePhoto" type="button" class="btn-primary accent btn-sm" @click="store.data.photo = profilePhoto">{{ $t('Use my profile picture') }}</button>
+    </div>
     <section class="dp-sec">
       <template v-for="k in ['ats', 'creative']" :key="k">
       <div class="dp-hd">{{ $t(LAYOUT_KINDS[k].name) }} <span class="dp-val">{{ $t(k === 'ats' ? 'online applications' : 'print & in person') }}</span></div>
@@ -80,7 +87,8 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
+import { useAuthStore } from '../stores/auth.js'
 import { useCvStore, hasDraftableContent } from '../stores/cv.js'
 import { LAYOUTS, LAYOUT_KINDS, THEMES, FONTS, parseTemplate, templateId, getLayout, getTheme } from '../composables/cvRenderer.js'
 import { sampleCv } from '../composables/sampleCv.js'
@@ -96,6 +104,11 @@ const themeName  = computed(() => getTheme(current.value.theme)?.name)
 const layoutDesc = computed(() => getLayout(current.value.layout)?.desc)
 // Show the user's own CV in the thumbnails once there is something to show
 const thumbData  = computed(() => hasDraftableContent(store.data) ? store.data : sampleCv())
+const auth = useAuthStore()
+// The profile picture, offered when the layout shows a photo and this CV (their own) has none
+const profilePhoto = computed(() => store.data.cvFor === 'other' ? null : (store.profile?.profile?.photo || auth.user?.photo || null))
+onMounted(() => { if (!store.profile && auth.isLoggedIn) store.loadProfile() })
+const needsPhoto = computed(() => !!getLayout(current.value.layout)?.photo && !store.data.photo)
 
 function setLayout(id) { store.template = templateId(id, current.value.theme) }
 function setTheme(id)  { store.template = templateId(current.value.layout, id) }
@@ -119,6 +132,11 @@ function undoTranslate() {
 .dp-hd{font-size:14px;font-weight:700;letter-spacing:-.01em;color:var(--c-text);margin-bottom:12px;display:flex;align-items:baseline;gap:8px}
 .dp-val{font-size:13px;font-weight:500;color:var(--c-text3)}
 /* Two big previews per row, each on its own soft tile, so people can really see each layout */
+.dp-photo{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:18px;border-radius:16px;background:var(--c-accent-lt);font-size:13.5px;color:var(--c-text)}
+.dp-photo img{width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0}
+.dp-photo-ic{width:44px;height:44px;border-radius:50%;background:var(--c-surface);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.dp-photo-ic svg{width:20px;height:20px;fill:none;stroke:var(--c-accent);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.dp-photo-t{flex:1;min-width:0;font-weight:500}
 .dp-layouts{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:22px}
 .dp-layout{position:relative;display:flex;flex-direction:column;gap:12px;padding:16px 16px 14px;background:var(--fill);border:none;border-radius:20px;text-align:left;
   transition:background .25s var(--ease),box-shadow .25s var(--ease),transform .25s var(--ease)}
