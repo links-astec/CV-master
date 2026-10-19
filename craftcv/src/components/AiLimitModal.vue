@@ -19,7 +19,7 @@
           <div v-if="tier === 'verified'" class="al-offer">
             <div>
               <div class="al-offer-t">{{ $t('100 extra AI requests') }}</div>
-              <div class="al-offer-s">{{ $t('One-time €0.50 · they never expire') }}</div>
+              <div class="al-offer-s">{{ $t('One-time €0.50 · they never expire') }}<template v-if="approx(0.5)"> ({{ approx(0.5) }})</template></div>
             </div>
             <button class="btn-primary accent" :disabled="buying || !withdrawalOk" @click="buy">{{ $t(buying ? 'Please wait…' : 'Get them for €0.50') }}</button>
           </div>
@@ -35,6 +35,7 @@
 <script setup>
 import { ref, computed, inject } from 'vue'
 import { useAuthStore } from '../stores/auth.js'
+import { approx } from '../composables/localPrice.js'
 
 const auth = useAuthStore()
 const requireAccount = inject('requireAccount', null)

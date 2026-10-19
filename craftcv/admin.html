@@ -317,6 +317,26 @@ input[type=range]{flex:1;accent-color:var(--ac)}
 .kind.on b{color:var(--ac)}
 .kind:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
 @media(max-width:480px){.kind{grid-template-columns:1fr}.kind code{grid-column:1;grid-row:auto}}
+.svc-sum{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.svc-sum>div{background:var(--s2);border-radius:14px;padding:12px 16px;min-width:150px;flex:1}
+.svc-sum b{display:block;font-size:20px;letter-spacing:-.01em}.svc-sum span{font-size:12.5px;color:var(--t2)}
+.svc-rem{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.svc-rem div{padding:10px 14px;border-radius:12px;font-size:13.5px;font-weight:600;background:var(--amber-lt);color:var(--amber)}
+.svc-rem div.l2,.svc-rem div.l3{background:var(--red-lt);color:var(--red)}
+.svc-rem div.none{background:var(--green-lt);color:var(--green)}
+.svc-list{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.svc{background:var(--s2);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.svc.hot{box-shadow:inset 0 0 0 2px var(--red)}
+.svc-hd{display:flex;align-items:flex-start;gap:10px}.svc-hd>div{flex:1;min-width:0}
+.svc-hd b{display:block;font-size:14.5px}.svc-hd span{font-size:12.5px;color:var(--t2)}
+.svc-meta{display:flex;flex-wrap:wrap;gap:6px}
+.svc-m{display:flex;flex-direction:column;gap:4px;font-size:12.5px}
+.svc-m-t{display:flex;justify-content:space-between;gap:8px;color:var(--t2)}.svc-m-t b{color:var(--t1)}
+.svc-bar{height:7px;border-radius:99px;background:var(--b1);overflow:hidden}.svc-bar i{display:block;height:100%;border-radius:99px;background:var(--green)}
+.svc-bar i.w{background:var(--amber)}.svc-bar i.d{background:var(--red)}
+.svc-i{font-size:12.5px;color:var(--t2);line-height:1.5}
+.svc-f{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}.svc-f .full{grid-column:1/-1}
+@media (max-width:760px){ .svc-list{grid-template-columns:1fr} .svc-f{grid-template-columns:1fr} }
 .senders{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .sender{background:var(--s2);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
 .sender-hd{display:flex;flex-direction:column;gap:1px}
@@ -742,7 +762,7 @@ async function go(p) {
   if (p === 'reviews') await loadReviews()
   if (p === 'subscribers' || p === 'newsletter') await loadSubs()
   if (p === 'newsletter') { loadHistory(); loadMyTemplates(); if (!S.config) loadConfig() }
-  if (p === 'settings') await Promise.all([loadStatus(), S.stats ? null : loadStats(), loadSecurity(), S.config ? null : loadConfig()])
+  if (p === 'settings') await Promise.all([loadStatus(), S.stats ? null : loadStats(), loadSecurity(), S.config ? null : loadConfig(), loadServices()])
   if (p === 'overview' && !S.status) loadStatus()
   if (p === 'app') await loadActivity()
   if (p === 'blog' && !S.blog.edit) await loadPosts()
@@ -1406,13 +1426,17 @@ function renderStatus() {
     const head = c.group !== group ? `<div class="st-group">${esc(group = c.group)}</div>` : ''
     return head + `<div class="chk"><span class="chk-ic ${c.state === 'ok' ? 'ok' : c.state === 'down' ? 'down' : 'no'}">${ic[c.state] || '!'}</span><div><span class="chk-t">${esc(c.name)}</span><span>${esc(c.detail || '')}</span></div></div>`
   }).join('')
-  return banner + rows + `<p class="muted" style="font-size:12px;margin-top:14px">Checked again every 30 minutes while people use CVMaster. ${st.alertsTo ? `When something stops working, or works again, an email goes to <b>${esc(st.alertsTo)}</b>.` : 'Set ADMIN_EMAIL in Render to be emailed when something stops working.'} If the whole server goes down nothing here can run, so also add a free outside monitor (for example UptimeRobot) on <code>https://api.cvmaster.live/api/health</code> and <code>https://www.cvmaster.live</code>.</p>`
+  return banner + rows + `<p class="muted" style="font-size:12px;margin-top:14px">Checked again every hour while people use CVMaster. ${st.alertsTo ? `When something stops working, or works again, an email goes to <b>${esc(st.alertsTo)}</b>.` : 'Set ADMIN_EMAIL in Render to be emailed when something stops working.'} If the whole server goes down nothing here can run, so also add a free outside monitor (for example UptimeRobot) on <code>https://api.cvmaster.live/api/health</code> (as a keyword check for <code>"db":true</code>, so it also notices when the database stops) and <code>https://www.cvmaster.live</code>.</p>`
 }
 
 function renderSettings() {
   const c = S.config
   const row = (ok, title, text) => `<div class="chk"><span class="chk-ic ${ok ? 'ok' : 'no'}">${ok ? svg('check') : '!'}</span><div><span class="chk-t">${title}</span><span>${text}</span></div></div>`
   return `<div class="set-grid">
+    <div class="card" style="grid-column:1/-1"><div class="card-hd"><h3>Subscriptions, usage and reminders</h3>
+      <button class="btn btn-sm" data-act="svc-refresh" ${S.svcLoading ? 'disabled' : ''}>${svg('refresh')} Refresh</button></div><div class="card-bd">
+      ${renderServices()}
+    </div></div>
     <div class="card"><div class="card-hd"><h3>Maintenance mode</h3></div><div class="card-bd">
       <div class="maint"><div><b>${S.maintenance ? 'The site is in maintenance' : 'The site is live'}</b><div class="muted" style="font-size:13px;margin-top:2px">Maintenance shows everyone a “back soon” page. This admin panel keeps working.</div></div>
       <label class="toggle"><input type="checkbox" id="maint-toggle" ${S.maintenance ? 'checked' : ''} ${S.maintLoading ? 'disabled' : ''}><span class="toggle-track"></span></label></div>
@@ -1424,6 +1448,86 @@ function renderSettings() {
       ${renderStatus()}
     </div></div>
   </div>`
+}
+
+// ── SUBSCRIPTIONS, USAGE AND REMINDERS ────────────────────────────────────────
+// Every outside service: plan, cost, how much of each limit is used, and when it renews
+async function loadServices() {
+  S.svcLoading = true; render()
+  try { S.svc = await api('GET', '/services') } catch (e) { S.svc = { error: e.message } }
+  S.svcLoading = false; render()
+}
+const PERIOD = { month: 'a month', year: 'a year', once: 'once' }
+function renderServices() {
+  const x = S.svc
+  if (!x) return '<div class="loading"><span class="spinner"></span></div>'
+  if (x.error) return `<div class="muted">${esc(x.error)}</div>`
+  const paid = x.services.filter(s => s.cost > 0)
+  const next = x.services.filter(s => s.daysLeft != null && s.daysLeft >= 0).sort((a, b) => a.daysLeft - b.daysLeft)[0]
+  const sum = `<div class="svc-sum">
+      <div><b>€${x.monthly.toFixed(2)}</b><span>a month in subscriptions (${paid.length} paid)</span></div>
+      <div><b>${x.reminders.length}</b><span>${x.reminders.length === 1 ? 'thing needs' : 'things need'} attention</span></div>
+      <div><b>${next ? `${next.daysLeft} days` : '·'}</b><span>${next ? `until ${esc(next.name)} renews` : 'no renewal dates yet'}</span></div></div>`
+  const rem = `<div class="svc-rem">${x.reminders.length
+      ? x.reminders.map(r => `<div class="l${r.level}">${esc(r.text)}</div>`).join('')
+      : '<div class="none">Nothing needs your attention: every limit is under 70% and nothing renews in the next 14 days.</div>'}</div>`
+  const bar = (m) => {
+    const p = m.share ?? 0
+    return `<div class="svc-m"><div class="svc-m-t"><span>${esc(m.label)}</span><span><b>${m.used.toLocaleString('en')}</b> of ${m.limit.toLocaleString('en')} ${esc(m.unit)} · ${Math.max(0, 100 - p)}% left</span></div>
+      <div class="svc-bar"><i class="${p >= 90 ? 'd' : p >= 70 ? 'w' : ''}" style="width:${Math.min(100, p)}%"></i></div>
+      ${m.resets ? `<span class="muted" style="font-size:11.5px">Resets ${esc(m.resets)}</span>` : ''}</div>`
+  }
+  const card = (s) => {
+    const hot = s.alert || s.meters.some(m => m.share >= 90) || (s.daysLeft != null && s.daysLeft <= 3)
+    return `<div class="svc ${hot ? 'hot' : ''}"><div class="svc-hd"><div><b>${esc(s.name)}</b><span>${esc(s.what)}</span></div>
+        <button class="btn btn-sm" data-act="svc-edit" data-id="${esc(s.id)}">Edit</button></div>
+      <div class="svc-meta"><span class="badge ${s.cost > 0 ? 'b-ac' : 'b-gray'}">${esc(s.plan || 'Plan not set')}${s.cost > 0 ? ` · €${s.cost} ${PERIOD[s.period] || 'a month'}` : ''}</span>
+        ${s.renews ? `<span class="badge ${s.daysLeft <= 14 ? 'b-amber' : 'b-gray'}">Renews ${esc(s.renews)}${s.daysLeft >= 0 ? ` · in ${s.daysLeft} days` : ' · passed'}</span>` : ''}
+        <a class="badge b-gray" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">Open dashboard</a></div>
+      ${s.alert ? `<div class="svc-i" style="color:var(--red);font-weight:700">${esc(s.alert)}</div>` : ''}
+      ${s.meters.map(bar).join('')}
+      ${s.info.map(i => `<div class="svc-i">${esc(i)}</div>`).join('')}
+      ${s.notes ? `<div class="svc-i"><i>${esc(s.notes)}</i></div>` : ''}</div>`
+  }
+  return sum + rem + `<div class="svc-list">${x.services.map(card).join('')}</div>
+    <p class="muted" style="font-size:12px;margin-top:14px">Checked every hour. ${x.alertsTo ? `Reminders go to <b>${esc(x.alertsTo)}</b>` : 'Set ADMIN_EMAIL in Render to get reminders'} at 70% and 90% of a limit, when a limit is used up, 14 and 3 days before a renewal, and straight away when Claude’s credit runs out. Plans, prices and renewal dates are what you type in (Edit); usage bars are measured live.</p>`
+}
+async function editService(id) {
+  const s = S.svc?.services.find(x => x.id === id)
+  if (!s) return
+  const lim = Object.entries(s.limits || {})
+  const LIMIT_LABEL = { compute: 'Compute hours a month', transfer: 'Data transfer a month (GB)', storage: 'Storage (GB)', month: 'Emails a month', day: 'Emails a day' }
+  const wrap = document.createElement('div')
+  wrap.className = 'dlg-back'
+  wrap.innerHTML = `<div class="dlg dlg-wide" role="dialog" aria-modal="true" aria-labelledby="dlg-t"><div class="dlg-t" id="dlg-t">${esc(s.name)}</div>
+    <div class="dlg-m">${esc(s.what)}</div>
+    <div class="svc-f">
+      <div><label class="lbl">Plan</label><input class="inp" data-f="plan" maxlength="60" value="${esc(s.plan || '')}"></div>
+      <div><label class="lbl">Cost (€)</label><input class="inp" data-f="cost" type="number" min="0" step="0.01" value="${s.cost ?? ''}"></div>
+      <div><label class="lbl">Paid</label><select class="inp" data-f="period">${Object.entries(PERIOD).map(([k, v]) => `<option value="${k}" ${(s.period || 'month') === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+      <div><label class="lbl">Renews on</label><input class="inp" data-f="renews" type="date" value="${esc(s.renews || '')}"></div>
+      ${id === 'anthropic' ? `<div><label class="lbl">Credit left ($)</label><input class="inp" data-f="credit" type="number" min="0" step="0.01" value="${s.credit ?? ''}"></div>
+        <div><label class="lbl">Checked on</label><input class="inp" data-f="creditAt" type="date" value="${esc(s.creditAt || new Date().toISOString().slice(0, 10))}"></div>` : ''}
+      ${lim.map(([k, v]) => `<div><label class="lbl">${esc(LIMIT_LABEL[k] || k)}</label><input class="inp" data-l="${esc(k)}" type="number" min="0" step="any" value="${v}"></div>`).join('')}
+      <div class="full"><label class="lbl">Notes</label><input class="inp" data-f="notes" maxlength="300" value="${esc(s.notes || '')}" placeholder="e.g. card ending 4242, renews automatically"></div>
+    </div>
+    <div class="dlg-f"><button class="btn" data-x="0">Cancel</button><button class="btn btn-primary" data-x="1">Save</button></div></div>`
+  const close = () => { document.removeEventListener('keydown', onKey, true); wrap.remove() }
+  const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); close() } }
+  wrap.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-x]')
+    if (!b) return
+    if (b.dataset.x !== '1') return close()
+    const body = { limits: {} }
+    wrap.querySelectorAll('[data-f]').forEach(i => { body[i.dataset.f] = i.value })
+    wrap.querySelectorAll('[data-l]').forEach(i => { body.limits[i.dataset.l] = i.value })
+    b.disabled = true
+    try { await api('PUT', '/services/' + id, body); close(); toast('Saved'); loadServices() }
+    catch (err) { b.disabled = false; toast(err.message) }
+  })
+  document.addEventListener('keydown', onKey, true)
+  document.body.appendChild(wrap)
+  wrap.querySelector('[data-f="plan"]').focus()
 }
 
 // Which address sends what (from the server, so it always matches what is really sent)
@@ -2391,6 +2495,8 @@ document.addEventListener('click', (e) => {
   else if (a === 'sec-signout-all') signOutEverywhere()
   else if (a === 'config-refresh') { S.config = null; render(); loadConfig() }
   else if (a === 'status-refresh') loadStatus(true)
+  else if (a === 'svc-refresh') loadServices()
+  else if (a === 'svc-edit') editService(t.dataset.id)
   else if (a === 'rv-min-save') saveReviewsMin()
   else if (a === 'inbox-refresh') loadInbox()
   else if (a === 'inbox-back') { S.inbox.sel = null; S.inbox.detail = null; render() }

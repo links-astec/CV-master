@@ -257,3 +257,7 @@ a{color:var(--c-accent)}
 .reveal-up{opacity:0;transform:translateY(24px);transition:opacity .9s var(--ease),transform .9s var(--ease)}
 .reveal-up.revealed{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){ .reveal-up{opacity:1;transform:none;transition:none} }
+
+/* Approximate local price next to a euro price (visitors in Ghana) */
+.price-local{font-size:13px;font-weight:500;color:var(--c-text3);letter-spacing:0;margin-top:2px}
+small.price-local{display:block;font-size:11.5px}

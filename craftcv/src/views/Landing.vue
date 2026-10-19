@@ -207,6 +207,7 @@
           <div v-for="(p, i) in PLANS" :key="p.name" class="lp-price" :class="{ featured: p.featured }" v-reveal="i * 80">
             <h3>{{ $t(p.name) }}</h3>
             <div class="lp-amt">{{ $t(p.price) }}<span>{{ p.per && $t(p.per) }}</span></div>
+            <div v-if="p.eur && approx(p.eur)" class="price-local">{{ approx(p.eur) }}</div>
             <ul>
               <li v-for="it in p.items" :key="it"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg>{{ $t(it) }}</li>
             </ul>
@@ -327,6 +328,7 @@ import { THEMES } from '../composables/cvRenderer.js'
 import { suggestEmail } from '../composables/emailTypos.js'
 import LangSwitch from '../components/LangSwitch.vue'
 import { locale, lang } from '../i18n/index.js'
+import { approx } from '../composables/localPrice.js'
 
 const openFeedback = inject('openFeedback', null)
 
@@ -448,7 +450,7 @@ const SHOWCASE = [
 const PLANS = [
   { name: 'Free', price: '€0', per: '', cta: 'Start building',
     items: ['All 50 templates', 'AI help: 30 requests a day with a free account', 'ATS job-match check', 'Preview PDF with watermark'] },
-  { name: 'Clean PDF', price: '€0.99', per: ' per CV', cta: 'Build my CV', featured: true,
+  { name: 'Clean PDF', price: '€0.99', eur: 0.99, per: ' per CV', cta: 'Build my CV', featured: true,
     items: ['Watermark-free, one-page PDF', 'Emailed and downloadable', 'Free re-downloads after edits'] },
 ]
 

@@ -60,6 +60,7 @@
 
             <div v-if="!paidForDraft && !demoMode" class="pw-price">
               <div class="pw-amt">{{ $t('€0.99') }} <span>{{ $t('one-time, for this CV') }}</span></div>
+              <div v-if="approx(0.99)" class="price-local">{{ approx(0.99) }}</div>
               <ul>
                 <li v-for="f in FEATURES" :key="f"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ $t(f) }}</li>
               </ul>
@@ -115,6 +116,7 @@ import { suggestEmail } from '../composables/emailTypos.js'
 import { render } from '../composables/cvRenderer.js'
 import { analysePage } from '../composables/pageFit.js'
 import { t } from '../i18n/index.js'
+import { approx } from '../composables/localPrice.js'
 
 const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
 

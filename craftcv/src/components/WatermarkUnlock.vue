@@ -17,7 +17,7 @@
               <div class="wm-opt-ttl">{{ $t('Clean PDF') }}</div>
               <div class="wm-opt-sub">{{ $t('No watermark · emailed and downloadable · re-send free, even after edits') }}</div>
             </div>
-            <span class="wm-price">{{ $t('€0.99') }}</span>
+            <span class="wm-price">{{ $t('€0.99') }}<small v-if="approx(0.99)" class="price-local">{{ approx(0.99) }}</small></span>
           </button>
 
           <button class="wm-opt" :disabled="freeDownloading" @click="downloadFree">
@@ -38,6 +38,7 @@
 <script setup>
 import { ref } from 'vue'
 import { guestEvent } from '../composables/track.js'
+import { approx } from '../composables/localPrice.js'
 
 // Free watermarked download of a stored CV (token from /api/cv/store-for-unlock).
 // "Clean PDF" hands over to the paywall (emit 'unlock').
