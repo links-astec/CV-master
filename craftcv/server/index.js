@@ -309,8 +309,9 @@ app.use((req, res, next) => {
       .catch(e => { console.warn('[reminders]', e.message); Object.assign(jobHealth, { at: new Date(), ok: false, error: e.message }); })
       .finally(() => { _jobsRunning = false; }), 5000);
   }
-  // Health checks (and an email to the admin when something breaks or recovers), at most every 30 minutes
-  if (!_statusRunning && Date.now() - _statusAt > 30 * 60 * 1000 && process.env.DISABLE_REMINDERS !== 'true') {
+  // Health checks (and an email to the admin when something breaks or recovers), at most once an hour:
+  // each run wakes the database, which Neon bills while awake
+  if (!_statusRunning && Date.now() - _statusAt > 60 * 60 * 1000 && process.env.DISABLE_REMINDERS !== 'true') {
     _statusAt = Date.now(); _statusRunning = true;
     setTimeout(() => runStatus().then(statusAlerts).catch(e => console.warn('[status]', e.message)).finally(() => { _statusRunning = false; }), 8000);
   }
@@ -4793,9 +4794,16 @@ app.post('/api/referral/redeem', authMiddleware, async (req, res) => {
 // ── ADMIN PANEL (serve HTML) ──────────────────────────────────────────────────
 
 // ── HEALTH ────────────────────────────────────────────────────────────────────
+// Uptime monitors call this every few minutes. Asking the database each time would keep it awake
+// around the clock (Neon bills compute while it's awake and lets it sleep after 5 idle minutes), so a
+// working database is re-checked at most once an hour; a failing one is checked on every call.
+const dbHealth = { ok: false, at: 0 };
 app.get('/api/health', async (req, res) => {
-  let db = false;
-  try { await query('SELECT 1'); db = true; } catch {}
+  if (!dbHealth.ok || Date.now() - dbHealth.at > 60 * 60 * 1000) {
+    try { await query('SELECT 1'); dbHealth.ok = true; } catch { dbHealth.ok = false; }
+    dbHealth.at = Date.now();
+  }
+  const db = dbHealth.ok;
   if (maintenanceMode) {
     return res.status(503).json({ ok: false, maintenance: true, message: 'Under maintenance' });
   }
