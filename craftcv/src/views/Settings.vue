@@ -1,10 +1,14 @@
 <template>
-  <div class="view-page">
+  <div class="view-page st-page">
     <div class="view-inner st">
       <h1 class="st-h1">{{ $t('Settings') }}</h1>
+      <nav class="st-jump" :aria-label="$t('Settings sections')">
+        <a v-for="j in jumps" :key="j.id" :href="'#' + j.id" :class="{ on: activeJump === j.id }" @click.prevent="jump(j.id)">{{ $t(j.label) }}</a>
+      </nav>
 
       <!-- Account -->
-      <section v-if="auth.isLoggedIn" class="st-card">
+      <section v-if="auth.isLoggedIn" id="account" class="st-card st-hero">
+        <div class="st-hero-bg" aria-hidden="true"></div>
         <div class="st-acct">
           <!-- Profile picture: the account's avatar everywhere, and the photo offered for CV layouts with one -->
           <button type="button" class="st-ava" :class="{ busy: detailsSaving }" :aria-label="$t('Change profile picture')" :title="$t('Change profile picture')" @click="picInput?.click()">
@@ -24,6 +28,24 @@
               <span v-else class="st-ver">· {{ $t('confirmed') }}</span></div>
           </div>
           <button class="btn-secondary btn-sm" @click="logout">{{ $t('Sign out') }}</button>
+        </div>
+        <!-- At a glance: plan, AI left today, free CVs earned -->
+        <div class="st-glance">
+          <button type="button" class="st-gl st-gl-plan" :class="{ pass }" @click="pass ? jump('pass') : router.push('/pricing')">
+            <span class="st-gl-k">{{ $t('Your plan') }}</span>
+            <b>{{ $t(pass ? 'Job Hunt Pass' : 'Free') }}</b>
+            <span class="st-gl-s">{{ pass ? $t(pass.cancelAtEnd ? 'until {date}' : 'renews {date}', { date: fmtDay(pass.until) }) : $t('See plans') + ' →' }}</span>
+          </button>
+          <div class="st-gl">
+            <span class="st-gl-k">{{ $t('AI today') }}</span>
+            <b>{{ aiQuota ? aiQuota.freeLeft : '·' }}<small v-if="aiQuota">/{{ aiQuota.limit }}</small></b>
+            <span class="st-gl-s">{{ aiQuota?.credits ? $t('{n} extra', { n: aiQuota.credits }) : $t('requests left') }}</span>
+          </div>
+          <button type="button" class="st-gl" @click="jump('invite')">
+            <span class="st-gl-k">{{ $t('Free CVs') }}</span>
+            <b>{{ referralInfo?.credits ?? 0 }}</b>
+            <span class="st-gl-s">{{ $t('{n} friends joined', { n: referralInfo?.count ?? 0 }) }}</span>
+          </button>
         </div>
 
         <div class="st-rows">
@@ -89,7 +111,7 @@
       </section>
 
       <!-- Guest -->
-      <section v-else class="st-card st-guest">
+      <section v-else id="account" class="st-card st-guest">
         <div>
           <div class="st-card-t">{{ $t('You’re using CVMaster as a guest') }}</div>
           <p class="st-p">{{ $t('Your CV is saved in this browser only. Create a free account to keep it safe, use it on any device and export it.') }}</p>
@@ -135,34 +157,47 @@
 
       <!-- Job Hunt Pass -->
       <section id="pass" class="st-card st-pass" :class="{ on: pass }">
-        <div class="st-card-hd">
-          <div>
-            <div class="st-card-t">{{ $t('Job Hunt Pass') }}</div>
-            <p v-if="pass && !pass.cancelAtEnd" class="st-p">{{ $t('Active. Renews on {date} for €6.99.', { date: fmtDay(pass.until) }) }}</p>
-            <p v-else-if="pass" class="st-p">{{ $t('Cancelled. You keep everything until {date}.', { date: fmtDay(pass.until) }) }}</p>
-            <p v-else class="st-p">{{ $t('Applying to lots of jobs? Every CV you make as a clean PDF, emailed and downloadable, and 100 AI requests a day.') }}</p>
-          </div>
-          <div class="st-pass-price">€6.99<span>{{ $t('/month') }}</span><small v-if="!pass && approx(6.99)" class="price-local">{{ approx(6.99) }}</small></div>
-        </div>
-        <ul v-if="!pass" class="st-pass-list">
-          <li v-for="f in PASS_FEATURES" :key="f"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ $t(f) }}</li>
-        </ul>
+        <div class="st-pass-glow" aria-hidden="true"></div>
+        <span class="st-pass-kick">{{ $t('Job Hunt Pass') }}</span>
         <template v-if="pass">
-          <button v-if="!pass.cancelAtEnd" class="btn-secondary btn-sm" :disabled="passBusy" @click="changePass('cancel')">{{ $t('Cancel the pass') }}</button>
-          <button v-else class="btn-primary accent btn-sm" :disabled="passBusy" @click="changePass('resume')">{{ $t('Keep my pass') }}</button>
+          <div class="st-pass-title">{{ $t(pass.cancelAtEnd ? 'Your pass is cancelled' : 'Your pass is on') }}</div>
+          <p class="st-pass-p">{{ pass.cancelAtEnd ? $t('Cancelled. You keep everything until {date}.', { date: fmtDay(pass.until) })
+            : $t(pass.plan === 'quarter' ? 'Active. Renews on {date} for €14.99.' : 'Active. Renews on {date} for €6.99.', { date: fmtDay(pass.until) }) }}</p>
+          <ul class="st-pass-list"><li v-for="f in PASS_FEATURES.slice(0, 3)" :key="f"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ $t(f) }}</li></ul>
+          <button v-if="!pass.cancelAtEnd" class="st-pass-ghost" :disabled="passBusy" @click="changePass('cancel')">{{ $t('Cancel the pass') }}</button>
+          <button v-else class="st-pass-cta" :disabled="passBusy" @click="changePass('resume')">{{ $t('Keep my pass') }}</button>
         </template>
         <template v-else>
-          <label class="st-consent">
+          <div class="st-pass-title">{{ $t('Every CV you make, unlocked.') }}</div>
+          <p class="st-pass-p">{{ $t('Applying to lots of jobs? Every CV you make as a clean PDF, emailed and downloadable, and 100 AI requests a day.') }}</p>
+          <div class="st-plans" role="radiogroup" :aria-label="$t('Job Hunt Pass billing')">
+            <button type="button" role="radio" class="st-po" :class="{ on: passPlan === 'month' }" :aria-checked="passPlan === 'month'" @click="passPlan = 'month'">
+              <span class="st-po-t">{{ $t('Monthly') }}</span>
+              <span class="st-po-p">€6.99</span>
+              <span class="st-po-s">{{ $t('a month') }}<template v-if="approx(6.99)"> · {{ approx(6.99) }}</template></span>
+            </button>
+            <button type="button" role="radio" class="st-po" :class="{ on: passPlan === 'quarter' }" :aria-checked="passPlan === 'quarter'" @click="passPlan = 'quarter'">
+              <span class="st-po-badge">−29%</span>
+              <span class="st-po-t">{{ $t('Every 3 months') }}</span>
+              <span class="st-po-p">€14.99</span>
+              <span class="st-po-s">{{ $t('€5.00 a month') }}<template v-if="approx(14.99)"> · {{ approx(14.99) }}</template></span>
+            </button>
+          </div>
+          <ul class="st-pass-list"><li v-for="f in PASS_FEATURES" :key="f"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ $t(f) }}</li></ul>
+          <label v-if="auth.isLoggedIn" class="st-consent">
             <input type="checkbox" v-model="passConsent" />
             <span>{{ $t('I want the pass to start straight away and agree that I lose my 14-day right of withdrawal once it starts.') }}</span>
           </label>
-          <button class="btn-primary accent" :disabled="passBusy || (auth.isLoggedIn && !passConsent)" @click="getPass">{{ $t(passBusy ? 'Please wait…' : 'Get the Job Hunt Pass') }}</button>
-          <p class="st-muted st-pass-note">{{ $t('Secure payment by Stripe · Cancel any time in Settings, it then runs to the end of the month you paid for.') }}</p>
+          <div class="st-pass-row">
+            <button class="st-pass-cta" :disabled="passBusy || (auth.isLoggedIn && !passConsent)" @click="getPass">{{ $t(passBusy ? 'Please wait…' : passPlan === 'quarter' ? 'Get 3 months for €14.99' : 'Get the pass for €6.99') }}</button>
+            <RouterLink to="/pricing" class="st-pass-link">{{ $t('Compare all plans') }}</RouterLink>
+          </div>
+          <p class="st-pass-note">{{ $t('Secure payment by Stripe · Cancel any time, it then runs to the end of the period you paid for.') }}</p>
         </template>
       </section>
 
       <!-- AI requests -->
-      <section class="st-card">
+      <section id="ai" class="st-card">
         <div class="st-card-hd">
           <div>
             <div class="st-card-t">{{ $t('AI requests') }}</div>
@@ -203,7 +238,7 @@
       </section>
 
       <!-- Saved personal details: new CVs start with them filled in -->
-      <section v-if="auth.isLoggedIn" class="st-card">
+      <section v-if="auth.isLoggedIn" id="details" class="st-card">
         <div class="st-card-hd">
           <div>
             <div class="st-card-t">{{ $t('Your details') }}</div>
@@ -231,7 +266,7 @@
       </section>
 
       <!-- Preferences -->
-      <section class="st-card">
+      <section id="prefs" class="st-card">
         <div class="st-card-t">{{ $t('Preferences') }}</div>
         <div class="st-pref">
           <div><div class="st-pref-t">{{ $t('Language') }}</div><div class="st-pref-s">{{ $t('The language of CVMaster itself. Your CV’s language is set in the editor.') }}</div></div>
@@ -274,7 +309,7 @@
       <ReviewPrompt id="review" class="st-review" />
 
       <!-- Help -->
-      <section class="st-card">
+      <section id="help" class="st-card">
         <div class="st-card-t">{{ $t('Help & feedback') }}</div>
         <div class="st-help">
           <button @click="openFeedback('suggestion')"><strong>{{ $t('Send feedback') }}</strong><span>{{ $t('Ideas or something that isn’t working') }}</span></button>
@@ -639,12 +674,29 @@ const PASS_FEATURES = ['Every CV as a clean PDF, emailed and downloadable', '100
 const pass = computed(() => auth.user?.pass || null)
 const passBusy = ref(false)
 const passConsent = ref(false)
+// Chosen on the pricing page (?plan=month) or here; 3 months is the better deal
+const passPlan = ref(new URLSearchParams(location.search).get('plan') === 'month' ? 'month' : 'quarter')
+// Section shortcuts, and which one is in view
+const jumps = computed(() => [
+  { id: 'account', label: 'Account' }, { id: 'pass', label: 'Job Hunt Pass' },
+  ...(auth.isLoggedIn ? [{ id: 'invite', label: 'Invite friends' }] : []), { id: 'ai', label: 'AI' },
+  ...(auth.isLoggedIn ? [{ id: 'details', label: 'Your details' }] : []), { id: 'prefs', label: 'Preferences' }, { id: 'help', label: 'Help' },
+])
+const activeJump = ref('account')
+function jump(id) { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); activeJump.value = id }
+function onScroll(e) {
+  const top = e.target.getBoundingClientRect().top + 120
+  // the section whose top most recently passed the line under the shortcuts
+  let cur = jumps.value[0]?.id, best = -Infinity
+  for (const j of jumps.value) { const t = document.getElementById(j.id)?.getBoundingClientRect().top; if (t != null && t <= top && t > best) { best = t; cur = j.id } }
+  activeJump.value = cur
+}
 const fmtDay = (iso) => { try { return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) } catch { return iso } }
 async function getPass() {
   if (!auth.isLoggedIn) { openAuth('register', 'pass'); return }
   passBusy.value = true
   try {
-    const r = await fetch(apiUrl('/api/payment/pass'), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ withdrawalConsent: passConsent.value }) })
+    const r = await fetch(apiUrl('/api/payment/pass'), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ withdrawalConsent: passConsent.value, plan: passPlan.value }) })
     const j = await r.json()
     if (!r.ok) throw new Error(j.error || 'Could not start payment. Please try again.')
     if (j.alreadyActive) { await auth.fetchMe(); showToast(t('Your Job Hunt Pass is already on')); return }
@@ -682,6 +734,7 @@ async function passReturn() {
 
 onMounted(() => {
   passReturn()
+  document.querySelector('.st-page')?.addEventListener('scroll', onScroll, { passive: true })
   if (location.hash === '#pass') setTimeout(() => document.getElementById('pass')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 600)
   loadAiQuota(); if (auth.isLoggedIn) { loadReferral(); loadNewsletter(); loadDetails() }
   // Arriving from a "leave a rating" link or notification
@@ -700,12 +753,63 @@ watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota(); lo
 @keyframes stIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){ .st-card{animation:none} }
 .st-card-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
-.st-pass.on{box-shadow:0 0 0 2px var(--c-accent),var(--shadow-sm)}
-.st-pass-price{font-size:28px;font-weight:800;letter-spacing:-.03em;color:var(--c-text);white-space:nowrap;text-align:right;line-height:1.1}
-.st-pass-price span{font-size:14px;font-weight:600;color:var(--c-text3);margin-left:2px}
-.st-pass-list{list-style:none;margin:0 0 18px;padding:0;display:flex;flex-direction:column;gap:10px}
-.st-pass-list li{display:flex;gap:10px;font-size:14.5px;color:var(--c-text2);line-height:1.45}
-.st-pass-list svg{width:18px;height:18px;flex-shrink:0;fill:none;stroke:var(--c-pass);stroke-width:2.4;margin-top:2px}
+/* Section shortcuts */
+.st-jump{position:sticky;top:-36px;z-index:5;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:-2px -8px 2px;padding:10px 8px;background:color-mix(in srgb,var(--c-bg) 86%,transparent);backdrop-filter:saturate(1.8) blur(16px);-webkit-backdrop-filter:saturate(1.8) blur(16px)}
+.st-jump::-webkit-scrollbar{display:none}
+@media (max-width:768px){ .st-jump{top:-22px} }
+.st-jump a{flex-shrink:0;height:36px;padding:0 15px;border-radius:99px;display:inline-flex;align-items:center;font-size:13.5px;font-weight:600;color:var(--c-text2);text-decoration:none;background:var(--fill);transition:background .2s var(--ease),color .2s var(--ease)}
+.st-jump a:hover{color:var(--c-text)}
+.st-jump a.on{background:var(--c-text);color:var(--c-bg)}
+.st-card{scroll-margin-top:64px}
+/* Account header */
+.st-hero{position:relative;overflow:hidden;padding-top:0}
+.st-hero-bg{height:92px;margin:0 -30px 0;background:radial-gradient(120% 140% at 100% 0%,#DB2777 0%,transparent 45%),radial-gradient(90% 160% at 0% 0%,#7C3AED 0%,transparent 55%),linear-gradient(120deg,#312E81,#4338CA)}
+.st-hero .st-acct{margin-top:-38px;position:relative;align-items:flex-start}
+.st-hero .st-acct-txt{padding-top:46px}
+.st-hero .st-acct > .btn-secondary{margin-top:48px}
+.st-hero .st-ava{box-shadow:0 0 0 5px var(--c-surface),0 10px 24px rgba(67,56,202,.3)}
+.st-glance{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:22px 0 20px}
+.st-gl{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:16px 18px;border-radius:20px;background:var(--fill);border:none;font:inherit;color:inherit;text-align:left}
+button.st-gl{cursor:pointer;transition:transform .25s var(--ease),background .25s var(--ease)}
+button.st-gl:hover{transform:translateY(-2px);background:color-mix(in srgb,var(--c-accent) 9%,transparent)}
+.st-gl-k{font-size:12.5px;font-weight:650;color:var(--c-text3);text-transform:uppercase;letter-spacing:.05em}
+.st-gl b{font-size:26px;font-weight:820;letter-spacing:-.035em;color:var(--c-text);line-height:1.15}
+.st-gl b small{font-size:15px;font-weight:600;color:var(--c-text3);margin-left:2px}
+.st-gl-s{font-size:13px;color:var(--c-text2)}
+.st-gl-plan.pass{background:linear-gradient(135deg,#312E81,#4338CA);color:#fff}
+.st-gl-plan.pass b,.st-gl-plan.pass .st-gl-s{color:#fff}.st-gl-plan.pass .st-gl-k{color:rgba(255,255,255,.7)}
+/* The Job Hunt Pass */
+.st-pass{position:relative;overflow:hidden;color:#fff;background:radial-gradient(110% 90% at 100% 0%,#7C3AED 0%,transparent 55%),linear-gradient(160deg,#312E81,#4338CA 55%,#5B21B6);box-shadow:0 30px 70px -24px rgba(67,56,202,.6)}
+.st-pass-glow{position:absolute;width:320px;height:320px;right:-120px;bottom:-160px;border-radius:50%;background:radial-gradient(circle,rgba(219,39,119,.45),transparent 70%);pointer-events:none}
+.st-pass-kick{display:inline-block;font-size:12.5px;font-weight:750;letter-spacing:.07em;text-transform:uppercase;color:#312E81;background:linear-gradient(135deg,#FDE68A,#FBBF24);padding:5px 12px;border-radius:99px}
+.st-pass-title{font-size:clamp(24px,3vw,32px);font-weight:820;letter-spacing:-.035em;line-height:1.1;margin:14px 0 8px}
+.st-pass-p{font-size:15px;line-height:1.6;color:rgba(255,255,255,.82);margin:0 0 20px;max-width:560px}
+.st-plans{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+.st-po{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:18px;border-radius:20px;border:none;font:inherit;color:#fff;text-align:left;cursor:pointer;background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.18);transition:background .25s var(--ease),box-shadow .25s var(--ease),transform .25s var(--ease)}
+.st-po:hover{background:rgba(255,255,255,.16)}
+.st-po.on{background:#fff;color:#312E81;box-shadow:0 12px 28px rgba(0,0,0,.2);transform:translateY(-2px)}
+.st-po-t{font-size:13.5px;font-weight:650;opacity:.85}
+.st-po-p{font-size:30px;font-weight:820;letter-spacing:-.04em;line-height:1.1}
+.st-po-s{font-size:12.5px;opacity:.75}
+.st-po-badge{position:absolute;top:12px;right:12px;font-size:12px;font-weight:750;color:#fff;background:linear-gradient(135deg,#16A34A,#059669);padding:3px 8px;border-radius:99px}
+.st-pass-list{list-style:none;margin:0 0 20px;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:10px 18px}
+.st-pass-list li{display:flex;gap:9px;font-size:14px;color:rgba(255,255,255,.92);line-height:1.45}
+.st-pass-list svg{width:17px;height:17px;flex-shrink:0;fill:none;stroke:#86EFAC;stroke-width:2.6;margin-top:2px}
+.st-pass .st-consent{color:rgba(255,255,255,.82)}
+.st-pass-row{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.st-pass-cta{height:50px;padding:0 26px;border:none;border-radius:99px;background:#fff;color:#312E81;font:inherit;font-size:15.5px;font-weight:750;cursor:pointer;box-shadow:0 10px 24px rgba(0,0,0,.2);transition:transform .25s var(--ease),opacity .2s}
+.st-pass-cta:hover:not(:disabled){transform:translateY(-2px)}
+.st-pass-cta:disabled{opacity:.55;cursor:not-allowed}
+.st-pass-ghost{height:40px;padding:0 18px;border:none;border-radius:99px;background:rgba(255,255,255,.14);color:#fff;font:inherit;font-size:14px;font-weight:650;cursor:pointer}
+.st-pass-ghost:hover{background:rgba(255,255,255,.22)}
+.st-pass-link{color:#fff;font-size:14px;font-weight:650;text-decoration:underline;text-underline-offset:3px;opacity:.9}
+.st-pass-note{font-size:12.5px;color:rgba(255,255,255,.65);margin:14px 0 0}
+@media (max-width:600px){
+  .st-hero.st-card{padding-top:0}
+  .st-hero-bg{margin:0 -20px}
+  .st-glance{grid-template-columns:1fr 1fr}.st-gl-plan{grid-column:1/-1}
+  .st-plans{grid-template-columns:1fr}.st-pass-list{grid-template-columns:1fr}
+}
 .st-consent{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--c-text2);line-height:1.5;margin-bottom:14px;cursor:pointer}
 .st-consent input{margin-top:3px;flex-shrink:0}
 .st-pass-note{margin-top:10px}

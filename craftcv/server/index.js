@@ -2858,11 +2858,18 @@ async function recordPayment({ userId, draftId, sessionId, product, source }) {
 // AI requests a day, cancel any time (it then runs to the end of the month already paid). The pass is
 // active while pass_until is in the future; Stripe's webhooks (and the return from checkout) keep it in sync.
 const PASS_PRICE_CENTS = 699;
+// month: €6.99 every month · quarter: €14.99 every 3 months (the same pass, paid less often)
+const PASS_PLANS = {
+  month:   { cents: 699,  count: 1, name: 'CVMaster Job Hunt Pass (monthly)' },
+  quarter: { cents: 1499, count: 3, name: 'CVMaster Job Hunt Pass (3 months)' },
+};
 let _passCols = null;
 const ensurePassCols = () => (_passCols ||= (async () => {
   for (const c of ['pass_until TIMESTAMPTZ', 'pass_status TEXT', 'pass_cancel_at_end BOOLEAN NOT NULL DEFAULT FALSE',
-    'pass_since TIMESTAMPTZ', 'pass_subscription_id TEXT', 'stripe_customer_id TEXT'])
+    'pass_since TIMESTAMPTZ', 'pass_subscription_id TEXT', 'stripe_customer_id TEXT', 'pass_plan TEXT'])
     await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ${c}`);
+  // What was really paid (passes come in two prices); older rows keep their product's price
+  await query('ALTER TABLE payments ADD COLUMN IF NOT EXISTS amount_cents INT');
 })().catch(e => { _passCols = null; throw e; }));
 async function hasPass(userId) {
   if (!userId) return false;
@@ -2881,9 +2888,11 @@ async function syncPass(sub) {
   const until = on ? new Date(end * 1000) : new Date((sub.ended_at || Math.floor(Date.now() / 1000)) * 1000);
   const customer = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id || null;
   const before = (await query('SELECT pass_until FROM users WHERE id = $1', [userId])).rows[0];
+  const count = sub.items?.data?.[0]?.price?.recurring?.interval_count || sub.items?.data?.[0]?.plan?.interval_count || 1;
+  const plan = PASS_PLANS[sub.metadata?.plan] ? sub.metadata.plan : count === 3 ? 'quarter' : 'month';
   await query(`UPDATE users SET pass_status = $2, pass_until = $3, pass_cancel_at_end = $4, pass_subscription_id = $5,
-      stripe_customer_id = COALESCE($6, stripe_customer_id), pass_since = CASE WHEN $7 THEN COALESCE(pass_since, NOW()) ELSE pass_since END
-    WHERE id = $1`, [userId, sub.status, until, !!sub.cancel_at_period_end, sub.id, customer, !!on]);
+      stripe_customer_id = COALESCE($6, stripe_customer_id), pass_since = CASE WHEN $7 THEN COALESCE(pass_since, NOW()) ELSE pass_since END, pass_plan = $8
+    WHERE id = $1`, [userId, sub.status, until, !!sub.cancel_at_period_end, sub.id, customer, !!on, plan]);
   if (on && !(before?.pass_until && new Date(before.pass_until) > new Date()))
     notify(userId, 'payment', 'Your Job Hunt Pass is on', 'Every CV you make is now unlocked as a clean PDF, with more AI every day. Good luck with the job hunt!', '/').catch(() => {});
   return { userId, until, on: !!on };
@@ -2891,11 +2900,11 @@ async function syncPass(sub) {
 // Each paid month, for the admin's revenue (one row per Stripe invoice)
 async function recordPassInvoice(inv, userId) {
   if (!inv?.id || !UUID_RE.test(String(userId || '')) || !(inv.amount_paid > 0)) return;
-  await query(`INSERT INTO payments (user_id, draft_id, session_id, paid, product, source) VALUES ($1, 'pass', $2, TRUE, 'pass', 'stripe')
-    ON CONFLICT (session_id) DO NOTHING`, [userId, inv.id]).catch(e => console.warn('[pass invoice]', e.message));
+  await query(`INSERT INTO payments (user_id, draft_id, session_id, paid, product, source, amount_cents) VALUES ($1, 'pass', $2, TRUE, 'pass', 'stripe', $3)
+    ON CONFLICT (session_id) DO NOTHING`, [userId, inv.id, inv.amount_paid]).catch(e => console.warn('[pass invoice]', e.message));
 }
 const passOf = (row) => row?.pass_until && new Date(row.pass_until) > new Date()
-  ? { until: new Date(row.pass_until).toISOString(), cancelAtEnd: !!row.pass_cancel_at_end, since: row.pass_since || null } : null;
+  ? { until: new Date(row.pass_until).toISOString(), cancelAtEnd: !!row.pass_cancel_at_end, since: row.pass_since || null, plan: row.pass_plan === 'quarter' ? 'quarter' : 'month' } : null;
 
 app.post('/api/payment/pass', authMiddleware, async (req, res) => {
   try {
@@ -2904,16 +2913,17 @@ app.post('/api/payment/pass', authMiddleware, async (req, res) => {
     const stripe = await getStripe();
     if (!stripe) return res.status(503).json({ error: PAYMENTS_DOWN });
     if (req.body?.withdrawalConsent !== true) return res.status(400).json({ error: 'Please tick the box to confirm you want the pass to start straight away.' });
+    const planId = req.body?.plan === 'quarter' ? 'quarter' : 'month', plan = PASS_PLANS[planId];
     const u = (await query('SELECT email, stripe_customer_id FROM users WHERE id = $1', [req.user.sub])).rows[0];
     if (!u) return res.status(404).json({ error: 'User not found.' });
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
-      line_items: [{ quantity: 1, price_data: { currency: CV_CURRENCY, unit_amount: PASS_PRICE_CENTS, recurring: { interval: 'month' },
-        product_data: { name: 'CVMaster Job Hunt Pass', description: `Every CV as a clean PDF · ${AI_PASS_PER_DAY} AI requests a day · cancel any time` } } }],
+      line_items: [{ quantity: 1, price_data: { currency: CV_CURRENCY, unit_amount: plan.cents, recurring: { interval: 'month', interval_count: plan.count },
+        product_data: { name: plan.name, description: `Every CV as a clean PDF · ${AI_PASS_PER_DAY} AI requests a day · cancel any time` } } }],
       ...(u.stripe_customer_id ? { customer: u.stripe_customer_id } : { customer_email: u.email }),
       client_reference_id: req.user.sub,
-      metadata: { product: 'pass', userId: req.user.sub, withdrawal_waiver: `accepted ${new Date().toISOString()}` },
-      subscription_data: { metadata: { product: 'pass', userId: req.user.sub }, description: 'CVMaster Job Hunt Pass. Starts straight away at the customer\'s request' },
+      metadata: { product: 'pass', plan: planId, userId: req.user.sub, withdrawal_waiver: `accepted ${new Date().toISOString()}` },
+      subscription_data: { metadata: { product: 'pass', plan: planId, userId: req.user.sub }, description: 'CVMaster Job Hunt Pass. Starts straight away at the customer\'s request' },
       success_url: `${FRONTEND_URL}/settings?pass=done&session={CHECKOUT_SESSION_ID}`,
       cancel_url: `${FRONTEND_URL}/settings?pass=cancelled`,
     });
@@ -4102,7 +4112,8 @@ app.get('/api/admin/stats', adminAuthMiddleware, async (req, res) => {
                     COUNT(*) FILTER (WHERE source = 'stripe' AND product = 'email_export')   AS email_paid,
                     COUNT(*) FILTER (WHERE source = 'stripe' AND product = 'clean_download') AS clean_paid,
                     COUNT(*) FILTER (WHERE source = 'stripe' AND product = 'ai_pack')        AS ai_paid,
-                    COUNT(*) FILTER (WHERE source = 'stripe' AND product = 'pass')           AS pass_paid
+                    COUNT(*) FILTER (WHERE source = 'stripe' AND product = 'pass')           AS pass_paid,
+                    COALESCE(SUM(COALESCE(amount_cents, ${PASS_PRICE_CENTS})) FILTER (WHERE source = 'stripe' AND product = 'pass'), 0) AS pass_cents
              FROM payments WHERE paid = TRUE`),
       query(`SELECT COUNT(*) AS total FROM drafts`),
       query(`SELECT COUNT(*) AS total FROM users WHERE referred_by IS NOT NULL`),
@@ -4127,8 +4138,10 @@ app.get('/api/admin/stats', adminAuthMiddleware, async (req, res) => {
       // Only real Stripe payments count as revenue (not demo or referral-credit rows)
       // In euro cents, at today's prices (€0.99 per CV; the old clean download was €0.50)
       revenue_eur_cents: Number(payments.rows[0].email_paid) * CV_PRICE_CENTS + Number(payments.rows[0].clean_paid) * 50
-                         + Number(payments.rows[0].ai_paid) * AI_PACK_CENTS + Number(payments.rows[0].pass_paid) * PASS_PRICE_CENTS,
+                         + Number(payments.rows[0].ai_paid) * AI_PACK_CENTS + Number(payments.rows[0].pass_cents || 0),
       passes_active: await ensurePassCols().then(() => query('SELECT COUNT(*)::int AS n FROM users WHERE pass_until > NOW()')).then(r => r.rows[0].n).catch(() => 0),
+      // What the active passes bring in a month (a 3-month pass counts as a third of €14.99)
+      passes_monthly_cents: await query(`SELECT COALESCE(SUM(CASE WHEN pass_plan = 'quarter' THEN 1499.0 / 3 ELSE 699 END), 0)::int AS c FROM users WHERE pass_until > NOW() AND NOT pass_cancel_at_end`).then(r => r.rows[0].c).catch(() => 0),
       recent_payments: recentPayments.rows,
       daily, inbox_unread: inboxUnread, feedback_open: feedbackOpen, ai_requests_today: aiToday,
       maintenance:     maintenanceMode,

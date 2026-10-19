@@ -51,7 +51,7 @@ export default ({ mail }) => {
       id: 'terms', tab: 'Condiciones del servicio', title: 'Condiciones del servicio',
       summary: [
         'Crear y previsualizar tu CV es gratis.',
-        'Un PDF sin marca de agua cuesta 0,99 € por CV, un solo pago. O el Job Hunt Pass: todos tus CV por 6,99 € al mes, cancela cuando quieras.',
+        'Un PDF sin marca de agua cuesta 0,99 € por CV, un solo pago. O el Job Hunt Pass: todos tus CV por 6,99 € al mes o 14,99 € cada 3 meses, cancela cuando quieras.',
         'Lo que escribes es tuyo. Revisa las sugerencias de la IA antes de enviar tu CV.',
         '¿Algo ha ido mal? Avísanos. Te lo reenviamos o te devolvemos el dinero si tu CV nunca llegó.',
       ],
@@ -64,7 +64,7 @@ export default ({ mail }) => {
         </ul>` },
         { id: 'payments', title: 'Pagos', html: `<ul>
           <li>El PDF sin marca de agua de un CV es un pago único de <strong>0,99 €</strong>. Incluye el envío por correo, la descarga directa y reenvíos y descargas ilimitados de ese mismo CV, también después de editarlo.</li>
-        <li>El <strong>Job Hunt Pass</strong> cuesta <strong>6,99 € al mes</strong> y se renueva cada mes hasta que lo canceles. Mientras está activo, cada CV de tu cuenta se puede enviar por correo y descargar como PDF sin marca de agua, y tienes 100 solicitudes de IA al día. Puedes cancelarlo en cualquier momento en Ajustes: no se cobra nada más y el pase sigue activo hasta el final del mes ya pagado, que no se reembolsa. Como el pase empieza de inmediato a petición tuya, al comprarlo aceptas que tu derecho de desistimiento de 14 días termina cuando empieza.</li>
+        <li>El <strong>Job Hunt Pass</strong> cuesta <strong>6,99 € al mes</strong>, o <strong>14,99 € cada 3 meses</strong>, y se renueva al final de cada periodo hasta que lo canceles. Mientras está activo, cada CV de tu cuenta se puede enviar por correo y descargar como PDF sin marca de agua, y tienes 100 solicitudes de IA al día. Puedes cancelarlo en cualquier momento en Ajustes: no se cobra nada más y el pase sigue activo hasta el final del periodo ya pagado, que no se reembolsa. Como el pase empieza de inmediato a petición tuya, al comprarlo aceptas que tu derecho de desistimiento de 14 días termina cuando empieza.</li>
           <li>El PDF de vista previa con marca de agua es gratis.</li>
           <li>Las funciones de IA incluyen <strong>30 peticiones gratis al día</strong> para cuentas con el correo confirmado (los invitados y las cuentas sin confirmar tienen 5), que se renuevan cada día a medianoche (UTC). Un paquete de <strong>100 peticiones extra</strong> cuesta <strong>0,50 €</strong>; las peticiones extra no caducan, solo se usan después de las gratuitas del día y no tienen valor en efectivo.</li>
           <li>Invitaciones: quien se registra con tu enlace de invitación recibe 25 peticiones de IA extra. Cuando compra su primer PDF sin marca de agua, ganas un crédito de invitación, que desbloquea el PDF sin marca de agua de un CV. Los créditos no tienen valor en efectivo.</li>

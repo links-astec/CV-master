@@ -215,6 +215,7 @@
           </div>
         </div>
         <p class="lp-small">{{ $t('Need more AI? 100 extra requests cost €0.50 and never expire.') }}</p>
+        <div class="lp-center" style="margin-top:18px"><button class="btn-secondary btn-lg" @click="$emit('start', 'pricing')">{{ $t('Compare all plans') }}</button></div>
       </div>
     </section>
 
@@ -453,7 +454,7 @@ const PLANS = [
   { name: 'Clean PDF', price: '€0.99', eur: 0.99, per: ' per CV', cta: 'Build my CV', featured: true,
     items: ['Watermark-free, one-page PDF', 'Emailed and downloadable', 'Free re-downloads after edits'] },
   { name: 'Job Hunt Pass', price: '€6.99', eur: 6.99, per: ' a month', cta: 'Get the pass', pass: true,
-    items: ['Every CV you make as a clean PDF', '100 AI requests a day', 'Re-send any CV after edits, free', 'Cancel any time'] },
+    items: ['Every CV you make as a clean PDF', '100 AI requests a day', 'Or €14.99 every 3 months (save 29%)', 'Cancel any time'] },
 ]
 
 const FAQ = [
