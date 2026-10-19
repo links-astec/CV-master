@@ -16,7 +16,7 @@
     <div class="sb-dim" :class="{ on: navOpen }" @click="navOpen = false"></div>
     <aside class="sb" :class="{ open: navOpen }">
       <div class="sb-top">
-        <button type="button" class="sb-brand" :title="$t('CVMaster home')" @click="navOpen = false; showHome()"><BrandLogo :mark-only="sbMini" /></button>
+        <button type="button" class="sb-brand" :title="$t('CVMaster home')" @click="navOpen = false; showHome()"><BrandLogo /></button>
         <!-- Collapse to icons (computers only); remembered -->
         <button type="button" class="sb-toggle hide-mobile" :aria-label="$t(sbMini ? 'Expand sidebar' : 'Collapse sidebar')" :title="$t(sbMini ? 'Expand sidebar' : 'Collapse sidebar')" :aria-expanded="!sbMini" @click="toggleSidebar">
           <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><line x1="9" y1="4" x2="9" y2="20"/><polyline v-if="sbMini" points="13 10 15 12 13 14"/><polyline v-else points="15 10 13 12 15 14"/></svg>
@@ -41,6 +41,7 @@
       </nav>
 
       <div class="sb-foot">
+        <Transition name="sb-swap" mode="out-in">
         <button v-if="!auth.isLoggedIn && sbMini" type="button" class="sb-mini-join" :title="$t('Create free account')" :aria-label="$t('Create free account')" @click="openAuth('register')">
           <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
         </button>
@@ -57,6 +58,8 @@
             <span class="sb-user-mail">{{ auth.user?.email }}</span>
           </span>
         </RouterLink>
+        </Transition>
+        <Transition name="sb-swap">
         <div v-if="!sbMini" class="sb-legal">
           <button type="button" @click="navOpen = false; openFeedback()">{{ $t('Feedback') }}</button>
           <span>·</span>
@@ -64,6 +67,7 @@
           <span>·</span>
           <RouterLink to="/terms" @click="navOpen = false">{{ $t('Terms') }}</RouterLink>
         </div>
+        </Transition>
       </div>
     </aside>
 
@@ -509,25 +513,44 @@ onMounted(() => setTimeout(checkBigTitle, 400))
 .sb-legal a,.sb-legal button{color:var(--c-text3);text-decoration:none;background:none;border:none;padding:0;font:inherit;cursor:pointer}
 .sb-legal a:hover,.sb-legal button:hover{color:var(--c-text)}
 .sb-dim{display:none}
-.sb{transition:width .25s var(--ease),padding .25s var(--ease)}
+/* Collapsing to icons: everything keeps its place and animates with the width (no layout snaps),
+   on an even curve (the site's usual ease-out made the width look like it jumped) */
+.shell{--sb-ease:cubic-bezier(.4,0,.2,1)}
+.sb{transition:width .3s var(--sb-ease),padding .3s var(--sb-ease);overflow-x:hidden}
+.sb-brand{overflow:hidden;max-width:230px;transition:max-width .3s var(--sb-ease),padding .3s var(--sb-ease)}
+.sb-lbl{white-space:nowrap;overflow:hidden;max-width:180px;opacity:1;transition:opacity .2s var(--sb-ease) .1s,max-width .3s var(--sb-ease)}
+.sb-link{transition:background .2s var(--ease),color .2s var(--ease),box-shadow .2s var(--ease),gap .3s var(--sb-ease)}
+.sb-new{transition:gap .3s var(--sb-ease),padding .3s var(--sb-ease)}
+.sb-user{transition:box-shadow .25s var(--ease),transform .25s var(--ease),padding .3s var(--sb-ease),gap .3s var(--sb-ease),border-radius .3s var(--sb-ease)}
+.sb-user-txt{max-width:200px;opacity:1;transition:opacity .2s var(--sb-ease) .1s,max-width .3s var(--sb-ease)}
+.sb-top{position:relative}
+.sb-swap-enter-active,.sb-swap-leave-active{transition:opacity .18s var(--ease)}
+/* the guest box and the links under it keep their width while the panel narrows (no re-wrapping each frame) */
+.sb-guest{min-width:208px}
+.sb-legal{white-space:nowrap;min-width:208px}
+.sb-swap-leave-active.sb-guest,.sb-swap-leave-active.sb-legal{transition-duration:.12s}
+.sb-swap-enter-from,.sb-swap-leave-to{opacity:0}
 .sb-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.sb-toggle{width:34px;height:34px;flex-shrink:0;border:none;border-radius:10px;background:transparent;color:var(--c-text3);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .2s,color .2s}
+.sb-toggle{width:34px;height:34px;flex-shrink:0;border:none;border-radius:10px;background:transparent;color:var(--c-text3);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .2s,color .2s,opacity .2s}
 .sb-toggle:hover{background:color-mix(in srgb,var(--c-text) 6%,transparent);color:var(--c-text)}
 .sb-toggle:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}
 .sb-toggle svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .sb-mini-join{width:44px;height:44px;align-self:center;border:none;border-radius:50%;background:var(--c-surface);box-shadow:var(--shadow-sm);color:var(--c-accent);display:flex;align-items:center;justify-content:center;cursor:pointer}
 .sb-mini-join svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 @media (min-width:769px){
-  .shell.sb-mini .sb{width:76px;padding:22px 12px 18px;align-items:stretch}
-  .shell.sb-mini .sb-top{flex-direction:column;gap:12px}
-  .shell.sb-mini .sb-brand{align-self:center;padding:2px 0}
-  .shell.sb-mini .sb-lbl{display:none}
-  .shell.sb-mini .sb-new{width:48px;height:48px;padding:0;border-radius:50%;align-self:center;justify-content:center}
-  .shell.sb-mini .sb-new svg{width:20px;height:20px}
-  .shell.sb-mini .sb-link{justify-content:center;padding:0;gap:0}
-  .shell.sb-mini .sb-link svg{width:20px;height:20px}
-  .shell.sb-mini .sb-user{justify-content:center;padding:8px;border-radius:50%;align-self:center}
-  .shell.sb-mini .sb-user-txt{display:none}
+  .shell.sb-mini .sb{width:76px;padding:26px 12px 18px}
+  /* the logo is cropped to its mark; the collapse button sits over it and shows on hover */
+  .shell.sb-mini .sb-brand{max-width:52px;padding:2px 11px 8px}
+  .shell.sb-mini .sb-toggle{position:absolute;left:9px;top:-1px;opacity:0;background:var(--c-bg)}
+  .shell.sb-mini .sb-top:hover .sb-toggle,.shell.sb-mini .sb-toggle:focus-visible{opacity:1}
+  .shell.sb-mini .sb-lbl{opacity:0;max-width:0;transition:opacity .12s var(--sb-ease),max-width .3s var(--sb-ease)}
+  .shell.sb-mini .sb-new{gap:0;padding:0}
+  .shell.sb-mini .sb-link{gap:0}
+  .shell.sb-mini .sb-user{padding:8px;gap:0;border-radius:26px}
+  .shell.sb-mini .sb-user-txt{opacity:0;max-width:0;transition:opacity .12s var(--sb-ease),max-width .3s var(--sb-ease)}
+}
+@media (prefers-reduced-motion:reduce){
+  .sb,.sb-brand,.sb-lbl,.sb-link,.sb-new,.sb-user,.sb-user-txt{transition:none!important}
 }
 .top-lang{margin-right:4px}
 

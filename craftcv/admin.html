@@ -138,6 +138,22 @@ textarea.inp{height:auto;padding:10px 12px;line-height:1.55;resize:vertical}
 .ib-list{border-right:1px solid var(--b1);display:flex;flex-direction:column;min-height:0;background:var(--s1)}
 .ib-tools{padding:14px 16px;border-bottom:1px solid var(--b1);display:flex;flex-direction:column;gap:10px}
 .ib-tools .row{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.ib-search{height:34px;flex:1;min-width:0}
+.ib-folders{flex:1;display:flex;min-width:0}.ib-folders button{flex:1;padding:0 6px;white-space:nowrap}
+.ib-blocked{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--t2)}
+.ib-unblock{border:none;background:none;color:inherit;font:inherit;font-size:14px;line-height:1;cursor:pointer;padding:0 0 0 4px}
+.ib-safety{margin:0 0 14px;padding:12px 14px;border-radius:12px;background:var(--amber-lt);color:var(--amber);font-size:13px;line-height:1.5}
+.ib-safety.danger{background:var(--red-lt);color:var(--red)}
+.ib-safety ul{margin:6px 0 8px;padding-left:18px;color:var(--t1)}
+.ib-safety .btn{margin-top:2px}
+.ib-defused{white-space:pre-wrap;word-break:break-word;opacity:.9}
+.linkish{border:none;background:none;padding:0;color:var(--ac);font:inherit;text-decoration:underline;cursor:pointer}
+.ib-more{position:relative;display:inline-block}
+.ib-more summary{list-style:none;cursor:pointer}.ib-more summary::-webkit-details-marker{display:none}
+.ib-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:30;min-width:240px;padding:6px;border-radius:12px;background:var(--s1);box-shadow:0 12px 32px rgba(20,20,43,.16),0 0 0 1px var(--b1);display:flex;flex-direction:column}
+.ib-menu button{border:none;background:none;text-align:left;padding:9px 12px;border-radius:8px;font:inherit;font-size:13px;color:var(--t1);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ib-menu button:hover{background:var(--s2)}.ib-menu button.danger{color:var(--red)}
+.mail-dlg{max-width:560px}.mail-f{margin-top:12px}
 .ib-items{flex:1;overflow-y:auto}
 .ib-item{display:flex;gap:11px;padding:13px 16px;border-bottom:1px solid var(--b1);cursor:pointer;background:none;border-left:3px solid transparent;width:100%;text-align:left;font:inherit;color:inherit}
 .ib-item:hover{background:var(--s2)}
@@ -324,7 +340,31 @@ input[type=range]{flex:1;accent-color:var(--ac)}
 .svc-rem div{padding:10px 14px;border-radius:12px;font-size:13.5px;font-weight:600;background:var(--amber-lt);color:var(--amber)}
 .svc-rem div.l2,.svc-rem div.l3{background:var(--red-lt);color:var(--red)}
 .svc-rem div.none{background:var(--green-lt);color:var(--green)}
-.svc-list{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.set-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;padding:5px;background:var(--s2);border-radius:99px;width:fit-content;max-width:100%}
+.set-tab{height:36px;padding:0 16px;border:none;border-radius:99px;background:transparent;color:var(--t2);font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:background .15s,color .15s}
+.set-tab:hover{color:var(--t1)}
+.set-tab.on{background:var(--s1);color:var(--t1);box-shadow:0 1px 2px rgba(20,20,43,.06),0 4px 12px rgba(20,20,43,.06)}
+.set-n{min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:var(--amber-lt);color:var(--amber);font-size:11.5px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+.set-n.red{background:var(--red-lt);color:var(--red)}
+.svc-table{display:flex;flex-direction:column;border-radius:14px;overflow:hidden;box-shadow:inset 0 0 0 1px var(--b1)}
+.svc-row{display:grid;grid-template-columns:minmax(170px,1.3fr) minmax(120px,.9fr) minmax(170px,1.4fr) 110px 196px;gap:14px;align-items:center;padding:12px 16px;border-top:1px solid var(--b1)}
+.svc-row:first-child{border-top:none}
+.svc-row.hot{background:color-mix(in srgb,var(--red) 5%,transparent)}
+.svc-head{background:var(--s2);font-size:11.5px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;padding-top:9px;padding-bottom:9px}
+.svc-name{min-width:0}.svc-name b{display:block;font-size:14px}.svc-name span{display:block;font-size:12px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.svc-plan{display:flex;flex-direction:column;align-items:flex-start;gap:3px}.svc-cost{font-size:12px;color:var(--t2)}
+.svc-use{display:flex;flex-direction:column;gap:8px;min-width:0;font-size:12.5px}
+.svc-ren{display:flex;flex-direction:column;font-size:13px}.svc-ren small{font-size:11.5px;color:var(--t3)}.svc-soon{color:var(--amber);font-weight:700}
+.svc-act{display:flex;gap:4px;justify-content:flex-end}
+.svc-notes{grid-column:1/-1;display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--t2);line-height:1.5;padding:10px 12px;background:var(--s2);border-radius:10px}
+@media (max-width:900px){
+  .svc-head{display:none}
+  .svc-row{grid-template-columns:1fr auto;gap:8px 12px}
+  .svc-plan{flex-direction:row;align-items:center;gap:8px}
+  .svc-use{grid-column:1/-1}
+  .svc-ren{flex-direction:row;gap:6px;align-items:baseline}
+  .svc-act{grid-column:1/-1;justify-content:flex-start}
+}
 .svc{background:var(--s2);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
 .svc.hot{box-shadow:inset 0 0 0 2px var(--red)}
 .svc-hd{display:flex;align-items:flex-start;gap:10px}.svc-hd>div{flex:1;min-width:0}
@@ -340,6 +380,13 @@ input[type=range]{flex:1;accent-color:var(--ac)}
 .cty-wrap{overflow-x:auto;border-radius:12px;background:var(--s1);box-shadow:inset 0 0 0 1px var(--b1)}
 .cty td:first-child{color:var(--t1);font-weight:600;white-space:nowrap}.cty td.n,.cty th.n{text-align:right;font-variant-numeric:tabular-nums}
 .cty-flag{font-size:16px;margin-right:8px}
+.push-tpls{display:flex;flex-wrap:wrap;gap:6px}
+.push-tpl{height:32px;padding:0 13px;border:none;border-radius:99px;background:var(--s2);color:var(--t1);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:2px}
+.push-tpl:hover{background:var(--ac-lt);color:var(--ac)}
+.push-tpl.mine{padding:0 4px 0 13px;background:var(--ac-lt);color:var(--ac)}
+.push-tpl.mine button{border:none;background:none;color:inherit;font:inherit;cursor:pointer;padding:0}
+.push-tpl .push-x{width:22px;height:22px;border-radius:50%;font-size:15px;line-height:1;margin-left:4px;opacity:.7}
+.push-tpl .push-x:hover{opacity:1;background:rgba(0,0,0,.06)}
 .senders{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .sender{background:var(--s2);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
 .sender-hd{display:flex;flex-direction:column;gap:1px}
@@ -656,6 +703,7 @@ const fmtSize = (n) => !n ? '' : n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' 
 const linkify = (t) => esc(t).replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"])/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
 const S = {
   auth: null, page: 'overview',
+  setTab: (() => { try { return localStorage.getItem('cvm-admin-set-tab') || 'status' } catch { return 'status' } })(),
   stats: null, statsLoading: false, maintenance: false, maintLoading: false,
   users: [], userTotal: 0, userPage: 1, userPages: 1, usersLoading: false, uSearch: '',
   inbox: { tab: 'all', status: 'open', emails: [], site: [], unread: 0, open: 0, loading: false, sel: null, detail: null, detailLoading: false, reply: '', sending: false, err: '' },
@@ -751,7 +799,7 @@ const PAGES = {
   subscribers:['Subscribers', 'People who agreed to get the newsletter'],
   blog:       ['Blog', 'Articles, product updates, news and links shared from elsewhere'],
   app:        ['App & activity', 'Who is active, phones with notifications, and push messages to the app'],
-  settings:   ['Settings', 'Maintenance mode and setup status'],
+  settings:   ['Settings', 'Status, subscriptions, people and site settings'],
 }
 async function go(p) {
   if (!PAGES[p]) p = 'overview'
@@ -767,7 +815,7 @@ async function go(p) {
   if (p === 'newsletter') { loadHistory(); loadMyTemplates(); if (!S.config) loadConfig() }
   if (p === 'settings') await Promise.all([loadStatus(), S.stats ? null : loadStats(), loadSecurity(), S.config ? null : loadConfig(), loadServices(), loadCountries()])
   if (p === 'overview' && !S.status) loadStatus()
-  if (p === 'app') await loadActivity()
+  if (p === 'app') await Promise.all([loadActivity(), loadPushTemplates()])
   if (p === 'blog' && !S.blog.edit) await loadPosts()
   if (p === 'overview' || !S.stats) loadCounts()
 }
@@ -986,6 +1034,49 @@ const EVENT_LABEL = { app_open: 'App opened', cv_created: 'CVs created', templat
 async function loadActivity() {
   try { S.act = await api('GET', '/activity'); render() } catch (e) { toast(e.message) }
 }
+// Ready-made push notifications (short, useful, rare). Your own are saved on the server.
+const PUSH_TEMPLATES = [
+  { name: 'Tailor to a job', title: 'Found a job you like?', body: 'Paste the offer and CVMaster tailors your CV to it in one tap.', link: '/editor' },
+  { name: 'ATS score', title: 'Will your CV get past the robots?', body: 'Check your ATS score against any job offer before you apply.', link: '/editor' },
+  { name: 'Tell your story', title: 'No CV yet? Just talk.', body: 'Tell your story and the AI writes your first draft in minutes.', link: '/' },
+  { name: 'Finish your CV', title: 'Your CV is almost there', body: 'A few more minutes and it’s ready to send. Pick up where you left off.', link: '/editor' },
+  { name: 'New layouts', title: 'Fresh layouts to try', body: 'Browse 50 layouts in 12 colours and find the one that fits you.', link: '/templates' },
+  { name: 'Writing check', title: 'Catch the typos before recruiters do', body: 'CVMaster checks your spelling and wording as you type, with one-tap fixes.', link: '/editor' },
+  { name: 'Tip: numbers', title: 'Tip: numbers get noticed', body: 'Add one result with a number to each job, like “cut costs by 15%”.', link: '/editor' },
+  { name: 'Invite friends', title: 'Help a friend get hired', body: 'Share your invite link. You get a free CV for every friend who gets their first clean CV.', link: '/settings' },
+  { name: 'New year, new job', title: 'Ready for a new start?', body: 'Refresh your CV in a few minutes and send it with confidence.', link: '/' },
+  { name: 'Maintenance', title: 'Short maintenance tonight', body: 'CVMaster will be unavailable for a few minutes around 23:00 UTC. Your CVs are safe.', link: '/' },
+]
+// Inbox search: searches as you type
+document.addEventListener('input', (e) => { if (e.target?.id === 'ib-q') inboxSearch(e.target.value) })
+// What is typed in the push form survives any re-render
+document.addEventListener('input', (e) => {
+  const id = e.target?.id
+  if (id === 'p-title' || id === 'p-body' || id === 'p-link') { S.push ||= { title: '', body: '' }; S.push[id.slice(2)] = e.target.value }
+})
+document.addEventListener('change', (e) => { if (e.target?.id === 'p-link') { S.push ||= { title: '', body: '' }; S.push.link = e.target.value } })
+async function loadPushTemplates() { try { S.pushMine = (await api('GET', '/push-templates')).templates } catch { S.pushMine = [] } render() }
+function usePushTemplate(t) {
+  S.push = { title: t.title, body: t.body, link: t.link || '/' }
+  render()
+  $('p-title')?.focus()
+}
+async function savePushTemplate() {
+  const title = $('p-title')?.value.trim() || '', body = $('p-body')?.value.trim() || '', link = $('p-link')?.value || '/'
+  if (!title || !body) { toast('Write a title and a message first.'); return }
+  const name = await panel({ title: 'Save as a template', html: '<div class="dlg-m">A short name for the button, e.g. “Summer tip”.</div>', input: 'Template name', ok: 'Save' })
+  if (!name) return
+  try {
+    S.pushMine = (await api('PUT', '/push-templates', { templates: [...(S.pushMine || []).filter(t => t.name !== name.slice(0, 40)), { name, title, body, link }] })).templates
+    S.push = { title, body, link }
+    toast('Template saved'); render()
+  } catch (e) { toast(e.message) }
+}
+async function deletePushTemplate(name) {
+  if (!(await ask({ title: 'Delete this template?', message: `“${name}” is removed from your templates.`, ok: 'Delete' }))) return
+  try { S.pushMine = (await api('PUT', '/push-templates', { templates: (S.pushMine || []).filter(t => t.name !== name) })).templates; render() }
+  catch (e) { toast(e.message) }
+}
 async function sendAppPush(test) {
   const title = $('p-title')?.value.trim() || '', body = $('p-body')?.value.trim() || '', link = $('p-link')?.value || '/'
   if (!title || !body) { toast('Write a title and a message.'); return }
@@ -1059,13 +1150,18 @@ function renderAppPage() {
   <div class="card" style="margin-bottom:16px">
     <div class="card-hd"><h3>Send a push notification</h3></div>
     <div class="card-bd" style="display:flex;flex-direction:column;gap:12px">
+      <div><div class="lbl">Start from a template</div><div class="push-tpls">
+        ${PUSH_TEMPLATES.map((t, i) => `<button class="push-tpl" data-ptpl="${i}">${esc(t.name)}</button>`).join('')}
+        ${(S.pushMine || []).map((t, i) => `<span class="push-tpl mine"><button data-pmine="${i}">${esc(t.name)}</button><button class="push-x" data-pdel="${i}" aria-label="Delete ${esc(t.name)}">×</button></span>`).join('')}
+      </div></div>
       <div><label class="lbl" for="p-title">Title</label><input class="inp" id="p-title" maxlength="80" value="${esc(P.title)}" placeholder="New: tailor your CV in one tap"></div>
       <div><label class="lbl" for="p-body">Message</label><textarea class="inp" id="p-body" rows="3" maxlength="240" placeholder="Paste a job offer and CVMaster rewrites your CV for it.">${esc(P.body)}</textarea></div>
-      <div><label class="lbl" for="p-link">Opens</label><select class="inp" id="p-link"><option value="/">My CVs</option><option value="/templates">Templates</option><option value="/editor">Editor</option><option value="/settings">Settings</option></select></div>
+      <div><label class="lbl" for="p-link">Opens</label><select class="inp" id="p-link">${[['/', 'My CVs'], ['/templates', 'Templates'], ['/editor', 'Editor'], ['/settings', 'Settings']].map(([v, l]) => `<option value="${v}" ${(P.link || '/') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
       <p class="muted" style="font-size:12.5px;margin:0">Sent as written (not translated), to everyone with the app and notifications on. Keep it useful and rare.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-sm" data-act="push-test" ${S.pushBusy ? 'disabled' : ''}>Send a test to my phone</button>
         <button class="btn btn-primary btn-sm" data-act="push-send" ${S.pushBusy ? 'disabled' : ''}>Send to everyone</button>
+        <button class="btn btn-sm" data-act="push-save" style="margin-left:auto">Save as template</button>
       </div>
     </div>
   </div>
@@ -1078,30 +1174,103 @@ function renderAppPage() {
 
 // ── Inbox ─────────────────────────────────────────────────────────────────────
 const KIND = { suggestion: ['Suggestion', 'b-gray'], problem: ['Problem', 'b-sky'], payment: ['Payment', 'b-amber'], complaint: ['Complaint', 'b-red'] }
+// Folders: open · done · spam (emails only) · sent (what you sent) · all (everything but spam)
 async function loadInbox() {
   const I = S.inbox
   I.loading = true; render()
+  const q = (I.q || '').trim()
   try {
-    const [e, f] = await Promise.all([
-      api('GET', '/inbox' + (I.status === 'all' ? '' : '?status=' + (I.status === 'open' ? 'open' : 'done'))),
-      api('GET', '/feedback' + (I.status === 'all' ? '' : '?status=' + (I.status === 'open' ? 'open' : 'resolved'))),
-    ])
-    I.emails = e.items.map(m => ({ ...m, _k: 'email', _t: m.received_at }))
-    I.site = f.items.map(m => ({ ...m, _k: 'site', _t: m.created_at }))
-    I.unread = e.unread; I.open = f.open
+    if (I.status === 'sent') {
+      const r = await api('GET', '/mail/sent')
+      I.sent = r.items.map(m => ({ ...m, _k: 'sent', _t: m.sent_at }))
+    } else {
+      const qs = (st) => { const p = new URLSearchParams(); if (st) p.set('status', st); if (q) p.set('q', q); const x = p.toString(); return x ? '?' + x : '' }
+      const [e, f] = await Promise.all([
+        api('GET', '/inbox' + qs(I.status === 'all' ? '' : I.status)),
+        I.status === 'spam' ? Promise.resolve({ items: [], open: I.open }) : api('GET', '/feedback' + (I.status === 'all' ? '' : '?status=' + (I.status === 'open' ? 'open' : 'resolved'))),
+      ])
+      I.emails = e.items.map(m => ({ ...m, _k: 'email', _t: m.received_at }))
+      const lq = q.toLowerCase()
+      I.site = f.items.filter(m => !lq || [m.email, m.message, m.kind].some(v => String(v || '').toLowerCase().includes(lq))).map(m => ({ ...m, _k: 'site', _t: m.created_at }))
+      I.unread = e.unread; I.spam = e.spam || 0; I.open = f.open
+    }
   } catch (err) { toast(err.message) }
   I.loading = false; render()
 }
 function inboxItems() {
   const I = S.inbox
-  const list = I.tab === 'email' ? I.emails : I.tab === 'site' ? I.site : [...I.emails, ...I.site]
+  if (I.status === 'sent') return (I.sent || []).slice()
+  const list = I.tab === 'email' || I.status === 'spam' ? I.emails : I.tab === 'site' ? I.site : [...I.emails, ...I.site]
   return list.slice().sort((a, b) => new Date(b._t) - new Date(a._t))
+}
+let _ibSearch = null
+function inboxSearch(v) {
+  S.inbox.q = v
+  clearTimeout(_ibSearch)
+  _ibSearch = setTimeout(() => { S.inbox.sel = null; S.inbox.detail = null; loadInbox() }, 350)
+}
+// Write a new email from support@ (or forward the open one)
+function mailDialog({ title, to = '', subject = '', body = '', forward = false }) {
+  return new Promise(resolve => {
+    const wrap = document.createElement('div')
+    wrap.className = 'dlg-back'
+    wrap.innerHTML = `<div class="dlg dlg-wide mail-dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-t"><div class="dlg-t" id="dlg-t">${esc(title)}</div>
+      <div class="mail-f"><label class="lbl" for="m-to">To</label><input class="inp" id="m-to" placeholder="name@example.com, another@example.com" value="${esc(to)}" autocomplete="off"></div>
+      ${forward ? '' : `<div class="mail-f"><label class="lbl" for="m-subj">Subject</label><input class="inp" id="m-subj" maxlength="200" value="${esc(subject)}"></div>`}
+      <div class="mail-f"><label class="lbl" for="m-body">${forward ? 'Add a note (optional)' : 'Message'}</label><textarea class="inp" id="m-body" rows="${forward ? 4 : 9}">${esc(body)}</textarea></div>
+      <p class="muted" style="font-size:12px;margin:6px 0 0">Sent from <b>support@cvmaster.live</b> with your signature. Replies come back to the Inbox.${forward ? ' The original is forwarded as plain text (its links and pictures aren’t passed on).' : ''}</p>
+      <div class="dlg-f"><button class="btn" data-x="0">Cancel</button><button class="btn btn-primary" data-x="1">${forward ? 'Forward' : 'Send'}</button></div></div>`
+    const done = (val) => { document.removeEventListener('keydown', onKey, true); wrap.remove(); resolve(val) }
+    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); done(null) } }
+    wrap.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-x]'); if (!b) return
+      if (b.dataset.x !== '1') return done(null)
+      const val = { to: $('m-to').value.trim(), subject: $('m-subj')?.value.trim() || '', body: $('m-body').value.trim() }
+      if (!val.to) { toast('Add an email address.'); return }
+      if (!forward && (!val.subject || !val.body)) { toast('Write a subject and a message.'); return }
+      done(val)
+    })
+    document.addEventListener('keydown', onKey, true)
+    document.body.appendChild(wrap)
+    $(to ? (forward ? 'm-body' : 'm-subj') : 'm-to').focus()
+  })
+}
+async function composeMail(prefill = {}) {
+  const v = await mailDialog({ title: 'New email', ...prefill })
+  if (!v) return
+  try { const r = await api('POST', '/mail/send', v); toast('Sent to ' + r.sentTo.join(', ')); if (S.inbox.status === 'sent') loadInbox() }
+  catch (e) { toast(e.message); composeMail(v) }
+}
+async function forwardMail() {
+  const d = S.inbox.detail
+  const v = await mailDialog({ title: 'Forward: ' + (d.subject || '(no subject)'), forward: true })
+  if (!v) return
+  try { const r = await api('POST', `/inbox/${d.id}/forward`, { to: v.to, note: v.body }); toast('Forwarded to ' + r.sentTo.join(', ')) }
+  catch (e) { toast(e.message) }
+}
+async function blockSender(scope) {
+  const d = S.inbox.detail
+  const who = scope === 'domain' ? 'everyone at @' + d.from_addr.split('@')[1] : d.from_addr
+  if (!(await ask({ title: 'Block ' + who + '?', message: 'Their emails, past and future, go to Spam. You can unblock them any time from the Spam folder.', ok: 'Block', danger: true }))) return
+  try { const r = await api('POST', `/inbox/${d.id}/block`, { scope }); toast(`Blocked · ${r.moved} email${r.moved === 1 ? '' : 's'} moved to Spam`); S.inbox.sel = null; S.inbox.detail = null; await loadInbox() }
+  catch (e) { toast(e.message) }
+}
+async function setSpam(spam) {
+  const d = S.inbox.detail
+  try { await api('PATCH', '/inbox/' + d.id, { status: spam ? 'spam' : 'open' }); toast(spam ? 'Moved to Spam' : 'Moved to the Inbox'); S.inbox.sel = null; S.inbox.detail = null; await loadInbox() }
+  catch (e) { toast(e.message) }
+}
+async function loadBlocked() { try { S.inbox.blocked = (await api('GET', '/mail-blocked')).blocked } catch { S.inbox.blocked = [] } render() }
+async function unblock(entry) {
+  try { S.inbox.blocked = (await api('DELETE', '/mail-blocked', { entry })).blocked; toast('Unblocked ' + entry); render() } catch (e) { toast(e.message) }
 }
 async function openItem(kind, id) {
   const I = S.inbox
-  I.sel = { kind, id }; I.reply = ''; I.err = ''; I.detail = null; I.detailLoading = true; render()
+  I.sel = { kind, id }; I.reply = ''; I.err = ''; I.detail = null; I.detailLoading = true; I.showDanger = false; render()
   try {
-    if (kind === 'email') {
+    if (kind === 'sent') {
+      I.detail = { ...(I.sent || []).find(m => m.id === id), _k: 'sent' }
+    } else if (kind === 'email') {
       I.detail = { ...(await api('GET', '/inbox/' + id)), _k: 'email' }
       const row = I.emails.find(m => m.id === id); if (row && !row.read) { row.read = true; I.unread = Math.max(0, I.unread - 1) }
     } else {
@@ -1154,14 +1323,19 @@ function renderInbox() {
   const items = inboxItems()
   const tab = (id, label, n) => `<button class="${I.tab === id ? 'on' : ''}" data-ibtab="${id}">${label}${n ? ` (${n})` : ''}</button>`
   const list = I.loading && !items.length ? `<div class="loading"><div class="spinner"></div></div>`
-    : !items.length ? `<div class="empty"><strong>Nothing here</strong>${I.status === 'open' ? 'You’re all caught up.' : 'No messages yet.'}</div>`
+    : !items.length ? `<div class="empty"><strong>Nothing here</strong>${I.q ? 'No messages match your search.' : I.status === 'open' ? 'You’re all caught up.' : I.status === 'spam' ? 'No spam. Dangerous emails land here automatically.' : I.status === 'sent' ? 'Nothing sent yet.' : 'No messages yet.'}</div>`
     : items.map(m => {
       const on = I.sel && I.sel.id === m.id
+      if (m._k === 'sent') return `<button class="ib-item ${on ? 'on' : ''}" data-open="sent:${m.id}">
+        <div class="av" style="background:var(--ac-lt);color:var(--ac)">${svg('newsletter').replace('<svg', '<svg style="width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2"')}</div>
+        <div class="ib-body"><div class="ib-l1"><span class="ib-from">To ${esc(m.to_addr)}</span><span class="ib-time">${ago(m.sent_at)}</span></div>
+          <div class="ib-subj">${esc(m.subject || '(no subject)')}</div><div class="ib-snip">${esc(m.preview || '')}</div>
+          <div class="ib-l3"><span class="badge ${m.kind === 'reply' ? 'b-green' : m.kind === 'forward' ? 'b-sky' : 'b-ac'}">${m.kind === 'reply' ? 'Reply' : m.kind === 'forward' ? 'Forward' : 'New email'}</span></div></div></button>`
       if (m._k === 'email') return `<button class="ib-item ${on ? 'on' : ''} ${!m.read ? 'unread' : ''} ${m.status === 'done' ? 'done' : ''}" data-open="email:${m.id}">
         <div class="av">${esc(initials(m.from_name || m.from_addr))}</div>
         <div class="ib-body"><div class="ib-l1"><span class="ib-from">${esc(m.from_name || m.from_addr)}</span>${!m.read ? '<span class="ib-dot"></span>' : ''}<span class="ib-time">${ago(m.received_at)}</span></div>
           <div class="ib-subj">${esc(m.subject || '(no subject)')}</div><div class="ib-snip">${esc(m.preview || '')}</div>
-          <div class="ib-l3"><span class="badge b-ac">Email</span>${toBadge(m.to_addrs)}${m.reply_count ? `<span class="badge b-green">Replied</span>` : ''}${m.attachment_count ? `<span class="badge b-gray">${m.attachment_count} attachment${m.attachment_count > 1 ? 's' : ''}</span>` : ''}</div></div></button>`
+          <div class="ib-l3">${m.verdict === 'danger' ? '<span class="badge b-red">Dangerous</span>' : m.verdict === 'caution' ? '<span class="badge b-amber">Be careful</span>' : '<span class="badge b-ac">Email</span>'}${toBadge(m.to_addrs)}${m.reply_count ? `<span class="badge b-green">Replied</span>` : ''}${m.attachment_count ? `<span class="badge b-gray">${m.attachment_count} attachment${m.attachment_count > 1 ? 's' : ''}</span>` : ''}</div></div></button>`
       const k = KIND[m.kind] || KIND.suggestion
       return `<button class="ib-item ${on ? 'on' : ''} ${m.status === 'open' ? 'unread' : 'done'}" data-open="site:${m.id}">
         <div class="av" style="background:var(--s2);color:var(--t2)">${esc(initials(m.email || 'G'))}</div>
@@ -1173,9 +1347,12 @@ function renderInbox() {
   return `<div class="ib ${I.sel ? 'has-sel' : ''}">
     <div class="ib-list">
       <div class="ib-tools">
-        <div class="seg" style="width:100%">${tab('all', 'All')}${tab('email', 'Emails', I.unread)}${tab('site', 'Site messages', I.open)}</div>
-        <div class="row"><div class="seg">${['open', 'done', 'all'].map(s => `<button class="${I.status === s ? 'on' : ''}" data-ibstatus="${s}">${s[0].toUpperCase() + s.slice(1)}</button>`).join('')}</div>
-          <button class="btn btn-sm btn-ghost" data-act="inbox-refresh">${svg('refresh')}</button></div>
+        <div class="row"><input class="inp ib-search" id="ib-q" type="search" placeholder="Search emails and messages" value="${esc(I.q || '')}" aria-label="Search">
+          <button class="btn btn-sm btn-primary" data-act="mail-new">New email</button></div>
+        ${I.status === 'spam' || I.status === 'sent' ? '' : `<div class="seg" style="width:100%">${tab('all', 'All')}${tab('email', 'Emails', I.unread)}${tab('site', 'Site messages', I.open)}</div>`}
+        <div class="row"><div class="seg ib-folders">${[['open', 'Open'], ['done', 'Done'], ['spam', 'Spam' + (I.spam ? ` (${I.spam})` : '')], ['sent', 'Sent'], ['all', 'All']].map(([s, l]) => `<button class="${I.status === s ? 'on' : ''}" data-ibstatus="${s}">${l}</button>`).join('')}</div>
+          <button class="btn btn-sm btn-ghost" data-act="inbox-refresh" aria-label="Refresh">${svg('refresh')}</button></div>
+        ${I.status === 'spam' && (I.blocked || []).length ? `<div class="ib-blocked"><b>Blocked:</b> ${I.blocked.map(b => `<span class="badge b-gray">${esc(b)} <button class="ib-unblock" data-unblock="${esc(b)}" aria-label="Unblock ${esc(b)}">×</button></span>`).join(' ')}</div>` : ''}
       </div>
       <div class="ib-items">${list}</div>
     </div>
@@ -1189,23 +1366,41 @@ function renderDetail() {
   if (I.detailLoading || !d) return `<div class="loading"><div class="spinner"></div></div>`
   const back = `<button class="btn btn-sm ib-back" data-act="inbox-back">${svg('back')} Back</button>`
   const replies = (d.replies || []).map(r => `<div class="reply-sent"><div class="hd">You replied to ${esc(r.sent_to)} · ${fmtDate(r.sent_at)} ${new Date(r.sent_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>${esc(r.body)}</div>`).join('')
-  const canReply = d._k === 'email' || !!d.email
+  const canReply = (d._k === 'email' && d.status !== 'spam' && d.verdict !== 'danger') || (d._k === 'site' && !!d.email)
   const done = d._k === 'email' ? d.status === 'done' : d.status === 'resolved'
   const actions = `<div class="ib-actions">
-    <button class="btn btn-sm" data-act="${done ? 'reopen' : 'done'}">${svg('check')} ${done ? 'Reopen' : 'Mark done'}</button>
-    ${d._k === 'email' ? `<button class="btn btn-sm btn-danger" data-act="delete">Delete</button>` : ''}</div>`
+    ${d.status === 'spam' ? '' : `<button class="btn btn-sm" data-act="${done ? 'reopen' : 'done'}">${svg('check')} ${done ? 'Reopen' : 'Mark done'}</button>`}
+    ${d._k === 'email' ? `<button class="btn btn-sm" data-act="forward">Forward</button>
+      <details class="ib-more"><summary class="btn btn-sm">More</summary><div class="ib-menu">
+        ${d.status === 'spam' ? '<button data-act="not-spam">Not spam</button>' : '<button data-act="spam">Move to Spam</button>'}
+        <button data-act="block-addr">Block ${esc(d.from_addr)}</button>
+        <button data-act="block-domain">Block everyone at @${esc(d.from_addr.split('@')[1] || '')}</button>
+        <button class="danger" data-act="delete">Delete</button></div></details>` : ''}</div>`
   const composer = canReply ? `<div class="composer">
       <textarea id="ib-reply" class="inp" rows="6" placeholder="Write your reply…">${esc(I.reply)}</textarea>
       ${I.err ? `<div class="alert alert-err" style="margin:10px 0 0">${esc(I.err)}</div>` : ''}
       <div class="row"><span class="from">From <b>support@cvmaster.live</b> to ${esc(d._k === 'email' ? d.from_addr : d.email)}</span>
         <button class="btn btn-primary" data-act="reply" ${I.sending ? 'disabled' : ''}>${I.sending ? 'Sending…' : 'Send reply'}</button></div>
-    </div>` : `<p class="ib-note">This person didn’t leave an email address, so you can’t reply.</p>`
+    </div>` : d._k === 'email' ? `<p class="ib-note">Replying is switched off for emails in Spam or flagged as dangerous: a reply tells the sender this address is read.</p>` : `<p class="ib-note">This person didn’t leave an email address, so you can’t reply.</p>`
 
+  if (d._k === 'sent') return `<div class="ib-msg">${back}
+    <div class="ib-subject">${esc(d.subject || '(no subject)')}</div>
+    <div class="ib-meta"><div class="av" style="background:var(--ac-lt);color:var(--ac)">S</div>
+      <div class="who"><b>support@cvmaster.live</b><span>to ${esc(d.to_addr)} · ${fmtDate(d.sent_at)} ${new Date(d.sent_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span></div></div>
+    <div class="ib-content">${esc(d.body || (d.kind === 'forward' ? '(Forwarded without a note.)' : ''))}</div></div>`
+  const danger = d.verdict === 'danger', caution = d.verdict === 'caution'
+  const reasons = Array.isArray(d.safety) ? d.safety : []
+  const banner = danger || caution ? `<div class="ib-safety ${danger ? 'danger' : ''}"><b>${danger ? 'This looks like a scam. Don’t click its links, don’t pay and don’t reply with any details.' : 'Be careful with this email.'}</b>
+      ${reasons.length ? `<ul>${reasons.map(r => `<li>${esc(r)}</li>`).join('')}</ul>` : ''}
+      ${d.status === 'spam' ? '<button class="btn btn-sm" data-act="not-spam">It’s safe: move to the Inbox</button>' : danger ? '' : '<button class="btn btn-sm" data-act="spam">Move to Spam</button>'}</div>` : ''
   if (d._k === 'email') return `<div class="ib-msg">${back}
     <div class="ib-subject">${esc(d.subject || '(no subject)')}</div>
     <div class="ib-meta"><div class="av">${esc(initials(d.from_name || d.from_addr))}</div>
       <div class="who"><b>${esc(d.from_name || d.from_addr)}</b><span>${esc(d.from_addr)} · to ${esc(d.to_addrs || 'support')} · ${fmtDate(d.received_at)} ${new Date(d.received_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span></div>${actions}</div>
-    ${d.html_body ? `${hasRemoteImages(d.html_body) && !S.inbox.showImages ? `<div class="ib-imgbar">Images from the web are hidden. They can tell the sender you opened the email. <button class="btn btn-sm" data-act="ib-images">Show images</button></div>` : ''}
+    ${banner}
+    ${danger && !I.showDanger ? `<div class="ib-content ib-defused">${esc(d.text_body || String(d.html_body || '').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/[ \t]+/g, ' ')).slice(0, 6000)}</div>
+      <p class="ib-note">Shown as plain text with its links switched off. <button class="linkish" data-act="show-danger">Show the original email</button></p>`
+    : d.html_body ? `${hasRemoteImages(d.html_body) && !S.inbox.showImages ? `<div class="ib-imgbar">Images from the web are hidden. They can tell the sender you opened the email. <button class="btn btn-sm" data-act="ib-images">Show images</button></div>` : ''}
       <iframe id="ib-frame" class="ib-frame" sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin" title="Email"></iframe><p class="ib-note">Shown safely: scripts never run${S.inbox.showImages ? '' : ', and images from the web stay hidden until you show them'}. Links open in a new tab.</p>`
       : d.bodyError === 'restricted_api_key' ? `<div class="alert alert-error">This email’s content couldn’t be loaded: the Resend API key on the server can only send emails.
           In Resend → API Keys, create a key with <b>Full access</b> and add it on Render as <code>RESEND_INBOUND_API_KEY</code>. Then open this email again, it loads automatically.
@@ -1436,25 +1631,36 @@ function renderStatus() {
 function renderSettings() {
   const c = S.config
   const row = (ok, title, text) => `<div class="chk"><span class="chk-ic ${ok ? 'ok' : 'no'}">${ok ? svg('check') : '!'}</span><div><span class="chk-t">${title}</span><span>${text}</span></div></div>`
-  return `<div class="set-grid">
-    <div class="card" style="grid-column:1/-1"><div class="card-hd"><h3>Subscriptions, usage and reminders</h3>
+  // One tab at a time instead of one very long page
+  const tab = S.setTab || 'status'
+  const { down, warn } = S.status ? statusCounts() : { down: [], warn: [] }
+  const remN = S.svc?.reminders?.length || 0
+  const TABS = [
+    ['status', 'Status', down.length ? `<span class="set-n red">${down.length}</span>` : warn.length ? `<span class="set-n">${warn.length}</span>` : ''],
+    ['subs', 'Subscriptions', remN ? `<span class="set-n${S.svc.reminders.some(r => r.level >= 2) ? ' red' : ''}">${remN}</span>` : ''],
+    ['people', 'People', ''],
+    ['site', 'Site & security', S.maintenance ? '<span class="set-n red">!</span>' : ''],
+  ]
+  const tabs = `<div class="set-tabs" role="tablist" aria-label="Settings">${TABS.map(([k, l, n]) => `<button class="set-tab ${tab === k ? 'on' : ''}" role="tab" aria-selected="${tab === k}" data-act="set-tab" data-t="${k}">${l}${n}</button>`).join('')}</div>`
+  if (tab === 'status') return tabs + `<div class="card"><div class="card-hd"><h3>Website, server and phone app</h3>
+      <button class="btn btn-sm" data-act="status-refresh" ${S.statusLoading ? 'disabled' : ''}>${svg('refresh')} Check now</button></div><div class="card-bd">
+      ${renderStatus()}
+    </div></div>`
+  if (tab === 'subs') return tabs + `<div class="card"><div class="card-hd"><h3>Subscriptions, usage and reminders</h3>
       <button class="btn btn-sm" data-act="svc-refresh" ${S.svcLoading ? 'disabled' : ''}>${svg('refresh')} Refresh</button></div><div class="card-bd">
       ${renderServices()}
-    </div></div>
-    <div class="card" style="grid-column:1/-1"><div class="card-hd"><h3>People by country</h3>
+    </div></div>`
+  if (tab === 'people') return tabs + `<div class="card"><div class="card-hd"><h3>People by country</h3>
       <div class="g-period" role="group" aria-label="Period">${[7, 30, 90, 365].map(d => `<button class="btn btn-sm ${(S.ctyDays || 30) === d ? 'btn-primary' : ''}" data-act="cty-days" data-d="${d}">${d === 365 ? 'Year' : d + ' days'}</button>`).join('')}</div></div><div class="card-bd">
       ${renderCountries()}
-    </div></div>
+    </div></div>`
+  return tabs + `<div class="set-grid">
     <div class="card"><div class="card-hd"><h3>Maintenance mode</h3></div><div class="card-bd">
       <div class="maint"><div><b>${S.maintenance ? 'The site is in maintenance' : 'The site is live'}</b><div class="muted" style="font-size:13px;margin-top:2px">Maintenance shows everyone a “back soon” page. This admin panel keeps working.</div></div>
       <label class="toggle"><input type="checkbox" id="maint-toggle" ${S.maintenance ? 'checked' : ''} ${S.maintLoading ? 'disabled' : ''}><span class="toggle-track"></span></label></div>
     </div></div>
     <div class="card"><div class="card-hd"><h3>Account security</h3></div><div class="card-bd">${renderSecurity()}</div></div>
     <div class="card" style="grid-column:1/-1"><div class="card-hd"><h3>Email addresses</h3></div><div class="card-bd">${renderSenders()}</div></div>
-    <div class="card" style="grid-column:1/-1"><div class="card-hd"><h3>Status: website, server and phone app</h3>
-      <button class="btn btn-sm" data-act="status-refresh" ${S.statusLoading ? 'disabled' : ''}>${svg('refresh')} Check now</button></div><div class="card-bd">
-      ${renderStatus()}
-    </div></div>
   </div>`
 }
 
@@ -1479,25 +1685,28 @@ function renderServices() {
   const rem = `<div class="svc-rem">${x.reminders.length
       ? x.reminders.map(r => `<div class="l${r.level}">${esc(r.text)}</div>`).join('')
       : '<div class="none">Nothing needs your attention: every limit is under 70% and nothing renews in the next 14 days.</div>'}</div>`
+  // One line per service: what it is · plan · usage · renewal · actions (details fold out)
   const bar = (m) => {
     const p = m.share ?? 0
-    return `<div class="svc-m"><div class="svc-m-t"><span>${esc(m.label)}</span><span><b>${m.used.toLocaleString('en')}</b> of ${m.limit.toLocaleString('en')} ${esc(m.unit)} · ${Math.max(0, 100 - p)}% left</span></div>
-      <div class="svc-bar"><i class="${p >= 90 ? 'd' : p >= 70 ? 'w' : ''}" style="width:${Math.min(100, p)}%"></i></div>
-      ${m.resets ? `<span class="muted" style="font-size:11.5px">Resets ${esc(m.resets)}</span>` : ''}</div>`
+    return `<div class="svc-m" title="${esc(m.label)}${m.resets ? ' · resets ' + esc(m.resets) : ''}"><div class="svc-m-t"><span>${esc(m.label)}</span><span><b>${m.used.toLocaleString('en')}</b> / ${m.limit.toLocaleString('en')} ${esc(m.unit)}</span></div>
+      <div class="svc-bar"><i class="${p >= 90 ? 'd' : p >= 70 ? 'w' : ''}" style="width:${Math.max(2, Math.min(100, p))}%"></i></div></div>`
   }
-  const card = (s) => {
+  const row = (s) => {
     const hot = s.alert || s.meters.some(m => m.share >= 90) || (s.daysLeft != null && s.daysLeft <= 3)
-    return `<div class="svc ${hot ? 'hot' : ''}"><div class="svc-hd"><div><b>${esc(s.name)}</b><span>${esc(s.what)}</span></div>
+    const open = S.svcOpen === s.id
+    const notes = [...(s.alert ? [`<b style="color:var(--red)">${esc(s.alert)}</b>`] : []), ...s.info.map(esc), ...(s.notes ? [`<i>${esc(s.notes)}</i>`] : [])]
+    return `<div class="svc-row ${hot ? 'hot' : ''}">
+      <div class="svc-name"><b>${esc(s.name)}</b><span>${esc(s.what)}</span></div>
+      <div class="svc-plan"><span class="badge ${s.cost > 0 ? 'b-ac' : 'b-gray'}">${esc(s.plan || 'Plan not set')}</span>${s.cost > 0 ? `<span class="svc-cost">€${s.cost} ${PERIOD[s.period] || 'a month'}</span>` : ''}</div>
+      <div class="svc-use">${s.meters.length ? s.meters.map(bar).join('') : `<span class="muted">${s.info.length ? 'See details' : '·'}</span>`}</div>
+      <div class="svc-ren">${s.renews ? `<span class="${s.daysLeft <= 14 ? 'svc-soon' : ''}">${esc(s.renews)}</span><small>${s.daysLeft >= 0 ? `in ${s.daysLeft} days` : 'passed'}</small>` : '<span class="muted">·</span>'}</div>
+      <div class="svc-act">${notes.length ? `<button class="btn btn-sm btn-ghost" data-act="svc-more" data-id="${esc(s.id)}" aria-expanded="${open}">${open ? 'Less' : 'Details'}</button>` : ''}
+        <a class="btn btn-sm btn-ghost" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" title="Open the ${esc(s.name)} dashboard">Open</a>
         <button class="btn btn-sm" data-act="svc-edit" data-id="${esc(s.id)}">Edit</button></div>
-      <div class="svc-meta"><span class="badge ${s.cost > 0 ? 'b-ac' : 'b-gray'}">${esc(s.plan || 'Plan not set')}${s.cost > 0 ? ` · €${s.cost} ${PERIOD[s.period] || 'a month'}` : ''}</span>
-        ${s.renews ? `<span class="badge ${s.daysLeft <= 14 ? 'b-amber' : 'b-gray'}">Renews ${esc(s.renews)}${s.daysLeft >= 0 ? ` · in ${s.daysLeft} days` : ' · passed'}</span>` : ''}
-        <a class="badge b-gray" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">Open dashboard</a></div>
-      ${s.alert ? `<div class="svc-i" style="color:var(--red);font-weight:700">${esc(s.alert)}</div>` : ''}
-      ${s.meters.map(bar).join('')}
-      ${s.info.map(i => `<div class="svc-i">${esc(i)}</div>`).join('')}
-      ${s.notes ? `<div class="svc-i"><i>${esc(s.notes)}</i></div>` : ''}</div>`
+      ${open && notes.length ? `<div class="svc-notes">${notes.map(n => `<div>${n}</div>`).join('')}</div>` : ''}
+    </div>`
   }
-  return sum + rem + `<div class="svc-list">${x.services.map(card).join('')}</div>
+  return sum + rem + `<div class="svc-table"><div class="svc-row svc-head"><div>Service</div><div>Plan</div><div>Usage</div><div>Renews</div><div></div></div>${x.services.map(row).join('')}</div>
     <p class="muted" style="font-size:12px;margin-top:14px">Checked every hour. ${x.alertsTo ? `Reminders go to <b>${esc(x.alertsTo)}</b>` : 'Set ADMIN_EMAIL in Render to get reminders'} at 70% and 90% of a limit, when a limit is used up, 14 and 3 days before a renewal, and straight away when Claude’s credit runs out. Plans, prices and renewal dates are what you type in (Edit); usage bars are measured live.</p>`
 }
 async function editService(id) {
@@ -2364,6 +2573,9 @@ function renderEmail() {
 
 // ── Render ────────────────────────────────────────────────────────────────────
 function render() {
+  // A text field being typed in keeps its focus and cursor across the redraw (e.g. the inbox search)
+  const act = document.activeElement, keepId = act?.id && /^(INPUT|TEXTAREA)$/.test(act.tagName) ? act.id : null
+  const caret = keepId ? [act.selectionStart, act.selectionEnd] : null
   const keepScroll = document.querySelector('.ib-items')?.scrollTop
   const newPage = S.auth && S.shownPage !== S.page; S.shownPage = S.auth ? S.page : null
   $('app').innerHTML = (!S.auth ? renderLogin() : renderApp()) + (S.toast ? `<div class="toast">${esc(S.toast)}</div>` : '')
@@ -2372,6 +2584,7 @@ function render() {
   // Emails are shown with no scripts, and remote images only on request (tracking pixels)
   setEmailFrame()
   bind()
+  if (keepId) { const el = document.getElementById(keepId); if (el && el !== document.activeElement) { el.focus(); try { el.setSelectionRange(...caret) } catch {} } }
   // Phones: the nav is a sideways strip, keep the current page's tab in view
   document.querySelector('.sb-nav .nav.on')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
 }
@@ -2499,7 +2712,7 @@ function bind() {
   })
 }
 document.addEventListener('click', (e) => {
-  const t = e.target.closest('[data-go],[data-act],[data-open],[data-ibtab],[data-ibstatus],[data-edit],[data-del],[data-page],[data-review],[data-sub]')
+  const t = e.target.closest('[data-go],[data-act],[data-open],[data-ibtab],[data-ibstatus],[data-edit],[data-del],[data-page],[data-review],[data-sub],[data-ptpl],[data-pmine],[data-pdel],[data-unblock]')
   if (!t) return
   if (t.dataset.review) { setReview(t.dataset.review, t.dataset.st); return }
   if (t.dataset.sub) { subAction(t.dataset.sub, t.dataset.sact, t.dataset.email); return }
@@ -2517,8 +2730,12 @@ document.addEventListener('click', (e) => {
   if (t.dataset.act === 'more-close') { S.moreOpen = false; render(); return }
   if (t.dataset.open) { const [k, id] = t.dataset.open.split(':'); openItem(k, id); return }
   if (t.dataset.ibtab) { S.inbox.tab = t.dataset.ibtab; render(); return }
-  if (t.dataset.ibstatus) { S.inbox.status = t.dataset.ibstatus; S.inbox.sel = null; S.inbox.detail = null; loadInbox(); return }
+  if (t.dataset.unblock) { unblock(t.dataset.unblock); return }
+  if (t.dataset.ibstatus) { S.inbox.status = t.dataset.ibstatus; S.inbox.sel = null; S.inbox.detail = null; if (t.dataset.ibstatus === 'spam') loadBlocked(); loadInbox(); return }
   if (t.dataset.edit) { editCount(t.dataset.id, t.dataset.edit, t.dataset.label, t.dataset.cur); return }
+  if (t.dataset.ptpl) { usePushTemplate(PUSH_TEMPLATES[+t.dataset.ptpl]); return }
+  if (t.dataset.pmine) { usePushTemplate(S.pushMine[+t.dataset.pmine]); return }
+  if (t.dataset.pdel) { deletePushTemplate(S.pushMine[+t.dataset.pdel].name); return }
   if (t.dataset.del) { deleteUser(t.dataset.del, t.dataset.email); return }
   if (t.dataset.page) { loadUsers(Number(t.dataset.page)); return }
   const a = t.dataset.act
@@ -2534,11 +2751,14 @@ document.addEventListener('click', (e) => {
   else if (a === 'svc-refresh') loadServices()
   else if (a === 'cty-days') { S.ctyDays = Number(t.dataset.d); loadCountries() }
   else if (a === 'svc-edit') editService(t.dataset.id)
+  else if (a === 'svc-more') { S.svcOpen = S.svcOpen === t.dataset.id ? null : t.dataset.id; render() }
+  else if (a === 'set-tab') { S.setTab = t.dataset.t; render(); try { localStorage.setItem('cvm-admin-set-tab', S.setTab) } catch {} }
   else if (a === 'rv-min-save') saveReviewsMin()
   else if (a === 'inbox-refresh') loadInbox()
   else if (a === 'inbox-back') { S.inbox.sel = null; S.inbox.detail = null; render() }
   else if (a === 'reply') sendReply()
   else if (a === 'push-test') sendAppPush(true)
+  else if (a === 'push-save') savePushTemplate()
   else if (a === 'post-new') editPost(null)
   else if (a === 'post-edit') editPost(t.dataset.id)
   else if (a === 'post-back') { S.blog.edit = null; render(); loadPosts() }
@@ -2561,6 +2781,13 @@ document.addEventListener('click', (e) => {
   else if (a === 'done') setItemStatus(true)
   else if (a === 'reopen') setItemStatus(false)
   else if (a === 'delete') deleteItem()
+  else if (a === 'mail-new') composeMail()
+  else if (a === 'forward') forwardMail()
+  else if (a === 'spam') setSpam(true)
+  else if (a === 'not-spam') setSpam(false)
+  else if (a === 'block-addr') blockSender('address')
+  else if (a === 'block-domain') blockSender('domain')
+  else if (a === 'show-danger') { S.inbox.showDanger = true; render(); setEmailFrame() }
 })
 document.addEventListener('submit', (e) => {
   const f = e.target.dataset.form
