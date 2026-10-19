@@ -174,33 +174,35 @@ function getPass() { router.push({ path: '/settings', query: passActive.value ? 
 .px-h1 span{display:block;color:var(--c-text3)}
 .px-lead{font-size:clamp(17px,1.7vw,21px);line-height:1.5;color:var(--c-text2);margin:24px auto 0;max-width:640px;font-weight:450}
 
-.px-plans{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start}
+.px-plans{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:stretch}
 .px-plan{display:flex;flex-direction:column;padding:36px 32px 32px;border-radius:28px;background:var(--c-surface)}
 .px-plan h2{font-size:24px;font-weight:700;letter-spacing:-.025em;margin:0;color:var(--c-text)}
 .px-sub{font-size:15px;color:var(--c-text3);margin:6px 0 0;min-height:22px}
+.px-plan:not(.px-pass) .px-sub{margin-bottom:63px}
+.px-plan:not(.px-pass) h2{margin-top:27px}
 .px-amt{font-size:48px;font-weight:700;letter-spacing:-.04em;line-height:1;margin-top:28px;color:var(--c-text)}
 .px-per{font-size:14px;color:var(--c-text3);margin-top:10px}
 .px-save{font-size:13.5px;color:var(--c-accent);margin-top:6px;font-weight:600}
-.px-plan ul{list-style:none;margin:28px 0 0;padding:24px 0 0;display:flex;flex-direction:column;gap:13px;border-top:1px solid var(--hair)}
+.px-plan ul{flex:1;list-style:none;margin:28px 0 0;padding:24px 0 0;display:flex;flex-direction:column;gap:13px;border-top:1px solid var(--hair)}
 .px-plan li{display:flex;gap:11px;font-size:15px;line-height:1.45;color:var(--c-text2)}
 .pr :deep(.px-tick){width:16px;height:16px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;margin-top:3px;color:var(--c-text)}
 .px-btn{margin-top:26px;height:46px;border:none;border-radius:99px;font:inherit;font-size:15.5px;font-weight:600;cursor:pointer;background:var(--fill);color:var(--c-text);transition:background .2s,transform .2s}
 .px-btn:hover{background:color-mix(in srgb,var(--c-text) 10%,transparent)}
 .px-btn:active{transform:scale(.98)}
 /* The pass: the dark product card */
-.px-pass{background:var(--ink);color:#f5f5f7}
-.px-pass h2,.px-pass .px-amt{color:#f5f5f7}
-.px-pass .px-sub,.px-pass .px-per{color:#a1a1a6}
-.px-pass .px-save{color:#a5b4fc}
-.px-pass ul{border-top-color:rgba(255,255,255,.12)}
-.px-pass li{color:#d2d2d7}
-.px-pass :deep(.px-tick){color:#f5f5f7}
-.px-best{font-size:13px;font-weight:600;color:#a5b4fc;margin:0 0 8px}
-.px-btn-light{background:#f5f5f7;color:var(--ink)}.px-btn-light:hover{background:#fff}
-.px-fine{font-size:12.5px;color:#86868b;margin:20px 0 0;line-height:1.5}
-.px-seg{display:inline-flex;align-self:flex-start;gap:2px;padding:3px;border-radius:99px;background:rgba(255,255,255,.1);margin-top:22px}
-.px-seg button{height:32px;padding:0 14px;border:none;border-radius:99px;background:transparent;color:#d2d2d7;font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:background .2s,color .2s}
-.px-seg button.on{background:#f5f5f7;color:var(--ink)}
+.px-pass{background:var(--c-accent);color:#fff}
+.px-pass h2,.px-pass .px-amt{color:#fff}
+.px-pass .px-sub,.px-pass .px-per{color:rgba(255,255,255,.72)}
+.px-pass .px-save{color:#fff}
+.px-pass ul{border-top-color:rgba(255,255,255,.2)}
+.px-pass li{color:rgba(255,255,255,.88)}
+.px-pass :deep(.px-tick){color:#fff}
+.px-best{font-size:13px;font-weight:600;color:rgba(255,255,255,.88);margin:0 0 8px}
+.px-btn-light{background:#fff;color:var(--c-accent)}.px-btn-light:hover{background:rgba(255,255,255,.9)}
+.px-fine{font-size:12.5px;color:rgba(255,255,255,.72);margin:20px 0 0;line-height:1.5}
+.px-seg{display:inline-flex;align-self:flex-start;gap:2px;padding:3px;border-radius:99px;background:rgba(255,255,255,.16);margin-top:22px}
+.px-seg button{height:32px;padding:0 14px;border:none;border-radius:99px;background:transparent;color:rgba(255,255,255,.88);font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:background .2s,color .2s}
+.px-seg button.on{background:#fff;color:var(--c-accent)}
 .px-seg + div .px-amt{margin-top:20px}
 .px-fade-enter-active,.px-fade-leave-active{transition:opacity .18s ease}
 .px-fade-enter-from,.px-fade-leave-to{opacity:0}
@@ -261,10 +263,12 @@ function getPass() { router.push({ path: '/settings', query: passActive.value ? 
 .px-btn-dark:hover{background:color-mix(in srgb,var(--c-accent) 88%,#000)}
 
 /* Dark mode: the pass card stays dark, lifted a little from the page */
-:global([data-theme="dark"]) .px-pass{background:#2c2c2e}
+:global([data-theme="dark"]) .px-pass{background:#5b54e8}
 
 @media (max-width:980px){
   .px-plans{grid-template-columns:1fr;max-width:480px;margin:0 auto;width:100%}
+  .px-plan:not(.px-pass) .px-sub{margin-bottom:0}
+  .px-plan:not(.px-pass) h2{margin-top:0}
   .px-pass{order:-1}
   .px-extras{grid-template-columns:1fr}
 }

@@ -775,41 +775,41 @@ button.st-gl:hover{background:color-mix(in srgb,var(--c-text) 8%,transparent)}
 .st-gl b{font-size:24px;font-weight:700;letter-spacing:-.03em;color:var(--c-text);line-height:1.2;font-variant-numeric:tabular-nums}
 .st-gl b small{font-size:15px;font-weight:500;color:var(--c-text3);margin-left:2px}
 .st-gl-s{font-size:13px;color:var(--c-text2)}
-.st-gl-plan.pass{background:#1d1d1f}
-.st-gl-plan.pass b{color:#f5f5f7}.st-gl-plan.pass .st-gl-k,.st-gl-plan.pass .st-gl-s{color:#a1a1a6}
-.st-gl-plan.pass:hover{background:#2c2c2e}
+.st-gl-plan.pass{background:var(--c-accent)}
+.st-gl-plan.pass b{color:#fff}.st-gl-plan.pass .st-gl-k,.st-gl-plan.pass .st-gl-s{color:rgba(255,255,255,.72)}
+.st-gl-plan.pass:hover{background:color-mix(in srgb,var(--c-accent) 90%,#000)}
 /* The Job Hunt Pass: the dark product card */
-.st-pass{background:#1d1d1f;color:#f5f5f7;box-shadow:none}
-:global([data-theme="dark"]) .st-pass{background:#2c2c2e}
-.st-pass-brand{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;color:#f5f5f7}
-.st-pass-brand svg{width:22px;height:22px;padding:4px;border-radius:50%;background:#f5f5f7;fill:none;stroke:#1d1d1f;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
-.st-pass-state{margin-left:auto;font-size:13px;font-weight:600;color:#30d158}
-.st-pass-title{font-size:clamp(26px,3.2vw,34px);font-weight:700;letter-spacing:-.035em;line-height:1.1;margin:22px 0 10px;color:#f5f5f7}
-.st-pass-p{font-size:15.5px;line-height:1.55;color:#a1a1a6;margin:0 0 24px;max-width:560px}
+.st-pass{background:var(--c-accent);color:#fff;box-shadow:none}
+:global([data-theme="dark"]) .st-pass{background:#5b54e8}
+.st-pass-brand{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;color:#fff}
+.st-pass-brand svg{width:22px;height:22px;padding:4px;border-radius:50%;background:#fff;fill:none;stroke:var(--c-accent);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.st-pass-state{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#fff}
+.st-pass-state::before{content:'';width:7px;height:7px;border-radius:50%;background:#86efac}
+.st-pass-title{font-size:clamp(26px,3.2vw,34px);font-weight:700;letter-spacing:-.035em;line-height:1.1;margin:22px 0 10px;color:#fff}
+.st-pass-p{font-size:15.5px;line-height:1.55;color:rgba(255,255,255,.72);margin:0 0 24px;max-width:560px}
 .st-plans{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px}
-.st-po{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:18px 20px;border-radius:18px;border:none;font:inherit;color:#f5f5f7;text-align:left;cursor:pointer;background:#2c2c2e;box-shadow:inset 0 0 0 2px transparent;transition:box-shadow .2s ease,background .2s ease}
-:global([data-theme="dark"]) .st-po{background:#3a3a3c}
-.st-po:hover{background:#3a3a3c}
-.st-po.on{box-shadow:inset 0 0 0 2px #f5f5f7}
-.st-po-t{font-size:14px;font-weight:600;color:#d2d2d7}
+.st-po{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:18px 20px;border-radius:18px;border:none;font:inherit;color:#fff;text-align:left;cursor:pointer;background:rgba(255,255,255,.12);box-shadow:inset 0 0 0 2px transparent;transition:box-shadow .2s ease,background .2s ease}
+.st-po:hover{background:rgba(255,255,255,.18)}
+.st-po.on{background:rgba(255,255,255,.18);box-shadow:inset 0 0 0 2px #fff}
+.st-po-t{font-size:14px;font-weight:600;color:rgba(255,255,255,.88)}
 .st-po-p{font-size:28px;font-weight:700;letter-spacing:-.035em;line-height:1.15}
-.st-po-s{font-size:13px;color:#a1a1a6}
-.st-po-badge{position:absolute;top:18px;right:18px;font-size:12.5px;font-weight:600;color:#a5b4fc}
-.st-pass-list{list-style:none;margin:0 0 24px;padding:20px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;border-top:1px solid rgba(255,255,255,.12)}
-.st-pass-list li{display:flex;gap:10px;font-size:14.5px;color:#d2d2d7;line-height:1.45}
-.st-pass-list svg{width:16px;height:16px;flex-shrink:0;fill:none;stroke:#f5f5f7;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;margin-top:2px}
-.st-pass .st-consent{color:#a1a1a6}
-.st-pass .st-consent input{accent-color:#f5f5f7}
+.st-po-s{font-size:13px;color:rgba(255,255,255,.72)}
+.st-po-badge{position:absolute;top:18px;right:18px;font-size:12.5px;font-weight:600;color:#fff}
+.st-pass-list{list-style:none;margin:0 0 24px;padding:20px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;border-top:1px solid rgba(255,255,255,.2)}
+.st-pass-list li{display:flex;gap:10px;font-size:14.5px;color:rgba(255,255,255,.88);line-height:1.45}
+.st-pass-list svg{width:16px;height:16px;flex-shrink:0;fill:none;stroke:#fff;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;margin-top:2px}
+.st-pass .st-consent{color:rgba(255,255,255,.88)}
+.st-pass .st-consent input{accent-color:#fff}
 .st-pass-row{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
-.st-pass-cta{height:46px;padding:0 24px;border:none;border-radius:99px;background:#f5f5f7;color:#1d1d1f;font:inherit;font-size:15.5px;font-weight:600;cursor:pointer;transition:background .2s ease,opacity .2s,transform .15s}
-.st-pass-cta:hover:not(:disabled){background:#fff}
+.st-pass-cta{height:46px;padding:0 24px;border:none;border-radius:99px;background:#fff;color:var(--c-accent);font:inherit;font-size:15.5px;font-weight:600;cursor:pointer;transition:background .2s ease,opacity .2s,transform .15s}
+.st-pass-cta:hover:not(:disabled){background:rgba(255,255,255,.9)}
 .st-pass-cta:active:not(:disabled){transform:scale(.98)}
 .st-pass-cta:disabled{opacity:.4;cursor:not-allowed}
-.st-pass-ghost{height:40px;padding:0 18px;border:none;border-radius:99px;background:#2c2c2e;color:#f5f5f7;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
-.st-pass-ghost:hover{background:#3a3a3c}
-.st-pass-link{color:#a5b4fc;font-size:15px;font-weight:500;text-decoration:none}
+.st-pass-ghost{height:40px;padding:0 18px;border:none;border-radius:99px;background:rgba(255,255,255,.16);color:#fff;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.st-pass-ghost:hover{background:rgba(255,255,255,.24)}
+.st-pass-link{color:#fff;font-size:15px;font-weight:500;text-decoration:none;opacity:.9}
 .st-pass-link:hover{text-decoration:underline}
-.st-pass-note{font-size:12.5px;color:#86868b;margin:16px 0 0}
+.st-pass-note{font-size:12.5px;color:rgba(255,255,255,.72);margin:16px 0 0}
 @media (max-width:600px){
   .st-glance{grid-template-columns:1fr 1fr}.st-gl-plan{grid-column:1/-1}
   .st-plans{grid-template-columns:1fr}.st-pass-list{grid-template-columns:1fr}

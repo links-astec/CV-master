@@ -332,8 +332,8 @@ defineExpose({ handleStripeReturn })
 </script>
 
 <style scoped>
-.pw-included{display:inline-flex;align-items:center;gap:8px;margin-top:12px;height:32px;padding:0 14px 0 6px;border-radius:99px;background:#1d1d1f;color:#f5f5f7;font-size:13.5px;font-weight:600}
-.pw-included svg{width:20px;height:20px;padding:3px;border-radius:50%;background:#f5f5f7;fill:none;stroke:#1d1d1f;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.pw-included{display:inline-flex;align-items:center;gap:8px;margin-top:12px;height:32px;padding:0 14px 0 6px;border-radius:99px;background:var(--c-accent);color:#fff;font-size:13.5px;font-weight:600}
+.pw-included svg{width:20px;height:20px;padding:3px;border-radius:50%;background:#fff;fill:none;stroke:var(--c-accent);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
 .pw-pass{display:block;width:100%;margin-top:14px;padding:12px 14px;border:none;border-radius:14px;background:color-mix(in srgb,var(--c-accent) 9%,transparent);color:var(--c-text2);font:inherit;font-size:13.5px;line-height:1.5;text-align:left;cursor:pointer}
 .pw-pass b{color:var(--c-text)}
 .pw-pass:hover{background:color-mix(in srgb,var(--c-accent) 14%,transparent)}
