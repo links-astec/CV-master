@@ -153,6 +153,12 @@ export default {
   'Open it from My CVs, check your ATS score against a job, and get the clean PDF whenever you like.': 'Ouvrez-le depuis Mes CV, vérifiez votre score ATS face à une offre, et obtenez le PDF sans filigrane quand vous voulez.',
   'How is CVMaster working for you?': 'Comment se passe votre expérience avec CVMaster ?',
   'A quick rating helps other job seekers find us. It takes 10 seconds.': 'Une petite note aide d’autres candidats à nous trouver. Cela prend 10 secondes.',
+  'Please tick the box to confirm you want the pass to start straight away.': 'Cochez la case pour confirmer que vous voulez que le pass démarre tout de suite.',
+  'You don’t have a Job Hunt Pass.': 'Vous n’avez pas de Job Hunt Pass.',
+  'Could not change the pass. Please try again.': 'Impossible de modifier le pass. Veuillez réessayer.',
+  'Could not check the pass.': 'Impossible de vérifier le pass.',
+  'Your Job Hunt Pass is on': 'Votre Job Hunt Pass est actif',
+  'Every CV you make is now unlocked as a clean PDF, with more AI every day. Good luck with the job hunt!': 'Chaque CV que vous créez est maintenant débloqué en PDF sans filigrane, avec plus d’IA chaque jour. Bonne recherche d’emploi !',
 }
 
 // Server messages that contain a value; tried when there's no exact match
@@ -171,4 +177,5 @@ export const patterns = [
   [/^Extraction failed: (.*)$/, 'Échec de l’extraction : $1'],
   [/^Request failed \((\d+)\)$/, 'La requête a échoué ($1)'],
   [/^Server error (\d+)$/, 'Erreur du serveur ($1)'],
+  [/^You’ve used today’s (\d+) AI requests\. Get (\d+) more for €0\.50, or come back tomorrow\.$/, 'Vous avez utilisé vos $1 requêtes IA du jour. Obtenez-en $2 de plus pour 0,50 €, ou revenez demain.'],
 ]

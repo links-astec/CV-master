@@ -133,12 +133,40 @@
         <div v-else class="st-muted">{{ $t('Couldn’t load your invite link, try refreshing.') }}</div>
       </section>
 
+      <!-- Job Hunt Pass -->
+      <section id="pass" class="st-card st-pass" :class="{ on: pass }">
+        <div class="st-card-hd">
+          <div>
+            <div class="st-card-t">{{ $t('Job Hunt Pass') }}</div>
+            <p v-if="pass && !pass.cancelAtEnd" class="st-p">{{ $t('Active. Renews on {date} for €6.99.', { date: fmtDay(pass.until) }) }}</p>
+            <p v-else-if="pass" class="st-p">{{ $t('Cancelled. You keep everything until {date}.', { date: fmtDay(pass.until) }) }}</p>
+            <p v-else class="st-p">{{ $t('Applying to lots of jobs? Every CV you make as a clean PDF, emailed and downloadable, and 100 AI requests a day.') }}</p>
+          </div>
+          <div class="st-pass-price">€6.99<span>{{ $t('/month') }}</span><small v-if="!pass && approx(6.99)" class="price-local">{{ approx(6.99) }}</small></div>
+        </div>
+        <ul v-if="!pass" class="st-pass-list">
+          <li v-for="f in PASS_FEATURES" :key="f"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ $t(f) }}</li>
+        </ul>
+        <template v-if="pass">
+          <button v-if="!pass.cancelAtEnd" class="btn-secondary btn-sm" :disabled="passBusy" @click="changePass('cancel')">{{ $t('Cancel the pass') }}</button>
+          <button v-else class="btn-primary accent btn-sm" :disabled="passBusy" @click="changePass('resume')">{{ $t('Keep my pass') }}</button>
+        </template>
+        <template v-else>
+          <label class="st-consent">
+            <input type="checkbox" v-model="passConsent" />
+            <span>{{ $t('I want the pass to start straight away and agree that I lose my 14-day right of withdrawal once it starts.') }}</span>
+          </label>
+          <button class="btn-primary accent" :disabled="passBusy || (auth.isLoggedIn && !passConsent)" @click="getPass">{{ $t(passBusy ? 'Please wait…' : 'Get the Job Hunt Pass') }}</button>
+          <p class="st-muted st-pass-note">{{ $t('Secure payment by Stripe · Cancel any time in Settings, it then runs to the end of the month you paid for.') }}</p>
+        </template>
+      </section>
+
       <!-- AI requests -->
       <section class="st-card">
         <div class="st-card-hd">
           <div>
             <div class="st-card-t">{{ $t('AI requests') }}</div>
-            <p class="st-p">{{ $t(aiQuota?.tier === 'verified' ? '30 free every day, reset at midnight (UTC). Extra requests never expire.' : '5 free a day. 30 once your email is confirmed. Reset at midnight (UTC). Extra requests never expire.') }}</p>
+            <p class="st-p">{{ $t(aiQuota?.tier === 'pass' ? '100 every day with your Job Hunt Pass, reset at midnight (UTC). Extra requests never expire.' : aiQuota?.tier === 'verified' ? '30 free every day, reset at midnight (UTC). Extra requests never expire.' : '5 free a day. 30 once your email is confirmed. Reset at midnight (UTC). Extra requests never expire.') }}</p>
           </div>
           <button class="btn-secondary btn-sm" @click="openAiAllowance()">{{ $t('Get 100 more for €0.50') }}<template v-if="approx(0.5)"> ({{ approx(0.5) }})</template></button>
         </div>
@@ -606,7 +634,55 @@ function shareTwitter()  { track('invite_shared', { channel: 'x' }); window.open
 function shareLinkedIn() { track('invite_shared', { channel: 'linkedin' }); window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(referralInfo.value?.link || '')}`, '_blank') }
 function shareEmail()    { track('invite_shared', { channel: 'email' }); window.location.href = `mailto:?subject=${encodeURIComponent(t('Try CVMaster for your CV'))}&body=${encodeURIComponent(shareMsg())}` }
 
+// ── Job Hunt Pass ──
+const PASS_FEATURES = ['Every CV as a clean PDF, emailed and downloadable', '100 AI requests a day (instead of 30)', 'Re-send any CV after edits, free', 'Cancel any time']
+const pass = computed(() => auth.user?.pass || null)
+const passBusy = ref(false)
+const passConsent = ref(false)
+const fmtDay = (iso) => { try { return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) } catch { return iso } }
+async function getPass() {
+  if (!auth.isLoggedIn) { openAuth('register', 'pass'); return }
+  passBusy.value = true
+  try {
+    const r = await fetch(apiUrl('/api/payment/pass'), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ withdrawalConsent: passConsent.value }) })
+    const j = await r.json()
+    if (!r.ok) throw new Error(j.error || 'Could not start payment. Please try again.')
+    if (j.alreadyActive) { await auth.fetchMe(); showToast(t('Your Job Hunt Pass is already on')); return }
+    location.href = j.url
+  } catch (e) { showToast(t(e.message)) } finally { passBusy.value = false }
+}
+async function changePass(action) {
+  if (action === 'cancel') {
+    const ok = await confirmDialog({ title: t('Cancel the Job Hunt Pass?'), message: t('Nothing more is charged. You keep the pass until {date}.', { date: fmtDay(pass.value.until) }), ok: t('Cancel the pass'), cancel: t('Keep it'), mode: 'warning' })
+    if (!ok) return
+  }
+  passBusy.value = true
+  try {
+    const r = await fetch(apiUrl('/api/payment/pass/' + action), { method: 'POST', credentials: 'include' })
+    const j = await r.json()
+    if (!r.ok) throw new Error(j.error || 'Could not change the pass. Please try again.')
+    if (auth.user) auth.user.pass = j.pass
+    showToast(t(action === 'cancel' ? 'Your pass won’t renew' : 'Your pass will renew'))
+  } catch (e) { showToast(t(e.message)) } finally { passBusy.value = false }
+}
+// Back from Stripe checkout
+async function passReturn() {
+  const q = new URLSearchParams(location.search)
+  if (!q.get('pass')) return
+  router.replace({ path: '/settings', hash: '#pass' })
+  if (q.get('pass') !== 'done') return
+  try {
+    const r = await fetch(apiUrl('/api/payment/pass/verify'), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: q.get('session') }) })
+    const j = await r.json()
+    if (auth.user && j.pass) auth.user.pass = j.pass
+    showToast(t(j.pass ? 'Your Job Hunt Pass is on. Good luck with the job hunt!' : 'Payment received. Your pass will switch on in a moment.'))
+    loadAiQuota()
+  } catch {}
+}
+
 onMounted(() => {
+  passReturn()
+  if (location.hash === '#pass') setTimeout(() => document.getElementById('pass')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 600)
   loadAiQuota(); if (auth.isLoggedIn) { loadReferral(); loadNewsletter(); loadDetails() }
   // Arriving from a "leave a rating" link or notification
   // Arriving from the homepage's referral section
@@ -624,6 +700,15 @@ watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota(); lo
 @keyframes stIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){ .st-card{animation:none} }
 .st-card-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
+.st-pass.on{box-shadow:0 0 0 2px var(--c-accent),var(--shadow-sm)}
+.st-pass-price{font-size:28px;font-weight:800;letter-spacing:-.03em;color:var(--c-text);white-space:nowrap;text-align:right;line-height:1.1}
+.st-pass-price span{font-size:14px;font-weight:600;color:var(--c-text3);margin-left:2px}
+.st-pass-list{list-style:none;margin:0 0 18px;padding:0;display:flex;flex-direction:column;gap:10px}
+.st-pass-list li{display:flex;gap:10px;font-size:14.5px;color:var(--c-text2);line-height:1.45}
+.st-pass-list svg{width:18px;height:18px;flex-shrink:0;fill:none;stroke:var(--c-pass);stroke-width:2.4;margin-top:2px}
+.st-consent{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--c-text2);line-height:1.5;margin-bottom:14px;cursor:pointer}
+.st-consent input{margin-top:3px;flex-shrink:0}
+.st-pass-note{margin-top:10px}
 .st-card-t{font-size:19px;font-weight:750;letter-spacing:-.025em;color:var(--c-text);margin-bottom:6px}
 .st-p{font-size:14.5px;color:var(--c-text2);line-height:1.6}
 .st-dgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}

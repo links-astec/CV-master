@@ -98,4 +98,7 @@ export default {
   'Drag to reorder': 'Glisser pour réorganiser',
   'Move up': 'Monter',
   'Move down': 'Descendre',
+  'Your Job Hunt Pass covers this CV. Send it as often as you like, even after edits.': 'Votre Job Hunt Pass couvre ce CV. Envoyez-le autant de fois que vous voulez, même après modification.',
+  'Applying to lots of jobs?': 'Vous postulez à beaucoup d’offres ?',
+  'The Job Hunt Pass unlocks every CV you make for €6.99 a month.': 'Le Job Hunt Pass débloque tous vos CV pour 6,99 € par mois.',
 }

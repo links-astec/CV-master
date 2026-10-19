@@ -141,4 +141,11 @@ export default {
   'friends joined': 'amis inscrits',
   'free CVs earned': 'CV gratuits gagnés',
   'free CV': 'CV gratuit',
+  '€6.99': '6,99 €',
+  ' a month': ' par mois',
+  'Get the pass': 'Obtenir le pass',
+  'Every CV you make as a clean PDF': 'Chaque CV que vous créez en PDF sans filigrane',
+  '100 AI requests a day': '100 requêtes IA par jour',
+  'What is the Job Hunt Pass?': 'Qu’est-ce que le Job Hunt Pass ?',
+  'For people applying to lots of jobs: for €6.99 a month every CV you make is unlocked as a clean PDF, and you get 100 AI requests a day. Cancel any time in Settings; the pass then runs to the end of the month you paid for.': 'Pour celles et ceux qui postulent à beaucoup d’offres : pour 6,99 € par mois, chaque CV que vous créez est débloqué en PDF sans filigrane, et vous avez 100 requêtes IA par jour. Annulable à tout moment dans les Paramètres ; le pass reste actif jusqu’à la fin du mois payé.',
 }
