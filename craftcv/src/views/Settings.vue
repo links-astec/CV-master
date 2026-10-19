@@ -155,17 +155,31 @@
       </section>
 
       <!-- Job Hunt Pass -->
-      <section id="pass" class="st-card st-pass" :class="{ on: pass }">
-        <div class="st-pass-brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>{{ $t('Job Hunt Pass') }}<span v-if="pass" class="st-pass-state">{{ $t(pass.cancelAtEnd ? 'Ends soon' : 'Active') }}</span></div>
-        <template v-if="pass">
-          <div class="st-pass-title">{{ $t(pass.cancelAtEnd ? 'Your pass is cancelled' : 'Your pass is on') }}</div>
-          <p class="st-pass-p">{{ pass.cancelAtEnd ? $t('Cancelled. You keep everything until {date}.', { date: fmtDay(pass.until) })
+      <!-- Pass holders: their card, what the pass is doing for them, and the plan -->
+      <section v-if="pass" id="pass" class="st-card st-mine">
+        <div class="st-mine-card">
+          <PassCard :name="auth.user?.name || ''" :since="pass.since || ''" :plan="pass.plan" />
+        </div>
+        <div class="st-mine-info">
+          <div class="st-mine-k"><span class="st-mine-dot" :class="{ off: pass.cancelAtEnd }"></span>{{ $t(pass.cancelAtEnd ? 'Ends soon' : 'Active') }}</div>
+          <div class="st-mine-t">{{ $t(pass.cancelAtEnd ? 'Your pass is cancelled' : 'Your pass is on') }}</div>
+          <p class="st-mine-p">{{ pass.cancelAtEnd ? $t('Cancelled. You keep everything until {date}.', { date: fmtDay(pass.until) })
             : $t(pass.plan === 'quarter' ? 'Active. Renews on {date} for €14.99.' : 'Active. Renews on {date} for €6.99.', { date: fmtDay(pass.until) }) }}</p>
-          <ul class="st-pass-list"><li v-for="f in PASS_FEATURES.slice(0, 3)" :key="f"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ $t(f) }}</li></ul>
-          <button v-if="!pass.cancelAtEnd" class="st-pass-ghost" :disabled="passBusy" @click="changePass('cancel')">{{ $t('Cancel the pass') }}</button>
-          <button v-else class="st-pass-cta" :disabled="passBusy" @click="changePass('resume')">{{ $t('Keep my pass') }}</button>
-        </template>
-        <template v-else>
+          <div class="st-mine-stats" :aria-label="$t('Your pass at work')">
+            <div><b>{{ passSum ? passSum.cvs : '·' }}</b><span>{{ $t('CVs unlocked') }}</span></div>
+            <div><b>{{ passSum ? '€' + (passSum.worthCents / 100).toFixed(2) : '·' }}</b><span>{{ $t('their value at €0.99 each') }}</span></div>
+            <div><b>{{ passSum ? Math.max(0, passSum.aiLimit - passSum.aiToday) : '·' }}</b><span>{{ $t('AI requests left today') }}</span></div>
+          </div>
+          <div class="st-mine-acts">
+            <button class="btn-primary accent btn-sm" @click="router.push('/')">{{ $t('Go to my CVs') }}</button>
+            <button v-if="!pass.cancelAtEnd" class="btn-secondary btn-sm" :disabled="passBusy" @click="changePass('cancel')">{{ $t('Cancel the pass') }}</button>
+            <button v-else class="btn-secondary btn-sm" :disabled="passBusy" @click="changePass('resume')">{{ $t('Keep my pass') }}</button>
+          </div>
+        </div>
+      </section>
+
+      <section v-else id="pass" class="st-card st-pass">
+        <div class="st-pass-brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>{{ $t('Job Hunt Pass') }}</div>
           <div class="st-pass-title">{{ $t('Every CV you make, unlocked.') }}</div>
           <p class="st-pass-p">{{ $t('Applying to lots of jobs? Every CV you make as a clean PDF, emailed and downloadable, and 100 AI requests a day.') }}</p>
           <div class="st-plans" role="radiogroup" :aria-label="$t('Job Hunt Pass billing')">
@@ -191,7 +205,6 @@
             <RouterLink to="/pricing" class="st-pass-link">{{ $t('Compare all plans') }}</RouterLink>
           </div>
           <p class="st-pass-note">{{ $t('Secure payment by Stripe · Cancel any time, it then runs to the end of the period you paid for.') }}</p>
-        </template>
       </section>
 
       <!-- AI requests -->
@@ -304,7 +317,7 @@
       </section>
 
       <!-- Right after buying the pass -->
-      <PassWelcome :show="welcome" :until="pass ? fmtDay(pass.until) : ''" @close="welcome = false" @start="welcome = false; router.push('/')" />
+      <PassWelcome :show="welcome" :until="pass ? fmtDay(pass.until) : ''" :name="auth.user?.name || ''" :since="pass?.since || ''" :plan="pass?.plan || 'month'" @close="welcome = false" @start="welcome = false; router.push('/')" />
 
       <!-- Review (only shows for people who have made a CV) -->
       <ReviewPrompt id="review" class="st-review" />
@@ -351,6 +364,7 @@ import { useAuthStore } from '../stores/auth.js'
 import { useCvStore } from '../stores/cv.js'
 import ReviewPrompt from '../components/ReviewPrompt.vue'
 import PassWelcome from '../components/PassWelcome.vue'
+import PassCard from '../components/PassCard.vue'
 import LangSwitch from '../components/LangSwitch.vue'
 import { INDUSTRIES, GOALS, LEVELS } from '../composables/profileOptions.js'
 import { t } from '../i18n/index.js'
@@ -677,6 +691,13 @@ const pass = computed(() => auth.user?.pass || null)
 const passBusy = ref(false)
 const passConsent = ref(false)
 const welcome = ref(false)   // the welcome sheet after buying
+// "Your pass at work"
+const passSum = ref(null)
+async function loadPassSummary() {
+  if (!auth.user?.pass) { passSum.value = null; return }
+  try { const r = await fetch(apiUrl('/api/payment/pass/summary'), { credentials: 'include' }); passSum.value = r.ok ? await r.json() : null } catch { passSum.value = null }
+}
+watch(() => auth.user?.pass?.until, loadPassSummary, { immediate: true })
 // Chosen on the pricing page (?plan=month) or here; 3 months is the better deal
 const passPlan = ref(new URLSearchParams(location.search).get('plan') === 'month' ? 'month' : 'quarter')
 // Section shortcuts, and which one is in view
@@ -778,6 +799,20 @@ button.st-gl:hover{background:color-mix(in srgb,var(--c-text) 8%,transparent)}
 .st-gl-plan.pass{background:var(--c-accent)}
 .st-gl-plan.pass b{color:#fff}.st-gl-plan.pass .st-gl-k,.st-gl-plan.pass .st-gl-s{color:rgba(255,255,255,.72)}
 .st-gl-plan.pass:hover{background:color-mix(in srgb,var(--c-accent) 90%,#000)}
+/* Pass holders: the card beside what it does for them */
+.st-mine{display:grid;grid-template-columns:minmax(0,340px) 1fr;gap:32px;align-items:center}
+.st-mine-card{display:flex;justify-content:center}
+.st-mine-k{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:600;color:var(--c-text2)}
+.st-mine-dot{width:8px;height:8px;border-radius:50%;background:#16a34a}.st-mine-dot.off{background:#d97706}
+.st-mine-t{font-size:clamp(24px,2.8vw,30px);font-weight:700;letter-spacing:-.035em;line-height:1.15;color:var(--c-text);margin:6px 0 6px}
+.st-mine-p{font-size:15px;line-height:1.5;color:var(--c-text2);margin:0}
+.st-mine-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:20px 0}
+.st-mine-stats > div{padding:14px 14px;border-radius:16px;background:var(--fill);display:flex;flex-direction:column;gap:2px}
+.st-mine-stats b{font-size:22px;font-weight:700;letter-spacing:-.03em;color:var(--c-text);font-variant-numeric:tabular-nums}
+.st-mine-stats span{font-size:12.5px;color:var(--c-text2);line-height:1.35}
+.st-mine-acts{display:flex;gap:10px;flex-wrap:wrap}
+@media (max-width:760px){ .st-mine{grid-template-columns:1fr;gap:24px} .st-mine-stats{grid-template-columns:1fr 1fr 1fr} }
+@media (max-width:420px){ .st-mine-stats > div{padding:12px 10px} .st-mine-stats b{font-size:18px} .st-mine-stats span{font-size:11.5px} }
 /* The Job Hunt Pass: the dark product card */
 .st-pass{background:var(--c-accent);color:#fff;box-shadow:none}
 :global([data-theme="dark"]) .st-pass{background:#5b54e8}

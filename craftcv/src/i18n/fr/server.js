@@ -159,6 +159,7 @@ export default {
   'Could not check the pass.': 'Impossible de vérifier le pass.',
   'Your Job Hunt Pass is on': 'Votre Job Hunt Pass est actif',
   'Every CV you make is now unlocked as a clean PDF, with more AI every day. Good luck with the job hunt!': 'Chaque CV que vous créez est maintenant débloqué en PDF sans filigrane, avec plus d’IA chaque jour. Bonne recherche d’emploi !',
+  'Could not load your pass.': 'Impossible de charger votre pass.',
 }
 
 // Server messages that contain a value; tried when there's no exact match

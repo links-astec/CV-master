@@ -87,6 +87,7 @@
             <button class="btn-primary accent btn-lg btn-block" :disabled="loading || !deliveryOk || (!paidForDraft && !demoMode && !withdrawalOk)" @click="primary">
               {{ $t(loading ? 'Please wait…' : paidForDraft || demoMode ? 'Email my CV' : 'Pay €0.99 and get my CV') }}
             </button>
+            <button v-if="paidForDraft && auth.user?.pass" class="btn-secondary btn-lg btn-block pw-dl" :disabled="downloading" @click="downloadPdf">{{ $t(downloading ? 'Preparing…' : 'Download PDF') }}</button>
             <button v-if="!paidForDraft && !demoMode && credits > 0" class="btn-secondary btn-block pw-credit" :disabled="loading || !deliveryOk" @click="useCredit">
               {{ $t('Use a referral credit instead, free ({n} left)', { n: credits }) }}
             </button>
@@ -332,6 +333,7 @@ defineExpose({ handleStripeReturn })
 </script>
 
 <style scoped>
+.pw-dl{margin-top:10px}
 .pw-included{display:inline-flex;align-items:center;gap:8px;margin-top:12px;height:32px;padding:0 14px 0 6px;border-radius:99px;background:var(--c-accent);color:#fff;font-size:13.5px;font-weight:600}
 .pw-included svg{width:20px;height:20px;padding:3px;border-radius:50%;background:#fff;fill:none;stroke:var(--c-accent);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
 .pw-pass{display:block;width:100%;margin-top:14px;padding:12px 14px;border:none;border-radius:14px;background:color-mix(in srgb,var(--c-accent) 9%,transparent);color:var(--c-text2);font:inherit;font-size:13.5px;line-height:1.5;text-align:left;cursor:pointer}

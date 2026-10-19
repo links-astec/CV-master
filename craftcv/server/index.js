@@ -2952,6 +2952,22 @@ app.post('/api/payment/pass/verify', authMiddleware, async (req, res) => {
   } catch (e) { console.error('[pass verify]', e.message); res.status(500).json({ error: 'Could not check the pass.' }); }
 });
 // Cancel (runs to the end of the month already paid) or keep it after all
+// What the pass is doing for its holder: CVs unlocked (and what they'd cost one by one), AI used and left
+app.get('/api/payment/pass/summary', authMiddleware, async (req, res) => {
+  try {
+    await Promise.all([ensurePassCols(), ensureAiTables()]);
+    const u = (await query('SELECT pass_since, pass_until FROM users WHERE id = $1 AND pass_until > NOW()', [req.user.sub])).rows[0];
+    if (!u) return res.status(404).json({ error: 'You don’t have a Job Hunt Pass.' });
+    const subject = 'u:' + req.user.sub;
+    const [cvs, today, since] = await Promise.all([
+      query('SELECT COUNT(*)::int AS n FROM drafts WHERE user_id = $1', [req.user.sub]),
+      query('SELECT COALESCE(SUM(count), 0)::int AS n FROM ai_usage WHERE subject = $1 AND day = CURRENT_DATE', [subject]),
+      query('SELECT COALESCE(SUM(count), 0)::int AS n FROM ai_usage WHERE subject = $1 AND day >= $2::date', [subject, u.pass_since || new Date()]),
+    ]);
+    const n = cvs.rows[0].n;
+    res.json({ cvs: n, worthCents: Math.round(n * CV_PRICE_CENTS), aiToday: today.rows[0].n, aiLimit: AI_PASS_PER_DAY, aiSincePass: since.rows[0].n, since: u.pass_since, until: u.pass_until });
+  } catch (e) { console.error('[pass summary]', e.message); res.status(500).json({ error: 'Could not load your pass.' }); }
+});
 app.post('/api/payment/pass/:action(cancel|resume)', authMiddleware, async (req, res) => {
   try {
     await ensurePassCols();
