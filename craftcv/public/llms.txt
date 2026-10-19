@@ -1,0 +1,19 @@
+# CVMaster
+
+> CVMaster (also written CV Master) is a free AI CV builder at cvmaster.live. People build a one-page CV in minutes, tailor it to a job offer, check their ATS score and download a clean PDF. Available in English, French, Spanish, German, Italian, Portuguese and Chinese, on the web and as a phone app.
+
+## Main pages
+
+- [Home](https://www.cvmaster.live/): what CVMaster does, step by step
+- [CV templates](https://www.cvmaster.live/templates): 50 layouts in 12 colours, ATS-friendly and creative
+- [Pricing](https://www.cvmaster.live/pricing): free to build; €0.99 per clean PDF, or the Job Hunt Pass (€6.99 a month or €14.99 every 3 months)
+- [Blog](https://www.cvmaster.live/blog): CV and job-hunting advice
+
+## Policies
+
+- [Privacy policy](https://www.cvmaster.live/privacy)
+- [Terms of service](https://www.cvmaster.live/terms)
+
+## Contact
+
+- [support@cvmaster.live](mailto:support@cvmaster.live)

@@ -2,10 +2,11 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { setSeo, seoForRoute } from './composables/seo.js'
 import Dashboard from './views/Dashboard.vue'
 import Templates from './views/Templates.vue'
-import Editor    from './views/Editor.vue'
-import Settings  from './views/Settings.vue'
-import Legal     from './views/Legal.vue'
-import Pricing   from './views/Pricing.vue'
+// Loaded when first opened, so a first visit downloads less
+const Editor   = () => import('./views/Editor.vue')
+const Settings = () => import('./views/Settings.vue')
+const Legal    = () => import('./views/Legal.vue')
+const Pricing  = () => import('./views/Pricing.vue')
 
 const routes = [
   { path: '/',               component: Dashboard, meta: { title: 'My CVs' } },

@@ -1192,7 +1192,9 @@ const COUNTRY = /^[A-Z]{2}$/;
 let _countryCols = null;
 const ensureCountryCols = () => (_countryCols ||= query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS country TEXT`)
   .then(() => query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS country_at TIMESTAMPTZ`)).catch(e => { _countryCols = null; throw e; }));
-app.get('/api/auth/me', authMiddleware, async (req, res) => {
+// The website asks with ?soft=1: no session at all is a normal "nobody signed in" (204), not a 401
+const softMe = (req, res, next) => (req.query.soft === '1' && !tokenOf(req) ? res.status(204).end() : next());
+app.get('/api/auth/me', softMe, authMiddleware, async (req, res) => {
   try {
     await ensureActivity().catch(() => {});
     await ensurePassCols().catch(() => {});
@@ -2924,7 +2926,8 @@ app.post('/api/payment/pass', authMiddleware, async (req, res) => {
       client_reference_id: req.user.sub,
       metadata: { product: 'pass', plan: planId, userId: req.user.sub, withdrawal_waiver: `accepted ${new Date().toISOString()}` },
       subscription_data: { metadata: { product: 'pass', plan: planId, userId: req.user.sub }, description: 'CVMaster Job Hunt Pass. Starts straight away at the customer\'s request' },
-      success_url: `${FRONTEND_URL}/settings?pass=done&session={CHECKOUT_SESSION_ID}`,
+      // pass_session, not session: ?session= is the single-CV payment return the site handles itself
+      success_url: `${FRONTEND_URL}/settings?pass=done&pass_session={CHECKOUT_SESSION_ID}`,
       cancel_url: `${FRONTEND_URL}/settings?pass=cancelled`,
     });
     res.json({ url: session.url });

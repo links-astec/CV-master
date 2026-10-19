@@ -310,9 +310,9 @@
       <div class="lp-wrap">
         <div class="lp-foot-cols">
           <div class="lp-foot-brand"><BrandLogo small /><p>{{ $t('Free AI CV builder. Write, tailor and download a CV that gets you the interview.') }}</p></div>
-          <div><h4>{{ $t('Product') }}</h4><a href="/templates">{{ $t('CV templates') }}</a><a href="#pricing" @click.prevent="go('#pricing')">{{ $t('Pricing') }}</a><a :href="`/blog?lang=${lang}`">{{ $t('Blog') }}</a></div>
-          <div><h4>{{ $t('Help') }}</h4><a href="#faq" @click.prevent="go('#faq')">{{ $t('Questions') }}</a><a href="#" @click.prevent="openFeedback?.()">{{ $t('Feedback') }}</a><a href="mailto:support@cvmaster.live">{{ $t('Contact') }}</a></div>
-          <div><h4>{{ $t('Legal') }}</h4><a href="/privacy">{{ $t('Privacy') }}</a><a href="/terms">{{ $t('Terms') }}</a></div>
+          <div><h3>{{ $t('Product') }}</h3><a href="/templates">{{ $t('CV templates') }}</a><a href="#pricing" @click.prevent="go('#pricing')">{{ $t('Pricing') }}</a><a :href="`/blog?lang=${lang}`">{{ $t('Blog') }}</a></div>
+          <div><h3>{{ $t('Help') }}</h3><a href="#faq" @click.prevent="go('#faq')">{{ $t('Questions') }}</a><a href="#" @click.prevent="openFeedback?.()">{{ $t('Feedback') }}</a><a href="mailto:support@cvmaster.live">{{ $t('Contact') }}</a></div>
+          <div><h3>{{ $t('Legal') }}</h3><a href="/privacy">{{ $t('Privacy') }}</a><a href="/terms">{{ $t('Terms') }}</a></div>
         </div>
         <div class="lp-foot-copy">© {{ new Date().getFullYear() }} CVMaster</div>
       </div>
@@ -590,8 +590,8 @@ const FAQ = [
 .m-mic-btn{width:64px;height:64px;border-radius:50%;background:#4338CA;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 10px rgba(67,56,202,.12)}
 .m-mic-btn svg{width:28px;height:28px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round}
 .m-wave{display:flex;align-items:center;gap:4px;height:34px}
-.m-wave i{width:4px;border-radius:4px;background:#4338CA;animation:wave 1.1s ease-in-out infinite alternate;height:30%}
-@keyframes wave{to{height:100%}}
+.m-wave i{width:4px;border-radius:4px;background:#4338CA;animation:wave 1.1s ease-in-out infinite alternate;height:100%;transform:scaleY(.3);will-change:transform}
+@keyframes wave{to{transform:scaleY(1)}}
 .m-mic-txt{font-size:12.5px;font-weight:600;color:#4A4A63;text-align:center}
 .m-page{width:34%;border-radius:4px;overflow:hidden;box-shadow:0 24px 60px rgba(20,20,43,.2);transform:rotate(4deg)}
 .m-panel{width:min(80%,440px);background:#fff;border-radius:22px;padding:22px;box-shadow:0 20px 50px rgba(20,20,43,.14);display:flex;flex-direction:column;gap:12px;color:#14142B}
@@ -765,7 +765,7 @@ const FAQ = [
 .lp-foot{padding:56px 0 40px;background:var(--c-bg);font-size:13px;color:var(--c-text3)}
 .lp-foot-cols{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:32px;padding-bottom:32px;border-bottom:1px solid var(--hair)}
 .lp-foot-brand p{margin-top:14px;max-width:280px;line-height:1.6}
-.lp-foot h4{font-size:12.5px;font-weight:650;color:var(--c-text);margin-bottom:12px}
+.lp-foot h3{font-size:12.5px;font-weight:650;color:var(--c-text);margin-bottom:12px}
 .lp-foot a{display:block;color:var(--c-text3);text-decoration:none;padding:4px 0}
 .lp-foot a:hover{color:var(--c-text)}
 .lp-foot-copy{padding-top:22px}

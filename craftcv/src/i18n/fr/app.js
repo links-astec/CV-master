@@ -75,4 +75,5 @@ export default {
   'French': 'Français',
   'Expand sidebar': 'Déplier le menu',
   'Collapse sidebar': 'Replier le menu',
+  'Pass': 'Pass',
 }

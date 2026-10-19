@@ -22,8 +22,9 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function fetchMe() {
     try {
-      const r = await fetch(apiUrl('/api/auth/me'), { credentials: 'include' })
-      user.value = r.ok ? await r.json() : null
+      // ?soft=1: without a session the server answers 204 (no error in the console)
+      const r = await fetch(apiUrl('/api/auth/me?soft=1'), { credentials: 'include' })
+      user.value = r.status === 200 ? await r.json() : null
     } catch { user.value = null }
     loading.value = false
   }

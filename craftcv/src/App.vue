@@ -55,10 +55,10 @@
           <button class="btn-primary accent btn-block btn-sm" @click="openAuth('register')">{{ $t('Create free account') }}</button>
           <button class="btn-ghost btn-block btn-sm" @click="openAuth('signin')">{{ $t('Sign in') }}</button>
         </div>
-        <RouterLink v-else to="/settings" class="sb-user" :title="sbMini ? auth.user?.email : null" @click="navOpen = false">
+        <RouterLink v-else to="/settings" class="sb-user" :class="{ 'has-pass': auth.user?.pass }" :title="sbMini ? auth.user?.email : null" @click="navOpen = false">
           <span class="sb-ava"><img v-if="auth.user?.photo" :src="auth.user.photo" alt="" /><template v-else>{{ auth.user?.avatar || auth.user?.name?.[0] || 'U' }}</template></span>
           <span class="sb-user-txt">
-            <span class="sb-user-name">{{ auth.user?.name }}</span>
+            <span class="sb-user-name"><span class="sb-user-n">{{ auth.user?.name }}</span><span v-if="auth.user?.pass" class="sb-pass">{{ $t('Pass') }}</span></span>
             <span class="sb-user-mail">{{ auth.user?.email }}</span>
           </span>
         </RouterLink>
@@ -514,6 +514,11 @@ onMounted(() => setTimeout(checkBigTitle, 400))
 .sb-ava{overflow:hidden;width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 30% 25%,#8B85FF,#4338CA 55%,#2A2390);color:#fff;box-shadow:0 4px 10px rgba(67,56,202,.25);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0}
 .sb-user-txt{display:flex;flex-direction:column;min-width:0}
 .sb-user-name{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Job Hunt Pass holders: a quiet mark on their account */
+.sb-user-name{display:flex!important;align-items:center;min-width:0}
+.sb-user-n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.sb-pass{flex-shrink:0;display:inline-flex;align-items:center;height:17px;padding:0 7px;margin-left:6px;border-radius:99px;background:var(--c-text);color:var(--c-bg);font-size:10.5px;font-weight:700;vertical-align:1px}
+.sb-user.has-pass .sb-ava{box-shadow:0 0 0 2px var(--c-surface),0 0 0 3.5px var(--c-text)}
 .sb-user-mail{font-size:12px;color:var(--c-text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sb-legal{display:flex;gap:6px;justify-content:center;font-size:12px;color:var(--c-text3)}
 .sb-legal a,.sb-legal button{color:var(--c-text3);text-decoration:none;background:none;border:none;padding:0;font:inherit;cursor:pointer}
