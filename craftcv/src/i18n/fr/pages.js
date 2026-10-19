@@ -184,4 +184,5 @@ export default {
   'CVMaster (CV Master) is free to build. Download a clean PDF for €0.99, or get every CV with the Job Hunt Pass: €6.99 a month or €14.99 every 3 months.': 'CVMaster (CV Master) est gratuit pour créer. Téléchargez un PDF sans filigrane pour 0,99 €, ou obtenez tous vos CV avec le Job Hunt Pass : 6,99 € par mois ou 14,99 € tous les 3 mois.',
   'CVMaster (CV Master) | Free AI CV Builder: ATS-Friendly CVs Tailored to Any Job': 'CVMaster (CV Master) | Créateur de CV gratuit avec IA : des CV compatibles ATS adaptés à chaque offre',
   'CVMaster (CV Master) is a free AI CV builder and CV maker: build a professional CV in minutes, tailor it to any job offer, check your ATS score and download a one-page PDF. 50 CV templates.': 'CVMaster (CV Master) est un créateur de CV gratuit avec IA : créez un CV professionnel en quelques minutes, adaptez-le à chaque offre, vérifiez votre score ATS et téléchargez un PDF d’une page. 50 modèles de CV.',
+  'You save 29% compared with paying monthly.': 'Vous économisez 29 % par rapport au paiement mensuel.',
 }

@@ -8,7 +8,6 @@
 
       <!-- Account -->
       <section v-if="auth.isLoggedIn" id="account" class="st-card st-hero">
-        <div class="st-hero-bg" aria-hidden="true"></div>
         <div class="st-acct">
           <!-- Profile picture: the account's avatar everywhere, and the photo offered for CV layouts with one -->
           <button type="button" class="st-ava" :class="{ busy: detailsSaving }" :aria-label="$t('Change profile picture')" :title="$t('Change profile picture')" @click="picInput?.click()">
@@ -157,8 +156,7 @@
 
       <!-- Job Hunt Pass -->
       <section id="pass" class="st-card st-pass" :class="{ on: pass }">
-        <div class="st-pass-glow" aria-hidden="true"></div>
-        <span class="st-pass-kick">{{ $t('Job Hunt Pass') }}</span>
+        <div class="st-pass-brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>{{ $t('Job Hunt Pass') }}<span v-if="pass" class="st-pass-state">{{ $t(pass.cancelAtEnd ? 'Ends soon' : 'Active') }}</span></div>
         <template v-if="pass">
           <div class="st-pass-title">{{ $t(pass.cancelAtEnd ? 'Your pass is cancelled' : 'Your pass is on') }}</div>
           <p class="st-pass-p">{{ pass.cancelAtEnd ? $t('Cancelled. You keep everything until {date}.', { date: fmtDay(pass.until) })
@@ -177,7 +175,7 @@
               <span class="st-po-s">{{ $t('a month') }}<template v-if="approx(6.99)"> · {{ approx(6.99) }}</template></span>
             </button>
             <button type="button" role="radio" class="st-po" :class="{ on: passPlan === 'quarter' }" :aria-checked="passPlan === 'quarter'" @click="passPlan = 'quarter'">
-              <span class="st-po-badge">−29%</span>
+              <span class="st-po-badge">{{ $t('Save 29%') }}</span>
               <span class="st-po-t">{{ $t('Every 3 months') }}</span>
               <span class="st-po-p">€14.99</span>
               <span class="st-po-s">{{ $t('€5.00 a month') }}<template v-if="approx(14.99)"> · {{ approx(14.99) }}</template></span>
@@ -305,6 +303,9 @@
         </div>
       </section>
 
+      <!-- Right after buying the pass -->
+      <PassWelcome :show="welcome" :until="pass ? fmtDay(pass.until) : ''" @close="welcome = false" @start="welcome = false; router.push('/')" />
+
       <!-- Review (only shows for people who have made a CV) -->
       <ReviewPrompt id="review" class="st-review" />
 
@@ -349,6 +350,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { useCvStore } from '../stores/cv.js'
 import ReviewPrompt from '../components/ReviewPrompt.vue'
+import PassWelcome from '../components/PassWelcome.vue'
 import LangSwitch from '../components/LangSwitch.vue'
 import { INDUSTRIES, GOALS, LEVELS } from '../composables/profileOptions.js'
 import { t } from '../i18n/index.js'
@@ -674,6 +676,7 @@ const PASS_FEATURES = ['Every CV as a clean PDF, emailed and downloadable', '100
 const pass = computed(() => auth.user?.pass || null)
 const passBusy = ref(false)
 const passConsent = ref(false)
+const welcome = ref(false)   // the welcome sheet after buying
 // Chosen on the pricing page (?plan=month) or here; 3 months is the better deal
 const passPlan = ref(new URLSearchParams(location.search).get('plan') === 'month' ? 'month' : 'quarter')
 // Section shortcuts, and which one is in view
@@ -724,10 +727,11 @@ async function passReturn() {
   router.replace({ path: '/settings', hash: '#pass' })
   if (q.get('pass') !== 'done') return
   try {
-    const r = await fetch(apiUrl('/api/payment/pass/verify'), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: q.get('session') }) })
+    const r = await fetch(apiUrl('/api/payment/pass/verify'), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: q.get('pass_session') }) })
     const j = await r.json()
     if (auth.user && j.pass) auth.user.pass = j.pass
-    showToast(t(j.pass ? 'Your Job Hunt Pass is on. Good luck with the job hunt!' : 'Payment received. Your pass will switch on in a moment.'))
+    if (j.pass) welcome.value = true
+    else showToast(t('Payment received. Your pass will switch on in a moment.'))
     loadAiQuota()
   } catch {}
 }
@@ -753,60 +757,60 @@ watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota(); lo
 @keyframes stIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){ .st-card{animation:none} }
 .st-card-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
-/* Section shortcuts */
-.st-jump{position:sticky;top:-36px;z-index:5;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:-2px -8px 2px;padding:10px 8px;background:color-mix(in srgb,var(--c-bg) 86%,transparent);backdrop-filter:saturate(1.8) blur(16px);-webkit-backdrop-filter:saturate(1.8) blur(16px)}
+/* Section shortcuts: a quiet segmented row that follows the page */
+.st-jump{position:sticky;top:-36px;z-index:5;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin:-2px -8px 2px;padding:10px 8px;background:color-mix(in srgb,var(--c-bg) 86%,transparent);backdrop-filter:saturate(1.8) blur(20px);-webkit-backdrop-filter:saturate(1.8) blur(20px)}
 .st-jump::-webkit-scrollbar{display:none}
 @media (max-width:768px){ .st-jump{top:-22px} }
-.st-jump a{flex-shrink:0;height:36px;padding:0 15px;border-radius:99px;display:inline-flex;align-items:center;font-size:13.5px;font-weight:600;color:var(--c-text2);text-decoration:none;background:var(--fill);transition:background .2s var(--ease),color .2s var(--ease)}
+.st-jump a{flex-shrink:0;height:34px;padding:0 14px;border-radius:99px;display:inline-flex;align-items:center;font-size:14px;font-weight:500;color:var(--c-text2);text-decoration:none;transition:background .2s ease,color .2s ease}
 .st-jump a:hover{color:var(--c-text)}
-.st-jump a.on{background:var(--c-text);color:var(--c-bg)}
+.st-jump a.on{background:var(--c-surface);color:var(--c-text);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .st-card{scroll-margin-top:64px}
-/* Account header */
-.st-hero{position:relative;overflow:hidden;padding-top:0}
-.st-hero-bg{height:92px;margin:0 -30px 0;background:radial-gradient(120% 140% at 100% 0%,#DB2777 0%,transparent 45%),radial-gradient(90% 160% at 0% 0%,#7C3AED 0%,transparent 55%),linear-gradient(120deg,#312E81,#4338CA)}
-.st-hero .st-acct{margin-top:-38px;position:relative;align-items:flex-start}
-.st-hero .st-acct-txt{padding-top:46px}
-.st-hero .st-acct > .btn-secondary{margin-top:48px}
-.st-hero .st-ava{box-shadow:0 0 0 5px var(--c-surface),0 10px 24px rgba(67,56,202,.3)}
-.st-glance{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:22px 0 20px}
-.st-gl{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:16px 18px;border-radius:20px;background:var(--fill);border:none;font:inherit;color:inherit;text-align:left}
-button.st-gl{cursor:pointer;transition:transform .25s var(--ease),background .25s var(--ease)}
-button.st-gl:hover{transform:translateY(-2px);background:color-mix(in srgb,var(--c-accent) 9%,transparent)}
-.st-gl-k{font-size:12.5px;font-weight:650;color:var(--c-text3);text-transform:uppercase;letter-spacing:.05em}
-.st-gl b{font-size:26px;font-weight:820;letter-spacing:-.035em;color:var(--c-text);line-height:1.15}
-.st-gl b small{font-size:15px;font-weight:600;color:var(--c-text3);margin-left:2px}
+/* Account: like an Apple ID page, plain and centred on the person */
+.st-hero .st-acct{align-items:center}
+.st-glance{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:24px 0 22px}
+.st-gl{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:16px 18px;border-radius:18px;background:var(--fill);border:none;font:inherit;color:inherit;text-align:left}
+button.st-gl{cursor:pointer;transition:background .2s ease}
+button.st-gl:hover{background:color-mix(in srgb,var(--c-text) 8%,transparent)}
+.st-gl-k{font-size:13px;font-weight:500;color:var(--c-text3)}
+.st-gl b{font-size:24px;font-weight:700;letter-spacing:-.03em;color:var(--c-text);line-height:1.2;font-variant-numeric:tabular-nums}
+.st-gl b small{font-size:15px;font-weight:500;color:var(--c-text3);margin-left:2px}
 .st-gl-s{font-size:13px;color:var(--c-text2)}
-.st-gl-plan.pass{background:linear-gradient(135deg,#312E81,#4338CA);color:#fff}
-.st-gl-plan.pass b,.st-gl-plan.pass .st-gl-s{color:#fff}.st-gl-plan.pass .st-gl-k{color:rgba(255,255,255,.7)}
-/* The Job Hunt Pass */
-.st-pass{position:relative;overflow:hidden;color:#fff;background:radial-gradient(110% 90% at 100% 0%,#7C3AED 0%,transparent 55%),linear-gradient(160deg,#312E81,#4338CA 55%,#5B21B6);box-shadow:0 30px 70px -24px rgba(67,56,202,.6)}
-.st-pass-glow{position:absolute;width:320px;height:320px;right:-120px;bottom:-160px;border-radius:50%;background:radial-gradient(circle,rgba(219,39,119,.45),transparent 70%);pointer-events:none}
-.st-pass-kick{display:inline-block;font-size:12.5px;font-weight:750;letter-spacing:.07em;text-transform:uppercase;color:#312E81;background:linear-gradient(135deg,#FDE68A,#FBBF24);padding:5px 12px;border-radius:99px}
-.st-pass-title{font-size:clamp(24px,3vw,32px);font-weight:820;letter-spacing:-.035em;line-height:1.1;margin:14px 0 8px}
-.st-pass-p{font-size:15px;line-height:1.6;color:rgba(255,255,255,.82);margin:0 0 20px;max-width:560px}
-.st-plans{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
-.st-po{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:18px;border-radius:20px;border:none;font:inherit;color:#fff;text-align:left;cursor:pointer;background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.18);transition:background .25s var(--ease),box-shadow .25s var(--ease),transform .25s var(--ease)}
-.st-po:hover{background:rgba(255,255,255,.16)}
-.st-po.on{background:#fff;color:#312E81;box-shadow:0 12px 28px rgba(0,0,0,.2);transform:translateY(-2px)}
-.st-po-t{font-size:13.5px;font-weight:650;opacity:.85}
-.st-po-p{font-size:30px;font-weight:820;letter-spacing:-.04em;line-height:1.1}
-.st-po-s{font-size:12.5px;opacity:.75}
-.st-po-badge{position:absolute;top:12px;right:12px;font-size:12px;font-weight:750;color:#fff;background:linear-gradient(135deg,#16A34A,#059669);padding:3px 8px;border-radius:99px}
-.st-pass-list{list-style:none;margin:0 0 20px;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:10px 18px}
-.st-pass-list li{display:flex;gap:9px;font-size:14px;color:rgba(255,255,255,.92);line-height:1.45}
-.st-pass-list svg{width:17px;height:17px;flex-shrink:0;fill:none;stroke:#86EFAC;stroke-width:2.6;margin-top:2px}
-.st-pass .st-consent{color:rgba(255,255,255,.82)}
-.st-pass-row{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
-.st-pass-cta{height:50px;padding:0 26px;border:none;border-radius:99px;background:#fff;color:#312E81;font:inherit;font-size:15.5px;font-weight:750;cursor:pointer;box-shadow:0 10px 24px rgba(0,0,0,.2);transition:transform .25s var(--ease),opacity .2s}
-.st-pass-cta:hover:not(:disabled){transform:translateY(-2px)}
-.st-pass-cta:disabled{opacity:.55;cursor:not-allowed}
-.st-pass-ghost{height:40px;padding:0 18px;border:none;border-radius:99px;background:rgba(255,255,255,.14);color:#fff;font:inherit;font-size:14px;font-weight:650;cursor:pointer}
-.st-pass-ghost:hover{background:rgba(255,255,255,.22)}
-.st-pass-link{color:#fff;font-size:14px;font-weight:650;text-decoration:underline;text-underline-offset:3px;opacity:.9}
-.st-pass-note{font-size:12.5px;color:rgba(255,255,255,.65);margin:14px 0 0}
+.st-gl-plan.pass{background:#1d1d1f}
+.st-gl-plan.pass b{color:#f5f5f7}.st-gl-plan.pass .st-gl-k,.st-gl-plan.pass .st-gl-s{color:#a1a1a6}
+.st-gl-plan.pass:hover{background:#2c2c2e}
+/* The Job Hunt Pass: the dark product card */
+.st-pass{background:#1d1d1f;color:#f5f5f7;box-shadow:none}
+:global([data-theme="dark"]) .st-pass{background:#2c2c2e}
+.st-pass-brand{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;color:#f5f5f7}
+.st-pass-brand svg{width:22px;height:22px;padding:4px;border-radius:50%;background:#f5f5f7;fill:none;stroke:#1d1d1f;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.st-pass-state{margin-left:auto;font-size:13px;font-weight:600;color:#30d158}
+.st-pass-title{font-size:clamp(26px,3.2vw,34px);font-weight:700;letter-spacing:-.035em;line-height:1.1;margin:22px 0 10px;color:#f5f5f7}
+.st-pass-p{font-size:15.5px;line-height:1.55;color:#a1a1a6;margin:0 0 24px;max-width:560px}
+.st-plans{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px}
+.st-po{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:18px 20px;border-radius:18px;border:none;font:inherit;color:#f5f5f7;text-align:left;cursor:pointer;background:#2c2c2e;box-shadow:inset 0 0 0 2px transparent;transition:box-shadow .2s ease,background .2s ease}
+:global([data-theme="dark"]) .st-po{background:#3a3a3c}
+.st-po:hover{background:#3a3a3c}
+.st-po.on{box-shadow:inset 0 0 0 2px #f5f5f7}
+.st-po-t{font-size:14px;font-weight:600;color:#d2d2d7}
+.st-po-p{font-size:28px;font-weight:700;letter-spacing:-.035em;line-height:1.15}
+.st-po-s{font-size:13px;color:#a1a1a6}
+.st-po-badge{position:absolute;top:18px;right:18px;font-size:12.5px;font-weight:600;color:#a5b4fc}
+.st-pass-list{list-style:none;margin:0 0 24px;padding:20px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;border-top:1px solid rgba(255,255,255,.12)}
+.st-pass-list li{display:flex;gap:10px;font-size:14.5px;color:#d2d2d7;line-height:1.45}
+.st-pass-list svg{width:16px;height:16px;flex-shrink:0;fill:none;stroke:#f5f5f7;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;margin-top:2px}
+.st-pass .st-consent{color:#a1a1a6}
+.st-pass .st-consent input{accent-color:#f5f5f7}
+.st-pass-row{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.st-pass-cta{height:46px;padding:0 24px;border:none;border-radius:99px;background:#f5f5f7;color:#1d1d1f;font:inherit;font-size:15.5px;font-weight:600;cursor:pointer;transition:background .2s ease,opacity .2s,transform .15s}
+.st-pass-cta:hover:not(:disabled){background:#fff}
+.st-pass-cta:active:not(:disabled){transform:scale(.98)}
+.st-pass-cta:disabled{opacity:.4;cursor:not-allowed}
+.st-pass-ghost{height:40px;padding:0 18px;border:none;border-radius:99px;background:#2c2c2e;color:#f5f5f7;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.st-pass-ghost:hover{background:#3a3a3c}
+.st-pass-link{color:#a5b4fc;font-size:15px;font-weight:500;text-decoration:none}
+.st-pass-link:hover{text-decoration:underline}
+.st-pass-note{font-size:12.5px;color:#86868b;margin:16px 0 0}
 @media (max-width:600px){
-  .st-hero.st-card{padding-top:0}
-  .st-hero-bg{margin:0 -20px}
   .st-glance{grid-template-columns:1fr 1fr}.st-gl-plan{grid-column:1/-1}
   .st-plans{grid-template-columns:1fr}.st-pass-list{grid-template-columns:1fr}
 }
