@@ -1429,7 +1429,7 @@ function renderStatus() {
     const head = c.group !== group ? `<div class="st-group">${esc(group = c.group)}</div>` : ''
     return head + `<div class="chk"><span class="chk-ic ${c.state === 'ok' ? 'ok' : c.state === 'down' ? 'down' : 'no'}">${ic[c.state] || '!'}</span><div><span class="chk-t">${esc(c.name)}</span><span>${esc(c.detail || '')}</span></div></div>`
   }).join('')
-  return banner + rows + `<p class="muted" style="font-size:12px;margin-top:14px">Checked again every hour while people use CVMaster. ${st.alertsTo ? `When something stops working, or works again, an email goes to <b>${esc(st.alertsTo)}</b>.` : 'Set ADMIN_EMAIL in Render to be emailed when something stops working.'} If the whole server goes down nothing here can run, so also add a free outside monitor (for example UptimeRobot) on <code>https://api.cvmaster.live/api/health</code> (as a keyword check for <code>"db":true</code>, so it also notices when the database stops) and <code>https://www.cvmaster.live</code>.</p>`
+  return banner + rows + `<p class="muted" style="font-size:12px;margin-top:14px">Checked again every hour while people use CVMaster. ${st.alertsTo ? `When something stops working, or works again, an email goes to <b>${esc(st.alertsTo)}</b>.` : 'Set ADMIN_EMAIL in Render to be emailed when something stops working.'} If the whole server goes down nothing here can run, so also add a free outside monitor (for example UptimeRobot) on <code>https://api.cvmaster.live/api/uptime</code> (it answers with an error when the database stops) and <code>https://www.cvmaster.live</code>.</p>`
 }
 
 function renderSettings() {

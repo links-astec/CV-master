@@ -4889,6 +4889,18 @@ app.get('/api/health', async (req, res) => {
   }
   res.json({ ok: true, maintenance: false, db, ai: !!AI_READY, pdf: pdfEngine.status, time: new Date().toISOString() });
 });
+// For the outside uptime monitor (UptimeRobot): an error status when the database isn't answering,
+// so a plain "is it up?" monitor notices. /api/health stays 200 for Render's own check, which would
+// otherwise refuse deploys and restart the server whenever the database is down.
+app.get('/api/uptime', async (req, res) => {
+  if (!dbHealth.ok || Date.now() - dbHealth.at > 60 * 60 * 1000) {
+    try { await query('SELECT 1'); dbHealth.ok = true; } catch { dbHealth.ok = false; }
+    dbHealth.at = Date.now();
+  }
+  res.set('Cache-Control', 'no-store');
+  if (!dbHealth.ok) return res.status(503).type('text').send('database not answering');
+  res.type('text').send('ok');
+});
 
 // Frontend is served by Vercel. No static file serving needed here.
 
