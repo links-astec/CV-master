@@ -19,6 +19,7 @@ import { query } from './db.js';
 import { ensurePushTable, isPushToken, pushHealth, registerToken, removeToken, sendPush } from './push.js';
 import { ensureActivity, nextStep, personalNudges, recordEvents, setPersonalize } from './activity.js';
 import { ensureGuests, guestStats, linkGuest, pruneGuests, recordGuest } from './guests.js';
+import { checkEmail } from './mailcheck.js';
 import { claudeFailed, claudeWorked, cleanEdit, countClaude, countGroq, countMail, servicesReport, serviceAlerts } from './services.js';
 import { ensureAppleCols, keepAppleRefreshToken, revokeApple, verifyAppleToken } from './apple.js';
 import { registerBlog, BLOG_JS } from './blog.js'
@@ -3719,6 +3720,22 @@ app.get('/api/admin/config', adminAuthMiddleware, (req, res) => {
 registerBlog(app, { adminAuth: adminAuthMiddleware, rateLimit, callAi, sendPush, subscribe: (email) => requestNewsletter(email, 'blog'), onError: (where, e) => console.error(`[${where}]`, e.message) });
 
 // Push to every phone with the app (sent as written, in the admin's own words)
+// The admin's own push templates (the ready-made ones live in admin.html)
+const PUSH_LINKS = ['/', '/templates', '/editor', '/settings'];
+app.get('/api/admin/push-templates', adminAuthMiddleware, async (req, res) => {
+  try { res.json({ templates: (await getSetting('push_templates', [])) || [] }); }
+  catch (e) { res.status(500).json({ error: 'Could not load the templates.' }); }
+});
+app.put('/api/admin/push-templates', adminAuthMiddleware, async (req, res) => {
+  try {
+    const list = (Array.isArray(req.body?.templates) ? req.body.templates : []).slice(0, 30).map(t => ({
+      name: String(t?.name || '').trim().slice(0, 40), title: String(t?.title || '').trim().slice(0, 80),
+      body: String(t?.body || '').trim().slice(0, 240), link: PUSH_LINKS.includes(t?.link) ? t.link : '/',
+    })).filter(t => t.name && t.title && t.body);
+    await setSetting('push_templates', list);
+    res.json({ templates: list });
+  } catch (e) { res.status(500).json({ error: 'Could not save the templates.' }); }
+});
 app.post('/api/admin/push', adminAuthMiddleware, async (req, res) => {
   try {
     const title = String(req.body?.title || '').trim().slice(0, 80);
@@ -3766,9 +3783,12 @@ app.post('/api/internal/backup-report', rateLimit({ windowMs: 60 * 60 * 1000, ma
     res.json({ ok: true });
   } catch (e) { console.error('[backup-report]', e.message); res.status(500).json({ error: 'Could not record the backup.' }); }
 });
+// The .live registry's own RDAP (rdap.org refuses requests without a browser-like identity)
+const RDAP_URL = `https://rdap.identitydigital.services/rdap/domain/${process.env.APEX_DOMAIN || 'cvmaster.live'}`;
+const RDAP_HEADERS = { accept: 'application/rdap+json, application/json', 'user-agent': 'CVMaster status check (+https://www.cvmaster.live)' };
 // ── Subscriptions and limits (server/services.js) ──────────────────────────────
 const serviceDeps = () => ({ query, getSetting, setSetting,
-  getJson: (url) => withTimeout(fetch(url, { signal: AbortSignal.timeout(8000) }).then(r => r.json())).catch(() => null) });
+  getJson: (url, headers) => withTimeout(fetch(url, { headers, signal: AbortSignal.timeout(8000) }).then(r => r.json())).catch(() => null), rdap: [RDAP_URL, RDAP_HEADERS] });
 app.get('/api/admin/services', adminAuthMiddleware, async (req, res) => {
   try { res.json({ ...(await servicesReport(serviceDeps())), alertsTo: process.env.ADMIN_EMAIL || FEEDBACK_TO || null }); }
   catch (e) { console.error('[admin/services]', e.message); res.status(500).json({ error: 'Could not load the services.' }); }
@@ -3932,7 +3952,7 @@ async function runStatus() {
       const where = /cloudflare\.com/i.test(ns) ? 'DNS on Cloudflare' : `DNS at ${ns.includes('registrar-servers') ? 'Namecheap' : ns || 'unknown'}`;
       const getJson = (url, headers) => withTimeout(fetch(url, { headers, signal: AbortSignal.timeout(8000) }).then(r => r.json())).catch(() => null);
       // the registry says whether the domain is signed (no caching); a validating resolver says whether it checks out
-      const [rdap, doh] = await Promise.all([getJson(`https://rdap.org/domain/${APEX}`), getJson(`https://cloudflare-dns.com/dns-query?name=${APEX}&type=A&do=1`, { accept: 'application/dns-json' })]);
+      const [rdap, doh] = await Promise.all([getJson(RDAP_URL, RDAP_HEADERS), getJson(`https://cloudflare-dns.com/dns-query?name=${APEX}&type=A&do=1`, { accept: 'application/dns-json' })]);
       const signed = rdap?.secureDNS ? !!rdap.secureDNS.delegationSigned : null;
       if (doh?.Status === 2) return { state: 'down', detail: `${where} · DNSSEC fails: resolvers can’t verify the records, so many visitors can’t reach the site. Check the DS record at Namecheap matches Cloudflare` };
       if (signed === false) return { state: 'warn', detail: `${where} · DNSSEC off: turn it on so the domain’s records can’t be forged` };
@@ -4598,6 +4618,19 @@ function ensureInboxTables() {
         sent_to  TEXT NOT NULL,
         sent_at  TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
       await query('CREATE INDEX IF NOT EXISTS admin_replies_ref ON admin_replies(ref_id)');
+      // Safety check (server/mailcheck.js): 'safe' | 'caution' | 'danger' (danger arrives in Spam), with the reasons
+      await query('ALTER TABLE inbox_messages ADD COLUMN IF NOT EXISTS verdict TEXT');
+      await query(`ALTER TABLE inbox_messages ADD COLUMN IF NOT EXISTS safety JSONB NOT NULL DEFAULT '[]'`);
+      await query('ALTER TABLE inbox_messages ADD COLUMN IF NOT EXISTS auth JSONB');
+      // New emails and forwards written in the admin (replies stay in admin_replies)
+      await query(`CREATE TABLE IF NOT EXISTS admin_sent (
+        id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        kind     TEXT NOT NULL,          -- 'new' | 'forward'
+        ref_id   UUID,
+        to_addr  TEXT NOT NULL,
+        subject  TEXT NOT NULL,
+        body     TEXT NOT NULL,
+        sent_at  TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
     })().catch(e => { _inboxTables = null; throw e; });
   }
   return _inboxTables;
@@ -4663,15 +4696,19 @@ async function handleInboundEmail(req, res) {
     if (got.error) console.warn('[inbound] could not fetch email body:', got.error);
     const from = parseAddress(full.headers?.from || full.from || d.from);
     const attachments = attachmentList(full.attachments || d.attachments);
+    const subject = String(full.subject ?? d.subject ?? '').slice(0, 500);
+    const html = full.html ? decodeMaybeDataUri(full.html).slice(0, 400000) : null;
+    const auth = full.authentication && typeof full.authentication === 'object' ? full.authentication : null;
+    const check = checkEmail({ fromAddr: from.addr, fromName: from.name, subject, text: full.text, html, auth, blocked: await mailBlocked() });
     await query(
-      `INSERT INTO inbox_messages (resend_id, message_id, from_addr, from_name, to_addrs, subject, text_body, html_body, attachments, received_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE($10::timestamptz, NOW()))
+      `INSERT INTO inbox_messages (resend_id, message_id, from_addr, from_name, to_addrs, subject, text_body, html_body, attachments, received_at, verdict, safety, auth, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE($10::timestamptz, NOW()), $11, $12, $13, $14)
        ON CONFLICT (resend_id) DO NOTHING`,
       [d.email_id || null, full.message_id || d.message_id || null, from.addr || 'unknown', from.name || null,
-       [].concat(full.to || d.to || []).join(', ').slice(0, 500), String(full.subject ?? d.subject ?? '').slice(0, 500),
-       full.text ? String(full.text).slice(0, 200000) : null,
-       full.html ? decodeMaybeDataUri(full.html).slice(0, 400000) : null,
-       JSON.stringify(attachments), full.created_at || d.created_at || null]
+       [].concat(full.to || d.to || []).join(', ').slice(0, 500), subject,
+       full.text ? String(full.text).slice(0, 200000) : null, html,
+       JSON.stringify(attachments), full.created_at || d.created_at || null,
+       check.verdict, JSON.stringify(check.reasons), auth ? JSON.stringify(auth) : null, check.verdict === 'danger' ? 'spam' : 'open']
     );
     res.json({ ok: true });
   } catch (e) {
@@ -4695,15 +4732,19 @@ const snippet = (t) => String(t || '').replace(/\s+/g, ' ').trim().slice(0, 160)
 app.get('/api/admin/inbox', adminAuthMiddleware, async (req, res) => {
   try {
     await ensureInboxTables();
-    const status = ['open', 'done'].includes(req.query.status) ? req.query.status : null;
+    await checkUncheckedEmails();
+    const status = ['open', 'done', 'spam'].includes(req.query.status) ? req.query.status : null;
+    const q = String(req.query.q || '').trim().slice(0, 100);
+    const where = [status ? 'status = $1' : `status <> 'spam'`], vals = status ? [status] : [];
+    if (q) { vals.push('%' + q.replace(/[\\%_]/g, c => '\\' + c) + '%'); where.push(`(subject ILIKE $${vals.length} OR from_addr ILIKE $${vals.length} OR from_name ILIKE $${vals.length} OR text_body ILIKE $${vals.length})`); }
     const { rows } = await query(
-      `SELECT id, from_addr, from_name, to_addrs, subject, LEFT(COALESCE(text_body, ''), 400) AS preview, read, status, received_at,
+      `SELECT id, from_addr, from_name, to_addrs, subject, LEFT(COALESCE(text_body, ''), 400) AS preview, read, status, received_at, verdict,
               jsonb_array_length(attachments) AS attachment_count,
               (SELECT COUNT(*)::int FROM admin_replies r WHERE r.ref_id = m.id) AS reply_count
-       FROM inbox_messages m ${status ? 'WHERE status = $1' : ''} ORDER BY received_at DESC LIMIT 300`,
-      status ? [status] : []);
-    const unread = (await query('SELECT COUNT(*)::int AS n FROM inbox_messages WHERE NOT read')).rows[0].n;
-    res.json({ items: rows.map(r => ({ ...r, preview: snippet(r.preview) })), unread });
+       FROM inbox_messages m WHERE ${where.join(' AND ')} ORDER BY received_at DESC LIMIT 300`, vals);
+    const counts = (await query(`SELECT COUNT(*) FILTER (WHERE NOT read AND status <> 'spam')::int AS unread,
+        COUNT(*) FILTER (WHERE status = 'spam')::int AS spam FROM inbox_messages`)).rows[0];
+    res.json({ items: rows.map(r => ({ ...r, preview: snippet(r.preview) })), unread: counts.unread, spam: counts.spam });
   } catch (e) { res.status(500).json({ error: 'Failed to load the inbox.' }); }
 });
 
@@ -4764,7 +4805,7 @@ app.patch('/api/admin/inbox/:id', adminAuthMiddleware, async (req, res) => {
   try {
     await ensureInboxTables();
     const sets = [], vals = [req.params.id];
-    if (['open', 'done'].includes(req.body?.status)) { vals.push(req.body.status); sets.push(`status = $${vals.length}`); }
+    if (['open', 'done', 'spam'].includes(req.body?.status)) { vals.push(req.body.status); sets.push(`status = $${vals.length}`); }
     if (typeof req.body?.read === 'boolean') { vals.push(req.body.read); sets.push(`read = $${vals.length}`); }
     if (sets.length) await query(`UPDATE inbox_messages SET ${sets.join(', ')} WHERE id = $1`, vals);
     res.json({ ok: true });
@@ -4778,6 +4819,102 @@ app.delete('/api/admin/inbox/:id', adminAuthMiddleware, async (req, res) => {
     await query('DELETE FROM inbox_messages WHERE id = $1', [req.params.id]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'Delete failed.' }); }
+});
+
+// Blocked senders: whole addresses ("someone@x.com") or domains ("@x.com"); their mail arrives in Spam
+async function mailBlocked() { return (await getSetting('mail_blocked', []).catch(() => [])) || []; }
+// Emails that arrived before the safety check existed are checked once, the first time the Inbox opens
+async function checkUncheckedEmails() {
+  const { rows } = await query('SELECT id, from_addr, from_name, subject, text_body, html_body, auth FROM inbox_messages WHERE verdict IS NULL LIMIT 200');
+  if (!rows.length) return;
+  const blocked = await mailBlocked();
+  for (const m of rows) {
+    const c = checkEmail({ fromAddr: m.from_addr, fromName: m.from_name, subject: m.subject, text: m.text_body, html: m.html_body, auth: m.auth, blocked });
+    await query(`UPDATE inbox_messages SET verdict = $2, safety = $3, status = CASE WHEN $2 = 'danger' THEN 'spam' ELSE status END WHERE id = $1`,
+      [m.id, c.verdict, JSON.stringify(c.reasons)]);
+  }
+}
+app.get('/api/admin/mail-blocked', adminAuthMiddleware, async (req, res) => {
+  try { res.json({ blocked: await mailBlocked() }); } catch (e) { res.status(500).json({ error: 'Could not load the blocked senders.' }); }
+});
+// Block the sender of an email (their address, or their whole domain); everything from them moves to Spam
+app.post('/api/admin/inbox/:id/block', adminAuthMiddleware, async (req, res) => {
+  try {
+    await ensureInboxTables();
+    const m = (await query('SELECT from_addr FROM inbox_messages WHERE id = $1', [req.params.id])).rows[0];
+    if (!m) return res.status(404).json({ error: 'Not found.' });
+    const domain = m.from_addr.split('@')[1] || '';
+    if (req.body?.scope === 'domain' && ['gmail.com', 'googlemail.com', 'outlook.com', 'hotmail.com', 'yahoo.com', 'icloud.com', 'live.com', 'cvmaster.live'].includes(domain))
+      return res.status(400).json({ error: `You can’t block all of ${domain}: real people use it. Block this address instead.` });
+    const entry = req.body?.scope === 'domain' ? '@' + domain : m.from_addr;
+    const list = [...new Set([...(await mailBlocked()), entry])].slice(-500);
+    await setSetting('mail_blocked', list);
+    const moved = entry.startsWith('@')
+      ? await query(`UPDATE inbox_messages SET status = 'spam' WHERE from_addr ILIKE $1 OR from_addr ILIKE $2`, ['%' + entry, '%.' + entry.slice(1)])
+      : await query(`UPDATE inbox_messages SET status = 'spam' WHERE from_addr = $1`, [entry]);
+    res.json({ ok: true, blocked: list, moved: moved.rowCount });
+  } catch (e) { console.error('[inbox block]', e.message); res.status(500).json({ error: 'Could not block the sender.' }); }
+});
+app.delete('/api/admin/mail-blocked', adminAuthMiddleware, async (req, res) => {
+  try {
+    const entry = String(req.body?.entry || '').toLowerCase();
+    const list = (await mailBlocked()).filter(b => b !== entry);
+    await setSetting('mail_blocked', list);
+    res.json({ ok: true, blocked: list });
+  } catch (e) { res.status(500).json({ error: 'Could not unblock.' }); }
+});
+// Write to people from support@ (a new email, or forwarding one that arrived)
+const MAIL_TO_MAX = 10;
+const recipients = (v) => [...new Set(String(v || '').split(/[,;\s]+/).map(x => x.trim().toLowerCase()).filter(Boolean))];
+function adminEmailHtml(body, quote = '') {
+  const para = (t) => escHtml(t).replace(/\n/g, '<br>');
+  return `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#1f2937;max-width:600px">
+    <div>${para(body)}</div>
+    <p style="margin-top:22px;color:#6b7280">CVMaster Support<br><a href="https://www.cvmaster.live" style="color:#4338CA">cvmaster.live</a></p>
+    <div style="margin-top:10px">${EMAIL_LOGO}</div>${quote}
+  </div>`;
+}
+app.post('/api/admin/mail/send', adminAuthMiddleware, async (req, res) => {
+  try {
+    await ensureInboxTables();
+    const to = recipients(req.body?.to), subject = String(req.body?.subject || '').trim().slice(0, 200), body = String(req.body?.body || '').trim().slice(0, 20000);
+    if (!to.length || to.some(x => !isEmail(x))) return res.status(400).json({ error: 'Check the email address(es).' });
+    if (to.length > MAIL_TO_MAX) return res.status(400).json({ error: `At most ${MAIL_TO_MAX} people at a time. For more, use Email → Specific people.` });
+    if (!subject || body.length < 2) return res.status(400).json({ error: 'Write a subject and a message.' });
+    await sendMail({ to, subject, html: adminEmailHtml(body), from: SUPPORT_FROM, replyTo: SUPPORT_FROM.match(/<([^>]+)>/)?.[1] });
+    await query(`INSERT INTO admin_sent (kind, to_addr, subject, body) VALUES ('new', $1, $2, $3)`, [to.join(', '), subject, body]);
+    res.json({ ok: true, sentTo: to });
+  } catch (e) { console.error('[mail send]', e.message); res.status(500).json({ error: 'Could not send: ' + e.message }); }
+});
+app.post('/api/admin/inbox/:id/forward', adminAuthMiddleware, async (req, res) => {
+  try {
+    await ensureInboxTables();
+    const m = (await query('SELECT from_addr, from_name, subject, text_body, html_body, received_at FROM inbox_messages WHERE id = $1', [req.params.id])).rows[0];
+    if (!m) return res.status(404).json({ error: 'Not found.' });
+    const to = recipients(req.body?.to), note = String(req.body?.note || '').trim().slice(0, 5000);
+    if (!to.length || to.some(x => !isEmail(x)) || to.length > MAIL_TO_MAX) return res.status(400).json({ error: 'Check the email address(es).' });
+    // The original as plain text only: its HTML (and any tricks in it) is never passed on
+    const original = (m.text_body || String(m.html_body || '').replace(/<[^>]+>/g, ' ')).replace(/\s+\n/g, '\n').slice(0, 20000);
+    const subject = /^fwd?:/i.test(m.subject || '') ? m.subject : `Fwd: ${m.subject || '(no subject)'}`;
+    const quote = `<div style="margin-top:22px;padding:12px 14px;border-left:3px solid #e5e7eb;color:#4b5563;font-size:13px">
+      <div style="color:#6b7280">Forwarded message from ${escHtml(m.from_name ? `${m.from_name} <${m.from_addr}>` : m.from_addr)}, ${escHtml(new Date(m.received_at).toUTCString())}<br>Subject: ${escHtml(m.subject || '')}</div><br>${escHtml(original).replace(/\n/g, '<br>')}</div>`;
+    await sendMail({ to, subject, html: adminEmailHtml(note || 'Forwarding this email.', quote), from: SUPPORT_FROM, replyTo: SUPPORT_FROM.match(/<([^>]+)>/)?.[1] });
+    await query(`INSERT INTO admin_sent (kind, ref_id, to_addr, subject, body) VALUES ('forward', $1, $2, $3, $4)`, [req.params.id, to.join(', '), subject, note]);
+    res.json({ ok: true, sentTo: to });
+  } catch (e) { console.error('[mail forward]', e.message); res.status(500).json({ error: 'Could not forward: ' + e.message }); }
+});
+// Everything sent from the admin: replies, forwards and new emails, newest first
+app.get('/api/admin/mail/sent', adminAuthMiddleware, async (req, res) => {
+  try {
+    await ensureInboxTables();
+    const { rows } = await query(`
+      SELECT r.id, 'reply' AS kind, r.sent_to AS to_addr, COALESCE('Re: ' || m.subject, 'Reply to a site message') AS subject, r.body, r.sent_at, r.ref_id
+        FROM admin_replies r LEFT JOIN inbox_messages m ON m.id = r.ref_id
+      UNION ALL
+      SELECT id, kind, to_addr, subject, body, sent_at, ref_id FROM admin_sent
+      ORDER BY sent_at DESC LIMIT 200`);
+    res.json({ items: rows.map(r => ({ ...r, preview: snippet(r.body) })) });
+  } catch (e) { console.error('[mail sent]', e.message); res.status(500).json({ error: 'Could not load sent emails.' }); }
 });
 
 // Reply to an email (kind 'email') or a site message (kind 'feedback')

@@ -83,8 +83,8 @@ async function neonUsage() {
   const p = (await r.json()).project || {};
   return { computeHours: (p.compute_time_seconds || 0) / 3600, transferGb: (p.data_transfer_bytes || 0) / GB, resets: p.consumption_period_end || null };
 }
-async function domainExpiry(getJson) {
-  const d = await getJson('https://rdap.org/domain/cvmaster.live');
+async function domainExpiry(getJson, [url, headers]) {
+  const d = await getJson(url, headers);
   const ev = (d?.events || []).find(e => e.eventAction === 'expiration');
   return ev?.eventDate ? ev.eventDate.slice(0, 10) : null;
 }
@@ -112,7 +112,7 @@ export async function servicesReport(deps) {
   const [neon, dbBytes, expiry] = await Promise.all([
     neonUsage().catch(e => ({ error: e.message })),
     query('SELECT pg_database_size(current_database())::bigint AS b').then(r => Number(r.rows[0].b)).catch(() => null),
-    domainExpiry(getJson).catch(() => null),
+    domainExpiry(getJson, deps.rdap).catch(() => null),
   ]);
   const list = DEFAULTS.map(d => {
     const e = edits[d.id] || {};
