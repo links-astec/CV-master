@@ -1381,12 +1381,15 @@ const cacheShare = () => {
   const all = aiCache.read + aiCache.written + aiCache.input;
   return all ? Math.round(aiCache.read / all * 100) : 0;
 };
-async function callClaude(prompt, systemPrompt, maxTokens) {
+// The writing check runs on every pause while someone types: a smaller, faster model is plenty for
+// spelling and grammar. If it ever fails, the request falls back to Groq like any other.
+const PROOF_MODEL = process.env.PROOF_MODEL || 'claude-haiku-5-5';
+async function callClaude(prompt, systemPrompt, maxTokens, claudeModel = ANTHROPIC_MODEL) {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
     body:    JSON.stringify({
-      model: ANTHROPIC_MODEL, max_tokens: maxTokens,
+      model: claudeModel, max_tokens: maxTokens,
       // The instructions (security rules + task) are the same on every call of a feature, so Claude
       // keeps them cached for 5 minutes and repeats cost about a tenth. The user's text comes after
       // the cache point and is never cached. Prompts under Claude's minimum length simply aren't cached.
@@ -1458,10 +1461,10 @@ function newLinks(reply, material) {
   const m = String(material).toLowerCase()
   return (String(reply).match(URL_RE) || []).map(u => u.toLowerCase().replace(/[.,;]+$/, '')).filter(u => !m.includes(bareUrl(u)));
 }
-async function callAi(prompt, model = AI_MODEL, systemPrompt = null, maxTokens = 800, reasoningEffort = 'low') {
+async function callAi(prompt, model = AI_MODEL, systemPrompt = null, maxTokens = 800, reasoningEffort = 'low', claudeModel) {
   const material = sealMaterial(prompt);
   const system = `${AI_SECURITY}${systemPrompt || 'Help with the material as a CV writing assistant.'}\n${NO_DASH_RULE}${AI_SECURITY_END}`;
-  const out = await callAiRaw(`<material>\n${material}\n</material>`, model, system, maxTokens, reasoningEffort);
+  const out = await callAiRaw(`<material>\n${material}\n</material>`, model, system, maxTokens, reasoningEffort, claudeModel);
   if (String(out).includes(AI_CANARY)) {
     console.warn('[ai] reply leaked the instructions: refused');
     throw new Error('AI is unavailable right now. Please try again in a moment.');
@@ -1473,10 +1476,10 @@ async function callAi(prompt, model = AI_MODEL, systemPrompt = null, maxTokens =
   }
   return noEmDash(out);
 }
-async function callAiRaw(prompt, model, systemPrompt, maxTokens, reasoningEffort) {
+async function callAiRaw(prompt, model, systemPrompt, maxTokens, reasoningEffort, claudeModel) {
   if (ANTHROPIC_KEY) {
     try {
-      const out = await callClaude(prompt, systemPrompt, maxTokens);
+      const out = await callClaude(prompt, systemPrompt, maxTokens, claudeModel);
       Object.assign(aiLast, { provider: 'claude', claudeError: null, at: new Date().toISOString() });
       return out;
     } catch (e) {
@@ -2145,7 +2148,7 @@ app.post('/api/proofread', rateLimit({ windowMs: 60 * 1000, max: perPerson(120, 
 Do not touch names, company or school names, product names, technical terms, acronyms, URLs or numbers. Do not flag a style choice that is acceptable. If the text is fine, return no issues.
 For each issue give "text": the exact words from the input, copied character for character (a few words, enough to be unique), "fix": the replacement for exactly those words, "why": at most 8 words in ${outLang}, "type": one of spelling, grammar, style, consistency.
 Reply with ONLY JSON: {"issues":[{"text":"...","fix":"...","why":"...","type":"..."}]} with at most 8 issues, most important first.`;
-    const out = parseJsonObject(await callAi(`TEXT:\n${text}`, AI_MODEL, system, 900, 'low'));
+    const out = parseJsonObject(await callAi(`TEXT:\n${text}`, AI_MODEL, system, 900, 'low', PROOF_MODEL));
     // Place each issue on the text: the first occurrence after the previous one, else anywhere
     const issues = [];
     let from = 0;
