@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
+import { deviceCountry } from '../composables/localPrice.js'
 
 const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
 
@@ -9,6 +10,15 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isLoggedIn  = computed(() => !!user.value)
   const isOnboarded = computed(() => user.value?.onboarded === true)
+
+  // Once per visit, tell the server which country the device is set to (from its time zone, never the
+  // internet address), for the admin's people-by-country numbers
+  let countryFor = ''
+  watch(() => user.value?.id, (id) => {
+    if (!id || countryFor === id) return
+    countryFor = id
+    deviceCountry().then(c => { if (c) fetch(apiUrl('/api/auth/me?c=' + c), { credentials: 'include' }).catch(() => {}) })
+  })
 
   async function fetchMe() {
     try {
