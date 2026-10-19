@@ -517,8 +517,8 @@ onMounted(() => setTimeout(checkBigTitle, 400))
 /* Job Hunt Pass holders: a quiet mark on their account */
 .sb-user-name{display:flex!important;align-items:center;min-width:0}
 .sb-user-n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
-.sb-pass{flex-shrink:0;display:inline-flex;align-items:center;height:17px;padding:0 7px;margin-left:6px;border-radius:99px;background:var(--c-text);color:var(--c-bg);font-size:10.5px;font-weight:700;vertical-align:1px}
-.sb-user.has-pass .sb-ava{box-shadow:0 0 0 2px var(--c-surface),0 0 0 3.5px var(--c-text)}
+.sb-pass{flex-shrink:0;display:inline-flex;align-items:center;height:17px;padding:0 7px;margin-left:6px;border-radius:99px;background:var(--c-accent);color:#fff;font-size:10.5px;font-weight:700;vertical-align:1px}
+.sb-user.has-pass .sb-ava{box-shadow:0 0 0 2px var(--c-surface),0 0 0 3.5px var(--c-accent)}
 .sb-user-mail{font-size:12px;color:var(--c-text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sb-legal{display:flex;gap:6px;justify-content:center;font-size:12px;color:var(--c-text3)}
 .sb-legal a,.sb-legal button{color:var(--c-text3);text-decoration:none;background:none;border:none;padding:0;font:inherit;cursor:pointer}

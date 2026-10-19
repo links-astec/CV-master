@@ -2906,7 +2906,9 @@ async function recordPassInvoice(inv, userId) {
     ON CONFLICT (session_id) DO NOTHING`, [userId, inv.id, inv.amount_paid]).catch(e => console.warn('[pass invoice]', e.message));
 }
 const passOf = (row) => row?.pass_until && new Date(row.pass_until) > new Date()
-  ? { until: new Date(row.pass_until).toISOString(), cancelAtEnd: !!row.pass_cancel_at_end, since: row.pass_since || null, plan: row.pass_plan === 'quarter' ? 'quarter' : 'month' } : null;
+  ? { until: new Date(row.pass_until).toISOString(), cancelAtEnd: !!row.pass_cancel_at_end, since: row.pass_since || null, plan: row.pass_plan === 'quarter' ? 'quarter' : 'month',
+      // given by the admin, not bought: no subscription to renew or cancel
+      gift: !row.pass_subscription_id } : null;
 
 app.post('/api/payment/pass', authMiddleware, async (req, res) => {
   try {
@@ -2954,7 +2956,12 @@ app.post('/api/payment/pass/:action(cancel|resume)', authMiddleware, async (req,
   try {
     await ensurePassCols();
     const u = (await query('SELECT pass_subscription_id FROM users WHERE id = $1 AND pass_until > NOW()', [req.user.sub])).rows[0];
-    if (!u?.pass_subscription_id) return res.status(400).json({ error: 'You don’t have a Job Hunt Pass.' });
+    if (!u) return res.status(400).json({ error: 'You don’t have a Job Hunt Pass.' });
+    // A pass given by the admin has no Stripe subscription: only the renewal flag changes
+    if (!u.pass_subscription_id) {
+      await query('UPDATE users SET pass_cancel_at_end = $2 WHERE id = $1', [req.user.sub, req.params.action === 'cancel']);
+      return res.json({ pass: passOf((await query('SELECT * FROM users WHERE id = $1', [req.user.sub])).rows[0]) });
+    }
     const stripe = await getStripe();
     if (!stripe) return res.status(503).json({ error: PAYMENTS_DOWN });
     const sub = await stripe.subscriptions.update(u.pass_subscription_id, { cancel_at_period_end: req.params.action === 'cancel' });
@@ -4144,7 +4151,7 @@ app.get('/api/admin/stats', adminAuthMiddleware, async (req, res) => {
                          + Number(payments.rows[0].ai_paid) * AI_PACK_CENTS + Number(payments.rows[0].pass_cents || 0),
       passes_active: await ensurePassCols().then(() => query('SELECT COUNT(*)::int AS n FROM users WHERE pass_until > NOW()')).then(r => r.rows[0].n).catch(() => 0),
       // What the active passes bring in a month (a 3-month pass counts as a third of €14.99)
-      passes_monthly_cents: await query(`SELECT COALESCE(SUM(CASE WHEN pass_plan = 'quarter' THEN 1499.0 / 3 ELSE 699 END), 0)::int AS c FROM users WHERE pass_until > NOW() AND NOT pass_cancel_at_end`).then(r => r.rows[0].c).catch(() => 0),
+      passes_monthly_cents: await query(`SELECT COALESCE(SUM(CASE WHEN pass_plan = 'quarter' THEN 1499.0 / 3 ELSE 699 END), 0)::int AS c FROM users WHERE pass_until > NOW() AND NOT pass_cancel_at_end AND pass_subscription_id IS NOT NULL`).then(r => r.rows[0].c).catch(() => 0),
       recent_payments: recentPayments.rows,
       daily, inbox_unread: inboxUnread, feedback_open: feedbackOpen, ai_requests_today: aiToday,
       maintenance:     maintenanceMode,

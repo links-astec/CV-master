@@ -36,8 +36,8 @@ defineEmits(['close', 'start'])
 .pws{width:100%;max-width:440px;max-height:calc(100dvh - 40px);overflow-y:auto;background:var(--c-surface);border-radius:32px;padding:44px 36px 28px;text-align:center;box-shadow:0 40px 100px rgba(0,0,0,.25)}
 .pws-mark{width:64px;height:64px;margin:0 auto 22px}
 .pws-mark svg{width:100%;height:100%;fill:none;stroke-linecap:round;stroke-linejoin:round}
-.pws-mark circle{fill:var(--c-text);stroke:none;transform-origin:center;animation:pwsPop .5s cubic-bezier(.2,.9,.3,1.2) both}
-.pws-mark path{stroke:var(--c-surface);stroke-width:4;stroke-dasharray:40;stroke-dashoffset:40;animation:pwsDraw .45s .35s ease forwards}
+.pws-mark circle{fill:var(--c-accent);stroke:none;transform-origin:center;animation:pwsPop .5s cubic-bezier(.2,.9,.3,1.2) both}
+.pws-mark path{stroke:#fff;stroke-width:4;stroke-dasharray:40;stroke-dashoffset:40;animation:pwsDraw .45s .35s ease forwards}
 @keyframes pwsPop{from{transform:scale(.4);opacity:0}to{transform:none;opacity:1}}
 @keyframes pwsDraw{to{stroke-dashoffset:0}}
 .pws-k{font-size:15px;font-weight:600;color:var(--c-text3);margin:0}
