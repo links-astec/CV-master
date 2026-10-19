@@ -51,6 +51,8 @@ export type User = {
   id: string; email: string; name: string; plan: string; onboarded: boolean
   avatar?: string | null; provider?: string; uiLang?: string | null; emailVerified?: boolean
   hasPassword?: boolean; personalizeActivity?: boolean; aiPersonalize?: boolean; industry?: string | null; goal?: string | null; experience?: string | null
+  // Job Hunt Pass (bought on the website): every CV unlocked, 100 AI requests a day
+  pass?: { until: string; cancelAtEnd: boolean } | null
 }
 
 export type Draft = {

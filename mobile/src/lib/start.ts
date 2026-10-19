@@ -59,9 +59,25 @@ export async function importCv(file: { uri: string; name: string; mimeType?: str
   return fromExtracted(j.extracted || {})
 }
 
+// The personal details saved with the account (Settings → Your details, same as the website) fill the
+// empty contact fields of a new CV, so nobody types their name and phone number again. Not used for
+// imported CVs, which may be someone else's.
+const PERSONAL = ['fn', 'ln', 'email', 'phone', 'loc', 'li', 'github', 'website'] as const
+export async function withSavedDetails(d: CvData): Promise<CvData> {
+  try {
+    const r = await api<{ autofill: boolean; profile: Record<string, any> }>('/api/me/profile')
+    if (!r?.autofill || !r.profile) return d
+    const out: CvData = { ...d }
+    for (const k of PERSONAL) if (!s(out[k]).trim() && typeof r.profile[k] === 'string') out[k] = r.profile[k]
+    if (!out.photo && typeof r.profile.photo === 'string') out.photo = r.profile.photo
+    if (!out.languages?.length && Array.isArray(r.profile.languages)) out.languages = r.profile.languages.slice(0, 6)
+    return out
+  } catch { return d }
+}
+
 // A new CV in the account; it becomes the CV the Editor tab shows
-export async function startCv(data: CvData = emptyData(), template: string = DEFAULT_TEMPLATE): Promise<Draft> {
-  const d = await createDraft(data, defaultFmt(), template)
+export async function startCv(data: CvData = emptyData(), template: string = DEFAULT_TEMPLATE, savedDetails = true): Promise<Draft> {
+  const d = await createDraft(savedDetails ? await withSavedDetails(data) : data, defaultFmt(), template)
   setCurrentCv(d.id)
   return d
 }

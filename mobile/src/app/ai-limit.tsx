@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MessageSquareText, X } from '@/components/icons'
 import { Btn, IconBtn, Toggle, Txt, useTopSpace } from '@/components/kit'
 import { useAuth } from '@/lib/auth'
+import { useApprox } from '@/lib/local'
 import { api } from '@/lib/api'
 import { useQuota } from '@/lib/quota'
 import { checkoutAiPack } from '@/lib/pdf'
@@ -27,6 +28,7 @@ export default function AiLimit() {
   const [error, setError] = useState('')
   const [resent, setResent] = useState(false)
   const tier = quota.data?.tier || (user?.emailVerified === false ? 'unverified' : 'verified')
+  const approx = useApprox(0.5)
   const limit = reason === 'limit'
 
   async function buy() {
@@ -55,11 +57,11 @@ export default function AiLimit() {
           <Txt color={c.text3}><Txt w={700} size={20}>{quota.data.credits}</Txt> {t('extra')}</Txt>
         </View>
       )}
-      {tier === 'verified' && (
+      {(tier === 'verified' || tier === 'pass') && (
         <>
           <View style={[styles.offer, { borderColor: c.accent, backgroundColor: c.accentSoft }]}>
             <Txt w={700} size={16}>{t('100 extra AI requests')}</Txt>
-            <Txt size={13.5} color={c.text2}>{t('One-time €0.50 · they never expire')}</Txt>
+            <Txt size={13.5} color={c.text2}>{t('One-time €0.50 · they never expire')}{approx ? ` (${approx})` : ''}</Txt>
             <Btn title={t(busy ? 'Please wait…' : 'Get them for €0.50')} busy={busy} disabled={!consent} onPress={buy} full style={{ marginTop: 6 }} />
           </View>
           <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>

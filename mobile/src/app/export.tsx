@@ -9,6 +9,7 @@ import { Check, X } from '@/components/icons'
 import { Btn, Card, Field, IconBtn, LinkBtn, Toggle, Txt, useTopSpace } from '@/components/kit'
 import { toast } from '@/components/dialogs'
 import { useAuth } from '@/lib/auth'
+import { useApprox } from '@/lib/local'
 import { flush, setField, useCurrentCvId } from '@/lib/editor'
 import { useOpenCv } from '@/lib/useOpenCv'
 import { pageInfoOf } from '@/lib/pageInfo'
@@ -28,6 +29,7 @@ export default function Export() {
   const { t } = useLang()
   const { c } = useTheme()
   const { user } = useAuth()
+  const approx = useApprox(0.99)
   const insets = useSafeAreaInsets()
   const top = useTopSpace(12, { sheet: true })
   const id = useCurrentCvId()
@@ -181,12 +183,13 @@ export default function Export() {
             <View style={{ gap: 6 }}>
               <Txt w={700} size={22}>{t(paid ? 'Send your CV' : 'Get your CV as a PDF')}</Txt>
               <Txt color={c.text2} style={{ lineHeight: 22 }}>
-                {t(paid ? 'This CV is already paid for. Send it as often as you like, even after edits.' : demo ? 'Payments aren’t switched on yet, so this is free for now.' : 'A clean, one-page PDF, emailed to you.')}
+                {t(paid && user?.pass ? 'Your Job Hunt Pass covers this CV. Send it as often as you like, even after edits.' : paid ? 'This CV is already paid for. Send it as often as you like, even after edits.' : demo ? 'Payments aren’t switched on yet, so this is free for now.' : 'A clean, one-page PDF, emailed to you.')}
               </Txt>
             </View>
             {!paid && !demo && (
               <Card style={{ gap: 10 }}>
                 <Txt w={800} size={26}>{t('€0.99')} <Txt size={14} color={c.text3}>{t('one-time, for this CV')}</Txt></Txt>
+                {!!approx && <Txt size={13} color={c.text3} style={{ marginTop: -6 }}>{approx}</Txt>}
                 {FEATURES.map(f => (
                   <View key={f} style={{ flexDirection: 'row', gap: 10 }}>
                     <Check size={17} color={c.success} strokeWidth={2.6} style={{ marginTop: 2 }} />

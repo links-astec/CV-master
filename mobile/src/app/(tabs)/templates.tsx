@@ -11,7 +11,7 @@ import { LayoutGrid } from '@/components/LayoutGrid'
 import { toast } from '@/components/dialogs'
 import { setCurrentCv, setTemplate, useCurrentCvId } from '@/lib/editor'
 import { useOpenCv } from '@/lib/useOpenCv'
-import { createDraft } from '@/lib/start'
+import { createDraft, withSavedDetails } from '@/lib/start'
 import { useNextStep } from '@/lib/next'
 import { emptyData, hasCvContent } from '@/lib/cv'
 import { errorText } from '@/lib/ai'
@@ -71,7 +71,7 @@ export default function Templates() {
     if (cv) { setTemplate(tpl); router.navigate('/editor'); return }
     setBusy(true)
     try {
-      const d = await createDraft(emptyData(), undefined, tpl)
+      const d = await createDraft(await withSavedDetails(emptyData()), undefined, tpl)
       qc.setQueryData<Draft[]>(['drafts'], list => [d, ...(list || [])])
       setCurrentCv(d.id)
       router.navigate('/editor')

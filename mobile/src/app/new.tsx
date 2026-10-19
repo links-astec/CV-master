@@ -61,7 +61,7 @@ export default function NewCv() {
     const file = res.assets[0]
     if (file.size && file.size > 10 * 1024 * 1024) { setError(t('PDF, DOCX or TXT · Max 10MB')); return }
     setBusy('import'); setStatus(t('Reading {file}…', { file: file.name }))
-    try { opened(await startCv(await importCv(file))) } catch (e) { setError(errorText(e)) }
+    try { opened(await startCv(await importCv(file), undefined, false)) } catch (e) { setError(errorText(e)) }
     setBusy(''); setStatus('')
   }
 

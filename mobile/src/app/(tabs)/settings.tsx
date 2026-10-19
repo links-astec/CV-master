@@ -286,10 +286,21 @@ export default function Settings() {
           ) : <Txt color={c.text3}>{t('Couldn’t load your invite link, try refreshing.')}</Txt>}
         </Card>
 
+        {/* Job Hunt Pass (bought and managed on the website) */}
+        {user?.pass && (
+          <Card>
+            <Txt w={700} size={17}>{t('Job Hunt Pass')}</Txt>
+            <Txt size={14.5} color={c.text2} style={{ lineHeight: 21 }}>
+              {t(user.pass.cancelAtEnd ? 'Cancelled. You keep everything until {date}.' : 'Active. Renews on {date} for €6.99.', { date: new Date(user.pass.until).toLocaleDateString(lang, { day: 'numeric', month: 'long', year: 'numeric' }) })}
+            </Txt>
+            <Txt size={13} color={c.text3} style={{ lineHeight: 19 }}>{t('Every CV you make is unlocked as a clean PDF, with 100 AI requests a day.')}</Txt>
+          </Card>
+        )}
+
         {/* AI requests */}
         <Card>
           <Txt w={700} size={17}>{t('AI requests')}</Txt>
-          <Txt size={14.5} color={c.text2} style={{ lineHeight: 21 }}>{t(q?.tier === 'verified' ? '30 free every day, reset at midnight (UTC). Extra requests never expire.' : '5 free a day. 30 once your email is confirmed. Reset at midnight (UTC). Extra requests never expire.')}</Txt>
+          <Txt size={14.5} color={c.text2} style={{ lineHeight: 21 }}>{t(q?.tier === 'pass' ? '100 every day with your Job Hunt Pass, reset at midnight (UTC). Extra requests never expire.' : q?.tier === 'verified' ? '30 free every day, reset at midnight (UTC). Extra requests never expire.' : '5 free a day. 30 once your email is confirmed. Reset at midnight (UTC). Extra requests never expire.')}</Txt>
           {q && (
             <>
               <View style={[styles.meter, { backgroundColor: c.border }]}><View style={{ width: `${Math.min(100, (q.freeLeft / Math.max(1, q.limit)) * 100)}%`, height: '100%', backgroundColor: c.accent, borderRadius: 99 }} /></View>

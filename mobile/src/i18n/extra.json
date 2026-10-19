@@ -44,7 +44,9 @@
     "Rate": "Noter",
     "A rating there helps other job seekers find the app.": "Une note là-bas aide d’autres candidats à trouver l’application.",
     "Rate CVMaster on the App Store": "Noter CVMaster sur l’App Store",
-    "Rate CVMaster on Google Play": "Noter CVMaster sur Google Play"
+    "Rate CVMaster on Google Play": "Noter CVMaster sur Google Play",
+    "Every CV you make is unlocked as a clean PDF, with 100 AI requests a day.": "Chaque CV que vous créez est débloqué en PDF sans filigrane, avec 100 requêtes IA par jour.",
+    "50 layouts in 12 colours: ATS-friendly ones for online applications, creative ones for print and in person. When you pick one you can paste the job offer you are applying for.": "50 mises en page en 12 couleurs : des modèles compatibles ATS pour les candidatures en ligne, des modèles créatifs pour l’impression et les rendez-vous. Quand vous en choisissez un, vous pouvez coller l’offre d’emploi à laquelle vous postulez."
   },
   "es": {
     "Preview": "Vista previa",
@@ -91,7 +93,8 @@
     "Rate": "Valorar",
     "A rating there helps other job seekers find the app.": "Una valoración allí ayuda a otras personas a encontrar la app.",
     "Rate CVMaster on the App Store": "Valorar CVMaster en el App Store",
-    "Rate CVMaster on Google Play": "Valorar CVMaster en Google Play"
+    "Rate CVMaster on Google Play": "Valorar CVMaster en Google Play",
+    "Every CV you make is unlocked as a clean PDF, with 100 AI requests a day.": "Cada CV que creas se desbloquea como PDF sin marca de agua, con 100 solicitudes de IA al día."
   },
   "de": {
     "Preview": "Vorschau",
@@ -138,7 +141,8 @@
     "Rate": "Bewerten",
     "A rating there helps other job seekers find the app.": "Eine Bewertung dort hilft anderen Jobsuchenden, die App zu finden.",
     "Rate CVMaster on the App Store": "CVMaster im App Store bewerten",
-    "Rate CVMaster on Google Play": "CVMaster bei Google Play bewerten"
+    "Rate CVMaster on Google Play": "CVMaster bei Google Play bewerten",
+    "Every CV you make is unlocked as a clean PDF, with 100 AI requests a day.": "Jeder Lebenslauf, den Sie erstellen, ist als PDF ohne Wasserzeichen freigeschaltet, mit 100 KI-Anfragen pro Tag."
   },
   "it": {
     "Preview": "Anteprima",
@@ -185,7 +189,8 @@
     "Rate": "Valuta",
     "A rating there helps other job seekers find the app.": "Una valutazione lì aiuta altre persone in cerca di lavoro a trovare l’app.",
     "Rate CVMaster on the App Store": "Valuta CVMaster sull’App Store",
-    "Rate CVMaster on Google Play": "Valuta CVMaster su Google Play"
+    "Rate CVMaster on Google Play": "Valuta CVMaster su Google Play",
+    "Every CV you make is unlocked as a clean PDF, with 100 AI requests a day.": "Ogni CV che crei è sbloccato come PDF senza filigrana, con 100 richieste di IA al giorno."
   },
   "pt": {
     "Preview": "Pré-visualizar",
@@ -232,7 +237,8 @@
     "Rate": "Avaliar",
     "A rating there helps other job seekers find the app.": "Uma avaliação lá ajuda outras pessoas à procura de emprego a encontrar o app.",
     "Rate CVMaster on the App Store": "Avaliar o CVMaster na App Store",
-    "Rate CVMaster on Google Play": "Avaliar o CVMaster no Google Play"
+    "Rate CVMaster on Google Play": "Avaliar o CVMaster no Google Play",
+    "Every CV you make is unlocked as a clean PDF, with 100 AI requests a day.": "Cada currículo que criar fica desbloqueado como PDF sem marca d’água, com 100 pedidos de IA por dia."
   },
   "zh": {
     "Preview": "预览",
@@ -279,6 +285,7 @@
     "Rate": "评分",
     "A rating there helps other job seekers find the app.": "在那里评分能帮助其他求职者找到这个应用。",
     "Rate CVMaster on the App Store": "在 App Store 为 CVMaster 评分",
-    "Rate CVMaster on Google Play": "在 Google Play 为 CVMaster 评分"
+    "Rate CVMaster on Google Play": "在 Google Play 为 CVMaster 评分",
+    "Every CV you make is unlocked as a clean PDF, with 100 AI requests a day.": "你创建的每份简历都已解锁为无水印 PDF，并且每天可使用 100 次 AI 请求。"
   }
 }

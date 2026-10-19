@@ -5,6 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { AppState } from 'react-native'
 import { useQueryClient } from '@tanstack/react-query'
 import { api, ApiError, type User } from '@/lib/api'
+import { deviceCountry } from '@/lib/local'
 import { hasExplicitChoice, lang, setLang } from '@/i18n'
 import { closeEditor } from '@/lib/editor'
 import { clearReferral } from '@/lib/referral'
@@ -62,6 +63,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Pushes: register this phone again for whoever is signed in (if they turned pushes on)
   const userId = user?.id
   useEffect(() => { if (userId) refreshPush() }, [userId])
+  // Once per launch, the country the phone is set to (from its time zone, never the internet address),
+  // for the admin's people-by-country numbers
+  useEffect(() => { if (userId && deviceCountry) api('/api/auth/me?c=' + deviceCountry).catch(() => {}) }, [userId])
 
   const signedOut = useCallback(() => {
     closeEditor()
