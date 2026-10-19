@@ -51,7 +51,7 @@ export default ({ mail }) => {
       id: 'terms', tab: 'Termos de serviço', title: 'Termos de serviço',
       summary: [
         'Criar e pré-visualizar seu currículo é grátis.',
-        'Um PDF sem marca d’água custa 0,99 € por currículo, uma única vez, sem assinatura.',
+        'Um PDF sem marca d’água custa 0,99 € por currículo, uma única vez. Ou o Job Hunt Pass: todos os seus currículos por 6,99 € por mês, cancele quando quiser.',
         'O que você escreve é seu. Confira as sugestões da IA antes de enviar seu currículo.',
         'Algo deu errado? Fale com a gente. Se seu currículo nunca chegou, reenviamos ou devolvemos o valor.',
       ],
@@ -64,6 +64,7 @@ export default ({ mail }) => {
         </ul>` },
         { id: 'payments', title: 'Pagamentos', html: `<ul>
           <li>O PDF sem marca d’água de um currículo é um pagamento único de <strong>0,99 €</strong>. Inclui o envio por e-mail, o download direto e reenvios e downloads ilimitados do mesmo currículo, inclusive após edições.</li>
+        <li>O <strong>Job Hunt Pass</strong> custa <strong>6,99 € por mês</strong> e renova-se todos os meses até o cancelar. Enquanto estiver ativo, cada currículo da sua conta pode ser enviado por e-mail e transferido como PDF sem marca d’água, e tem 100 pedidos de IA por dia. Pode cancelá-lo a qualquer momento nas Definições: não é cobrado mais nada e o passe continua ativo até ao fim do mês já pago, que não é reembolsado. Como o passe começa imediatamente a seu pedido, ao comprá-lo aceita que o seu direito de livre resolução de 14 dias termina quando ele começa.</li>
           <li>O PDF de pré-visualização com marca d’água é grátis.</li>
           <li>As funções de IA incluem <strong>30 solicitações grátis por dia</strong> para contas com e-mail confirmado (visitantes e contas não confirmadas têm 5), renovadas todos os dias à meia-noite (UTC). Um pacote de <strong>100 solicitações extras</strong> custa <strong>0,50 €</strong>; as solicitações extras não expiram, só são usadas depois das gratuitas do dia e não têm valor em dinheiro.</li>
           <li>Indicações: quem se cadastra pelo seu link de convite recebe 25 solicitações de IA extras. Quando essa pessoa compra o primeiro PDF sem marca d’água, você ganha um crédito de indicação, que desbloqueia o PDF sem marca d’água de um currículo. Os créditos não têm valor em dinheiro.</li>

@@ -435,6 +435,7 @@ async function authMiddleware(req, res, next) {
 // guests. And after that one of the account's paid extra credits (AI_PACK_SIZE for €0.50).
 const AI_FREE_PER_DAY = 30;   // confirmed accounts (Google, or email confirmed)
 const AI_GUEST_PER_DAY = 5;   // guests and accounts that haven't confirmed their email
+const AI_PASS_PER_DAY = 100;  // Job Hunt Pass
 const AI_PACK_SIZE    = 100;
 const AI_PACK_CENTS   = 50;
 let _aiTables = null;
@@ -489,9 +490,10 @@ async function aiTier(req) {
   if (!req.user) return 'guest';
   await ensureReferralColumns();
   const u = (await query('SELECT provider, email_verified FROM users WHERE id = $1', [req.user.sub])).rows[0];
+  if (u && await hasPass(req.user.sub).catch(() => false)) return 'pass';
   return !u ? 'guest' : (u.provider === 'google' || u.email_verified) ? 'verified' : 'unverified';
 }
-const aiLimitFor = (tier) => tier === 'verified' ? AI_FREE_PER_DAY : AI_GUEST_PER_DAY;
+const aiLimitFor = (tier) => tier === 'pass' ? AI_PASS_PER_DAY : tier === 'verified' ? AI_FREE_PER_DAY : AI_GUEST_PER_DAY;
 
 // { ok, freeLeft, credits, tier }, counts this request
 async function useAiAllowance(req) {
@@ -572,6 +574,7 @@ function publicUser(row) {
     hasPassword: !!row.hash,
     // "Personalise with my activity" (Settings)
     personalizeActivity: row.personalize_activity !== false,
+    pass: passOf(row),
   };
 }
 
@@ -1191,6 +1194,7 @@ const ensureCountryCols = () => (_countryCols ||= query(`ALTER TABLE users ADD C
 app.get('/api/auth/me', authMiddleware, async (req, res) => {
   try {
     await ensureActivity().catch(() => {});
+    await ensurePassCols().catch(() => {});
     const { rows } = await query('SELECT * FROM users WHERE id = $1', [req.user.sub]);
     if (!rows.length) return res.status(404).json({ error: 'User not found.' });
     const c = String(req.query.c || '');
@@ -1732,7 +1736,9 @@ function aiLimitError(a) {
     ? `You’ve used today’s ${AI_GUEST_PER_DAY} free AI requests. Create a free account to get ${AI_FREE_PER_DAY} a day.`
     : a.tier === 'unverified'
       ? `You’ve used today’s ${AI_GUEST_PER_DAY} AI requests. Confirm your email to get ${AI_FREE_PER_DAY} a day.`
-      : `You’ve used today’s ${AI_FREE_PER_DAY} free AI requests. Get ${AI_PACK_SIZE} more for €0.50, or come back tomorrow.`;
+      : a.tier === 'pass'
+        ? `You’ve used today’s ${AI_PASS_PER_DAY} AI requests. Get ${AI_PACK_SIZE} more for €0.50, or come back tomorrow.`
+        : `You’ve used today’s ${AI_FREE_PER_DAY} free AI requests. Get ${AI_PACK_SIZE} more for €0.50, or come back tomorrow.`;
 }
 
 // The CV the client sends, without the photo and capped in size
@@ -2843,7 +2849,105 @@ async function recordPayment({ userId, draftId, sessionId, product, source }) {
 }
 
 // Payments made before per-draft tracking were stored with draft_id 'current' — honour them.
+// ── JOB HUNT PASS ─────────────────────────────────────────────────────────────
+// €6.99 a month (Stripe subscription): every CV as a clean PDF (download and email), 100
+// AI requests a day, cancel any time (it then runs to the end of the month already paid). The pass is
+// active while pass_until is in the future; Stripe's webhooks (and the return from checkout) keep it in sync.
+const PASS_PRICE_CENTS = 699;
+let _passCols = null;
+const ensurePassCols = () => (_passCols ||= (async () => {
+  for (const c of ['pass_until TIMESTAMPTZ', 'pass_status TEXT', 'pass_cancel_at_end BOOLEAN NOT NULL DEFAULT FALSE',
+    'pass_since TIMESTAMPTZ', 'pass_subscription_id TEXT', 'stripe_customer_id TEXT'])
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ${c}`);
+})().catch(e => { _passCols = null; throw e; }));
+async function hasPass(userId) {
+  if (!userId) return false;
+  await ensurePassCols();
+  return (await query('SELECT 1 FROM users WHERE id = $1 AND pass_until > NOW()', [userId])).rows.length > 0;
+}
+// Newer Stripe API versions keep the period on the subscription item
+const periodEnd = (sub) => sub?.current_period_end || sub?.items?.data?.[0]?.current_period_end || null;
+async function syncPass(sub) {
+  const userId = sub?.metadata?.userId;
+  if (!sub || sub.metadata?.product !== 'pass' || !UUID_RE.test(String(userId || ''))) return null;
+  await ensurePassCols();
+  const end = periodEnd(sub);
+  // past_due: Stripe is retrying the card, so the month already paid still counts
+  const on = ['active', 'trialing', 'past_due'].includes(sub.status) && end;
+  const until = on ? new Date(end * 1000) : new Date((sub.ended_at || Math.floor(Date.now() / 1000)) * 1000);
+  const customer = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id || null;
+  const before = (await query('SELECT pass_until FROM users WHERE id = $1', [userId])).rows[0];
+  await query(`UPDATE users SET pass_status = $2, pass_until = $3, pass_cancel_at_end = $4, pass_subscription_id = $5,
+      stripe_customer_id = COALESCE($6, stripe_customer_id), pass_since = CASE WHEN $7 THEN COALESCE(pass_since, NOW()) ELSE pass_since END
+    WHERE id = $1`, [userId, sub.status, until, !!sub.cancel_at_period_end, sub.id, customer, !!on]);
+  if (on && !(before?.pass_until && new Date(before.pass_until) > new Date()))
+    notify(userId, 'payment', 'Your Job Hunt Pass is on', 'Every CV you make is now unlocked as a clean PDF, with more AI every day. Good luck with the job hunt!', '/').catch(() => {});
+  return { userId, until, on: !!on };
+}
+// Each paid month, for the admin's revenue (one row per Stripe invoice)
+async function recordPassInvoice(inv, userId) {
+  if (!inv?.id || !UUID_RE.test(String(userId || '')) || !(inv.amount_paid > 0)) return;
+  await query(`INSERT INTO payments (user_id, draft_id, session_id, paid, product, source) VALUES ($1, 'pass', $2, TRUE, 'pass', 'stripe')
+    ON CONFLICT (session_id) DO NOTHING`, [userId, inv.id]).catch(e => console.warn('[pass invoice]', e.message));
+}
+const passOf = (row) => row?.pass_until && new Date(row.pass_until) > new Date()
+  ? { until: new Date(row.pass_until).toISOString(), cancelAtEnd: !!row.pass_cancel_at_end, since: row.pass_since || null } : null;
+
+app.post('/api/payment/pass', authMiddleware, async (req, res) => {
+  try {
+    await ensurePassCols();
+    if (await hasPass(req.user.sub)) return res.json({ alreadyActive: true });
+    const stripe = await getStripe();
+    if (!stripe) return res.status(503).json({ error: PAYMENTS_DOWN });
+    if (req.body?.withdrawalConsent !== true) return res.status(400).json({ error: 'Please tick the box to confirm you want the pass to start straight away.' });
+    const u = (await query('SELECT email, stripe_customer_id FROM users WHERE id = $1', [req.user.sub])).rows[0];
+    if (!u) return res.status(404).json({ error: 'User not found.' });
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      line_items: [{ quantity: 1, price_data: { currency: CV_CURRENCY, unit_amount: PASS_PRICE_CENTS, recurring: { interval: 'month' },
+        product_data: { name: 'CVMaster Job Hunt Pass', description: `Every CV as a clean PDF · ${AI_PASS_PER_DAY} AI requests a day · cancel any time` } } }],
+      ...(u.stripe_customer_id ? { customer: u.stripe_customer_id } : { customer_email: u.email }),
+      client_reference_id: req.user.sub,
+      metadata: { product: 'pass', userId: req.user.sub, withdrawal_waiver: `accepted ${new Date().toISOString()}` },
+      subscription_data: { metadata: { product: 'pass', userId: req.user.sub }, description: 'CVMaster Job Hunt Pass. Starts straight away at the customer\'s request' },
+      success_url: `${FRONTEND_URL}/settings?pass=done&session={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${FRONTEND_URL}/settings?pass=cancelled`,
+    });
+    res.json({ url: session.url });
+  } catch (e) { console.error('[pass]', e.message); res.status(500).json({ error: 'Could not start payment. Please try again.' }); }
+});
+// Back from checkout: switch the pass on now, without waiting for the webhook
+app.post('/api/payment/pass/verify', authMiddleware, async (req, res) => {
+  try {
+    const stripe = await getStripe();
+    const id = String(req.body?.sessionId || '');
+    if (stripe && /^cs_[\w]+$/.test(id)) {
+      const session = await stripe.checkout.sessions.retrieve(id, { expand: ['subscription', 'invoice'] });
+      if (session.client_reference_id === req.user.sub && session.mode === 'subscription' && session.subscription) {
+        await syncPass(session.subscription);
+        if (session.invoice && typeof session.invoice === 'object') await recordPassInvoice(session.invoice, req.user.sub);
+      }
+    }
+    await ensurePassCols();
+    res.json({ pass: passOf((await query('SELECT * FROM users WHERE id = $1', [req.user.sub])).rows[0]) });
+  } catch (e) { console.error('[pass verify]', e.message); res.status(500).json({ error: 'Could not check the pass.' }); }
+});
+// Cancel (runs to the end of the month already paid) or keep it after all
+app.post('/api/payment/pass/:action(cancel|resume)', authMiddleware, async (req, res) => {
+  try {
+    await ensurePassCols();
+    const u = (await query('SELECT pass_subscription_id FROM users WHERE id = $1 AND pass_until > NOW()', [req.user.sub])).rows[0];
+    if (!u?.pass_subscription_id) return res.status(400).json({ error: 'You don’t have a Job Hunt Pass.' });
+    const stripe = await getStripe();
+    if (!stripe) return res.status(503).json({ error: PAYMENTS_DOWN });
+    const sub = await stripe.subscriptions.update(u.pass_subscription_id, { cancel_at_period_end: req.params.action === 'cancel' });
+    await syncPass(sub);
+    res.json({ pass: passOf((await query('SELECT * FROM users WHERE id = $1', [req.user.sub])).rows[0]) });
+  } catch (e) { console.error('[pass ' + req.params.action + ']', e.message); res.status(500).json({ error: 'Could not change the pass. Please try again.' }); }
+});
+
 async function hasEmailExport(userId, draftId) {
+  if (await hasPass(userId).catch(() => false)) return true;
   const { rows } = await query(
     `SELECT 1 FROM payments
      WHERE user_id = $1 AND paid = TRUE AND product = 'email_export' AND draft_id = ANY($2)
@@ -3236,7 +3340,8 @@ app.get('/api/payment/paid-drafts', authMiddleware, async (req, res) => {
       [req.user.sub]
     );
     const ids = rows.map(r => r.draft_id);
-    res.json({ draftIds: ids.filter(id => id !== 'current'), legacyAll: ids.includes('current') });
+    const pass = await hasPass(req.user.sub).catch(() => false);
+    res.json({ draftIds: ids.filter(id => id !== 'current'), legacyAll: pass || ids.includes('current'), pass });
   } catch (e) { res.status(500).json({ error: 'Status check failed.' }); }
 });
 
@@ -3344,6 +3449,20 @@ async function handleWatermarkWebhook(req, res) {
     }
     if (paid && meta.product === 'email_export' && meta.userId && meta.draftId) {
       await recordPayment({ userId: meta.userId, draftId: meta.draftId, sessionId: obj.id, product: 'email_export', source: 'stripe' });
+    }
+    if (event.type === 'checkout.session.completed' && meta.product === 'pass' && obj.subscription) {
+      await syncPass(await stripe.subscriptions.retrieve(typeof obj.subscription === 'string' ? obj.subscription : obj.subscription.id));
+    }
+    if (['customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted'].includes(event.type)) {
+      await syncPass(obj);
+    }
+    if (event.type === 'invoice.paid') {
+      const subId = obj.subscription || obj.parent?.subscription_details?.subscription;
+      if (subId) {
+        const sub = await stripe.subscriptions.retrieve(typeof subId === 'string' ? subId : subId.id);
+        const r = await syncPass(sub);
+        if (r) await recordPassInvoice(obj, r.userId);
+      }
     }
   } catch (e) { console.error('[webhook]', e.message); }
   res.json({ received: true });
@@ -3959,7 +4078,8 @@ app.get('/api/admin/stats', adminAuthMiddleware, async (req, res) => {
       query(`SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') AS week,
                     COUNT(*) FILTER (WHERE source = 'stripe' AND product = 'email_export')   AS email_paid,
                     COUNT(*) FILTER (WHERE source = 'stripe' AND product = 'clean_download') AS clean_paid,
-                    COUNT(*) FILTER (WHERE source = 'stripe' AND product = 'ai_pack')        AS ai_paid
+                    COUNT(*) FILTER (WHERE source = 'stripe' AND product = 'ai_pack')        AS ai_paid,
+                    COUNT(*) FILTER (WHERE source = 'stripe' AND product = 'pass')           AS pass_paid
              FROM payments WHERE paid = TRUE`),
       query(`SELECT COUNT(*) AS total FROM drafts`),
       query(`SELECT COUNT(*) AS total FROM users WHERE referred_by IS NOT NULL`),
@@ -3984,7 +4104,8 @@ app.get('/api/admin/stats', adminAuthMiddleware, async (req, res) => {
       // Only real Stripe payments count as revenue (not demo or referral-credit rows)
       // In euro cents, at today's prices (€0.99 per CV; the old clean download was €0.50)
       revenue_eur_cents: Number(payments.rows[0].email_paid) * CV_PRICE_CENTS + Number(payments.rows[0].clean_paid) * 50
-                         + Number(payments.rows[0].ai_paid) * AI_PACK_CENTS,
+                         + Number(payments.rows[0].ai_paid) * AI_PACK_CENTS + Number(payments.rows[0].pass_paid) * PASS_PRICE_CENTS,
+      passes_active: await ensurePassCols().then(() => query('SELECT COUNT(*)::int AS n FROM users WHERE pass_until > NOW()')).then(r => r.rows[0].n).catch(() => 0),
       recent_payments: recentPayments.rows,
       daily, inbox_unread: inboxUnread, feedback_open: feedbackOpen, ai_requests_today: aiToday,
       maintenance:     maintenanceMode,

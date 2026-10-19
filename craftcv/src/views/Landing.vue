@@ -211,7 +211,7 @@
             <ul>
               <li v-for="it in p.items" :key="it"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg>{{ $t(it) }}</li>
             </ul>
-            <button class="btn-block btn-lg" :class="p.featured ? 'btn-primary accent' : 'btn-secondary'" @click="$emit('start', 'new')">{{ $t(p.cta) }}</button>
+            <button class="btn-block btn-lg" :class="p.featured ? 'btn-primary accent' : 'btn-secondary'" @click="$emit('start', p.pass ? 'pass' : 'new')">{{ $t(p.cta) }}</button>
           </div>
         </div>
         <p class="lp-small">{{ $t('Need more AI? 100 extra requests cost €0.50 and never expire.') }}</p>
@@ -452,10 +452,13 @@ const PLANS = [
     items: ['All 50 templates', 'AI help: 30 requests a day with a free account', 'ATS job-match check', 'Preview PDF with watermark'] },
   { name: 'Clean PDF', price: '€0.99', eur: 0.99, per: ' per CV', cta: 'Build my CV', featured: true,
     items: ['Watermark-free, one-page PDF', 'Emailed and downloadable', 'Free re-downloads after edits'] },
+  { name: 'Job Hunt Pass', price: '€6.99', eur: 6.99, per: ' a month', cta: 'Get the pass', pass: true,
+    items: ['Every CV you make as a clean PDF', '100 AI requests a day', 'Re-send any CV after edits, free', 'Cancel any time'] },
 ]
 
 const FAQ = [
   { q: 'Is it really free to start?', a: 'Yes. Build, edit, tailor and preview your CV without paying or signing up. You only pay €0.99 if you want the clean PDF of a CV. And you can download it again for free after edits.' },
+  { q: 'What is the Job Hunt Pass?', a: 'For people applying to lots of jobs: for €6.99 a month every CV you make is unlocked as a clean PDF, and you get 100 AI requests a day. Cancel any time in Settings; the pass then runs to the end of the month you paid for.' },
   { q: 'Will my CV pass applicant tracking systems (ATS)?', a: 'Nobody can honestly guarantee it. Every company sets up its ATS differently. Our ATS-friendly templates use plain, selectable text and standard headings, and the ATS check shows how well your CV matches the specific job so you can close the gaps.' },
   { q: 'Does the AI make things up?', a: 'No. It rewords what you wrote using the job’s language, and you approve every change. Skills you don’t show are only suggested, so you add just the ones that are true.' },
   { q: 'Can I write my CV in French?', a: 'Yes. Switch the CV to Français and your whole CV is translated for you to review.' },
@@ -701,7 +704,7 @@ const FAQ = [
 .lp-review figcaption span{font-weight:500;color:var(--c-text3)}
 
 /* Pricing */
-.lp-prices{display:grid;grid-template-columns:repeat(2,minmax(0,380px));justify-content:center;gap:20px;align-items:stretch;margin-top:52px}
+.lp-prices{display:grid;grid-template-columns:repeat(3,minmax(0,340px));justify-content:center;gap:20px;align-items:stretch;margin-top:52px}
 .lp-price{padding:36px;display:flex;flex-direction:column;border-radius:28px;background:var(--c-surface);box-shadow:var(--shadow-sm);border:1px solid var(--hair)}
 .lp-price.featured{box-shadow:0 0 0 2px var(--c-accent),var(--shadow-lg);border-color:transparent}
 .lp-price h3{font-size:17px;font-weight:650;color:var(--c-text2);letter-spacing:-.01em}

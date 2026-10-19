@@ -53,7 +53,8 @@
           <div v-else-if="state === 'ready'" class="pw-body">
             <div class="pw-hd">
               <h2>{{ $t(paidForDraft ? 'Send your CV' : 'Get your CV as a PDF') }}</h2>
-              <p v-if="paidForDraft">{{ $t('This CV is already paid for. Send it as often as you like, even after edits.') }}</p>
+              <p v-if="paidForDraft && auth.user?.pass">{{ $t('Your Job Hunt Pass covers this CV. Send it as often as you like, even after edits.') }}</p>
+              <p v-else-if="paidForDraft">{{ $t('This CV is already paid for. Send it as often as you like, even after edits.') }}</p>
               <p v-else-if="demoMode">{{ $t('Payments aren’t switched on yet, so this is free for now.') }}</p>
               <p v-else>{{ $t('A clean, one-page PDF, emailed to you.') }}</p>
             </div>
@@ -92,6 +93,9 @@
               <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
               {{ $t('Secure payment by Stripe · No subscription') }}
             </p>
+            <button v-if="!paidForDraft && !demoMode" type="button" class="pw-pass" @click="toPass">
+              <b>{{ $t('Applying to lots of jobs?') }}</b> {{ $t('The Job Hunt Pass unlocks every CV you make for €6.99 a month.') }}
+            </button>
           </div>
 
           <!-- Couldn't prepare -->
@@ -116,6 +120,7 @@ import { suggestEmail } from '../composables/emailTypos.js'
 import { render } from '../composables/cvRenderer.js'
 import { analysePage } from '../composables/pageFit.js'
 import { t } from '../i18n/index.js'
+import { useRouter } from 'vue-router'
 import { approx } from '../composables/localPrice.js'
 
 const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
@@ -170,6 +175,9 @@ async function api(path, body) {
 }
 
 function close() { if (state.value !== 'sending' && !loading.value) emit('close') }
+const router = useRouter()
+// The Job Hunt Pass lives in Settings (price, what it includes, the consent and checkout)
+function toPass() { emit('close'); router.push({ path: '/settings', hash: '#pass' }) }
 
 // Stripe returns are handled by handleStripeReturn, don't run prepare over the top of them
 let handlingReturn = false
@@ -323,6 +331,9 @@ defineExpose({ handleStripeReturn })
 </script>
 
 <style scoped>
+.pw-pass{display:block;width:100%;margin-top:14px;padding:12px 14px;border:none;border-radius:14px;background:color-mix(in srgb,var(--c-accent) 9%,transparent);color:var(--c-text2);font:inherit;font-size:13.5px;line-height:1.5;text-align:left;cursor:pointer}
+.pw-pass b{color:var(--c-text)}
+.pw-pass:hover{background:color-mix(in srgb,var(--c-accent) 14%,transparent)}
 .pw{max-width:460px;padding:30px 28px 26px}
 .pw-hd h2,.pw-center h2{font-size:20px;font-weight:650;letter-spacing:-.015em}
 .pw-hd p,.pw-center p{color:var(--c-text2);margin-top:6px;line-height:1.55}

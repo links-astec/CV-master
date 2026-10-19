@@ -387,6 +387,7 @@ function startBuilding(mode) {
   }
   if (mode === 'mycvs') { router.push('/'); return }
   if (mode === 'templates') { router.push('/templates'); return }
+  if (mode === 'pass') { router.push({ path: '/settings', hash: '#pass' }); return }
   if (mode === 'new') { router.push(auth.isLoggedIn ? '/' : '/templates'); newCV(); return }
   if (mode === 'ats' && store.hasContent) { router.push({ path: '/editor', query: { tab: 'job' } }); return }
   router.push(auth.isLoggedIn ? '/' : '/templates')   // signed in → My CVs

@@ -116,7 +116,7 @@ const DOCS = [
     id: 'terms', tab: 'Terms of service', title: 'Terms of service',
     summary: [
       'Building and previewing your CV is free.',
-      'A clean PDF costs €0.99 per CV, once, no subscription.',
+      'A clean PDF costs €0.99 per CV, once. Or the Job Hunt Pass: every CV for €6.99 a month, cancel any time.',
       'You own what you write. Check AI suggestions before you send your CV.',
       'Something wrong? Tell us. We’ll resend or refund if your CV never arrived.',
     ],
@@ -129,6 +129,7 @@ const DOCS = [
       </ul>` },
       { id: 'payments', title: 'Payments', html: `<ul>
         <li>The clean (watermark-free) PDF of a CV is a one-time payment of <strong>€0.99</strong>. It includes email delivery, direct download, and unlimited re-sends and downloads of that same CV, including after edits.</li>
+        <li>The <strong>Job Hunt Pass</strong> costs <strong>€6.99 a month</strong> and renews every month until you cancel. While it is active, every CV in your account can be emailed and downloaded as a clean PDF, and you get 100 AI requests a day. You can cancel at any time in Settings: nothing more is charged and the pass stays active until the end of the month already paid, which is not refunded. Because the pass starts straight away at your request, you agree when you buy it that your 14-day right of withdrawal ends once it starts.</li>
         <li>A preview PDF with a watermark is free.</li>
         <li>AI features include <strong>30 free requests a day</strong> for accounts with a confirmed email (guests and unconfirmed accounts get 5), reset daily at midnight (UTC). A pack of <strong>100 extra requests</strong> costs <strong>€0.50</strong>; extra requests don’t expire, are used only after the day’s free ones, and have no cash value.</li>
         <li>Referrals: someone who signs up with your invite link gets 25 extra AI requests. When they buy their first clean PDF, you earn a referral credit, which unlocks the clean PDF of one CV. Credits have no cash value.</li>
@@ -211,7 +212,7 @@ const DOCS_FR = [
     id: 'terms', tab: 'Conditions d’utilisation', title: 'Conditions d’utilisation',
     summary: [
       'Créer et prévisualiser votre CV est gratuit.',
-      'Un PDF sans filigrane coûte 0,99 € par CV. Une seule fois, sans abonnement.',
+      'Un PDF sans filigrane coûte 0,99 € par CV, une seule fois. Ou le Job Hunt Pass : tous vos CV pour 6,99 € par mois, sans engagement.',
       'Vous êtes propriétaire de ce que vous écrivez. Vérifiez les suggestions de l’IA avant d’envoyer votre CV.',
       'Un problème ? Dites-le-nous. Nous renvoyons ou remboursons si votre CV n’est jamais arrivé.',
     ],
@@ -224,6 +225,7 @@ const DOCS_FR = [
       </ul>` },
       { id: 'payments', title: 'Paiements', html: `<ul>
         <li>Le PDF sans filigrane d’un CV est un paiement unique de <strong>0,99 €</strong>. Il comprend l’envoi par e-mail, le téléchargement direct, et des renvois et téléchargements illimités de ce même CV, y compris après modification.</li>
+        <li>Le <strong>Job Hunt Pass</strong> coûte <strong>6,99 € par mois</strong> et se renouvelle chaque mois jusqu’à ce que vous l’annuliez. Tant qu’il est actif, chaque CV de votre compte peut être envoyé par e-mail et téléchargé en PDF sans filigrane, et vous disposez de 100 requêtes d’IA par jour. Vous pouvez l’annuler à tout moment dans les Paramètres : plus rien n’est prélevé et le pass reste actif jusqu’à la fin du mois déjà payé, qui n’est pas remboursé. Comme le pass démarre immédiatement à votre demande, vous acceptez en l’achetant que votre droit de rétractation de 14 jours prenne fin dès son démarrage.</li>
         <li>Un aperçu PDF avec filigrane est gratuit.</li>
         <li>Les fonctionnalités d’IA comprennent <strong>30 requêtes gratuites par jour</strong> pour les comptes dont l’e-mail est confirmé (5 pour les invités et les comptes non confirmés), remises à zéro chaque jour à minuit (UTC). Un pack de <strong>100 requêtes supplémentaires</strong> coûte <strong>0,50 €</strong> ; ces requêtes n’expirent pas, ne sont utilisées qu’après les requêtes gratuites du jour et n’ont aucune valeur monétaire.</li>
         <li>Parrainage : une personne qui s’inscrit avec votre lien d’invitation reçoit 25 requêtes IA supplémentaires. Lorsqu’elle achète son premier PDF sans filigrane, vous gagnez un crédit de parrainage, qui débloque le PDF sans filigrane d’un CV. Les crédits n’ont aucune valeur monétaire.</li>

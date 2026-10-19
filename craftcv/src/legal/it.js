@@ -51,7 +51,7 @@ export default ({ mail }) => {
       id: 'terms', tab: 'Termini di servizio', title: 'Termini di servizio',
       summary: [
         'Creare e visualizzare in anteprima il tuo CV è gratis.',
-        'Un PDF senza filigrana costa 0,99 € per CV, una sola volta, senza abbonamento.',
+        'Un PDF senza filigrana costa 0,99 € per CV, una sola volta. Oppure il Job Hunt Pass: tutti i tuoi CV a 6,99 € al mese, annulli quando vuoi.',
         'Ciò che scrivi è tuo. Controlla i suggerimenti dell’IA prima di inviare il CV.',
         'Qualcosa non va? Faccelo sapere. Se il tuo CV non è mai arrivato, lo reinviamo o ti rimborsiamo.',
       ],
@@ -64,6 +64,7 @@ export default ({ mail }) => {
         </ul>` },
         { id: 'payments', title: 'Pagamenti', html: `<ul>
           <li>Il PDF senza filigrana di un CV è un pagamento unico di <strong>0,99 €</strong>. Comprende l’invio via email, il download diretto e invii e download illimitati dello stesso CV, anche dopo le modifiche.</li>
+        <li>Il <strong>Job Hunt Pass</strong> costa <strong>6,99 € al mese</strong> e si rinnova ogni mese finché non lo annulli. Finché è attivo, ogni CV del tuo account può essere inviato via email e scaricato come PDF senza filigrana, e hai 100 richieste di IA al giorno. Puoi annullarlo in qualsiasi momento nelle Impostazioni: non viene addebitato altro e il pass resta attivo fino alla fine del mese già pagato, che non viene rimborsato. Poiché il pass inizia subito su tua richiesta, acquistandolo accetti che il tuo diritto di recesso di 14 giorni termini al suo inizio.</li>
           <li>Il PDF di anteprima con filigrana è gratuito.</li>
           <li>Le funzioni di IA includono <strong>30 richieste gratuite al giorno</strong> per gli account con email confermata (ospiti e account non confermati ne hanno 5), rinnovate ogni giorno a mezzanotte (UTC). Un pacchetto di <strong>100 richieste extra</strong> costa <strong>0,50 €</strong>; le richieste extra non scadono, vengono usate solo dopo quelle gratuite del giorno e non hanno valore in denaro.</li>
           <li>Inviti: chi si registra con il tuo link di invito riceve 25 richieste di IA extra. Quando acquista il suo primo PDF senza filigrana, ottieni un credito invito, che sblocca il PDF senza filigrana di un CV. I crediti non hanno valore in denaro.</li>
