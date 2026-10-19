@@ -140,7 +140,7 @@
             <div class="st-card-t">{{ $t('AI requests') }}</div>
             <p class="st-p">{{ $t(aiQuota?.tier === 'verified' ? '30 free every day, reset at midnight (UTC). Extra requests never expire.' : '5 free a day. 30 once your email is confirmed. Reset at midnight (UTC). Extra requests never expire.') }}</p>
           </div>
-          <button class="btn-secondary btn-sm" @click="openAiAllowance()">{{ $t('Get 100 more for €0.50') }}</button>
+          <button class="btn-secondary btn-sm" @click="openAiAllowance()">{{ $t('Get 100 more for €0.50') }}<template v-if="approx(0.5)"> ({{ approx(0.5) }})</template></button>
         </div>
         <template v-if="aiQuota">
           <div class="st-meter"><div :style="{ width: (aiQuota.freeLeft / aiQuota.limit * 100) + '%' }"></div></div>
@@ -291,6 +291,7 @@ import { INDUSTRIES, GOALS, LEVELS } from '../composables/profileOptions.js'
 import { t } from '../i18n/index.js'
 import { resizePhoto } from '../composables/photo.js'
 import { track } from '../composables/track.js'
+import { approx } from '../composables/localPrice.js'
 
 const apiUrl    = (p) => (import.meta.env.VITE_API_URL || '') + p
 const auth      = useAuthStore()

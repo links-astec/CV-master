@@ -19,6 +19,7 @@ import { query } from './db.js';
 import { ensurePushTable, isPushToken, pushHealth, registerToken, removeToken, sendPush } from './push.js';
 import { ensureActivity, nextStep, personalNudges, recordEvents, setPersonalize } from './activity.js';
 import { guestStats, linkGuest, pruneGuests, recordGuest } from './guests.js';
+import { claudeFailed, claudeWorked, cleanEdit, countClaude, countGroq, countMail, servicesReport, serviceAlerts } from './services.js';
 import { ensureAppleCols, keepAppleRefreshToken, revokeApple, verifyAppleToken } from './apple.js';
 import { registerBlog, BLOG_JS } from './blog.js'
 import { checkSecondStep, endAllSessions, ensureAdminSecurity, finishSetup, newCodes, sessionVersion, startSetup, turnOff, twoStepOn } from './adminSecurity.js'
@@ -112,7 +113,7 @@ const mailHealth = { okAt: null, errAt: null, error: '' };
 async function sendMail(opts) {
   const errors = [];
   if (resend) {
-    try { const r = await sendViaResend(opts); mailHealth.okAt = new Date(); return r; }
+    try { const r = await sendViaResend(opts); mailHealth.okAt = new Date(); countMail(); return r; }
     catch (e) { errors.push('Resend: ' + e.message); console.warn('[mailer] Resend failed:', e.message); }
   }
   if (smtpTransport) {
@@ -313,7 +314,9 @@ app.use((req, res, next) => {
   // each run wakes the database, which Neon bills while awake
   if (!_statusRunning && Date.now() - _statusAt > 60 * 60 * 1000 && process.env.DISABLE_REMINDERS !== 'true') {
     _statusAt = Date.now(); _statusRunning = true;
-    setTimeout(() => runStatus().then(statusAlerts).catch(e => console.warn('[status]', e.message)).finally(() => { _statusRunning = false; }), 8000);
+    setTimeout(() => runStatus().then(statusAlerts).catch(e => console.warn('[status]', e.message))
+      .then(() => IS_PROD && serviceAlerts(serviceDeps(), { to: process.env.ADMIN_EMAIL || FEEDBACK_TO, send: sendMail, esc: escHtml }))
+      .catch(e => console.warn('[services]', e.message)).finally(() => { _statusRunning = false; }), 8000);
   }
   next();
 });
@@ -1380,8 +1383,10 @@ async function callClaude(prompt, systemPrompt, maxTokens) {
     signal: AbortSignal.timeout(90000),
   });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j.error?.message || `AI request failed (${r.status}).`);
+  if (!r.ok) { const msg = j.error?.message || `AI request failed (${r.status}).`; claudeFailed(msg); throw new Error(msg); }
+  claudeWorked();
   const u = j.usage || {};
+  countClaude(u);
   aiCache.calls++; aiCache.input += u.input_tokens || 0;
   aiCache.read += u.cache_read_input_tokens || 0; aiCache.written += u.cache_creation_input_tokens || 0;
   return (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
@@ -1500,6 +1505,7 @@ async function callGroq(prompt, model = AI_MODEL, systemPrompt = null, maxTokens
       });
       j = await r.json().catch(() => ({}));
     } catch (e) { lastErr = e; r = null; }   // timeout or network: try again
+    if (r) countGroq(r.headers);
     if (r?.ok) {
       const out = j.choices?.[0]?.message?.content || '';
       if (out.trim()) return out;
@@ -3629,6 +3635,22 @@ app.post('/api/internal/backup-report', rateLimit({ windowMs: 60 * 60 * 1000, ma
     res.json({ ok: true });
   } catch (e) { console.error('[backup-report]', e.message); res.status(500).json({ error: 'Could not record the backup.' }); }
 });
+// ── Subscriptions and limits (server/services.js) ──────────────────────────────
+const serviceDeps = () => ({ query, getSetting, setSetting,
+  getJson: (url) => withTimeout(fetch(url, { signal: AbortSignal.timeout(8000) }).then(r => r.json())).catch(() => null) });
+app.get('/api/admin/services', adminAuthMiddleware, async (req, res) => {
+  try { res.json({ ...(await servicesReport(serviceDeps())), alertsTo: process.env.ADMIN_EMAIL || FEEDBACK_TO || null }); }
+  catch (e) { console.error('[admin/services]', e.message); res.status(500).json({ error: 'Could not load the services.' }); }
+});
+app.put('/api/admin/services/:id', adminAuthMiddleware, async (req, res) => {
+  try {
+    if (!/^[a-z]{2,20}$/.test(req.params.id)) return res.status(400).json({ error: 'Unknown service.' });
+    const all = await getSetting('services', {}) || {};
+    all[req.params.id] = { ...(all[req.params.id] || {}), ...cleanEdit(req.body) };
+    await setSetting('services', all);
+    res.json({ ok: true });
+  } catch (e) { console.error('[admin/services put]', e.message); res.status(500).json({ error: 'Could not save.' }); }
+});
 app.get('/api/admin/guests', adminAuthMiddleware, async (req, res) => {
   try { res.json(await guestStats(req.query.days)); }
   catch (e) { console.error('[admin/guests]', e.message); res.status(500).json({ error: 'Could not load guests.' }); }
@@ -3858,15 +3880,22 @@ async function runStatus() {
 
 // Email the admin when a check goes down, and when it is back
 let _statusTable = null;
+const _statusMem = {};
 async function statusAlerts({ checks }) {
   if (!IS_PROD) return; // only the live server records states and emails alerts
-  if (!_statusTable) _statusTable = query('CREATE TABLE IF NOT EXISTS status_state (key TEXT PRIMARY KEY, state TEXT NOT NULL, changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW())').catch(e => { _statusTable = null; throw e; });
-  await _statusTable;
-  const before = Object.fromEntries((await query('SELECT key, state FROM status_state')).rows.map(r => [r.key, r.state]));
+  // The states are kept in the database and in memory: when the database itself is down, the alert
+  // must still go out (and not again every hour)
+  let before = { ..._statusMem }, saved = true;
+  try {
+    if (!_statusTable) _statusTable = query('CREATE TABLE IF NOT EXISTS status_state (key TEXT PRIMARY KEY, state TEXT NOT NULL, changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW())').catch(e => { _statusTable = null; throw e; });
+    await _statusTable;
+    before = { ...Object.fromEntries((await query('SELECT key, state FROM status_state')).rows.map(r => [r.key, r.state])), ..._statusMem };
+  } catch { saved = false; }
   const broke = [], fixed = [];
   for (const c of checks) {
     const was = before[c.key];
-    if (was !== c.state) await query(`INSERT INTO status_state (key, state) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET state = $2, changed_at = NOW()`, [c.key, c.state]);
+    _statusMem[c.key] = c.state;
+    if (was !== c.state && saved) await query(`INSERT INTO status_state (key, state) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET state = $2, changed_at = NOW()`, [c.key, c.state]).catch(() => {});
     if (c.state === 'down' && was !== 'down') broke.push(c);
     if (was === 'down' && c.state !== 'down') fixed.push(c);
   }
@@ -4792,6 +4821,25 @@ app.post('/api/referral/redeem', authMiddleware, async (req, res) => {
 });
 
 // ── ADMIN PANEL (serve HTML) ──────────────────────────────────────────────────
+
+// ── LOCAL PRICE ESTIMATES ─────────────────────────────────────────────────────
+// Prices are in euros; visitors in Ghana also see roughly what that is in cedis. The rate is fetched at
+// most twice a day from a free exchange-rate service; if it can't be fetched, no estimate is shown.
+const FX_CURRENCIES = ['GHS'];
+const fx = { at: 0, rates: null };
+app.get('/api/fx', rateLimit({ windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false }), async (req, res) => {
+  if (Date.now() - fx.at > 12 * 60 * 60 * 1000) {
+    fx.at = Date.now();
+    try {
+      const j = await withTimeout(fetch('https://open.er-api.com/v6/latest/EUR', { signal: AbortSignal.timeout(6000) }).then(r => r.json()), 7000);
+      const rates = {};
+      for (const c of FX_CURRENCIES) if (Number(j?.rates?.[c]) > 0) rates[c] = Number(j.rates[c]);
+      if (Object.keys(rates).length) fx.rates = rates;
+    } catch (e) { console.warn('[fx]', e.message); fx.at = Date.now() - 11 * 60 * 60 * 1000; } // try again in an hour
+  }
+  res.set('Cache-Control', 'public, max-age=3600');
+  res.json({ base: 'EUR', rates: fx.rates || {} });
+});
 
 // ── HEALTH ────────────────────────────────────────────────────────────────────
 // Uptime monitors call this every few minutes. Asking the database each time would keep it awake
