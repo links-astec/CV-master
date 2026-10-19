@@ -18,7 +18,7 @@ import nodemailer from 'nodemailer';
 import { query } from './db.js';
 import { ensurePushTable, isPushToken, pushHealth, registerToken, removeToken, sendPush } from './push.js';
 import { ensureActivity, nextStep, personalNudges, recordEvents, setPersonalize } from './activity.js';
-import { guestStats, linkGuest, pruneGuests, recordGuest } from './guests.js';
+import { ensureGuests, guestStats, linkGuest, pruneGuests, recordGuest } from './guests.js';
 import { claudeFailed, claudeWorked, cleanEdit, countClaude, countGroq, countMail, servicesReport, serviceAlerts } from './services.js';
 import { ensureAppleCols, keepAppleRefreshToken, revokeApple, verifyAppleToken } from './apple.js';
 import { registerBlog, BLOG_JS } from './blog.js'
@@ -479,7 +479,7 @@ app.post('/api/guest/events', rateLimit({ windowMs: 60 * 1000, max: 30 }), async
       guestNew.set(req.ip, n + 1);
     }
     const names = (Array.isArray(req.body?.events) ? req.body.events : []).map(e => String(e?.name || e || ''));
-    res.json({ ok: true, kept: await recordGuest(req.cookies.cvm_gid, req.body?.platform, names) });
+    res.json({ ok: true, kept: await recordGuest(req.cookies.cvm_gid, req.body?.platform, names, COUNTRY.test(req.body?.country || '') ? req.body.country : null) });
   } catch (e) { console.error('[guest events]', e.message); res.status(500).json({ error: 'Not recorded.' }); }
 });
 const aiSubject = (req) => req.user ? `u:${req.user.sub}` : GID.test(req.cookies?.cvm_gid || '') ? `g:${req.cookies.cvm_gid}` : `ip:${req.ip}`;
@@ -1182,11 +1182,20 @@ app.get('/api/me/next', authMiddleware, async (req, res) => {
 });
 
 // ── ME ────────────────────────────────────────────────────────────────────────
+// Country of an account: worked out by the website or app from the device's time zone (never from the
+// internet address), sent as ?c=GB when it loads the account. Only the latest country is kept.
+const COUNTRY = /^[A-Z]{2}$/;
+let _countryCols = null;
+const ensureCountryCols = () => (_countryCols ||= query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS country TEXT`)
+  .then(() => query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS country_at TIMESTAMPTZ`)).catch(e => { _countryCols = null; throw e; }));
 app.get('/api/auth/me', authMiddleware, async (req, res) => {
   try {
     await ensureActivity().catch(() => {});
     const { rows } = await query('SELECT * FROM users WHERE id = $1', [req.user.sub]);
     if (!rows.length) return res.status(404).json({ error: 'User not found.' });
+    const c = String(req.query.c || '');
+    if (COUNTRY.test(c) && rows[0].country !== c) ensureCountryCols()
+      .then(() => query('UPDATE users SET country = $2, country_at = NOW() WHERE id = $1', [req.user.sub, c])).catch(() => {});
     res.json(publicUser(rows[0]));
   } catch (e) { res.status(500).json({ error: 'Failed to fetch user.' }); }
 });
@@ -3651,6 +3660,29 @@ app.put('/api/admin/services/:id', adminAuthMiddleware, async (req, res) => {
     res.json({ ok: true });
   } catch (e) { console.error('[admin/services put]', e.message); res.status(500).json({ error: 'Could not save.' }); }
 });
+// Where people use CVMaster from: accounts (all, new, active, paying) and guests, per country
+app.get('/api/admin/countries', adminAuthMiddleware, async (req, res) => {
+  try {
+    const days = Math.max(1, Math.min(365, Math.floor(Number(req.query.days) || 30)));
+    await Promise.all([ensureCountryCols(), ensureGuests(), ensureActivity()]);
+    const [acc, gst] = await Promise.all([
+      query(`SELECT COALESCE(u.country, '') AS country, COUNT(*)::int AS accounts,
+          COUNT(*) FILTER (WHERE u.created_at > NOW() - make_interval(days => $1))::int AS new,
+          COUNT(*) FILTER (WHERE u.last_active_at > NOW() - make_interval(days => $1))::int AS active,
+          COUNT(*) FILTER (WHERE EXISTS (SELECT 1 FROM payments p WHERE p.user_id = u.id AND p.paid AND p.source = 'stripe'))::int AS paying
+        FROM users u GROUP BY 1`, [days]),
+      query(`SELECT COALESCE(country, '') AS country, COUNT(*)::int AS guests,
+          COUNT(*) FILTER (WHERE converted_at IS NOT NULL)::int AS signed_up
+        FROM guests WHERE last_seen > NOW() - make_interval(days => $1) GROUP BY 1`, [days]),
+    ]);
+    const by = {};
+    const row = (c) => (by[c] ||= { country: c, accounts: 0, new: 0, active: 0, paying: 0, guests: 0, signed_up: 0 });
+    for (const r of acc.rows) Object.assign(row(r.country), { accounts: r.accounts, new: r.new, active: r.active, paying: r.paying });
+    for (const r of gst.rows) Object.assign(row(r.country), { guests: r.guests, signed_up: r.signed_up });
+    const rows = Object.values(by).sort((a, b) => (b.active + b.guests) - (a.active + a.guests) || b.accounts - a.accounts);
+    res.json({ days, rows });
+  } catch (e) { console.error('[admin/countries]', e.message); res.status(500).json({ error: 'Could not load countries.' }); }
+});
 app.get('/api/admin/guests', adminAuthMiddleware, async (req, res) => {
   try { res.json(await guestStats(req.query.days)); }
   catch (e) { console.error('[admin/guests]', e.message); res.status(500).json({ error: 'Could not load guests.' }); }
@@ -4823,9 +4855,9 @@ app.post('/api/referral/redeem', authMiddleware, async (req, res) => {
 // ── ADMIN PANEL (serve HTML) ──────────────────────────────────────────────────
 
 // ── LOCAL PRICE ESTIMATES ─────────────────────────────────────────────────────
-// Prices are in euros; visitors in Ghana also see roughly what that is in cedis. The rate is fetched at
-// most twice a day from a free exchange-rate service; if it can't be fetched, no estimate is shown.
-const FX_CURRENCIES = ['GHS'];
+// Prices are in euros; visitors outside the euro area also see roughly what that is in their currency.
+// Rates are fetched at most twice a day from a free exchange-rate service; if they can't be fetched, no
+// estimate is shown.
 const fx = { at: 0, rates: null };
 app.get('/api/fx', rateLimit({ windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false }), async (req, res) => {
   if (Date.now() - fx.at > 12 * 60 * 60 * 1000) {
@@ -4833,7 +4865,7 @@ app.get('/api/fx', rateLimit({ windowMs: 60 * 1000, max: 30, standardHeaders: tr
     try {
       const j = await withTimeout(fetch('https://open.er-api.com/v6/latest/EUR', { signal: AbortSignal.timeout(6000) }).then(r => r.json()), 7000);
       const rates = {};
-      for (const c of FX_CURRENCIES) if (Number(j?.rates?.[c]) > 0) rates[c] = Number(j.rates[c]);
+      for (const [c, v] of Object.entries(j?.rates || {})) if (/^[A-Z]{3}$/.test(c) && Number(v) > 0) rates[c] = Number(v);
       if (Object.keys(rates).length) fx.rates = rates;
     } catch (e) { console.warn('[fx]', e.message); fx.at = Date.now() - 11 * 60 * 60 * 1000; } // try again in an hour
   }

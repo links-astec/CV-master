@@ -337,6 +337,9 @@ input[type=range]{flex:1;accent-color:var(--ac)}
 .svc-i{font-size:12.5px;color:var(--t2);line-height:1.5}
 .svc-f{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}.svc-f .full{grid-column:1/-1}
 @media (max-width:760px){ .svc-list{grid-template-columns:1fr} .svc-f{grid-template-columns:1fr} }
+.cty-wrap{overflow-x:auto;border-radius:12px;background:var(--s1);box-shadow:inset 0 0 0 1px var(--b1)}
+.cty td:first-child{color:var(--t1);font-weight:600;white-space:nowrap}.cty td.n,.cty th.n{text-align:right;font-variant-numeric:tabular-nums}
+.cty-flag{font-size:16px;margin-right:8px}
 .senders{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .sender{background:var(--s2);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
 .sender-hd{display:flex;flex-direction:column;gap:1px}
@@ -762,7 +765,7 @@ async function go(p) {
   if (p === 'reviews') await loadReviews()
   if (p === 'subscribers' || p === 'newsletter') await loadSubs()
   if (p === 'newsletter') { loadHistory(); loadMyTemplates(); if (!S.config) loadConfig() }
-  if (p === 'settings') await Promise.all([loadStatus(), S.stats ? null : loadStats(), loadSecurity(), S.config ? null : loadConfig(), loadServices()])
+  if (p === 'settings') await Promise.all([loadStatus(), S.stats ? null : loadStats(), loadSecurity(), S.config ? null : loadConfig(), loadServices(), loadCountries()])
   if (p === 'overview' && !S.status) loadStatus()
   if (p === 'app') await loadActivity()
   if (p === 'blog' && !S.blog.edit) await loadPosts()
@@ -1437,6 +1440,10 @@ function renderSettings() {
       <button class="btn btn-sm" data-act="svc-refresh" ${S.svcLoading ? 'disabled' : ''}>${svg('refresh')} Refresh</button></div><div class="card-bd">
       ${renderServices()}
     </div></div>
+    <div class="card" style="grid-column:1/-1"><div class="card-hd"><h3>People by country</h3>
+      <div class="g-period" role="group" aria-label="Period">${[7, 30, 90, 365].map(d => `<button class="btn btn-sm ${(S.ctyDays || 30) === d ? 'btn-primary' : ''}" data-act="cty-days" data-d="${d}">${d === 365 ? 'Year' : d + ' days'}</button>`).join('')}</div></div><div class="card-bd">
+      ${renderCountries()}
+    </div></div>
     <div class="card"><div class="card-hd"><h3>Maintenance mode</h3></div><div class="card-bd">
       <div class="maint"><div><b>${S.maintenance ? 'The site is in maintenance' : 'The site is live'}</b><div class="muted" style="font-size:13px;margin-top:2px">Maintenance shows everyone a “back soon” page. This admin panel keeps working.</div></div>
       <label class="toggle"><input type="checkbox" id="maint-toggle" ${S.maintenance ? 'checked' : ''} ${S.maintLoading ? 'disabled' : ''}><span class="toggle-track"></span></label></div>
@@ -1528,6 +1535,34 @@ async function editService(id) {
   document.addEventListener('keydown', onKey, true)
   document.body.appendChild(wrap)
   wrap.querySelector('[data-f="plan"]').focus()
+}
+
+// ── PEOPLE BY COUNTRY ─────────────────────────────────────────────────────────
+// From each device's time zone setting (never the internet address)
+async function loadCountries() {
+  try { S.cty = await api('GET', '/countries?days=' + (S.ctyDays || 30)) } catch (e) { S.cty = { error: e.message } }
+  render()
+}
+const countryName = (() => { let dn = null; try { dn = new Intl.DisplayNames(['en'], { type: 'region' }) } catch {} return (c) => { try { return dn?.of(c) || c } catch { return c } } })()
+const flag = (c) => /^[A-Z]{2}$/.test(c) ? String.fromCodePoint(...[...c].map(ch => 0x1F1E6 + ch.charCodeAt(0) - 65)) : '🌐'
+function renderCountries() {
+  const x = S.cty
+  if (!x) return '<div class="loading"><span class="spinner"></span></div>'
+  if (x.error) return `<div class="muted">${esc(x.error)}</div>`
+  if (!x.rows.length) return '<div class="muted">No one yet.</div>'
+  const tot = x.rows.reduce((t, r) => { for (const k of ['accounts', 'new', 'active', 'paying', 'guests', 'signed_up']) t[k] = (t[k] || 0) + r[k]; return t }, {})
+  const known = x.rows.filter(r => r.country).length
+  const p = `last ${x.days} days`
+  return `<div class="svc-sum">
+      <div><b>${known}</b><span>countries</span></div>
+      <div><b>${tot.active.toLocaleString('en')}</b><span>accounts active, ${p}</span></div>
+      <div><b>${tot.guests.toLocaleString('en')}</b><span>guests, ${p}</span></div>
+      <div><b>${tot.paying.toLocaleString('en')}</b><span>accounts that have paid</span></div></div>
+    <div class="cty-wrap"><table class="tbl cty"><thead><tr><th>Country</th><th class="n">Accounts</th><th class="n">New</th><th class="n">Active</th><th class="n">Paid</th><th class="n">Guests</th><th class="n">Guests who signed up</th></tr></thead><tbody>
+    ${x.rows.map(r => `<tr><td><span class="cty-flag">${flag(r.country)}</span>${esc(r.country ? countryName(r.country) : 'Not known yet')}</td>
+      <td class="n">${r.accounts}</td><td class="n">${r.new}</td><td class="n">${r.active}</td><td class="n">${r.paying}</td><td class="n">${r.guests}</td><td class="n">${r.signed_up}</td></tr>`).join('')}
+    </tbody></table></div>
+    <p class="muted" style="font-size:12px;margin-top:12px">New, Active and Guests count the ${p}; Accounts and Paid are all time. The country comes from each device’s time zone setting, never the internet address. Accounts show a country after their next visit (“Not known yet” until then); guests who ask not to be tracked are never counted.</p>`
 }
 
 // Which address sends what (from the server, so it always matches what is really sent)
@@ -2496,6 +2531,7 @@ document.addEventListener('click', (e) => {
   else if (a === 'config-refresh') { S.config = null; render(); loadConfig() }
   else if (a === 'status-refresh') loadStatus(true)
   else if (a === 'svc-refresh') loadServices()
+  else if (a === 'cty-days') { S.ctyDays = Number(t.dataset.d); loadCountries() }
   else if (a === 'svc-edit') editService(t.dataset.id)
   else if (a === 'rv-min-save') saveReviewsMin()
   else if (a === 'inbox-refresh') loadInbox()

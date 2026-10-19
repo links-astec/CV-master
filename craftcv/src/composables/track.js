@@ -2,6 +2,7 @@
 // the server itself). Signed-in users only; kept on our own server, never shared, and switched
 // off in Settings ("Personalise with my activity"). See server/activity.js.
 import { useAuthStore } from '../stores/auth.js'
+import { deviceCountry } from './localPrice.js'
 
 const apiUrl = (p) => (import.meta.env.VITE_API_URL || '') + p
 
@@ -14,11 +15,11 @@ export function guestEvent(name) {
   if (name === 'visit') {
     try { if (sessionStorage.getItem('cvm-visit')) return; sessionStorage.setItem('cvm-visit', '1') } catch {}
   }
-  fetch(apiUrl('/api/guest/events'), {
+  deviceCountry().then(country => fetch(apiUrl('/api/guest/events'), {
     method: 'POST', credentials: 'include', keepalive: true,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ platform: 'web', events: [name] }),
-  }).catch(() => {})
+    body: JSON.stringify({ platform: 'web', events: [name], ...(country ? { country } : {}) }),
+  })).catch(() => {})
 }
 
 export function track(name, props = {}) {

@@ -34,18 +34,20 @@ export function ensureGuests() {
         counts JSONB NOT NULL DEFAULT '{}',
         PRIMARY KEY (gid, day))`);
     await query('CREATE INDEX IF NOT EXISTS guest_days_day ON guest_days(day)');
+    await query('ALTER TABLE guests ADD COLUMN IF NOT EXISTS country TEXT');
   })().catch(e => { _ready = null; throw e; });
   return _ready;
 }
 
 // Count a batch of actions for one guest. Unknown actions are ignored.
-export async function recordGuest(gid, platform, names) {
+export async function recordGuest(gid, platform, names, country = null) {
   await ensureGuests();
   const plat = PLATFORMS.includes(platform) ? platform : 'web';
   const counts = {};
   for (const n of (Array.isArray(names) ? names : []).slice(0, 20)) if (GUEST_EVENTS[n]) counts[n] = (counts[n] || 0) + 1;
-  await query(`INSERT INTO guests (gid, platform) VALUES ($1, $2)
-               ON CONFLICT (gid) DO UPDATE SET last_seen = NOW(), platform = EXCLUDED.platform`, [gid, plat]);
+  // country: from the device's time zone (sent by the website or app), never from the internet address
+  await query(`INSERT INTO guests (gid, platform, country) VALUES ($1, $2, $3)
+               ON CONFLICT (gid) DO UPDATE SET last_seen = NOW(), platform = EXCLUDED.platform, country = COALESCE(EXCLUDED.country, guests.country)`, [gid, plat, country]);
   if (!Object.keys(counts).length) return 0;
   // Add each count to today's row (jsonb merge, summing what was already there)
   await query(`INSERT INTO guest_days (gid, day, counts) VALUES ($1, CURRENT_DATE, $2::jsonb)
