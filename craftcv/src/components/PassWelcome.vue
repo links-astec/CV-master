@@ -3,10 +3,7 @@
     <Transition name="pw-sheet">
       <div v-if="show" class="pws-back" @click.self="$emit('close')">
         <div class="pws" role="dialog" aria-modal="true" aria-labelledby="pws-t">
-          <div class="pws-mark" aria-hidden="true">
-            <svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="24" /><path d="M15 27l7.5 7.5L38 19" /></svg>
-          </div>
-          <p class="pws-k">{{ $t('Job Hunt Pass') }}</p>
+          <div class="pws-card"><PassCard :name="name" :since="since" :plan="plan" /></div>
           <h2 id="pws-t">{{ $t('Welcome to the Job Hunt Pass.') }}</h2>
           <p class="pws-sub">{{ $t('Everything is unlocked. Here’s what changes for you.') }}</p>
           <ul class="pws-list">
@@ -27,13 +24,16 @@
 
 <script setup>
 // Shown once, right after the Job Hunt Pass is bought: a calm, Apple-like welcome that says what's unlocked
-defineProps({ show: Boolean, until: { type: String, default: '' } })
+import PassCard from './PassCard.vue'
+defineProps({ show: Boolean, until: { type: String, default: '' }, name: { type: String, default: '' }, since: { type: String, default: '' }, plan: { type: String, default: 'month' } })
 defineEmits(['close', 'start'])
 </script>
 
 <style scoped>
 .pws-back{position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.36);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
-.pws{width:100%;max-width:440px;max-height:calc(100dvh - 40px);overflow-y:auto;background:var(--c-surface);border-radius:32px;padding:44px 36px 28px;text-align:center;box-shadow:0 40px 100px rgba(0,0,0,.25)}
+.pws{perspective:1000px;width:100%;max-width:440px;max-height:calc(100dvh - 40px);overflow-y:auto;background:var(--c-surface);border-radius:32px;padding:44px 36px 28px;text-align:center;box-shadow:0 40px 100px rgba(0,0,0,.25)}
+.pws-card{display:flex;justify-content:center;margin:-8px 0 26px;animation:pwsCard .9s cubic-bezier(.2,.9,.25,1) .1s both}
+@keyframes pwsCard{from{opacity:0;transform:translateY(40px) rotateX(28deg) scale(.9)}to{opacity:1;transform:none}}
 .pws-mark{width:64px;height:64px;margin:0 auto 22px}
 .pws-mark svg{width:100%;height:100%;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .pws-mark circle{fill:var(--c-accent);stroke:none;transform-origin:center;animation:pwsPop .5s cubic-bezier(.2,.9,.3,1.2) both}
@@ -57,5 +57,5 @@ defineEmits(['close', 'start'])
 .pw-sheet-enter-active .pws,.pw-sheet-leave-active .pws{transition:transform .4s cubic-bezier(.2,.9,.3,1)}
 .pw-sheet-enter-from,.pw-sheet-leave-to{opacity:0}
 .pw-sheet-enter-from .pws,.pw-sheet-leave-to .pws{transform:translateY(24px) scale(.97)}
-@media (prefers-reduced-motion:reduce){ .pws-mark circle,.pws-mark path{animation:none;stroke-dashoffset:0} }
+@media (prefers-reduced-motion:reduce){ .pws-card{animation:none} }
 </style>

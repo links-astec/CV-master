@@ -13,6 +13,13 @@
         </button>
       </div>
 
+      <!-- Job Hunt Pass holders: their pass, and the fastest next step -->
+      <div v-if="auth.user?.pass" class="db-pass">
+        <div class="db-pass-card"><PassCard size="sm" :tilt="false" :name="auth.user?.name || ''" :plan="auth.user.pass.plan" /></div>
+        <div class="db-pass-txt"><b>{{ $t('Your Job Hunt Pass is on') }}</b><span>{{ $t('Every CV here is unlocked. Download or email any of them, as often as you like.') }}</span></div>
+        <button class="btn-primary accent btn-sm db-pass-go" @click="checkAts">{{ $t('Tailor a CV to a new job') }}</button>
+      </div>
+
       <!-- The two features people miss: telling their story, and checking against a job (ATS) -->
       <div class="db-feats">
         <button class="db-feat" @click="newCV('narrate')">
@@ -124,6 +131,7 @@ import { sampleCv } from '../composables/sampleCv.js'
 import CvThumb from '../components/CvThumb.vue'
 import WatermarkUnlock from '../components/WatermarkUnlock.vue'
 import ReviewPrompt from '../components/ReviewPrompt.vue'
+import PassCard from '../components/PassCard.vue'
 import { t, locale } from '../i18n/index.js'
 
 const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
@@ -358,6 +366,12 @@ async function remove(c) {
 .db-next-t{font-size:18px;font-weight:700;letter-spacing:-.025em;color:var(--c-text);margin-top:3px}
 .db-next p{font-size:14px;color:var(--c-text2);line-height:1.5;margin-top:3px}
 @media (max-width:560px){ .db-next{flex-direction:column;align-items:stretch} }
+.db-pass{display:flex;align-items:center;gap:20px;padding:16px 20px 16px 16px;border-radius:24px;background:var(--c-surface);box-shadow:var(--shadow-sm);margin-bottom:12px}
+.db-pass-card{width:116px;flex-shrink:0}
+.db-pass-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.db-pass-txt b{font-size:16px;font-weight:650;letter-spacing:-.015em;color:var(--c-text)}
+.db-pass-txt span{font-size:14px;color:var(--c-text2);line-height:1.45}
+@media (max-width:640px){ .db-pass{flex-wrap:wrap} .db-pass-card{width:96px} .db-pass-go{width:100%} }
 .db-feats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px}
 .db-feat{display:flex;align-items:center;gap:14px;padding:16px 18px;border:none;border-radius:20px;background:var(--c-surface);box-shadow:var(--shadow-xs);text-align:left;font:inherit;color:var(--c-text);cursor:pointer;transition:transform .15s,box-shadow .15s}
 .db-feat:hover{transform:translateY(-1px);box-shadow:var(--shadow-sm,0 4px 14px rgba(20,20,43,.08))}
