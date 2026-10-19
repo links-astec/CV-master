@@ -148,4 +148,6 @@ export default {
   '100 AI requests a day': '100 requêtes IA par jour',
   'What is the Job Hunt Pass?': 'Qu’est-ce que le Job Hunt Pass ?',
   'For people applying to lots of jobs: for €6.99 a month every CV you make is unlocked as a clean PDF, and you get 100 AI requests a day. Cancel any time in Settings; the pass then runs to the end of the month you paid for.': 'Pour celles et ceux qui postulent à beaucoup d’offres : pour 6,99 € par mois, chaque CV que vous créez est débloqué en PDF sans filigrane, et vous avez 100 requêtes IA par jour. Annulable à tout moment dans les Paramètres ; le pass reste actif jusqu’à la fin du mois payé.',
+  'Or €14.99 every 3 months (save 29%)': 'Ou 14,99 € tous les 3 mois (29 % d’économie)',
+  'Compare all plans': 'Comparer toutes les formules',
 }

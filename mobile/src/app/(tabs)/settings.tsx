@@ -291,7 +291,7 @@ export default function Settings() {
           <Card>
             <Txt w={700} size={17}>{t('Job Hunt Pass')}</Txt>
             <Txt size={14.5} color={c.text2} style={{ lineHeight: 21 }}>
-              {t(user.pass.cancelAtEnd ? 'Cancelled. You keep everything until {date}.' : 'Active. Renews on {date} for €6.99.', { date: new Date(user.pass.until).toLocaleDateString(lang, { day: 'numeric', month: 'long', year: 'numeric' }) })}
+              {t(user.pass.cancelAtEnd ? 'Cancelled. You keep everything until {date}.' : user.pass.plan === 'quarter' ? 'Active. Renews on {date} for €14.99.' : 'Active. Renews on {date} for €6.99.', { date: new Date(user.pass.until).toLocaleDateString(lang, { day: 'numeric', month: 'long', year: 'numeric' }) })}
             </Txt>
             <Txt size={13} color={c.text3} style={{ lineHeight: 19 }}>{t('Every CV you make is unlocked as a clean PDF, with 100 AI requests a day.')}</Txt>
           </Card>

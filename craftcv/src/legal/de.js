@@ -51,7 +51,7 @@ export default ({ mail }) => {
       id: 'terms', tab: 'Nutzungsbedingungen', title: 'Nutzungsbedingungen',
       summary: [
         'Erstellen und Vorschau Ihres Lebenslaufs sind kostenlos.',
-        'Ein PDF ohne Wasserzeichen kostet 0,99 € pro Lebenslauf, einmalig. Oder der Job Hunt Pass: alle Lebensläufe für 6,99 € im Monat, jederzeit kündbar.',
+        'Ein PDF ohne Wasserzeichen kostet 0,99 € pro Lebenslauf, einmalig. Oder der Job Hunt Pass: alle Lebensläufe für 6,99 € im Monat oder 14,99 € alle 3 Monate, jederzeit kündbar.',
         'Was Sie schreiben, gehört Ihnen. Prüfen Sie KI-Vorschläge, bevor Sie Ihren Lebenslauf versenden.',
         'Etwas schiefgelaufen? Sagen Sie es uns. Ist Ihr Lebenslauf nie angekommen, senden wir ihn erneut oder erstatten den Betrag.',
       ],
@@ -64,7 +64,7 @@ export default ({ mail }) => {
         </ul>` },
         { id: 'payments', title: 'Zahlungen', html: `<ul>
           <li>Das PDF ohne Wasserzeichen eines Lebenslaufs kostet einmalig <strong>0,99 €</strong>. Darin enthalten sind der Versand per E-Mail, der direkte Download sowie unbegrenztes erneutes Senden und Herunterladen desselben Lebenslaufs, auch nach Änderungen.</li>
-        <li>Der <strong>Job Hunt Pass</strong> kostet <strong>6,99 € pro Monat</strong> und verlängert sich monatlich, bis Sie kündigen. Solange er aktiv ist, kann jeder Lebenslauf in Ihrem Konto als PDF ohne Wasserzeichen per E-Mail versendet und heruntergeladen werden, und Sie erhalten 100 KI-Anfragen pro Tag. Sie können jederzeit in den Einstellungen kündigen: Danach wird nichts mehr abgebucht, und der Pass bleibt bis zum Ende des bereits bezahlten Monats aktiv, der nicht erstattet wird. Da der Pass auf Ihren Wunsch sofort beginnt, stimmen Sie beim Kauf zu, dass Ihr 14-tägiges Widerrufsrecht mit dem Beginn erlischt.</li>
+        <li>Der <strong>Job Hunt Pass</strong> kostet <strong>6,99 € pro Monat</strong> oder <strong>14,99 € alle 3 Monate</strong> und verlängert sich am Ende jedes Zeitraums, bis Sie kündigen. Solange er aktiv ist, kann jeder Lebenslauf in Ihrem Konto als PDF ohne Wasserzeichen per E-Mail versendet und heruntergeladen werden, und Sie erhalten 100 KI-Anfragen pro Tag. Sie können jederzeit in den Einstellungen kündigen: Danach wird nichts mehr abgebucht, und der Pass bleibt bis zum Ende des bereits bezahlten Zeitraums aktiv, der nicht erstattet wird. Da der Pass auf Ihren Wunsch sofort beginnt, stimmen Sie beim Kauf zu, dass Ihr 14-tägiges Widerrufsrecht mit dem Beginn erlischt.</li>
           <li>Ein Vorschau-PDF mit Wasserzeichen ist kostenlos.</li>
           <li>Die KI-Funktionen umfassen <strong>30 kostenlose Anfragen pro Tag</strong> für Konten mit bestätigter E-Mail-Adresse (Gäste und unbestätigte Konten erhalten 5), die täglich um Mitternacht (UTC) zurückgesetzt werden. Ein Paket mit <strong>100 zusätzlichen Anfragen</strong> kostet <strong>0,50 €</strong>; zusätzliche Anfragen verfallen nicht, werden erst nach den kostenlosen Anfragen des Tages verwendet und haben keinen Geldwert.</li>
           <li>Empfehlungen: Wer sich über Ihren Einladungslink registriert, erhält 25 zusätzliche KI-Anfragen. Kauft diese Person ihr erstes PDF ohne Wasserzeichen, erhalten Sie ein Empfehlungsguthaben, das das PDF ohne Wasserzeichen eines Lebenslaufs freischaltet. Guthaben haben keinen Geldwert.</li>

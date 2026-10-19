@@ -34,6 +34,10 @@
           <svg viewBox="0 0 24 24" v-html="n.icon"></svg>
           <span class="sb-lbl">{{ $t(n.label) }}</span>
         </RouterLink>
+        <RouterLink to="/pricing" class="sb-link" :class="{ active: route.path === '/pricing' }" :title="sbMini ? $t('Pricing') : null" @click="navOpen = false">
+          <svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+          <span class="sb-lbl">{{ $t('Pricing') }}</span>
+        </RouterLink>
         <a :href="`/blog?lang=${lang}`" class="sb-link" :title="sbMini ? $t('Blog') : null" @click="navOpen = false">
           <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
           <span class="sb-lbl">{{ $t('Blog') }}</span>
@@ -325,6 +329,7 @@ async function onAuthDone() {
   authResolve?.(true); authResolve = null
 }
 provide('openAuth', openAuth)
+provide('startBuilding', (mode) => startBuilding(mode))
 provide('requireAccount', (reason) => auth.isLoggedIn ? Promise.resolve(true) : openAuth('register', reason))
 
 // Onboarding (industry / goal / experience) is optional context for the AI
@@ -392,6 +397,7 @@ function startBuilding(mode) {
   if (mode === 'mycvs') { router.push('/'); return }
   if (mode === 'templates') { router.push('/templates'); return }
   if (mode === 'pass') { router.push({ path: '/settings', hash: '#pass' }); return }
+  if (mode === 'pricing') { router.push('/pricing'); return }
   if (mode === 'new') { router.push(auth.isLoggedIn ? '/' : '/templates'); newCV(); return }
   if (mode === 'ats' && store.hasContent) { router.push({ path: '/editor', query: { tab: 'job' } }); return }
   router.push(auth.isLoggedIn ? '/' : '/templates')   // signed in → My CVs
@@ -559,6 +565,9 @@ onMounted(() => setTimeout(checkBigTitle, 400))
 .top{height:var(--topbar);flex-shrink:0;display:flex;align-items:center;gap:12px;padding:0 20px 0 32px;background:color-mix(in srgb,var(--c-bg) 82%,transparent);backdrop-filter:saturate(1.8) blur(20px);-webkit-backdrop-filter:saturate(1.8) blur(20px);border-bottom:1px solid var(--hair)}
 .top-title{font-size:15px;font-weight:650;letter-spacing:-.015em;flex:1;min-width:0;transition:opacity .3s var(--ease),transform .3s var(--ease)}
 .top{transition:background .3s var(--ease),border-color .3s var(--ease)}
+/* The frosted top bar is its own layer; keep it (and the notifications panel inside it) above the page,
+   whose cards animate on their own layers (below the phone menu, 550+, and dialogs) */
+.top{position:relative;z-index:450}
 .top.top-quiet{background:transparent;border-bottom-color:transparent;backdrop-filter:none;-webkit-backdrop-filter:none}
 .top.top-quiet .top-title{opacity:0;transform:translateY(6px)}
 .top-actions{display:flex;align-items:center;gap:4px}

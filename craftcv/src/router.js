@@ -5,12 +5,14 @@ import Templates from './views/Templates.vue'
 import Editor    from './views/Editor.vue'
 import Settings  from './views/Settings.vue'
 import Legal     from './views/Legal.vue'
+import Pricing   from './views/Pricing.vue'
 
 const routes = [
   { path: '/',               component: Dashboard, meta: { title: 'My CVs' } },
   { path: '/templates',      component: Templates, meta: { title: 'Templates' } },
   { path: '/editor',         component: Editor,    meta: { title: 'Editor', full: true } },
   { path: '/settings',       component: Settings,  meta: { title: 'Settings' } },
+  { path: '/pricing',        component: Pricing,   meta: { title: 'Pricing' } },
   { path: '/legal',          component: Legal,     meta: { title: 'Privacy & Terms' } },
   { path: '/builder',        redirect: '/editor'  },
   { path: '/privacy',        redirect: '/legal?tab=privacy' },
