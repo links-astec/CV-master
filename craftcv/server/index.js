@@ -1892,24 +1892,33 @@ function cvFactsText(cv) {
     `Languages: ${arr(cv.languages).map(l => [str(l?.name), str(l?.level)].filter(Boolean).join(' ')).filter(Boolean).join(', ') || 'none'}`,
   ].join('\n');
 }
-app.post('/api/ai/cover-letter', needsCvContent, passOnly, aiAccess, async (req, res) => {
-  try {
-    const cv = cvFromBody(req.body);
-    if (!cv) return res.status(413).json({ error: 'This CV is too long to use in one go.' });
-    const brief = await jobBrief(req.body?.jobOffer, req);
-    if (!brief) return res.status(400).json({ error: 'Please paste the full job description (at least a few sentences).' });
+// A cover letter for this CV and job, from the CV's facts only. Throws { status, message } for bad input.
+async function writeCoverLetter(cv, jobOffer, req, { tone, length, to } = {}) {
+  {
+    const brief = await jobBrief(jobOffer, req);
+    if (!brief) throw Object.assign(new Error('Please paste the full job description (at least a few sentences).'), { status: 400 });
     const lang = UI_LANG_NAME[cv.lang] || 'English';
     const system = `You write cover letters for job applications. Write one for the person on this CV, for this job, in ${lang}.
 Use ONLY facts from the CV: never invent experience, numbers, employers, skills or qualifications. Pick the 2-3 experiences or skills that best match the job's main requirements and show how they fit, concretely.
 Shape: a greeting ("Dear Hiring Manager," or the local equivalent, unless the advert names a person), an opening that names the role and the company and why this person is interested, one or two paragraphs that connect their experience to the job, and a short confident close asking for an interview, then a sign-off with their name.
-Tone: confident, warm, specific, professional; no clichés ("I am writing to express my interest", "team player", "fast-paced environment"), no flattery, nothing generic that could fit any job. 220 to 320 words.
+Tone: ${tone === 'warm' ? 'warm and personal, still professional' : tone === 'confident' ? 'confident and direct, short sentences' : 'professional, confident and warm'}, specific; no clichés ("I am writing to express my interest", "team player", "fast-paced environment"), no flattery, nothing generic that could fit any job. ${length === 'short' ? '150 to 210 words' : '220 to 320 words'}.${to ? ` Address it to ${String(to).replace(/[\r\n"]/g, ' ').slice(0, 80)}.` : ''}
 Reply with ONLY the letter text, no title and no notes.`;
     const out = await callAi(`JOB:\n${briefForPrompt(brief)}\n\nCV:\n${cvFactsText(cv)}`, AI_MODEL, system, 1100, 'medium');
     const letter = noEmDash(String(out || '')).replace(/^\s*```[a-z]*\s*|```\s*$/g, '').trim().slice(0, 6000);
-    if (letter.length < 200) return res.status(500).json({ error: 'AI is unavailable right now. Please try again in a moment.' });
+    if (letter.length < 200) throw Object.assign(new Error('AI is unavailable right now. Please try again in a moment.'), { status: 500 });
+    return { letter, job: { title: brief.title, company: brief.company } };
+  }
+}
+app.post('/api/ai/cover-letter', needsCvContent, aiAccess, async (req, res) => {
+  try {
+    const cv = cvFromBody(req.body);
+    if (!cv) return res.status(413).json({ error: 'This CV is too long to use in one go.' });
+    const b = req.body || {};
+    const out = await writeCoverLetter(cv, b.jobOffer, req, { tone: ['professional', 'warm', 'confident'].includes(b.tone) ? b.tone : 'professional', length: b.length === 'short' ? 'short' : 'standard', to: typeof b.to === 'string' ? b.to.trim() : '' });
     track(req, 'cover_letter');
-    res.json({ letter, job: { title: brief.title, company: brief.company } });
+    res.json(out);
   } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message });
     console.error('[ai/cover-letter]', e.message);
     res.status(500).json({ error: 'AI is unavailable right now. Please try again in a moment.' });
   }
@@ -2327,23 +2336,23 @@ app.post('/api/ai/translate', needsCvContent, aiAccess, async (req, res) => {
 // ── TAILOR CV TO A JOB OFFER ──────────────────────────────────────────────────
 // Returns *proposals* only. The client shows a before/after and the user picks
 // what to apply. The model may rephrase and reorder, never invent facts.
-app.post('/api/ai/tailor', needsCvContent, aiAccess, async (req, res) => {
-  try {
-    const { cv = {}, jobOffer = '', ats = null } = req.body || {};
+// Tailors a CV to a job offer (honest rewording only). Throws { status, message } for bad input.
+async function tailorCv(cv = {}, jobOffer = '', { ats = null, uiLang } = {}, req) {
+  {
     const job = normJob(jobOffer).slice(0, 12000);
     // Boost mode: the ATS check scored low. Target what it found missing, without growing the CV
     const list = (v, n) => (Array.isArray(v) ? v : []).map(x => String(x || '').trim().slice(0, 120)).filter(Boolean).slice(0, n);
     const boost = ats && typeof ats === 'object'
       ? { score: Math.max(0, Math.min(100, Number(ats.score) || 0)), missing: list(ats.missing, 10), gaps: list(ats.gaps, 5) }
       : null;
-    if (job.length < 40) return res.status(400).json({ error: 'Please paste the full job description (at least a few sentences).' });
+    if (job.length < 40) throw Object.assign(new Error('Please paste the full job description (at least a few sentences).'), { status: 400 });
 
     const str  = v => (typeof v === 'string' ? v.trim() : '');
     const exps = (Array.isArray(cv.experiences) ? cv.experiences : [])
       .filter(e => e && (str(e.title) || str(e.company) || str(e.desc))).slice(0, 10);
     const skills = (Array.isArray(cv.skills) ? cv.skills : []).map(str).filter(Boolean).slice(0, 30);
     if (!str(cv.sum) && !exps.length && !skills.length) {
-      return res.status(400).json({ error: 'Add some CV content first (summary, experience or skills), then tailor it.' });
+      throw Object.assign(new Error('Add some CV content first (summary, experience or skills), then tailor it.'), { status: 400 });
     }
     const isFrench = cv.lang === 'fr';
 
@@ -2392,7 +2401,7 @@ Return JSON with exactly this shape:
   "experiences": [ { "index": 0, "desc": "rewritten description, one line per original point, each starting with '• '" } ],
   "skillsOrder": ["existing CV skills, most relevant to the offer first. Only skills already in the CV"],
   "suggestedSkills": ["keywords from the offer NOT evidenced in the CV, max 8"],
-  "notes": ["max 3 short honest tips, e.g. which requirement the CV doesn't show, written in ${uiLangName(req.body?.uiLang)} (the language the user reads the app in)"]
+  "notes": ["max 3 short honest tips, e.g. which requirement the CV doesn't show, written in ${uiLangName(uiLang)} (the language the user reads the app in)"]
 }
 Only include experiences whose description you actually improved. Use the [index] numbers shown above.${boost ? `
 
@@ -2430,8 +2439,15 @@ Your goal now is to raise the score honestly AND keep the CV the same size:
     }
     // Map proposal indices back to the client's experience ids
     out.experiences = out.experiences.map(e => ({ ...e, id: exps[e.index].id ?? null }));
-    res.json(out);
+    return out;
+  }
+}
+app.post('/api/ai/tailor', needsCvContent, aiAccess, async (req, res) => {
+  try {
+    const b = req.body || {};
+    res.json(await tailorCv(b.cv || {}, b.jobOffer || '', { ats: b.ats || null, uiLang: b.uiLang }, req));
   } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message });
     console.error('[tailor]', e.message);
     res.status(500).json({ error: 'Tailoring failed, please try again.' });
   }
@@ -3118,7 +3134,7 @@ let _renderer = null;
 function cvRenderer() {
   if (!_renderer) {
     _renderer = Promise.all([import('../src/composables/cvRenderer.js'), import('../src/composables/pageFit.js')])
-      .then(([r, p]) => ({ render: r.render, exportDocument: p.exportDocument }))
+      .then(([r, p]) => ({ render: r.render, renderLetter: r.renderLetter, exportDocument: p.exportDocument }))
       .catch(e => { _renderer = null; throw e; });
   }
   return _renderer;
@@ -3628,6 +3644,22 @@ app.post('/api/cv/export-pdf', authMiddleware, pdfLimiter, async (req, res) => {
     console.error('[cv/export-pdf]', e.message);
     res.status(500).json({ error: 'Download failed. Please try again.' });
   }
+});
+
+// The cover letter on this CV as a PDF, in the CV's design. It comes with the CV's PDF (paid, or the pass)
+app.post('/api/cv/letter-pdf', authMiddleware, pdfLimiter, async (req, res) => {
+  try {
+    const draft = await ownDraft(req.user.sub, req.body?.draftId);
+    if (!draft) return res.status(404).json({ error: 'Save your CV before exporting.' });
+    if (!(await hasEmailExport(req.user.sub, draft.id))) return res.status(402).json({ error: 'The letter comes with this CV’s PDF.' });
+    const data = draft.cv_data || {};
+    if (!String(data.coverLetter?.text || '').trim()) return res.status(400).json({ error: 'Write your cover letter first.' });
+    const { renderLetter, exportDocument } = await cvRenderer();
+    const pdf = await generateCvPdf(exportDocument(renderLetter(draft.template, data, data.fmt || {})));
+    if (!pdf) return res.status(500).json({ error: 'PDF generation failed. Please try again.' });
+    track(req, 'export', { kind: 'letter' });
+    sendPdf(res, pdf, draftFileName(draft).replace(/-CV\.pdf$/, '-Cover-letter.pdf'));
+  } catch (e) { console.error('[cv/letter-pdf]', e.message); res.status(500).json({ error: 'Download failed. Please try again.' }); }
 });
 
 // ── CV RE-SEND (paid drafts) ─────────────────────────────────────────────────

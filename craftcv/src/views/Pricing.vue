@@ -136,9 +136,9 @@ const bill = ref('quarter')
 const cvs = ref(6)
 const passActive = computed(() => !!auth.user?.pass)
 
-const FREE = ['All 50 templates in 12 colours', '30 AI requests a day with a free account', 'Tailor your CV to any job offer', 'ATS score and job match check', 'Writing check as you type', 'Preview PDF with a watermark']
+const FREE = ['All 50 templates in 12 colours', '30 AI requests a day with a free account', 'Tailor your CV to any job offer', 'A cover letter for each job', 'ATS score and job match check', 'Writing check as you type', 'Preview PDF with a watermark']
 const ONE = ['Everything in Free', 'A watermark-free, one-page PDF', 'Emailed and downloadable', 'Free re-downloads after edits']
-const PASS = ['Every CV you make as a clean PDF', 'A cover letter for every job offer', 'Interview prep for every job offer', '100 AI requests a day', 'Cancel any time']
+const PASS = ['Every CV you make as a clean PDF', 'Every cover letter as a PDF', 'Interview prep for every job offer', '100 AI requests a day', 'Cancel any time']
 const ROWS = [
   ['Templates', '50', '50', '50'],
   ['AI requests a day', '30', '30', '100'],
@@ -149,7 +149,8 @@ const ROWS = [
   ['Watermark-free PDF', false, 'That CV', 'Every CV'],
   ['Emailed to you', false, true, true],
   ['Re-send after edits', false, true, true],
-  ['Cover letter for each job', false, false, true],
+  ['Cover letter for each job', true, true, true],
+  ['Cover letter as a PDF', false, 'With that CV', 'Every letter'],
   ['Interview prep for each job', false, false, true],
 ]
 const FAQ = [

@@ -691,7 +691,7 @@ function shareLinkedIn() { track('invite_shared', { channel: 'linkedin' }); wind
 function shareEmail()    { track('invite_shared', { channel: 'email' }); window.location.href = `mailto:?subject=${encodeURIComponent(t('Try CVMaster for your CV'))}&body=${encodeURIComponent(shareMsg())}` }
 
 // ── Job Hunt Pass ──
-const PASS_FEATURES = ['Every CV as a clean PDF, emailed and downloadable', 'A cover letter for every job offer', 'Interview prep for every job offer', '100 AI requests a day (instead of 30)']
+const PASS_FEATURES = ['Every CV as a clean PDF, emailed and downloadable', 'Every cover letter as a PDF', 'Interview prep for every job offer', '100 AI requests a day (instead of 30)']
 const pass = computed(() => auth.user?.pass || null)
 const passBusy = ref(false)
 const passConsent = ref(false)

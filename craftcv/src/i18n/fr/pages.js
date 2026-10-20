@@ -190,4 +190,9 @@ export default {
   'A cover letter for every job offer': 'Une lettre de motivation pour chaque offre',
   'Interview prep for every job offer': 'Une préparation à l’entretien pour chaque offre',
   'Cheapest for you': 'Le moins cher pour vous',
+  'A cover letter for each job': 'Une lettre de motivation pour chaque offre',
+  'Every cover letter as a PDF': 'Chaque lettre de motivation en PDF',
+  'Cover letter as a PDF': 'Lettre de motivation en PDF',
+  'With that CV': 'Avec ce CV',
+  'Every letter': 'Chaque lettre',
 }

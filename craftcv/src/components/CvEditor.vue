@@ -26,6 +26,8 @@
 
       <div v-else-if="tab === 'design'"><DesignPanel /></div>
 
+      <CoverLetter v-else-if="tab === 'letter'" @pay="$emit('pay')" />
+
       <JobMatch v-else @pay="$emit('pay')" />
     </div>
   </div>
@@ -41,6 +43,7 @@ import StepExperience from './wizard/StepExperience.vue'
 import StepSkills from './wizard/StepSkills.vue'
 import StepEducation from './wizard/StepEducation.vue'
 import JobMatch from './JobMatch.vue'
+import CoverLetter from './CoverLetter.vue'
 import { t } from '../i18n/index.js'
 
 const emit = defineEmits(['pay', 'tab'])
@@ -50,6 +53,7 @@ const TABS = [
   { id: 'content', label: 'Content' },
   { id: 'design',  label: 'Design' },
   { id: 'job',     label: 'Job match' },
+  { id: 'letter',  label: 'Letter' },
 ]
 const tab = ref('content')
 const open = ref('personal')
@@ -85,6 +89,7 @@ provide('fixSection', (stepIndex) => {
 
 // Let parents jump to a tab (e.g. "Change design" in the preview toolbar)
 function show(t) { tab.value = t; nextTick(() => bodyRef.value?.scrollTo({ top: 0 })) }
+provide('showEditorTab', show)
 defineExpose({ show })
 // The editor page widens for Design (bigger layout previews)
 watch(tab, (t) => emit('tab', t), { immediate: true })

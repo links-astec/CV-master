@@ -451,7 +451,7 @@ const PLANS = [
   { name: 'Clean PDF', price: '€0.99', eur: 0.99, per: ' per CV', cta: 'Build my CV', featured: true,
     items: ['Watermark-free, one-page PDF', 'Emailed and downloadable', 'Free re-downloads after edits'] },
   { name: 'Job Hunt Pass', price: '€6.99', eur: 6.99, per: ' a month', cta: 'Get the pass', pass: true,
-    items: ['Every CV you make as a clean PDF', 'A cover letter for every job offer', 'Interview prep for every job offer', '100 AI requests a day', 'Or €14.99 every 3 months (save 29%)'] },
+    items: ['Every CV you make as a clean PDF', 'Every cover letter as a PDF', 'Interview prep for every job offer', '100 AI requests a day', 'Or €14.99 every 3 months (save 29%)'] },
 ]
 
 const FAQ = [

@@ -12,7 +12,7 @@
             <li><span class="pws-ic"><svg viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg></span>
               <div><b>{{ $t('100 AI requests a day') }}</b><span>{{ $t('Tailor a CV to every job offer without running out.') }}</span></div></li>
             <li><span class="pws-ic"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M4 8l8 5 8-5"/></svg></span>
-              <div><b>{{ $t('Cover letters and interview prep') }}</b><span>{{ $t('For every job offer, in the Job match tab of the editor.') }}</span></div></li>
+              <div><b>{{ $t('Cover letters and interview prep') }}</b><span>{{ $t('Every letter as a PDF, and interview prep for every job offer, in the editor.') }}</span></div></li>
             <li><span class="pws-ic"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></span>
               <div><b>{{ $t('Yours to change') }}</b><span>{{ until ? $t('Renews on {date}. Cancel any time in Settings.', { date: until }) : $t('Cancel any time in Settings.') }}</span></div></li>
           </ul>

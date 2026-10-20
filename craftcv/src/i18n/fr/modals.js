@@ -192,4 +192,5 @@ export default {
   'Administrative assistant': 'Assistant administratif',
   'Project coordinator': 'Coordinateur de projet',
   'Operations assistant': 'Assistant des opérations',
+  'Every letter as a PDF, and interview prep for every job offer, in the editor.': 'Chaque lettre en PDF, et la préparation à l’entretien pour chaque offre, dans l’éditeur.',
 }
