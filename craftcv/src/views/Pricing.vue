@@ -61,9 +61,9 @@
         </div>
         <div class="px-rows">
           <div v-for="o in options" :key="o.k" class="px-row" :class="{ best: o.k === best }">
-            <span class="px-row-l">{{ $t(o.label) }}</span>
-            <span class="px-row-bar"><i :style="{ width: Math.max(3, o.cost / maxCost * 100) + '%' }"></i></span>
+            <span class="px-row-l">{{ $t(o.label) }}<small v-if="o.k === best">{{ $t('Cheapest for you') }}</small></span>
             <b class="px-row-v">€{{ o.cost.toFixed(2) }}</b>
+            <svg v-if="o.k === best" class="px-row-tick" viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg><span v-else class="px-row-tick"></span>
           </div>
         </div>
         <p class="px-verdict">
@@ -166,7 +166,6 @@ const options = computed(() => [
   { k: 'quarter', label: 'Job Hunt Pass, every 3 months', cost: 5 },
 ])
 const best = computed(() => options.value.reduce((a, b) => (b.cost < a.cost ? b : a)).k)
-const maxCost = computed(() => Math.max(...options.value.map(o => o.cost)))
 
 function start(mode) { if (startBuilding) startBuilding(mode); else router.push('/') }
 function getPass() { router.push({ path: '/settings', query: passActive.value ? {} : { plan: bill.value }, hash: '#pass' }) }
@@ -221,21 +220,20 @@ function getPass() { router.push({ path: '/settings', query: passActive.value ? 
 .px-calc{max-width:820px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:30px}
 .px-calc-hd{text-align:center}
 .px-calc-hd p{font-size:17px;color:var(--c-text2);line-height:1.5;margin:14px 0 0}
-.px-slider{display:flex;align-items:center;gap:22px;padding:24px 28px;border-radius:24px;background:var(--c-surface)}
-.px-slider input{flex:1;-webkit-appearance:none;appearance:none;height:6px;border-radius:99px;background:linear-gradient(90deg,var(--c-text) var(--p),var(--fill) var(--p));outline:none;cursor:pointer}
+.px-slider{display:flex;align-items:center;gap:22px;padding:24px 28px;border-radius:24px 24px 0 0;background:var(--c-surface)}
+.px-slider input{flex:1;-webkit-appearance:none;appearance:none;height:4px;border-radius:99px;background:linear-gradient(90deg,var(--c-accent) var(--p),var(--fill) var(--p));outline:none;cursor:pointer}
 .px-slider input::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.25),0 0 0 .5px rgba(0,0,0,.06);cursor:grab}
 .px-slider input::-moz-range-thumb{width:26px;height:26px;border:none;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:grab}
 .px-slider input:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 4px color-mix(in srgb,var(--c-accent) 35%,transparent)}
 .px-count{min-width:80px;text-align:right;font-size:15px;color:var(--c-text3)}.px-count b{font-size:32px;font-weight:700;letter-spacing:-.04em;color:var(--c-text);margin-right:3px;font-variant-numeric:tabular-nums}
-.px-rows{display:flex;flex-direction:column;border-radius:24px;background:var(--c-surface);overflow:hidden}
-.px-row{display:grid;grid-template-columns:minmax(150px,1fr) 2fr 72px;gap:18px;align-items:center;padding:18px 28px;border-top:1px solid var(--hair)}
+.px-rows{display:flex;flex-direction:column;border-radius:0 0 24px 24px;background:var(--c-surface);overflow:hidden;margin-top:-30px}
+.px-row{display:grid;grid-template-columns:1fr auto 22px;gap:16px;align-items:center;padding:16px 24px;border-top:1px solid var(--hair)}
+.px-row-l small{display:block;font-size:12.5px;font-weight:600;color:var(--c-accent);margin-top:2px}
+.px-row-tick{width:20px;height:20px;fill:none;stroke:var(--c-accent);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
 .px-row:first-child{border-top:none}
 .px-row-l{font-size:15px;color:var(--c-text2)}
-.px-row-bar{height:8px;border-radius:99px;background:var(--fill);overflow:hidden}
-.px-row-bar i{display:block;height:100%;border-radius:99px;background:color-mix(in srgb,var(--c-text) 25%,transparent);transition:width .4s cubic-bezier(.4,0,.2,1),background .3s}
 .px-row-v{text-align:right;font-size:15px;color:var(--c-text);font-variant-numeric:tabular-nums;font-weight:600}
 .px-row.best .px-row-l{color:var(--c-text);font-weight:600}
-.px-row.best .px-row-bar i{background:var(--c-accent)}
 .px-verdict{text-align:center;margin:0;font-size:17px;font-weight:500;color:var(--c-text)}
 
 /* Table */
@@ -282,8 +280,7 @@ function getPass() { router.push({ path: '/settings', query: passActive.value ? 
 @media (max-width:640px){
   .pr{gap:72px}
   .px-plan{padding:30px 24px 26px}
-  .px-row{grid-template-columns:1fr 64px;gap:8px 12px;padding:16px 20px}
-  .px-row-bar{grid-column:1/-1;grid-row:2}
+  .px-row{padding:14px 18px;gap:12px}
   .px-slider{padding:20px}
   .px-tr{grid-template-columns:1.3fr .8fr .9fr .9fr}
   .px-tr > div{padding:13px 8px;font-size:13px}

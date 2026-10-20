@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import { useAuthStore } from './auth.js'
-import { DEFAULT_TEMPLATE, normalizeTemplate, FONTS } from '../composables/cvRenderer.js'
+import { DEFAULT_TEMPLATE, normalizeTemplate, ALL_FONTS } from '../composables/cvRenderer.js'
 import { lang as uiLang } from '../i18n/index.js'
 
 const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
@@ -121,7 +121,7 @@ function normaliseData(saved) {
 
 function normaliseFmt(f) {
   const out = { ...defaultFmt(), ...(f && typeof f === 'object' ? f : {}) }
-  if (!FONTS.some(x => x.id === out.fontFamily)) out.fontFamily = 'DM Sans'
+  if (!ALL_FONTS.some(x => x.id === out.fontFamily)) out.fontFamily = 'DM Sans'
   if (out.linkStyle !== 'underline') out.linkStyle = 'plain'
   if (out.linkText !== 'full') out.linkText = 'short'
   delete out.skillStyle; delete out.showSkillPct
@@ -145,6 +145,8 @@ export const useCvStore = defineStore('cv', () => {
   const prefill        = ref(null)
   let fillSeq = 0
   const currentDraftId = ref(null)
+  // Which account CV this browser shows (none: a CV made as a guest, not in any account yet)
+  watch(currentDraftId, (v) => lsSet('pcv-draft-id', v || ''))
   const lastSavedAt    = ref(null)
   // The server's time of the open CV's last save, to spot a newer version saved elsewhere
   let serverUpdatedAt = 0

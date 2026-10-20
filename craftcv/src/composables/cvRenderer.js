@@ -61,6 +61,15 @@ export const FONTS = [
   { id: 'Inter',   name: 'Inter',   note: 'Neutral, very readable' },
   { id: 'Lora',    name: 'Lora',    note: 'Classic serif' },
 ]
+// More body fonts for the website (bundled and embedded in PDFs like the three above).
+// The phone app shows only FONTS; it still renders a CV that uses one of these.
+export const MORE_FONTS = [
+  { id: 'Manrope',       name: 'Manrope',       note: 'Soft and friendly' },
+  { id: 'Outfit',        name: 'Outfit',        note: 'Geometric, modern' },
+  { id: 'Space Grotesk', name: 'Space Grotesk', note: 'Technical, distinctive' },
+  { id: 'EB Garamond',   name: 'EB Garamond',   note: 'Elegant serif' },
+]
+export const ALL_FONTS = [...FONTS, ...MORE_FONTS]
 
 export const DEFAULT_TEMPLATE = 'modern:indigo'
 
@@ -708,7 +717,7 @@ export function render(tpl, rawData, fmt = {}, opts = {}) {
   const t = themeById[theme]
   const m = buildModel(rawData, !!opts.preview, fmt.linkText === 'full')
 
-  const font  = FONTS.some(f => f.id === fmt.fontFamily) ? fmt.fontFamily : 'DM Sans'
+  const font  = ALL_FONTS.some(f => f.id === fmt.fontFamily) ? fmt.fontFamily : 'DM Sans'
   const scale = fmt.fontSize === 'small' ? 0.93 : fmt.fontSize === 'large' ? 1.07 : 1
   const lh    = fmt.lineSpacing === 'compact' ? 1.42 : fmt.lineSpacing === 'relaxed' ? 1.68 : 1.55
   const sp    = fmt.sectionSpacing === 'compact' ? 0.78 : fmt.sectionSpacing === 'relaxed' ? 1.22 : 1

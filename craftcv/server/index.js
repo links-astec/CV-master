@@ -3449,7 +3449,8 @@ app.get('/api/payment/paid-drafts', authMiddleware, async (req, res) => {
     );
     const ids = rows.map(r => r.draft_id);
     const pass = await hasPass(req.user.sub).catch(() => false);
-    res.json({ draftIds: ids.filter(id => id !== 'current'), legacyAll: pass || ids.includes('current'), pass });
+    // pass: every CV can be downloaded while the pass lasts, but only CVs really paid for count as paid
+    res.json({ draftIds: ids.filter(id => id !== 'current'), legacyAll: ids.includes('current'), pass });
   } catch (e) { res.status(500).json({ error: 'Status check failed.' }); }
 });
 

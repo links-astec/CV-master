@@ -189,4 +189,5 @@ export default {
   'Interview prep for each job': 'Préparation à l’entretien pour chaque offre',
   'A cover letter for every job offer': 'Une lettre de motivation pour chaque offre',
   'Interview prep for every job offer': 'Une préparation à l’entretien pour chaque offre',
+  'Cheapest for you': 'Le moins cher pour vous',
 }

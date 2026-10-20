@@ -205,18 +205,23 @@
       </section>
 
       <!-- AI requests -->
-      <section id="ai" class="st-card">
-        <div class="st-card-hd">
-          <div>
-            <div class="st-card-t">{{ $t('AI requests') }}</div>
-            <p class="st-p">{{ $t(aiQuota?.tier === 'pass' ? '100 every day with your Job Hunt Pass, reset at midnight (UTC). Extra requests never expire.' : aiQuota?.tier === 'verified' ? '30 free every day, reset at midnight (UTC). Extra requests never expire.' : '5 free a day. 30 once your email is confirmed. Reset at midnight (UTC). Extra requests never expire.') }}</p>
+      <section id="ai" class="st-sec">
+        <h2 class="st-sec-t">{{ $t('AI requests') }}</h2>
+        <div class="st-list">
+          <div class="st-li">
+            <span class="st-li-k">{{ $t('Left today') }}</span>
+            <span class="st-li-v">{{ aiQuota ? $t('{n} of {limit}', { n: aiQuota.freeLeft, limit: aiQuota.limit }) : '·' }}</span>
           </div>
-          <button class="btn-secondary btn-sm" @click="openAiAllowance()">{{ $t('Get 100 more for €0.50') }}<template v-if="approx(0.5)"> ({{ approx(0.5) }})</template></button>
+          <div v-if="aiQuota?.credits" class="st-li">
+            <span class="st-li-k">{{ $t('Extra requests') }}</span>
+            <span class="st-li-v">{{ aiQuota.credits }}</span>
+          </div>
+          <button type="button" class="st-li" @click="openAiAllowance()">
+            <span class="st-li-k st-li-blue">{{ $t('Get 100 more') }}</span>
+            <span class="st-li-v">€0.50<template v-if="approx(0.5)"> · {{ approx(0.5) }}</template></span><svg class="st-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
+          </button>
         </div>
-        <template v-if="aiQuota">
-          <div class="st-meter"><div :style="{ width: (aiQuota.freeLeft / aiQuota.limit * 100) + '%' }"></div></div>
-          <div class="st-meter-txt">{{ $t(aiQuota.tier === 'pass' ? '{n} of {limit} left today' : '{n} of {limit} free left today', { n: aiQuota.freeLeft, limit: aiQuota.limit }) }}<template v-if="aiQuota.credits"> · {{ $t('{n} extra', { n: aiQuota.credits }) }}</template></div>
-        </template>
+        <p class="st-sec-foot">{{ $t(aiQuota?.tier === 'pass' ? '100 every day with your Job Hunt Pass, reset at midnight (UTC). Extra requests never expire.' : aiQuota?.tier === 'verified' ? '30 free every day, reset at midnight (UTC). Extra requests never expire.' : '5 free a day. 30 once your email is confirmed. Reset at midnight (UTC). Extra requests never expire.') }}</p>
       </section>
 
       <!-- AI personalisation (own CVs only) -->
@@ -320,35 +325,32 @@
       <ReviewPrompt id="review" class="st-review" />
 
       <!-- Help -->
-      <section id="help" class="st-card">
-        <div class="st-card-t">{{ $t('Help & feedback') }}</div>
-        <div class="st-help">
-          <button @click="openFeedback('suggestion')"><strong>{{ $t('Send feedback') }}</strong><span>{{ $t('Ideas or something that isn’t working') }}</span></button>
-          <button @click="openFeedback('complaint')"><strong>{{ $t('Make a complaint') }}</strong><span>{{ $t('We reply to every complaint') }}</span></button>
-          <RouterLink to="/privacy"><strong>{{ $t('Privacy policy') }}</strong><span>{{ $t('What we collect and why') }}</span></RouterLink>
-          <RouterLink to="/terms"><strong>{{ $t('Terms of service') }}</strong><span>{{ $t('Payments, refunds and complaints') }}</span></RouterLink>
+      <section id="help" class="st-sec">
+        <h2 class="st-sec-t">{{ $t('Help & feedback') }}</h2>
+        <div class="st-list">
+          <button type="button" class="st-li" @click="openFeedback('suggestion')"><span class="st-li-k">{{ $t('Send feedback') }}</span><svg class="st-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
+          <button type="button" class="st-li" @click="openFeedback('complaint')"><span class="st-li-k">{{ $t('Make a complaint') }}</span><span class="st-li-v">{{ $t('We reply to every complaint') }}</span><svg class="st-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
+          <RouterLink to="/privacy" class="st-li"><span class="st-li-k">{{ $t('Privacy policy') }}</span><svg class="st-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></RouterLink>
+          <RouterLink to="/terms" class="st-li"><span class="st-li-k">{{ $t('Terms of service') }}</span><svg class="st-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></RouterLink>
         </div>
       </section>
 
       <!-- Delete account -->
-      <section v-if="auth.isLoggedIn" class="st-card">
-        <div class="st-card-hd st-del-hd">
-          <div>
-            <div class="st-card-t">{{ $t('Delete account') }}</div>
-            <p class="st-p">{{ $t('Deletes your account and every CV in it, on the website and in the app. This cannot be undone.') }}</p>
-          </div>
-          <button v-if="!deleting" class="btn-secondary btn-sm st-danger-ghost" @click="deleting = true">{{ $t('Delete account') }}</button>
-        </div>
-        <div v-if="deleting" class="st-del">
-          <input v-if="auth.user?.hasPassword ?? auth.user?.provider !== 'google'" class="f-inp" v-model="deleteConfirm" type="password"
-                 :placeholder="$t('Current password')" autocomplete="current-password" @keydown.enter="deleteAccount" />
-          <input v-else class="f-inp" v-model="deleteConfirm" type="email" :placeholder="$t('Type your email address to confirm.')" @keydown.enter="deleteAccount" />
-          <div v-if="deleteError" class="st-err">{{ $t(deleteError) }}</div>
-          <div class="st-btns">
-            <button class="btn-primary st-danger" :disabled="deleteBusy || !deleteConfirm" @click="deleteAccount">{{ $t(deleteBusy ? 'Deleting…' : 'Delete my account') }}</button>
-            <button class="btn-ghost" :disabled="deleteBusy" @click="deleting = false; deleteConfirm = ''; deleteError = ''">{{ $t('Cancel') }}</button>
+      <section v-if="auth.isLoggedIn" class="st-sec">
+        <div class="st-list">
+          <button v-if="!deleting" type="button" class="st-li st-li-red" @click="deleting = true"><span class="st-li-k">{{ $t('Delete account') }}</span></button>
+          <div v-else class="st-del">
+            <input v-if="auth.user?.hasPassword ?? auth.user?.provider !== 'google'" class="f-inp" v-model="deleteConfirm" type="password"
+                   :placeholder="$t('Current password')" autocomplete="current-password" @keydown.enter="deleteAccount" />
+            <input v-else class="f-inp" v-model="deleteConfirm" type="email" :placeholder="$t('Type your email address to confirm.')" @keydown.enter="deleteAccount" />
+            <div v-if="deleteError" class="st-err">{{ $t(deleteError) }}</div>
+            <div class="st-btns">
+              <button class="btn-primary st-danger" :disabled="deleteBusy || !deleteConfirm" @click="deleteAccount">{{ $t(deleteBusy ? 'Deleting…' : 'Delete my account') }}</button>
+              <button class="btn-ghost" :disabled="deleteBusy" @click="deleting = false; deleteConfirm = ''; deleteError = ''">{{ $t('Cancel') }}</button>
+            </div>
           </div>
         </div>
+        <p class="st-sec-foot">{{ $t('Deletes your account and every CV in it, on the website and in the app. This cannot be undone.') }}</p>
       </section>
     </div>
   </div>
@@ -770,7 +772,22 @@ watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota(); lo
 <style scoped>
 .st{max-width:760px;display:flex;flex-direction:column;gap:20px}
 .st-h1{font-size:clamp(32px,4vw,44px);font-weight:800;letter-spacing:-.04em;line-height:1.05;color:var(--c-text);margin:4px 0 10px}
-.st-card{background:var(--c-surface);border:none;border-radius:26px;padding:28px 30px;box-shadow:var(--shadow-sm);animation:stIn .7s var(--ease) backwards}
+.st-card{background:var(--c-surface);border:none;border-radius:22px;padding:26px 28px;box-shadow:none;animation:stIn .7s var(--ease) backwards}
+/* iOS Settings: a grey heading outside, a white group of rows, a grey footnote under it */
+.st-sec{scroll-margin-top:64px;animation:stIn .7s var(--ease) backwards}
+.st-sec-t{font-size:15px;font-weight:600;color:var(--c-text3);margin:0 0 8px 18px;letter-spacing:-.005em}
+.st-list{background:var(--c-surface);border-radius:18px;overflow:hidden}
+.st-li{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:12px 18px;border:none;background:none;font:inherit;text-align:left;color:var(--c-text);text-decoration:none;position:relative}
+.st-li + .st-li::before,.st-li + .st-del::before{content:'';position:absolute;top:0;left:18px;right:0;height:1px;background:var(--hair)}
+button.st-li,a.st-li{cursor:pointer;transition:background .15s ease}
+button.st-li:hover,a.st-li:hover{background:color-mix(in srgb,var(--c-text) 4%,transparent)}
+.st-li-k{font-size:15.5px;font-weight:500}
+.st-li-v{margin-left:auto;font-size:15px;color:var(--c-text3);text-align:right}
+.st-li-blue{color:var(--c-accent)}
+.st-li-red .st-li-k{color:#e5484d;font-weight:500}
+.st-li-red{justify-content:center}
+.st-sec-foot{font-size:13px;line-height:1.5;color:var(--c-text3);margin:8px 18px 0}
+.st-del{padding:16px 18px}
 .st > :nth-child(3){animation-delay:.07s}.st > :nth-child(4){animation-delay:.14s}.st > :nth-child(5){animation-delay:.21s}.st > :nth-child(n+6){animation-delay:.28s}
 @keyframes stIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){ .st-card{animation:none} }
@@ -892,7 +909,7 @@ button.st-gl:hover{background:color-mix(in srgb,var(--c-text) 8%,transparent)}
 .st-unv{color:var(--c-amber)}
 .st-ver{color:var(--c-green)}
 .st-link-btn{background:none;border:none;padding:0;font:inherit;color:var(--c-accent);font-weight:600;text-decoration:underline}
-.st-review{border-radius:26px;padding:26px 30px;box-shadow:var(--shadow-sm);border:none}
+.st-review{border-radius:22px;padding:24px 28px;box-shadow:none;border:none}
 .st-rows{display:flex;flex-direction:column;gap:14px}
 .st-row{display:grid;grid-template-columns:140px 1fr;align-items:center;gap:14px}
 .st-lbl{font-size:14px;font-weight:600;color:var(--c-text)}
