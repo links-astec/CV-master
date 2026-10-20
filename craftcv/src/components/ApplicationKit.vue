@@ -9,18 +9,10 @@
     <p class="ak-sub">{{ $t('For this job offer, written from your CV.') }}</p>
 
     <div class="ak-group">
-      <!-- Cover letter -->
+      <!-- Cover letter: its own tab -->
       <div class="ak-row">
-        <div class="ak-row-t"><b>{{ $t('Cover letter') }}</b><span>{{ $t('A letter for this job, from your real experience. Edit it, then copy it into your application.') }}</span></div>
-        <button v-if="pass" class="ak-btn" :disabled="busy === 'letter'" @click="writeLetter">{{ $t(busy === 'letter' ? 'Writing…' : letter ? 'Write again' : 'Write it') }}</button>
-        <button v-else class="ak-lock" @click="toPass"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>{{ $t('With the pass') }}</button>
-      </div>
-      <div v-if="pass && letter" class="ak-out">
-        <textarea v-model="letterText" class="ak-letter" rows="14" :aria-label="$t('Cover letter')"></textarea>
-        <div class="ak-acts">
-          <button class="ak-btn" @click="copyLetter">{{ $t(copied ? 'Copied' : 'Copy') }}</button>
-          <button class="ak-link" @click="downloadLetter">{{ $t('Download as text') }}</button>
-        </div>
+        <div class="ak-row-t"><b>{{ $t('Cover letter') }}</b><span>{{ $t('A letter for this job, from your real experience, in your CV’s design.') }}</span></div>
+        <button class="ak-btn" @click="showTab?.('letter')">{{ $t(letter ? 'Open' : 'Write it') }}</button>
       </div>
 
       <!-- Interview prep -->
@@ -38,12 +30,12 @@
       </div>
     </div>
     <p v-if="error" class="ak-err">{{ $t(error) }}</p>
-    <p v-if="!pass" class="ak-note">{{ $t('Cover letters and interview prep come with the Job Hunt Pass.') }} <button class="ak-link" @click="toPass">{{ $t('See the pass') }}</button></p>
+    <p v-if="!pass" class="ak-note">{{ $t('Interview prep comes with the Job Hunt Pass.') }} <button class="ak-link" @click="toPass">{{ $t('See the pass') }}</button></p>
   </section>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCvStore } from '../stores/cv.js'
 import { useAuthStore } from '../stores/auth.js'
@@ -53,6 +45,7 @@ const store = useCvStore()
 const auth = useAuthStore()
 const router = useRouter()
 const pass = computed(() => !!auth.user?.pass)
+const showTab = inject('showEditorTab', null)
 const busy = ref('')
 const error = ref('')
 const copied = ref(false)

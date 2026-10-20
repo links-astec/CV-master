@@ -34,7 +34,7 @@
 
 <script setup>
 import { ref, computed, watch, inject, onMounted, onUnmounted } from 'vue'
-import { render } from '../composables/cvRenderer.js'
+import { render, renderLetter } from '../composables/cvRenderer.js'
 import { analysePage, withFitZoom, PAGE_H, SMALL_TEXT_ZOOM } from '../composables/pageFit.js'
 
 const props = defineProps({
@@ -47,6 +47,7 @@ const props = defineProps({
   preview:     { type: Boolean, default: true },   // placeholders for empty fields
   notices:     { type: Boolean, default: true },   // one-page warning bar
   fitAccepted: { type: Boolean, default: false },  // show the shrunk-to-fit version
+  letter:      { type: Boolean, default: false },  // the cover letter instead of the CV
 })
 const emit = defineEmits(['update:fitAccepted', 'page'])
 const showToast = inject('showToast', null)
@@ -57,7 +58,7 @@ const wrapW   = ref(0)
 // Deep-track the CV so any nested edit re-renders
 const html = computed(() => {
   JSON.stringify(props.data); JSON.stringify(props.fmt)
-  return render(props.template, props.data, props.fmt, { preview: props.preview })
+  return (props.letter ? renderLetter : render)(props.template, props.data, props.fmt, { preview: props.preview })
 })
 
 const page = ref({ height: 990, overflow: false, overBy: 0, zoom: 1 })

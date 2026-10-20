@@ -746,6 +746,53 @@ export function render(tpl, rawData, fmt = {}, opts = {}) {
     + `</div>`
 }
 
+// ── cover letter ──────────────────────────────────────────────────────────────
+// renderLetter(templateId, data, fmt, { preview }): the letter in data.coverLetter, on one page with the
+// same name header, colour, fonts and text size as the CV. Same root (.cvr, 700 px wide) so the preview,
+// page fitting and the PDF work exactly as for the CV.
+const LETTER_CSS = `
+.cvr.l-letter{padding:62px 70px 56px}
+.cvr.l-letter .lt-hd{padding-bottom:18px;margin-bottom:32px;border-bottom:2px solid var(--ac)}
+.cvr.l-letter .lt-name{font-family:var(--hfont);font-size:calc(29px*var(--s));font-weight:700;color:var(--acd);letter-spacing:-.02em;line-height:1.1;margin:0}
+.cvr.l-letter .lt-title{font-size:calc(12.5px*var(--s));color:var(--ac);font-weight:600;margin-top:5px}
+.cvr.l-letter .lt-contact{font-size:calc(10px*var(--s));color:#4b5563;margin-top:9px}
+.cvr.l-letter .lt-meta{font-size:calc(10.8px*var(--s));color:#374151;line-height:1.6;margin-bottom:24px}
+.cvr.l-letter .lt-meta b{color:#111827;font-weight:600}
+.cvr.l-letter .lt-body p{font-size:calc(11.2px*var(--s));line-height:var(--lh);color:#1f2937;margin:0 0 calc(11px*var(--sp))}
+.cvr.l-letter .lt-empty{color:#9ca3af;font-style:italic}
+`
+export function renderLetter(tpl, rawData, fmt = {}, opts = {}) {
+  const { theme } = parseTemplate(tpl)
+  const t = themeById[theme] || THEMES[0]
+  const d = rawData && typeof rawData === 'object' ? rawData : {}
+  const L = d.coverLetter && typeof d.coverLetter === 'object' ? d.coverLetter : {}
+  const fr = d.lang === 'fr'
+  const font  = ALL_FONTS.some(x => x.id === fmt.fontFamily) ? fmt.fontFamily : 'DM Sans'
+  const scale = fmt.fontSize === 'small' ? 0.93 : fmt.fontSize === 'large' ? 1.07 : 1
+  const lh    = fmt.lineSpacing === 'compact' ? 1.42 : fmt.lineSpacing === 'relaxed' ? 1.68 : 1.55
+  const sp    = fmt.sectionSpacing === 'compact' ? 0.78 : fmt.sectionSpacing === 'relaxed' ? 1.22 : 1
+  const vars = [`--ac:${t.accent}`, `--acd:${t.dark}`, `--act:${t.tint}`, `--font:${fontStack(font)}`, `--hfont:${fontStack(font)}`,
+    `--s:${scale}`, `--lh:${lh}`, `--sp:${sp}`].join(';')
+  const str = (v) => (typeof v === 'string' ? v.trim() : '')
+  const name = [str(d.fn), str(d.ln)].filter(Boolean).join(' ')
+  const contact = [str(d.email), str(d.phone), str(d.loc), str(d.li).replace(/^https?:\/\/(www\.)?/, '')].filter(Boolean)
+  let date = ''
+  try { date = new Date(L.date || Date.now()).toLocaleDateString(fr ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) } catch {}
+  const to = [str(L.to), str(L.job?.company)].filter(Boolean)
+  const subject = str(L.job?.title) ? (fr ? 'Objet : candidature au poste de ' : 'Re: Application for ') + str(L.job.title) : ''
+  const text = str(L.text)
+  const paras = text ? text.split(/\n\s*\n|\n/).map(p => p.trim()).filter(Boolean) : []
+  const body = paras.length ? paras.map(p => `<p>${esc(p)}</p>`).join('')
+    : opts.preview ? `<p class="lt-empty">${esc(fr ? 'Votre lettre de motivation apparaîtra ici.' : 'Your cover letter will appear here.')}</p>` : ''
+  return `<div class="cvr l-letter" data-cv-root data-template="letter:${theme}" lang="${fr ? 'fr' : 'en'}" style="${vars}">`
+    + `<style>${BASE_CSS}${LETTER_CSS}</style>`
+    + `<header class="lt-hd"><h1 class="lt-name">${esc(name || (opts.preview ? (fr ? 'Votre nom' : 'Your name') : ''))}</h1>`
+    + (str(d.title) ? `<div class="lt-title">${esc(str(d.title))}</div>` : '')
+    + (contact.length ? `<div class="lt-contact">${contact.map(esc).join(' · ')}</div>` : '') + `</header>`
+    + `<div class="lt-meta">${date ? `<div>${esc(date)}</div>` : ''}${to.map(x => `<div>${esc(x)}</div>`).join('')}${subject ? `<div style="margin-top:12px"><b>${esc(subject)}</b></div>` : ''}</div>`
+    + `<div class="lt-body">${body}</div></div>`
+}
+
 // Kept for existing callers: `const { render } = useCvRenderer()`
 export function useCvRenderer() {
   return { render }

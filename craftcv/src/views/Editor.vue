@@ -39,7 +39,7 @@
       <QuickStyle @more="showDesign" />
 
       <div class="ed-canvas" :class="{ zoomed: phone && zoom !== 'fit' }">
-        <CvPreview :template="store.template" :data="store.data" :fmt="store.fmt"
+        <CvPreview :template="store.template" :data="store.data" :fmt="store.fmt" :letter="panelTab === 'letter'"
                    :scale="zoom" :max-scale="1.05" :padding="phone ? 0 : 64"
                    v-model:fitAccepted="store.data.shrinkToFit" />
       </div>
