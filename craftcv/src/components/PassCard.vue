@@ -66,9 +66,9 @@ const style = computed(() => ({ transform: `rotateX(${rx.value}deg) rotateY(${ry
 .pc-since{font-size:11.5px;color:rgba(255,255,255,.75);white-space:nowrap}
 :global([data-theme="dark"]) .pc{background:#5b54e8}
 /* Small: on My CVs */
-.sm .pc{border-radius:11px;padding:10px 12px;box-shadow:0 8px 18px -8px color-mix(in srgb,var(--c-accent) 70%,transparent),inset 0 0 0 1px rgba(255,255,255,.14)}
+.sm .pc{border-radius:11px;padding:9px 10px;box-shadow:0 8px 18px -8px color-mix(in srgb,var(--c-accent) 70%,transparent),inset 0 0 0 1px rgba(255,255,255,.14)}
 .sm .pc-top :deep(.brand svg){height:13px}
 .sm .pc-plan,.sm .pc-foot{display:none}
-.sm .pc-title{font-size:12.5px;letter-spacing:-.01em}
+.sm .pc-title{font-size:12px;letter-spacing:-.01em;white-space:nowrap}
 @media (prefers-reduced-motion:reduce){ .pc{transition:none} }
 </style>

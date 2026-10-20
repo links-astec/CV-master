@@ -32,9 +32,12 @@
 
     <section class="dp-sec">
       <div class="dp-hd">{{ $t('Font') }}</div>
-      <div class="seg dp-seg">
-        <button v-for="f in FONTS" :key="f.id" :class="{ active: store.fmt.fontFamily === f.id }"
-                :style="{ fontFamily: `'${f.id}'` }" @click="store.fmt.fontFamily = f.id">{{ f.name }}</button>
+      <div class="dp-fonts" role="radiogroup" :aria-label="$t('Font')">
+        <button v-for="f in ALL_FONTS" :key="f.id" type="button" role="radio" class="dp-font" :class="{ on: store.fmt.fontFamily === f.id }"
+                :aria-checked="store.fmt.fontFamily === f.id" @click="store.fmt.fontFamily = f.id">
+          <span class="dp-font-aa" :style="{ fontFamily: `'${f.id}'` }">Aa</span>
+          <span class="dp-font-n">{{ f.name }}</span>
+        </button>
       </div>
     </section>
 
@@ -90,7 +93,7 @@
 import { computed, ref, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth.js'
 import { useCvStore, hasDraftableContent } from '../stores/cv.js'
-import { LAYOUTS, LAYOUT_KINDS, THEMES, FONTS, parseTemplate, templateId, getLayout, getTheme } from '../composables/cvRenderer.js'
+import { LAYOUTS, LAYOUT_KINDS, THEMES, ALL_FONTS, parseTemplate, templateId, getLayout, getTheme } from '../composables/cvRenderer.js'
 import { sampleCv } from '../composables/sampleCv.js'
 import CvThumb from './CvThumb.vue'
 import TranslateModal from './TranslateModal.vue'
@@ -151,11 +154,19 @@ function undoTranslate() {
 .dp-undo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;padding:8px 12px;border-radius:9px;background:var(--c-green-lt);color:var(--c-green);font-size:13px;font-weight:600}
 .dp-note{font-size:12.5px;color:var(--c-text3);margin-top:10px;line-height:1.5}
 .dp-hint{font-size:12px;color:var(--c-text3);margin-top:6px;line-height:1.45}
-.dp-swatches{display:grid;grid-template-columns:repeat(12,1fr);gap:7px}
+.dp-swatches{display:grid;grid-template-columns:repeat(12,minmax(0,28px));gap:8px}
 .dp-swatch{width:100%;aspect-ratio:1;border-radius:50%;background:var(--sw);border:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.1);transition:transform .12s}
 .dp-swatch:hover{transform:scale(1.08)}
 .dp-swatch.active{box-shadow:0 0 0 2px var(--c-surface),0 0 0 4px var(--sw)}
 .dp-seg{display:flex;width:100%}
+/* Fonts: a tile per font, written in that font */
+.dp-fonts{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
+.dp-font{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 6px 10px;border:none;border-radius:14px;background:var(--fill);color:var(--c-text);font:inherit;cursor:pointer;transition:background .15s ease,box-shadow .15s ease}
+.dp-font:hover{background:color-mix(in srgb,var(--c-text) 8%,var(--c-surface))}
+.dp-font.on{background:var(--c-surface);box-shadow:inset 0 0 0 2px var(--c-accent)}
+.dp-font-aa{font-size:24px;line-height:1.1;font-weight:500}
+.dp-font-n{font-size:12px;color:var(--c-text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.dp-font.on .dp-font-n{color:var(--c-accent);font-weight:600}
 .dp-seg button{flex:1;padding:0 6px}
 .dp-grid{display:grid;grid-template-columns:1fr;gap:18px}
 @media (max-width:640px){ .dp-layouts{gap:12px} .dp-layout{padding:12px 12px 10px;border-radius:18px} }

@@ -58,9 +58,11 @@
         <RouterLink v-else to="/settings" class="sb-user" :class="{ 'has-pass': auth.user?.pass }" :title="sbMini ? auth.user?.email : null" @click="navOpen = false">
           <span class="sb-ava"><img v-if="auth.user?.photo" :src="auth.user.photo" alt="" /><template v-else>{{ auth.user?.avatar || auth.user?.name?.[0] || 'U' }}</template></span>
           <span class="sb-user-txt">
-            <span class="sb-user-name"><span class="sb-user-n">{{ auth.user?.name }}</span><span v-if="auth.user?.pass" class="sb-pass">{{ $t('Pass') }}</span></span>
-            <span class="sb-user-mail">{{ auth.user?.email }}</span>
+            <span class="sb-user-name"><span class="sb-user-n">{{ auth.user?.name }}</span></span>
+            <span v-if="auth.user?.pass" class="sb-user-mail sb-user-pass">{{ $t('Job Hunt Pass') }}</span>
+            <span v-else class="sb-user-mail">{{ auth.user?.email }}</span>
           </span>
+          <svg v-if="auth.user?.pass" class="sb-user-mark" viewBox="8 6 102 66" aria-hidden="true"><path :d="MARK_PATH" /></svg>
         </RouterLink>
         </Transition>
         <Transition name="sb-swap">
@@ -160,6 +162,7 @@ import AiLimitModal from './components/AiLimitModal.vue'
 import { guestEvent } from './composables/track.js'
 import TutorialOverlay from './components/TutorialOverlay.vue'
 import BrandLogo from './components/BrandLogo.vue'
+import { MARK_PATH } from '../brand/brand.mjs'
 import BrandLoader from './components/BrandLoader.vue'
 import LangSwitch from './components/LangSwitch.vue'
 import { t, lang, setLang, hasExplicitChoice } from './i18n/index.js'
@@ -354,11 +357,24 @@ async function afterSignIn() {
   }
 }
 
+// Same CV? (name, headline, summary and jobs) so a guest CV already in the account isn't saved twice
+const cvSig = (d) => JSON.stringify([d?.fn, d?.ln, d?.title, d?.sum, (d?.experiences || []).map(e => (e?.title || '') + '|' + (e?.company || ''))])
+// A CV made in this browser before signing in (after a Google sign-in the page reloads) moves into
+// the account and stays open; otherwise the latest saved CV opens
+async function claimGuestCv(drafts) {
+  if (!store.hasContent || store.currentDraftId || lsGet('pcv-draft-id')) return false
+  const same = drafts.find(d => cvSig(d.data) === cvSig(store.data))
+  if (same) { store.loadDraft(same); return true }
+  const id = await store.saveDraft()
+  if (id) showToast(t('Your CV is now saved to your account.'))
+  return !!id
+}
 async function restoreLatestDraft() {
   try {
     const r = await fetch(apiUrl('/api/drafts'), { credentials: 'include' })
     if (!r.ok) return
     const drafts = await r.json()
+    if (await claimGuestCv(drafts)) return
     if (!drafts.length) return
     const latest = [...drafts].sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))[0]
     if (latest?.data) store.loadDraft(latest)
@@ -508,8 +524,16 @@ onMounted(() => setTimeout(checkBigTitle, 400))
 .sb-guest{border:none;border-radius:22px;padding:18px;background:var(--c-surface);box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:8px}
 .sb-guest-ttl{font-size:14px;font-weight:700;letter-spacing:-.015em}
 .sb-guest p{font-size:12.5px;color:var(--c-text2);line-height:1.5;margin-bottom:4px}
-.sb-user{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:18px;text-decoration:none;color:inherit;background:var(--c-surface);box-shadow:var(--shadow-sm);transition:box-shadow .25s var(--ease),transform .25s var(--ease)}
-.sb-user:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
+.sb-user{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:16px;text-decoration:none;color:inherit;background:transparent;box-shadow:none;transition:box-shadow .25s var(--ease),transform .25s var(--ease)}
+.sb-user:hover{background:color-mix(in srgb,var(--c-text) 5%,transparent)}
+/* Job Hunt Pass holders: their account is a small version of their pass card */
+.sb-user.has-pass{position:relative;overflow:hidden;background:var(--c-accent);color:#fff;box-shadow:0 10px 24px -12px color-mix(in srgb,var(--c-accent) 80%,transparent),inset 0 0 0 1px rgba(255,255,255,.14)}
+.sb-user.has-pass:hover{background:color-mix(in srgb,var(--c-accent) 90%,#000)}
+.sb-user.has-pass .sb-ava{background:rgba(255,255,255,.2);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.55)}
+.sb-user.has-pass .sb-user-txt{position:relative;z-index:1}
+.sb-user-pass{color:rgba(255,255,255,.78)!important;font-weight:500}
+.sb-user-mark{position:absolute;right:-18px;bottom:-22px;width:92px;fill:none;stroke:rgba(255,255,255,.13);stroke-width:10;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+:global([data-theme="dark"]) .sb-user.has-pass{background:#5b54e8}
 .sb-ava img{width:100%;height:100%;border-radius:50%;object-fit:cover}
 .sb-ava{overflow:hidden;width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 30% 25%,#8B85FF,#4338CA 55%,#2A2390);color:#fff;box-shadow:0 4px 10px rgba(67,56,202,.25);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0}
 .sb-user-txt{display:flex;flex-direction:column;min-width:0}
@@ -518,7 +542,6 @@ onMounted(() => setTimeout(checkBigTitle, 400))
 .sb-user-name{display:flex!important;align-items:center;min-width:0}
 .sb-user-n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .sb-pass{flex-shrink:0;display:inline-flex;align-items:center;height:17px;padding:0 7px;margin-left:6px;border-radius:99px;background:var(--c-accent);color:#fff;font-size:10.5px;font-weight:700;vertical-align:1px}
-.sb-user.has-pass .sb-ava{box-shadow:0 0 0 2px var(--c-surface),0 0 0 3.5px var(--c-accent)}
 .sb-user-mail{font-size:12px;color:var(--c-text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sb-legal{display:flex;gap:6px;justify-content:center;font-size:12px;color:var(--c-text3)}
 .sb-legal a,.sb-legal button{color:var(--c-text3);text-decoration:none;background:none;border:none;padding:0;font:inherit;cursor:pointer}

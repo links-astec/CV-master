@@ -189,4 +189,8 @@ export default {
   '€6.99 a month': '6,99 € par mois',
   'worth €{v}': 'd’une valeur de {v} €',
   '{n} of {limit} left today': '{n} sur {limit} restantes aujourd’hui',
+  'Left today': 'Restantes aujourd’hui',
+  '{n} of {limit}': '{n} sur {limit}',
+  'Extra requests': 'Requêtes en plus',
+  'Get 100 more': 'En obtenir 100 de plus',
 }

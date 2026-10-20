@@ -76,4 +76,10 @@ export default {
   'Modern sans (default)': 'Sans empattements moderne (par défaut)',
   'Neutral, very readable': 'Neutre, très lisible',
   'Classic serif': 'Empattements classiques',
+  'More design': 'Plus de design',
+  'Layout': 'Mise en page',
+  'Soft and friendly': 'Doux et accueillant',
+  'Geometric, modern': 'Géométrique, moderne',
+  'Technical, distinctive': 'Technique, singulier',
+  'Elegant serif': 'Serif élégant',
 }

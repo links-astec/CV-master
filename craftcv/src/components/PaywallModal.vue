@@ -54,7 +54,6 @@
             <div class="pw-hd">
               <h2>{{ $t(paidForDraft ? 'Send your CV' : 'Get your CV as a PDF') }}</h2>
               <p v-if="paidForDraft && auth.user?.pass">{{ $t('Your Job Hunt Pass covers this CV. Send it as often as you like, even after edits.') }}</p>
-              <div v-if="paidForDraft && auth.user?.pass" class="pw-included"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>{{ $t('Included in your Job Hunt Pass') }}</div>
               <p v-else-if="paidForDraft">{{ $t('This CV is already paid for. Send it as often as you like, even after edits.') }}</p>
               <p v-else-if="demoMode">{{ $t('Payments aren’t switched on yet, so this is free for now.') }}</p>
               <p v-else>{{ $t('A clean, one-page PDF, emailed to you.') }}</p>

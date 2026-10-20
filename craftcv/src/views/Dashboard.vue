@@ -13,24 +13,23 @@
         </button>
       </div>
 
-      <!-- Job Hunt Pass holders: their pass, and the fastest next step -->
-      <div v-if="auth.user?.pass" class="db-pass">
-        <div class="db-pass-card"><PassCard size="sm" :tilt="false" :name="auth.user?.name || ''" :plan="auth.user.pass.plan" /></div>
-        <div class="db-pass-txt"><b>{{ $t('Your Job Hunt Pass is on') }}</b><span>{{ $t('Every CV here is unlocked. Download or email any of them, as often as you like.') }}</span></div>
-        <button class="btn-primary accent btn-sm db-pass-go" @click="checkAts">{{ $t('Tailor a CV to a new job') }}</button>
-      </div>
-
-      <!-- The two features people miss: telling their story, and checking against a job (ATS) -->
-      <div class="db-feats">
-        <button class="db-feat" @click="newCV('narrate')">
-          <span class="db-feat-ic"><svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg></span>
-          <span class="db-feat-txt"><b>{{ $t('Tell your story') }}</b><span>{{ $t('Speak or type about your career. AI writes your CV from it.') }}</span></span>
-          <svg class="db-feat-go" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+      <!-- One quiet list: the pass (for holders), the next step, and the two features people miss -->
+      <div class="db-list">
+        <button v-if="auth.user?.pass" type="button" class="db-li db-li-pass" @click="$router.push({ path: '/settings', hash: '#pass' })">
+          <span class="db-li-card"><PassCard size="sm" :tilt="false" :name="auth.user?.name || ''" :plan="auth.user.pass.plan" /></span>
+          <span class="db-li-txt"><b>{{ $t('Job Hunt Pass') }}</b><span>{{ $t('Every CV here is unlocked. Download or email any of them, as often as you like.') }}</span></span><svg class="db-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
         </button>
-        <button class="db-feat" @click="checkAts">
-          <span class="db-feat-ic"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span>
-          <span class="db-feat-txt"><b>{{ $t('Check your ATS score') }}</b><span>{{ $t(cards.length ? 'Paste a job offer and see how well your CV matches it.' : 'Paste a job offer and build a CV that matches it.') }}</span></span>
-          <svg class="db-feat-go" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        <button v-if="next?.title" type="button" class="db-li" @click="doNext">
+          <span class="db-li-txt"><span class="db-li-k">{{ $t('Your next step') }}</span><b>{{ $t(next.title) }}</b><span>{{ $t(next.body) }}</span></span>
+          <span class="db-li-act">{{ $t(NEXT_LABEL[next.action] || 'Continue') }}</span><svg class="db-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
+        </button>
+        <button type="button" class="db-li" @click="newCV('narrate')">
+          <span class="db-li-ic"><svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg></span>
+          <span class="db-li-txt"><b>{{ $t('Tell your story') }}</b><span>{{ $t('Speak or type about your career. AI writes your CV from it.') }}</span></span><svg class="db-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
+        </button>
+        <button type="button" class="db-li" @click="checkAts">
+          <span class="db-li-ic"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span>
+          <span class="db-li-txt"><b>{{ $t(auth.user?.pass ? 'Tailor a CV to a new job' : 'Check your ATS score') }}</b><span>{{ $t(cards.length ? 'Paste a job offer and see how well your CV matches it.' : 'Paste a job offer and build a CV that matches it.') }}</span></span><svg class="db-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
         </button>
       </div>
 
@@ -38,16 +37,6 @@
         <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         <span><strong>{{ $t('This CV only lives in this browser.') }}</strong> {{ $t('Create a free account to keep it safe, edit it on any device and export it.') }}</span>
         <button class="btn-primary accent btn-sm" @click="openAuth('register', 'save')">{{ $t('Create account') }}</button>
-      </div>
-
-      <!-- The user's next step (from their CV and, if they allow it, what they've done so far) -->
-      <div v-if="next" class="db-next card">
-        <div class="db-next-txt">
-          <div class="db-next-k">{{ $t('Your next step') }}</div>
-          <div class="db-next-t">{{ $t(next.title) }}</div>
-          <p>{{ $t(next.body) }}</p>
-        </div>
-        <button class="btn-primary accent btn-sm" @click="doNext">{{ $t(NEXT_LABEL[next.action] || 'Continue') }}</button>
       </div>
 
       <div v-if="loading" class="db-grid">
@@ -77,7 +66,7 @@
               <button class="btn-secondary btn-sm" :disabled="busy === c.key" @click="download(c)">
                 {{ $t(busy === c.key ? 'Preparing…' : 'Download') }}
               </button>
-              <button v-if="c.paid" class="btn-secondary btn-sm" :disabled="busy === c.key + 'send'" @click="resend(c)">
+              <button v-if="c.unlocked" class="btn-secondary btn-sm" :disabled="busy === c.key + 'send'" @click="resend(c)">
                 {{ $t(busy === c.key + 'send' ? 'Sending…' : 'Email again') }}
               </button>
               <button v-if="c.id" class="icon-btn db-del" :title="$t('Delete')" @click="remove(c)">
@@ -148,6 +137,7 @@ const openPaywall    = inject('openPaywall')
 const drafts   = ref([])
 const paidIds  = ref(new Set())
 const legacyPaidAll = ref(false)
+const passOn = ref(false)   // Job Hunt Pass: every CV unlocked (not "paid")
 const loading  = ref(false)
 const busy     = ref(null)
 const showUnlock    = ref(false)
@@ -164,7 +154,7 @@ const cards = computed(() => {
     const live = d.id === store.currentDraftId
     const data = live ? { ...store.data, fmt: store.fmt } : (d.data || {})
     return { key: d.id, id: d.id, data, template: normalizeTemplate(live ? store.template : d.template),
-             title: titleOf(data) || d.title || t('Untitled CV'), updatedAt: d.updatedAt, paid: legacyPaidAll.value || paidIds.value.has(d.id) }
+             title: titleOf(data) || d.title || t('Untitled CV'), updatedAt: d.updatedAt, paid: legacyPaidAll.value || paidIds.value.has(d.id), unlocked: passOn.value || legacyPaidAll.value || paidIds.value.has(d.id) }
   }).filter(c => hasDraftableContent(c.data))
 })
 
@@ -211,7 +201,7 @@ async function loadDrafts() {
       fetch(apiUrl('/api/payment/paid-drafts'), { credentials: 'include' }),
     ])
     if (r.ok) drafts.value = await r.json()
-    if (p.ok) { const j = await p.json(); paidIds.value = new Set(j.draftIds || []); legacyPaidAll.value = !!j.legacyAll }
+    if (p.ok) { const j = await p.json(); paidIds.value = new Set(j.draftIds || []); legacyPaidAll.value = !!j.legacyAll; passOn.value = !!j.pass }
   } catch {}
   loading.value = false
 }
@@ -289,7 +279,7 @@ async function download(c) {
     const draftId = c.id || store.currentDraftId
     if (!draftId) throw new Error('Save your CV first.')
     const card = c.id ? c : { ...c, data: { ...store.data, fmt: store.fmt }, template: store.template }
-    if (c.paid && c.id) {
+    if (c.unlocked && c.id) {
       const r = await fetch(apiUrl('/api/cv/export-pdf'), {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -372,6 +362,22 @@ async function remove(c) {
 .db-pass-txt b{font-size:16px;font-weight:650;letter-spacing:-.015em;color:var(--c-text)}
 .db-pass-txt span{font-size:14px;color:var(--c-text2);line-height:1.45}
 @media (max-width:640px){ .db-pass{flex-wrap:wrap} .db-pass-card{width:96px} .db-pass-go{width:100%} }
+/* The list at the top: rows like iOS Settings */
+.db-list{background:var(--c-surface);border-radius:20px;overflow:hidden;margin-bottom:28px}
+.db-li{display:flex;align-items:center;gap:16px;width:100%;padding:16px 20px;border:none;background:none;font:inherit;text-align:left;color:var(--c-text);cursor:pointer;position:relative;transition:background .15s ease}
+.db-li + .db-li::before{content:'';position:absolute;top:0;left:20px;right:0;height:1px;background:var(--hair)}
+.db-li:hover{background:color-mix(in srgb,var(--c-text) 3.5%,transparent)}
+.db-li:focus-visible{outline:2px solid var(--c-accent);outline-offset:-2px}
+.db-li-card{width:112px;flex-shrink:0}
+.db-li-ic{width:36px;display:flex;justify-content:center;flex-shrink:0}
+.db-li-ic svg{width:22px;height:22px;fill:none;stroke:var(--c-text);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.db-li-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.db-li-txt b{font-size:15.5px;font-weight:600;letter-spacing:-.01em}
+.db-li-txt > span:not(.db-li-k){font-size:13.5px;color:var(--c-text2);line-height:1.45}
+.db-li-k{font-size:12.5px;font-weight:600;color:var(--c-text3)}
+.db-li-act{flex-shrink:0;font-size:14.5px;font-weight:600;color:var(--c-accent)}
+.db-chev{width:16px;height:16px;flex-shrink:0;fill:none;stroke:var(--c-text3);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+@media (max-width:640px){ .db-li{padding:14px 16px;gap:12px} .db-li-card{width:96px} .db-li-act{display:none} }
 .db-feats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px}
 .db-feat{display:flex;align-items:center;gap:14px;padding:16px 18px;border:none;border-radius:20px;background:var(--c-surface);box-shadow:var(--shadow-xs);text-align:left;font:inherit;color:var(--c-text);cursor:pointer;transition:transform .15s,box-shadow .15s}
 .db-feat:hover{transform:translateY(-1px);box-shadow:var(--shadow-sm,0 4px 14px rgba(20,20,43,.08))}

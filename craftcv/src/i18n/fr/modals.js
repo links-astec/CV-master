@@ -102,4 +102,6 @@ export default {
   'Applying to lots of jobs?': 'Vous postulez à beaucoup d’offres ?',
   'The Job Hunt Pass unlocks every CV you make for €6.99 a month.': 'Le Job Hunt Pass débloque tous vos CV pour 6,99 € par mois.',
   'Included in your Job Hunt Pass': 'Inclus dans votre Job Hunt Pass',
+  'Your Job Hunt Pass gives you 100 AI requests a day. Need more today? Extra requests never expire.': 'Votre Job Hunt Pass vous donne 100 requêtes IA par jour. Besoin de plus aujourd’hui ? Les requêtes en plus n’expirent jamais.',
+  'left today': 'restantes aujourd’hui',
 }
