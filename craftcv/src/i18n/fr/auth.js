@@ -55,4 +55,5 @@ export default {
   'Create an account': 'Créer un compte',
   'Sign in': 'Se connecter',
   'Create account': 'Créer un compte',
+  'Write it once. Tailor it to each offer. Send a clean PDF.': 'Écrivez-le une fois. Adaptez-le à chaque offre. Envoyez un PDF propre.',
 }

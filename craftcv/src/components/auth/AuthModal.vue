@@ -6,6 +6,17 @@
           <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
 
+        <!-- Computer only: the brand, one line, and a real CV (flat blue, like the pass card) -->
+        <aside class="auth-side" aria-hidden="true">
+          <BrandLogo on-blue class="auth-side-logo" />
+          <div class="auth-side-copy">
+            <h3>{{ $t('Your CV, tailored to every job.') }}</h3>
+            <p>{{ $t('Write it once. Tailor it to each offer. Send a clean PDF.') }}</p>
+          </div>
+          <div class="auth-side-cv"><CvThumb template="modern:indigo" :data="sampleCv()" /></div>
+          <svg class="auth-side-mark" viewBox="8 6 102 66"><path :d="MARK_PATH" /></svg>
+        </aside>
+
         <div class="auth-main">
           <div class="auth-hd">
             <BrandLogo mark-only class="auth-mark" />
@@ -102,6 +113,9 @@ import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { suggestEmail, checkEmail } from '../../composables/emailTypos.js'
 import { useAuthStore } from '../../stores/auth.js'
 import BrandLogo from '../BrandLogo.vue'
+import CvThumb from '../CvThumb.vue'
+import { sampleCv } from '../../composables/sampleCv.js'
+import { MARK_PATH } from '../../../brand/brand.mjs'
 import { lang, googleLocale } from '../../i18n/index.js'
 
 const props = defineProps({
@@ -266,6 +280,22 @@ onMounted(async () => {
 
 <style scoped>
 .auth{max-width:420px;padding:0;background:var(--c-bg);border:none;border-radius:26px}
+/* Computer: the panel on the left, the form on the right */
+.auth-side{display:none}
+@media (min-width:880px){
+  .auth{max-width:860px;display:grid;grid-template-columns:380px 1fr;overflow:hidden}
+  .auth-side{display:flex;flex-direction:column;position:relative;overflow:hidden;background:var(--c-accent);color:#fff;padding:32px 34px 0}
+  .auth-main{align-self:center}
+  .auth-mark{display:none}
+}
+.auth-side-logo{position:relative;z-index:1}
+.auth-side-copy{position:relative;z-index:1;margin-top:44px}
+.auth-side-copy h3{font-size:30px;font-weight:700;letter-spacing:-.035em;line-height:1.1;margin:0}
+.auth-side-copy p{font-size:15px;line-height:1.5;color:rgba(255,255,255,.78);margin:12px 0 0;max-width:290px}
+.auth-side-cv{position:relative;z-index:1;margin:auto -8px 0;padding-top:36px}
+.auth-side-cv :deep(.cvt){width:100%;border-radius:10px 10px 0 0;overflow:hidden;background:#fff;box-shadow:0 -1px 0 rgba(255,255,255,.2),0 24px 50px -10px rgba(0,0,0,.35);max-height:300px}
+.auth-side-mark{position:absolute;right:-60px;top:120px;width:300px;fill:none;stroke:rgba(255,255,255,.08);stroke-width:10;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+:global([data-theme="dark"]) .auth-side{background:#5b54e8}
 .auth-main{padding:40px 28px 28px}
 .auth-hd{display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:24px}
 .auth-mark{margin-bottom:16px}
