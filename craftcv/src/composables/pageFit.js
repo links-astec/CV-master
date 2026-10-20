@@ -14,7 +14,7 @@ const CV_FONTS = [
   '400 12px Inter', '600 12px Inter', '400 12px Lora', '600 12px Lora',
   '700 12px "Playfair Display"', '700 12px "Space Grotesk"', '600 12px Outfit', '300 12px Outfit',
   '600 12px "EB Garamond"', '800 12px Manrope', '400 12px "IBM Plex Mono"',
-  '400 12px Manrope', '700 12px Manrope', '400 12px Outfit', '700 12px Outfit', '400 12px "Space Grotesk"', '400 12px "EB Garamond"',
+  '400 12px Manrope', '700 12px Manrope', '400 12px Outfit', '700 12px Outfit', '400 12px "Space Grotesk"', '400 12px "EB Garamond"', '400 12px Tinos', '700 12px Tinos',
 ]
 let fontsReady = null
 function ensureCvFonts() {

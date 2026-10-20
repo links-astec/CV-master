@@ -17,6 +17,7 @@
             <span class="ed-design-l">{{ label }}</span>
             <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
+          <CvLangPicker />
           <span class="ed-saved hide-mobile">{{ savedText }}</span>
         </div>
         <div class="ed-bar-r">
@@ -76,6 +77,7 @@ import { parseTemplate, templateLabel, getTheme } from '../composables/cvRendere
 import CvEditor from '../components/CvEditor.vue'
 import CvPreview from '../components/CvPreview.vue'
 import QuickStyle from '../components/QuickStyle.vue'
+import CvLangPicker from '../components/CvLangPicker.vue'
 import { t } from '../i18n/index.js'
 
 const store = useCvStore()

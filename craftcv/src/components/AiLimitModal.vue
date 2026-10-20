@@ -3,27 +3,35 @@
     <Transition name="fade">
       <div v-if="open" class="al-backdrop" @click.self="open = false">
         <div class="al" role="dialog" aria-labelledby="al-title">
-          <h3 id="al-title">{{ $t(reason === 'limit' ? 'You’ve used today’s free AI' : 'Your AI requests') }}</h3>
-          <p v-if="tier === 'guest'">{{ $t('Guests get 5 free AI requests a day. Create a free account to get 30 a day. Your CV comes with you.') }}</p>
-          <p v-else-if="tier === 'unverified'">{{ $t('You get 5 a day until you confirm your email. Then it’s 30 a day. Check your inbox for our link.') }}</p>
-          <p v-else-if="tier === 'pass'">{{ $t('Your Job Hunt Pass gives you 100 AI requests a day. Need more today? Extra requests never expire.') }}</p>
-          <p v-else>{{ $t('You get 30 free AI requests a day. Writing help, tailoring, ATS checks and fixes. They reset every day at midnight (UTC).') }}</p>
-          <div v-if="tier === 'guest'" class="al-next"><button class="btn-primary accent" @click="signUp">{{ $t('Create free account') }}</button></div>
-          <div v-else-if="tier === 'unverified'" class="al-next"><button class="btn-primary accent" @click="resend">{{ $t(resent ? 'Sent ✓' : 'Resend confirmation email') }}</button></div>
-          <div v-if="quota" class="al-quota">
-            <div><span>{{ quota.freeLeft }}</span> {{ $t(tier === 'pass' ? 'left today' : 'free left today') }}</div>
-            <div><span>{{ quota.credits }}</span> {{ $t('extra') }}</div>
+          <div class="al-bar">
+            <h3 id="al-title">{{ $t(reason === 'limit' ? 'You’ve used today’s free AI' : 'AI requests') }}</h3>
+            <button type="button" class="al-done" @click="open = false">{{ $t(reason === 'limit' ? 'Later' : 'Done') }}</button>
           </div>
-          <div v-if="tier === 'verified' || tier === 'pass'" class="al-offer">
-            <div>
-              <div class="al-offer-t">{{ $t('100 extra AI requests') }}</div>
-              <div class="al-offer-s">{{ $t('One-time €0.50 · they never expire') }}<template v-if="approx(0.5)"> ({{ approx(0.5) }})</template></div>
+
+          <!-- Guests and unconfirmed emails: one thing to do -->
+          <template v-if="tier === 'guest' || tier === 'unverified'">
+            <p class="al-text">{{ $t(tier === 'guest' ? 'Guests get 5 free AI requests a day. Create a free account to get 30 a day. Your CV comes with you.' : 'You get 5 a day until you confirm your email. Then it’s 30 a day. Check your inbox for our link.') }}</p>
+            <button v-if="tier === 'guest'" class="al-cta" @click="signUp">{{ $t('Create free account') }}</button>
+            <button v-else class="al-cta" @click="resend">{{ $t(resent ? 'Sent ✓' : 'Resend confirmation email') }}</button>
+          </template>
+
+          <template v-else>
+            <div class="al-list">
+              <div class="al-li"><span>{{ $t('Left today') }}</span><span class="al-v">{{ quota ? $t('{n} of {limit}', { n: quota.freeLeft, limit: quota.limit }) : '·' }}</span></div>
+              <div class="al-li"><span>{{ $t('Extra requests') }}</span><span class="al-v">{{ quota ? quota.credits : '·' }}</span></div>
             </div>
-            <button class="btn-primary accent" :disabled="buying || !withdrawalOk" @click="buy">{{ $t(buying ? 'Please wait…' : 'Get them for €0.50') }}</button>
-          </div>
-          <label v-if="tier === 'verified' || tier === 'pass'" class="al-consent"><input type="checkbox" v-model="withdrawalOk" /><span>{{ $t('I want the requests straight away and agree that I lose my 14-day right of withdrawal once they’re added.') }}</span></label>
+            <p class="al-foot">{{ $t(tier === 'pass' ? '100 every day with your Job Hunt Pass, reset at midnight (UTC). Extra requests never expire.' : '30 free every day, reset at midnight (UTC). Extra requests never expire.') }}</p>
+
+            <div class="al-list">
+              <div class="al-li al-li-buy">
+                <span><b>{{ $t('100 extra requests') }}</b><small>{{ $t('One-time payment. They never expire.') }}</small></span>
+                <span class="al-price">€0.50<small v-if="approx(0.5)">{{ approx(0.5) }}</small></span>
+              </div>
+            </div>
+            <label class="al-consent"><input type="checkbox" v-model="withdrawalOk" /><span>{{ $t('I want the requests straight away and agree that I lose my 14-day right of withdrawal once they’re added.') }}</span></label>
+            <button class="al-cta" :disabled="buying || !withdrawalOk" @click="buy">{{ $t(buying ? 'Please wait…' : 'Buy for €0.50') }}</button>
+          </template>
           <div v-if="error" class="al-err">{{ $t(error) }}</div>
-          <button class="btn-ghost al-later" @click="open = false">{{ $t(reason === 'limit' ? 'Maybe tomorrow' : 'Close') }}</button>
         </div>
       </div>
     </Transition>
@@ -86,22 +94,24 @@ defineExpose({ show })
 </script>
 
 <style scoped>
-.al-backdrop{position:fixed;inset:0;z-index:9600;background:rgba(20,20,43,.5);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px}
-.al{width:100%;max-width:440px;background:var(--c-surface);border-radius:28px;padding:32px 28px 18px;box-shadow:0 30px 80px rgba(0,0,0,.22);border:none;text-align:center}
-.al-ic{width:48px;height:48px;border-radius:14px;background:var(--c-accent-lt);display:flex;align-items:center;justify-content:center;margin:0 auto 12px}
-.al-ic svg{width:22px;height:22px;fill:var(--c-accent)}
-.al h3{font-size:24px;font-weight:700;letter-spacing:-.03em;color:var(--c-text);margin-bottom:8px}
-.al p{font-size:13.5px;color:var(--c-text2);line-height:1.55;margin-bottom:14px}
-.al p strong{color:var(--c-text)}
-.al-quota{display:flex;justify-content:center;gap:22px;font-size:12.5px;color:var(--c-text3);margin-bottom:14px}
-.al-quota span{font-size:18px;font-weight:700;color:var(--c-text);margin-right:3px}
-.al-offer{display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;border:none;background:var(--fill);border-radius:16px;padding:14px 16px}
-.al-offer-t{font-size:14px;font-weight:700;color:var(--c-text)}
-.al-offer-s{font-size:12px;color:var(--c-text2);margin-top:2px}
-.al-consent{display:flex;gap:8px;align-items:flex-start;text-align:left;font-size:12px;color:var(--c-text2);line-height:1.45;margin-top:10px;cursor:pointer}
+.al-backdrop{position:fixed;inset:0;z-index:9600;background:rgba(0,0,0,.32);display:flex;align-items:center;justify-content:center;padding:20px}
+.al{width:100%;max-width:420px;background:var(--c-bg);border-radius:24px;padding:18px 18px 20px;box-shadow:0 24px 70px rgba(0,0,0,.25)}
+.al-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:2px 4px 14px}
+.al h3{font-size:20px;font-weight:700;letter-spacing:-.02em;color:var(--c-text);margin:0}
+.al-done{border:none;background:none;padding:4px 2px;font:inherit;font-size:15.5px;font-weight:600;color:var(--c-accent);cursor:pointer;flex-shrink:0}
+.al-text{font-size:14.5px;color:var(--c-text2);line-height:1.5;margin:0 4px 16px}
+.al-list{background:var(--c-surface);border-radius:14px;overflow:hidden}
+.al-li{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:11px 16px;font-size:15px;color:var(--c-text);position:relative}
+.al-li + .al-li::before{content:'';position:absolute;top:0;left:16px;right:0;height:1px;background:var(--hair)}
+.al-v{color:var(--c-text3)}
+.al-li-buy > span:first-child{display:flex;flex-direction:column;gap:2px}
+.al-li-buy b{font-weight:600}
+.al-li-buy small,.al-price small{font-size:12.5px;color:var(--c-text3);font-weight:400}
+.al-price{display:flex;flex-direction:column;align-items:flex-end;font-weight:600}
+.al-foot{font-size:12.5px;line-height:1.45;color:var(--c-text3);margin:7px 16px 18px}
+.al-consent{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:var(--c-text3);line-height:1.45;margin:12px 6px 14px;cursor:pointer}
 .al-consent input{margin-top:2px;accent-color:var(--c-accent);flex-shrink:0}
-.al-next{margin:4px 0 6px}
-.al-err{font-size:12.5px;color:var(--c-rose);margin-top:10px}
-.al-later{margin-top:10px}
-@media (max-width:480px){ .al-offer{flex-direction:column;align-items:stretch;text-align:center} }
+.al-cta{display:block;width:100%;height:50px;border:none;border-radius:14px;background:var(--c-accent);color:#fff;font:inherit;font-size:16px;font-weight:600;cursor:pointer;transition:opacity .2s}
+.al-cta:disabled{opacity:.4;cursor:default}
+.al-err{font-size:12.5px;color:var(--c-rose);margin:10px 6px 0}
 </style>

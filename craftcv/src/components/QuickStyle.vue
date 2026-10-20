@@ -14,8 +14,8 @@
       <span>{{ $t(layoutNow.name) }}</span><svg class="qs-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
     </button>
     <button type="button" class="qs-pill" :class="{ open: menu === 'font' }" aria-haspopup="listbox" :aria-expanded="menu === 'font'" @click="toggle('font', $event)">
-      <span class="qs-aa" :style="{ fontFamily: `'${store.fmt.fontFamily}'` }">Aa</span>
-      <span :style="{ fontFamily: `'${store.fmt.fontFamily}'` }">{{ fontNow.name }}</span><svg class="qs-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+      <span class="qs-aa" :style="{ fontFamily: fontStack(store.fmt.fontFamily) }">Aa</span>
+      <span :style="{ fontFamily: fontStack(store.fmt.fontFamily) }">{{ fontNow.name }}</span><svg class="qs-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
     </button>
 
     <!-- Text size: three A's, small to large -->
@@ -39,7 +39,7 @@
         <div v-if="menu" ref="pop" class="qs-pop" :class="{ sheet: asSheet }" :style="popStyle" role="listbox" :aria-label="$t(menu === 'font' ? 'Font' : 'Layout')" @keydown.esc="close">
           <template v-if="menu === 'font'">
             <button v-for="f in ALL_FONTS" :key="f.id" type="button" role="option" class="qs-opt" :class="{ on: store.fmt.fontFamily === f.id }" :aria-selected="store.fmt.fontFamily === f.id" @click="store.fmt.fontFamily = f.id; close()">
-              <span class="qs-opt-t"><b :style="{ fontFamily: `'${f.id}'` }">{{ f.name }}</b><span>{{ $t(f.note) }}</span></span>
+              <span class="qs-opt-t"><b :style="{ fontFamily: fontStack(f.id) }">{{ f.name }}</b><span>{{ $t(f.note) }}</span></span>
               <svg v-if="store.fmt.fontFamily === f.id" class="qs-tick" viewBox="0 0 24 24" aria-hidden="true"><polyline points="5 12.5 10 17.5 19 7"/></svg>
             </button>
           </template>
@@ -62,7 +62,7 @@
 <script setup>
 import { computed, ref, nextTick, onBeforeUnmount } from 'vue'
 import { useCvStore } from '../stores/cv.js'
-import { THEMES, ALL_FONTS, LAYOUTS, LAYOUT_KINDS, parseTemplate, templateId } from '../composables/cvRenderer.js'
+import { THEMES, ALL_FONTS, fontStack, LAYOUTS, LAYOUT_KINDS, parseTemplate, templateId } from '../composables/cvRenderer.js'
 
 defineEmits(['more'])
 const store = useCvStore()
