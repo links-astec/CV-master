@@ -567,6 +567,8 @@ function publicUser(row) {
     industry:   row.industry   || null,
     goal:       row.goal       || null,
     experience: row.experience || null,
+    targetRole: row.target_role || null,
+    targetLocation: row.target_location || null,
     aiPersonalize: row.ai_personalize !== false,
     uiLang: row.ui_lang || null,
     // Google accounts are verified by Google; email accounts confirm by link
@@ -1208,14 +1210,33 @@ app.get('/api/auth/me', softMe, authMiddleware, async (req, res) => {
 });
 
 // ── ONBOARD ───────────────────────────────────────────────────────────────────
+// What onboarding asks (also editable in Settings). The job and place they want help the AI, the job
+// matches and tips; "how did you hear about us" is for the admin's marketing numbers.
+let _onboardCols = null;
+const ensureOnboardCols = () => (_onboardCols ||= query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS target_role TEXT`)
+  .then(() => query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS target_location TEXT`))
+  .then(() => query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS heard_from TEXT`)).catch(e => { _onboardCols = null; throw e; }));
+const PROFILE_CHOICES = {
+  industry:   ['', 'tech', 'finance', 'marketing', 'design', 'healthcare', 'education', 'legal', 'engineering', 'sales', 'hr', 'creative', 'other'],
+  goal:       ['', 'internship', 'grad', 'new-job', 'switch', 'promotion', 'freelance', 'update'],
+  experience: ['', 'student', 'junior', 'mid', 'senior', 'exec'],
+  heardFrom:  ['', 'friend', 'school', 'instagram', 'tiktok', 'linkedin', 'google', 'youtube', 'ai', 'other'],
+};
+const choice = (v, key) => (typeof v === 'string' && PROFILE_CHOICES[key].includes(v) ? v : undefined);
+const shortText = (v, n = 80) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, n) : undefined);
 app.patch('/api/auth/onboard', authMiddleware, async (req, res) => {
   try {
+    await ensureOnboardCols();
+    const b = req.body || {};
     await query(
-      'UPDATE users SET onboarded = TRUE, industry = $1, goal = $2, experience = $3 WHERE id = $4',
-      [req.body.industry || null, req.body.goal || null, req.body.experience || null, req.user.sub]
+      `UPDATE users SET onboarded = TRUE, industry = $1, goal = $2, experience = $3, target_role = $4, target_location = $5,
+         heard_from = COALESCE($6, heard_from) WHERE id = $7`,
+      [choice(b.industry, 'industry') || null, choice(b.goal, 'goal') || null, choice(b.experience, 'experience') || null,
+        shortText(b.targetRole) || null, shortText(b.targetLocation) || null, choice(b.heardFrom, 'heardFrom') || null, req.user.sub]
     );
-    res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: 'Onboarding update failed.' }); }
+    const row = (await query('SELECT * FROM users WHERE id = $1', [req.user.sub])).rows[0];
+    res.json({ ok: true, user: publicUser(row) });
+  } catch (e) { console.error('[onboard]', e.message); res.status(500).json({ error: 'Onboarding update failed.' }); }
 });
 
 // ── SETTINGS ──────────────────────────────────────────────────────────────────
@@ -1233,10 +1254,15 @@ app.patch('/api/auth/settings', authMiddleware, async (req, res) => {
     if (typeof req.body.aiPersonalize === 'boolean') { await ensureReferralColumns(); params.push(req.body.aiPersonalize); updates.push(`ai_personalize = $${params.length}`); }
     const pick = (v, allowed) => (typeof v === 'string' && allowed.includes(v) ? v : undefined);
     const prof = {
-      industry:   pick(req.body.industry, ['', 'tech', 'finance', 'marketing', 'design', 'healthcare', 'education', 'legal', 'engineering', 'sales', 'hr', 'creative', 'other']),
-      goal:       pick(req.body.goal, ['', 'new-job', 'promotion', 'switch', 'grad', 'freelance', 'update']),
-      experience: pick(req.body.experience, ['', 'student', 'junior', 'mid', 'senior', 'exec']),
+      industry:   pick(req.body.industry, PROFILE_CHOICES.industry),
+      goal:       pick(req.body.goal, PROFILE_CHOICES.goal),
+      experience: pick(req.body.experience, PROFILE_CHOICES.experience),
     };
+    if ('targetRole' in req.body || 'targetLocation' in req.body) {
+      await ensureOnboardCols();
+      if ('targetRole' in req.body) prof.target_role = shortText(req.body.targetRole) ?? '';
+      if ('targetLocation' in req.body) prof.target_location = shortText(req.body.targetLocation) ?? '';
+    }
     for (const [k, v] of Object.entries(prof)) if (v !== undefined) { params.push(v || null); updates.push(`${k} = $${params.length}`); }
     const newPassword = typeof req.body.password === 'string' ? req.body.password : '';
     if (newPassword) {
@@ -1797,7 +1823,8 @@ app.post('/api/ai/ats', rateLimit({ windowMs: 60 * 1000, max: 30 }), needsCvCont
 async function personalContext(req, cv) {
   if (!req.user) return { forSelf: null, text: '' };
   await ensureReferralColumns();
-  const u = (await query('SELECT name, industry, goal, experience, ai_personalize FROM users WHERE id = $1', [req.user.sub])).rows[0];
+  await ensureOnboardCols().catch(() => {});
+  const u = (await query('SELECT name, industry, goal, experience, target_role, target_location, ai_personalize FROM users WHERE id = $1', [req.user.sub])).rows[0];
   if (!u) return { forSelf: null, text: '' };
   const cvName = normName([cv?.fn, cv?.ln].filter(Boolean).join(' '));
   const accName = normName(u.name);
@@ -1808,7 +1835,8 @@ async function personalContext(req, cv) {
   if (u.ai_personalize === false) return { forSelf: true, text: '' };
 
   const lines = [];
-  const onboarding = [u.industry && u.industry !== 'other' && `field: ${u.industry}`, u.goal && `aiming for: ${u.goal}`, u.experience && `career level: ${u.experience}`].filter(Boolean);
+  const onboarding = [u.industry && u.industry !== 'other' && `field: ${u.industry}`, u.goal && `aiming for: ${u.goal}`, u.experience && `career level: ${u.experience}`,
+    u.target_role && `the job they want: ${u.target_role}`, u.target_location && `where: ${u.target_location}`].filter(Boolean);
   if (onboarding.length) lines.push(`From sign-up, ${onboarding.join(', ')}.`);
 
   // What their other CVs say about them (only CVs in their own name)
@@ -3937,7 +3965,11 @@ app.get('/api/admin/countries', adminAuthMiddleware, async (req, res) => {
     for (const r of acc.rows) Object.assign(row(r.country), { accounts: r.accounts, new: r.new, active: r.active, paying: r.paying });
     for (const r of gst.rows) Object.assign(row(r.country), { guests: r.guests, signed_up: r.signed_up });
     const rows = Object.values(by).sort((a, b) => (b.active + b.guests) - (a.active + a.guests) || b.accounts - a.accounts);
-    res.json({ days, rows });
+    await ensureOnboardCols();
+    const src = await query(`SELECT COALESCE(heard_from, '') AS source, COUNT(*)::int AS accounts,
+        COUNT(*) FILTER (WHERE created_at > NOW() - make_interval(days => $1))::int AS new
+      FROM users GROUP BY 1 ORDER BY 2 DESC`, [days]);
+    res.json({ days, rows, sources: src.rows });
   } catch (e) { console.error('[admin/countries]', e.message); res.status(500).json({ error: 'Could not load countries.' }); }
 });
 app.get('/api/admin/guests', adminAuthMiddleware, async (req, res) => {

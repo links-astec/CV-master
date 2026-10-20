@@ -130,7 +130,7 @@
   <WizardModal @open-builder="router.push('/editor')" @pay="openPaywall" />
   <PaywallModal ref="paywallRef" :show="showPaywall" @close="showPaywall = false" />
   <AuthModal v-if="authState.open" :initial-view="authState.view" :reason="authState.reason" @done="onAuthDone" @close="onAuthClose" />
-  <OnboardingModal v-if="showOnboarding" @done="onboardingDismissed = true" />
+  <OnboardingModal v-if="showOnboarding" @done="onOnboarded" />
   <ConfirmModal ref="confirmRef" />
   <FeedbackModal ref="feedbackRef" />
   <AiLimitModal ref="aiLimitRef" />
@@ -337,6 +337,12 @@ provide('requireAccount', (reason) => auth.isLoggedIn ? Promise.resolve(true) : 
 
 // Onboarding (industry / goal / experience) is optional context for the AI
 const onboardingDismissed = ref(false)
+async function onOnboarded({ tour = false } = {}) {
+  onboardingDismissed.value = true
+  if (!tour) return
+  if (route.path !== '/') await router.push('/')
+  setTimeout(() => { showTutorial.value = true }, 450)
+}
 const showOnboarding = computed(() => ready.value && auth.isLoggedIn && !auth.isOnboarded && !onboardingDismissed.value && !authState.open)
 
 // The account's language follows the user to other devices. Unless they picked one here
