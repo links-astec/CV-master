@@ -5347,6 +5347,12 @@ app.get('/api/uptime', async (req, res) => {
 
 // Frontend is served by Vercel. No static file serving needed here.
 
+// For scripts/ats-check.mjs: a CV as the very PDF users download (same renderer, fonts and PDF engine)
+export async function cvPdfForChecks(template, data, fmt = {}) {
+  const { render, exportDocument } = await cvRenderer();
+  return generateCvPdf(exportDocument(render(template, data, fmt)));
+}
+
 export default app;
 
 if (process.env.VERCEL !== '1') {
