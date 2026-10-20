@@ -12,7 +12,7 @@
           <button class="icon-btn hide-mobile" @click="panelOpen = !panelOpen" :title="$t(panelOpen ? 'Hide editor' : 'Show editor')">
             <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/></svg>
           </button>
-          <button class="ed-design" @click="showDesign" :title="$t('Change layout and colour')">
+          <button class="ed-design hide-mobile" @click="showDesign" :title="$t('Change layout and colour')">
             <span class="ed-swatch" :style="{ background: theme.accent }"></span>
             <span class="ed-design-l">{{ label }}</span>
             <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>

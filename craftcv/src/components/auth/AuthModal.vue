@@ -1,128 +1,96 @@
 <template>
   <Teleport to="body">
-    <div class="modal-backdrop" @click.self="close">
-      <div class="modal auth" role="dialog" aria-modal="true">
+    <div class="modal-backdrop auth-backdrop" @click.self="close">
+      <div class="modal auth" role="dialog" aria-modal="true" aria-labelledby="au-title">
         <button class="icon-btn modal-close" @click="close" :aria-label="$t('Close')">
           <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
 
-        <!-- Brand panel (hidden on small screens) -->
-        <aside class="auth-side" aria-hidden="true">
-          <BrandLogo dark animate />
-          <div class="auth-side-copy">
-            <h3>{{ $t('Your CV, tailored to every job.') }}</h3>
-            <ul>
-              <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ $t('Keep every CV safe in one place') }}</li>
-              <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ $t('Tailor to job offers and check your ATS match') }}</li>
-              <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ $t('Export clean one-page PDFs') }}</li>
-            </ul>
-          </div>
-          <div class="auth-side-cv"><CvThumb template="modern:indigo" :data="sampleCv()" /></div>
-        </aside>
-
         <div class="auth-main">
-        <div class="auth-hd">
-          <BrandLogo mark-only animate class="auth-mobile-mark" />
-          <h2>{{ $t(TITLES[view]) }}</h2>
-          <p>{{ $t(subtitle) }}</p>
-        </div>
-
-        <!-- Sign in / Create account -->
-        <template v-if="view === 'signin' || view === 'register'">
-          <div class="seg auth-seg">
-            <button :class="{ active: view === 'register' }" @click="switchView('register')">{{ $t('Create account') }}</button>
-            <button :class="{ active: view === 'signin' }" @click="switchView('signin')">{{ $t('Sign in') }}</button>
+          <div class="auth-hd">
+            <BrandLogo mark-only class="auth-mark" />
+            <h2 id="au-title">{{ $t(TITLES[view]) }}</h2>
+            <p>{{ $t(subtitle) }}</p>
           </div>
 
-          <div v-if="view === 'register' && refCode" class="notice success auth-ref">
-            <svg viewBox="0 0 24 24"><path d="M20 12v10H4V12"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/></svg>
-            <span><strong>{{ refName ? $t('{name} invited you.', { name: refName }) : $t('You were invited.') }}</strong> {{ $t('They earn a free export credit when you join.') }}</span>
-          </div>
+          <!-- Sign in / Create account -->
+          <template v-if="view === 'signin' || view === 'register'">
+            <p v-if="view === 'register' && refCode" class="auth-ref">
+              <strong>{{ refName ? $t('{name} invited you.', { name: refName }) : $t('You were invited.') }}</strong> {{ $t('They earn a free export credit when you join.') }}
+            </p>
 
-          <div ref="googleEl" class="google-btn" :class="{ hidden: !googleReady }"></div>
-          <div v-if="googleReady" class="auth-or"><span>{{ $t('or with email') }}</span></div>
+            <div ref="googleEl" class="google-btn" :class="{ hidden: !googleReady }"></div>
+            <div v-if="googleReady" class="auth-or"><span>{{ $t('or') }}</span></div>
 
-          <form @submit.prevent="view === 'signin' ? submitLogin() : submitRegister()" novalidate>
-            <div v-if="view === 'register'" class="f-grp">
-              <label class="f-lbl" for="au-name">{{ $t('Full name') }}</label>
-              <input id="au-name" class="f-inp" v-model="form.name" autocomplete="name" :class="{ err: errors.name }" />
-              <div v-if="errors.name" class="field-err">{{ $t(errors.name) }}</div>
-            </div>
-            <div class="f-grp">
-              <label class="f-lbl" for="au-email">{{ $t('Email') }}</label>
-              <input id="au-email" class="f-inp" v-model="form.email" type="email" autocomplete="email" :class="{ err: errors.email }" @blur="onEmailBlur" />
-              <div v-if="errors.email" class="field-err">{{ $t(errors.email) }}</div>
-              <div v-else-if="emailSuggestion" class="field-hint">{{ $t('Did you mean') }} <button type="button" class="link-fix" @click="form.email = emailSuggestion; emailSuggestion = ''; onEmailBlur()">{{ emailSuggestion }}</button>?</div>
-            </div>
-            <div class="f-grp">
-              <div class="auth-lbl-row">
-                <label class="f-lbl" for="au-pw">{{ $t('Password') }}</label>
-                <button v-if="view === 'signin'" type="button" class="link-btn auth-small" @click="switchView('forgot')">{{ $t('Forgot password?') }}</button>
+            <form @submit.prevent="view === 'signin' ? submitLogin() : submitRegister()" novalidate>
+              <div class="auth-group" :class="{ err: errors.name || errors.email || errors.password }">
+                <input v-if="view === 'register'" id="au-name" class="auth-in" v-model="form.name" autocomplete="name"
+                       :placeholder="$t('Full name')" :aria-label="$t('Full name')" :aria-invalid="!!errors.name" />
+                <input id="au-email" class="auth-in" v-model="form.email" type="email" autocomplete="email" inputmode="email"
+                       :placeholder="$t('Email')" :aria-label="$t('Email')" :aria-invalid="!!errors.email" @blur="onEmailBlur" />
+                <div class="auth-pw">
+                  <input id="au-pw" class="auth-in" v-model="form.password" :type="showPw ? 'text' : 'password'"
+                         :autocomplete="view === 'signin' ? 'current-password' : 'new-password'" :aria-invalid="!!errors.password"
+                         :placeholder="$t(view === 'register' ? 'Password (8 characters or more)' : 'Password')" :aria-label="$t('Password')" />
+                  <button type="button" class="auth-show" @click="showPw = !showPw">{{ $t(showPw ? 'Hide' : 'Show') }}</button>
+                </div>
               </div>
-              <div class="pw-wrap">
-                <input id="au-pw" class="f-inp" v-model="form.password" :type="showPw ? 'text' : 'password'"
-                       :autocomplete="view === 'signin' ? 'current-password' : 'new-password'" :class="{ err: errors.password }"
-                       :placeholder="view === 'register' ? $t('At least 8 characters') : ''" />
-                <button type="button" class="pw-toggle" @click="showPw = !showPw">{{ $t(showPw ? 'Hide' : 'Show') }}</button>
+              <div v-for="k in ['name', 'email', 'password']" :key="k">
+                <p v-if="errors[k]" class="auth-msg err">{{ $t(errors[k]) }}</p>
               </div>
-              <div v-if="errors.password" class="field-err">{{ $t(errors.password) }}</div>
-            </div>
+              <p v-if="!errors.email && emailSuggestion" class="auth-msg">{{ $t('Did you mean') }} <button type="button" class="auth-link" @click="form.email = emailSuggestion; emailSuggestion = ''; onEmailBlur()">{{ emailSuggestion }}</button>?</p>
+              <button v-if="view === 'signin'" type="button" class="auth-link auth-forgot" @click="switchView('forgot')">{{ $t('Forgot password?') }}</button>
 
-            <label v-if="view === 'register'" class="terms">
-              <input type="checkbox" v-model="agreed" />
-              <span>{{ $t('I agree to the') }} <a href="/terms" target="_blank" rel="noopener">{{ $t('Terms') }}</a> {{ $t('and the') }} <a href="/privacy" target="_blank" rel="noopener">{{ $t('Privacy Policy') }}</a>.</span>
-            </label>
-            <div v-if="errors.terms" class="field-err">{{ $t(errors.terms) }}</div>
-            <label v-if="view === 'register'" class="terms terms-opt">
-              <input type="checkbox" v-model="newsletter" />
-              <span>{{ $t('Email me CV tips and CVMaster news. At most a couple a month.') }} <em>{{ $t('Optional, unsubscribe any time.') }}</em></span>
-            </label>
+              <label v-if="view === 'register'" class="auth-check">
+                <input type="checkbox" v-model="newsletter" />
+                <span>{{ $t('Email me CV tips and CVMaster news. At most a couple a month.') }}</span>
+              </label>
 
-            <div v-if="serverError" class="notice error auth-err">{{ $t(serverError) }}</div>
+              <p v-if="serverError" class="auth-msg err auth-server">{{ $t(serverError) }}</p>
 
-            <button type="submit" class="btn-primary accent btn-lg btn-block" :disabled="loading">
-              {{ $t(loading ? 'Please wait…' : view === 'signin' ? 'Sign in' : 'Create free account') }}
-            </button>
-          </form>
-        </template>
+              <button type="submit" class="auth-cta" :disabled="loading">
+                {{ $t(loading ? 'Please wait…' : view === 'signin' ? 'Sign in' : 'Create account') }}
+              </button>
+              <p v-if="view === 'register'" class="auth-legal">
+                {{ $t('By creating an account, you agree to the') }} <a href="/terms" target="_blank" rel="noopener">{{ $t('Terms') }}</a> {{ $t('and the') }} <a href="/privacy" target="_blank" rel="noopener">{{ $t('Privacy Policy') }}</a>.
+              </p>
+            </form>
 
-        <!-- Forgot password -->
-        <template v-else-if="view === 'forgot'">
-          <div v-if="forgotSent" class="notice success">
-            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-            <span>{{ $t('If an account exists for {email}, a reset link is on its way. It expires in 1 hour. Check your spam folder too.', { email: form.email }) }}</span>
-          </div>
-          <form v-else @submit.prevent="submitForgot" novalidate>
-            <div class="f-grp">
-              <label class="f-lbl" for="au-femail">{{ $t('Email') }}</label>
-              <input id="au-femail" class="f-inp" v-model="form.email" type="email" autocomplete="email" :class="{ err: errors.email }" />
-              <div v-if="errors.email" class="field-err">{{ $t(errors.email) }}</div>
-            </div>
-            <div v-if="serverError" class="notice error auth-err">{{ $t(serverError) }}</div>
-            <button type="submit" class="btn-primary accent btn-lg btn-block" :disabled="loading">{{ $t(loading ? 'Sending…' : 'Send reset link') }}</button>
-          </form>
-          <button class="link-btn auth-back" @click="switchView('signin')">← {{ $t('Back to sign in') }}</button>
-        </template>
+            <p class="auth-switch">
+              <template v-if="view === 'register'">{{ $t('Already have an account?') }} <button type="button" class="auth-link" @click="switchView('signin')">{{ $t('Sign in') }}</button></template>
+              <template v-else>{{ $t('New to CVMaster?') }} <button type="button" class="auth-link" @click="switchView('register')">{{ $t('Create an account') }}</button></template>
+            </p>
+          </template>
 
-        <!-- Reset password (link from email) -->
-        <template v-else>
-          <div v-if="resetTokenError" class="notice error">{{ $t(resetTokenError) }}</div>
-          <form v-else @submit.prevent="submitReset" novalidate>
-            <div class="f-grp">
-              <label class="f-lbl" for="au-npw">{{ $t('New password') }}</label>
-              <input id="au-npw" class="f-inp" v-model="form.password" type="password" autocomplete="new-password" :placeholder="$t('At least 8 characters')" :class="{ err: errors.password }" />
-              <div v-if="errors.password" class="field-err">{{ $t(errors.password) }}</div>
-            </div>
-            <div class="f-grp">
-              <label class="f-lbl" for="au-cpw">{{ $t('Confirm password') }}</label>
-              <input id="au-cpw" class="f-inp" v-model="form.confirm" type="password" autocomplete="new-password" :class="{ err: errors.confirm }" />
-              <div v-if="errors.confirm" class="field-err">{{ $t(errors.confirm) }}</div>
-            </div>
-            <div v-if="serverError" class="notice error auth-err">{{ $t(serverError) }}</div>
-            <button type="submit" class="btn-primary accent btn-lg btn-block" :disabled="loading">{{ $t(loading ? 'Saving…' : 'Set new password') }}</button>
-          </form>
-          <button class="link-btn auth-back" @click="switchView('forgot')">{{ $t('Request a new link') }}</button>
-        </template>
+          <!-- Forgot password -->
+          <template v-else-if="view === 'forgot'">
+            <p v-if="forgotSent" class="auth-done">{{ $t('If an account exists for {email}, a reset link is on its way. It expires in 1 hour. Check your spam folder too.', { email: form.email }) }}</p>
+            <form v-else @submit.prevent="submitForgot" novalidate>
+              <div class="auth-group" :class="{ err: errors.email }">
+                <input id="au-femail" class="auth-in" v-model="form.email" type="email" autocomplete="email" :placeholder="$t('Email')" :aria-label="$t('Email')" />
+              </div>
+              <p v-if="errors.email" class="auth-msg err">{{ $t(errors.email) }}</p>
+              <p v-if="serverError" class="auth-msg err auth-server">{{ $t(serverError) }}</p>
+              <button type="submit" class="auth-cta" :disabled="loading">{{ $t(loading ? 'Sending…' : 'Send reset link') }}</button>
+            </form>
+            <p class="auth-switch"><button type="button" class="auth-link" @click="switchView('signin')">{{ $t('Back to sign in') }}</button></p>
+          </template>
+
+          <!-- Reset password (link from email) -->
+          <template v-else>
+            <p v-if="resetTokenError" class="auth-msg err">{{ $t(resetTokenError) }}</p>
+            <form v-else @submit.prevent="submitReset" novalidate>
+              <div class="auth-group" :class="{ err: errors.password || errors.confirm }">
+                <input id="au-npw" class="auth-in" v-model="form.password" type="password" autocomplete="new-password" :placeholder="$t('New password (8 characters or more)')" :aria-label="$t('New password')" />
+                <input id="au-cpw" class="auth-in" v-model="form.confirm" type="password" autocomplete="new-password" :placeholder="$t('Confirm password')" :aria-label="$t('Confirm password')" />
+              </div>
+              <p v-if="errors.password" class="auth-msg err">{{ $t(errors.password) }}</p>
+              <p v-if="errors.confirm" class="auth-msg err">{{ $t(errors.confirm) }}</p>
+              <p v-if="serverError" class="auth-msg err auth-server">{{ $t(serverError) }}</p>
+              <button type="submit" class="auth-cta" :disabled="loading">{{ $t(loading ? 'Saving…' : 'Set new password') }}</button>
+            </form>
+            <p class="auth-switch"><button type="button" class="auth-link" @click="switchView('forgot')">{{ $t('Request a new link') }}</button></p>
+          </template>
         </div>
       </div>
     </div>
@@ -134,8 +102,6 @@ import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { suggestEmail, checkEmail } from '../../composables/emailTypos.js'
 import { useAuthStore } from '../../stores/auth.js'
 import BrandLogo from '../BrandLogo.vue'
-import CvThumb from '../CvThumb.vue'
-import { sampleCv } from '../../composables/sampleCv.js'
 import { lang, googleLocale } from '../../i18n/index.js'
 
 const props = defineProps({
@@ -147,7 +113,7 @@ const emit = defineEmits(['done', 'close'])
 const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
 const auth = useAuthStore()
 
-const TITLES = { signin: 'Welcome back', register: 'Create your free account', forgot: 'Reset your password', reset: 'Choose a new password' }
+const TITLES = { signin: 'Sign in', register: 'Create your account', forgot: 'Reset your password', reset: 'Choose a new password' }
 const REASONS = {
   export:   'Create a free account to export. The CV you built comes with you.',
   download: 'Create a free account to download. The CV you built comes with you.',
@@ -159,7 +125,6 @@ const REASONS = {
 const view   = ref(props.initialView === 'signin' || props.initialView === 'forgot' || props.initialView === 'reset' ? props.initialView : 'register')
 const loading = ref(false)
 const showPw  = ref(false)
-const agreed  = ref(false)
 const newsletter = ref(false)   // optional, never pre-ticked (GDPR)
 const serverError = ref('')
 const forgotSent  = ref(false)
@@ -184,7 +149,7 @@ const subtitle = computed(() => {
   if (view.value === 'forgot') return 'Enter your email and we’ll send you a reset link.'
   if (view.value === 'reset')  return 'Use at least 8 characters.'
   if (props.reason && REASONS[props.reason]) return REASONS[props.reason]
-  return view.value === 'signin' ? 'Sign in to see your saved CVs.' : 'Free to build. Pay only when you export.'
+  return view.value === 'signin' ? 'Your CVs are waiting for you.' : 'Free to build. Pay only when you export.'
 })
 
 function switchView(v) { view.value = v; errors.value = {}; serverError.value = ''; forgotSent.value = false }
@@ -199,7 +164,6 @@ function check(fields) {
   if (fields.includes('password') && !form.value.password) e.password = 'Please enter your password.'
   if (fields.includes('newPassword') && form.value.password.length < 8) e.password = 'Use at least 8 characters.'
   if (fields.includes('confirm') && form.value.password !== form.value.confirm) e.confirm = 'The passwords don’t match.'
-  if (fields.includes('terms') && !agreed.value) e.terms = 'Please agree to the Terms and Privacy Policy.'
   errors.value = e
   serverError.value = ''
   return !Object.keys(e).length
@@ -215,7 +179,7 @@ const submitLogin = () => check(['email', 'password']) && run(async () => {
   await auth.login(form.value.email.trim(), form.value.password)
   emit('done')
 })
-const submitRegister = () => check(['name', 'email', 'newPassword', 'terms']) && run(async () => {
+const submitRegister = () => check(['name', 'email', 'newPassword']) && run(async () => {
   await auth.register(form.value.email.trim(), form.value.password, form.value.name.trim(), refCode.value, newsletter.value)
   try { localStorage.removeItem('cvmaster_ref') } catch {}
   emit('done')
@@ -247,16 +211,12 @@ function renderGoogle() {
   window.google.accounts.id.initialize({ client_id: clientId, callback: onGoogleCredential, cancel_on_tap_outside: true })
   googleEl.value.innerHTML = ''
   window.google.accounts.id.renderButton(googleEl.value, {
-    theme: 'outline', size: 'large', shape: 'rectangular', text: 'continue_with', locale: googleLocale(),
+    theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', locale: googleLocale(),
     width: Math.min(googleEl.value.clientWidth || 360, 400),
   })
   googleReady.value = true
 }
 async function onGoogleCredential(response) {
-  if (view.value === 'register' && !agreed.value) {
-    errors.value = { terms: 'Please agree to the Terms and Privacy Policy first.' }
-    return
-  }
   await run(async () => {
     await auth.loginWithGoogle(response.credential, refCode.value, view.value === 'register' && newsletter.value)
     try { localStorage.removeItem('cvmaster_ref') } catch {}
@@ -305,47 +265,47 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.auth{max-width:880px;padding:0;display:grid;grid-template-columns:360px 1fr;overflow:hidden}
-.auth-side{position:relative;background:#0C0C10;color:#fff;padding:34px 32px 0;display:flex;flex-direction:column;gap:26px;overflow:hidden}
-.auth-side::before{content:'';position:absolute;inset:0;background:radial-gradient(460px 300px at 20% 0%,rgba(139,133,255,.32),transparent 70%);pointer-events:none}
-.auth-side > *{position:relative}
-.auth-side-copy h3{font-size:24px;font-weight:800;letter-spacing:-.03em;line-height:1.15;margin-bottom:16px}
-.auth-side-copy ul{list-style:none;display:flex;flex-direction:column;gap:11px}
-.auth-side-copy li{display:flex;gap:9px;font-size:14px;color:rgba(255,255,255,.82);line-height:1.45}
-.auth-side-copy svg{width:17px;height:17px;flex-shrink:0;fill:none;stroke:#A5B4FC;stroke-width:2.6;margin-top:1px}
-.auth-side-cv{margin-top:auto;margin-bottom:-60px;height:250px;transform:rotate(-4deg) translateX(18px);border-radius:6px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.45)}
-.auth-main{padding:36px 36px 30px;min-width:0}
-.auth-mobile-mark{display:none}
-.auth-hd{display:flex;flex-direction:column;align-items:flex-start;text-align:left;margin-bottom:20px}
-.auth-hd h2{font-size:28px;font-weight:800;letter-spacing:-.035em;margin-top:0}
-.auth-hd p{font-size:14.5px;color:var(--c-text2);margin-top:6px;max-width:360px}
-@media (max-width:760px){
-  .auth{grid-template-columns:1fr;max-width:440px}
-  .auth-side{display:none}
-  .auth-main{padding:30px 24px 26px}
-  .auth-mobile-mark{display:inline-flex;margin-bottom:14px}
-}
-.auth-seg{display:flex;width:100%;margin-bottom:18px}
-.auth-seg button{flex:1}
-.auth-ref{margin-bottom:14px}
-.google-btn{display:flex;justify-content:center;min-height:44px;margin-bottom:4px}
+.auth{max-width:420px;padding:0;background:var(--c-bg);border:none;border-radius:26px}
+.auth-main{padding:40px 28px 28px}
+.auth-hd{display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:24px}
+.auth-mark{margin-bottom:16px}
+.auth-mark :deep(svg){height:34px;width:auto}
+.auth-hd h2{font-size:28px;font-weight:700;letter-spacing:-.03em;line-height:1.15;margin:0}
+.auth-hd p{font-size:15px;color:var(--c-text2);margin:6px 0 0;line-height:1.45}
+.auth-ref{font-size:13.5px;color:var(--c-text2);text-align:center;margin:-8px 0 18px;line-height:1.5}
+.auth-ref strong{color:var(--c-text)}
+.google-btn{display:flex;justify-content:center;min-height:44px}
 .google-btn.hidden{display:none}
-.auth-or{display:flex;align-items:center;gap:10px;margin:14px 0;color:var(--c-text3);font-size:12.5px}
-.auth-or::before,.auth-or::after{content:'';flex:1;height:1px;background:var(--c-border)}
-.auth-lbl-row{display:flex;align-items:baseline;justify-content:space-between}
-.auth-small{font-size:12.5px}
-.pw-wrap{position:relative}
-.pw-wrap .f-inp{padding-right:60px}
-.pw-toggle{position:absolute;right:6px;top:50%;transform:translateY(-50%);height:28px;padding:0 8px;border:none;background:none;color:var(--c-text2);font-size:12.5px;font-weight:500;border-radius:6px}
-.pw-toggle:hover{background:var(--c-surface2)}
-.f-inp.err{border-color:var(--c-rose)}
-.field-err{font-size:12.5px;color:var(--c-rose);margin-top:5px}
-.field-hint{font-size:12.5px;color:var(--c-text2);margin-top:5px}
-.link-fix{background:none;border:none;padding:0;font:inherit;font-weight:700;color:var(--c-accent);text-decoration:underline;cursor:pointer}
-.terms{display:flex;gap:9px;align-items:flex-start;font-size:13px;color:var(--c-text2);margin:4px 0 14px;line-height:1.5;cursor:pointer}
-.terms-opt{margin-top:-6px}
-.terms em{font-style:normal;color:var(--c-text3)}
-.terms input{margin-top:3px;accent-color:var(--c-accent);width:15px;height:15px;flex-shrink:0}
-.auth-err{margin-bottom:14px}
-.auth-back{display:block;margin:16px auto 0;font-size:13px}
+.auth-or{display:flex;align-items:center;gap:12px;margin:16px 0;color:var(--c-text3);font-size:13px}
+.auth-or::before,.auth-or::after{content:'';flex:1;height:1px;background:var(--hair)}
+/* Fields as one group, like iOS */
+.auth-group{background:var(--c-surface);border-radius:14px;overflow:hidden;box-shadow:0 0 0 1px var(--hair)}
+.auth-group.err{box-shadow:0 0 0 1.5px var(--c-rose)}
+.auth-in{display:block;width:100%;height:52px;padding:0 16px;border:none;background:none;font:inherit;font-size:16px;color:var(--c-text);outline:none}
+.auth-in::placeholder{color:var(--c-text3)}
+.auth-group > * + *{border-top:1px solid var(--hair)}
+.auth-pw{position:relative}
+.auth-pw .auth-in{padding-right:70px}
+.auth-show{position:absolute;right:8px;top:50%;transform:translateY(-50%);height:32px;padding:0 10px;border:none;background:none;font:inherit;font-size:14px;font-weight:500;color:var(--c-accent);cursor:pointer}
+.auth-msg{font-size:13px;color:var(--c-text2);margin:8px 4px 0;line-height:1.45}
+.auth-msg.err{color:var(--c-rose)}
+.auth-server{margin-top:12px}
+.auth-link{border:none;background:none;padding:0;font:inherit;font-weight:600;color:var(--c-accent);cursor:pointer}
+.auth-link:hover{text-decoration:underline}
+.auth-forgot{display:block;margin:10px 4px 0 auto;font-size:14px}
+.auth-check{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:var(--c-text2);line-height:1.45;margin:14px 4px 0;cursor:pointer}
+.auth-check input{margin-top:2px;width:17px;height:17px;flex-shrink:0;accent-color:var(--c-accent)}
+.auth-cta{display:block;width:100%;height:52px;margin-top:20px;border:none;border-radius:99px;background:var(--c-accent);color:#fff;font:inherit;font-size:16px;font-weight:600;cursor:pointer;transition:opacity .2s}
+.auth-cta:disabled{opacity:.55;cursor:default}
+.auth-legal{font-size:12.5px;color:var(--c-text3);text-align:center;line-height:1.5;margin:12px 8px 0}
+.auth-legal a{color:var(--c-text2)}
+.auth-switch{text-align:center;font-size:14.5px;color:var(--c-text2);margin:22px 0 0}
+.auth-done{font-size:15px;line-height:1.5;color:var(--c-text);background:var(--c-surface);border-radius:14px;padding:16px}
+/* Phones: a full page the height of what's really visible (dvh), never cut off */
+@media (max-width:560px){
+  .auth-backdrop{padding:0;align-items:stretch}
+  .auth{max-width:100%;height:100vh;height:100dvh;max-height:100dvh;border-radius:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .auth-main{padding:calc(56px + env(safe-area-inset-top)) 22px calc(28px + env(safe-area-inset-bottom))}
+  .auth .modal-close{top:calc(12px + env(safe-area-inset-top))}
+}
 </style>

@@ -227,7 +227,7 @@ a{color:var(--c-accent)}
 .modal-fade-enter-from .modal,.modal-fade-leave-to .modal{transform:translateY(14px) scale(.98)}
 @media (max-width:560px){
   .modal-backdrop{align-items:flex-end;padding:0}
-  .modal{max-width:100%;border-radius:26px 26px 0 0;max-height:92vh}
+  .modal{max-width:100%;border-radius:26px 26px 0 0;max-height:92vh;max-height:92dvh}
 }
 
 /* ── MISC ───────────────────────────────────────────────────── */

@@ -20,7 +20,7 @@
             {{ $t(f.label) }} <span class="tp-count">{{ f.id === 'all' ? LAYOUTS.length : LAYOUTS.filter(l => l.kind === f.id).length }}</span>
           </button>
         </div>
-        <p class="tp-filter-note">{{ $t(filterNote) }}</p>
+        <p class="tp-filter-note hide-mobile">{{ $t(filterNote) }}</p>
       </div>
 
       <div class="tp-grid">
