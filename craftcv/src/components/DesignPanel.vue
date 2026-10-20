@@ -35,7 +35,7 @@
       <div class="dp-fonts" role="radiogroup" :aria-label="$t('Font')">
         <button v-for="f in ALL_FONTS" :key="f.id" type="button" role="radio" class="dp-font" :class="{ on: store.fmt.fontFamily === f.id }"
                 :aria-checked="store.fmt.fontFamily === f.id" @click="store.fmt.fontFamily = f.id">
-          <span class="dp-font-aa" :style="{ fontFamily: `'${f.id}'` }">Aa</span>
+          <span class="dp-font-aa" :style="{ fontFamily: fontStack(f.id) }">Aa</span>
           <span class="dp-font-n">{{ f.name }}</span>
         </button>
       </div>
@@ -93,7 +93,7 @@
 import { computed, ref, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth.js'
 import { useCvStore, hasDraftableContent } from '../stores/cv.js'
-import { LAYOUTS, LAYOUT_KINDS, THEMES, ALL_FONTS, parseTemplate, templateId, getLayout, getTheme } from '../composables/cvRenderer.js'
+import { LAYOUTS, LAYOUT_KINDS, THEMES, ALL_FONTS, fontStack, parseTemplate, templateId, getLayout, getTheme } from '../composables/cvRenderer.js'
 import { sampleCv } from '../composables/sampleCv.js'
 import CvThumb from './CvThumb.vue'
 import TranslateModal from './TranslateModal.vue'

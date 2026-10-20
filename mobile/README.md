@@ -14,7 +14,11 @@ Lives on the `mobile` branch. The website (`../craftcv`) is not changed by anyth
 
 ## Run it
     npm install
-    npx expo start          # scan the QR code with Expo Go (Android) or the Camera app (iPhone)
+    npm run go              # Expo Go: scan the QR code with the Camera app (iPhone) or Expo Go (Android)
+    npx expo start          # the development build (installed from EAS), not Expo Go
+
+The project includes expo-dev-client, so a plain `npx expo start` makes a QR code for the development
+build, which Expo Go cannot open. Use `npm run go` (or press s in the terminal to switch to Expo Go).
 
 ## Before calling anything done
     npx tsc --noEmit && npx expo lint && npx expo-doctor

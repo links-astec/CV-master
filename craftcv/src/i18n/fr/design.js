@@ -82,4 +82,5 @@ export default {
   'Geometric, modern': 'Géométrique, moderne',
   'Technical, distinctive': 'Technique, singulier',
   'Elegant serif': 'Serif élégant',
+  'Traditional serif': 'Serif traditionnel',
 }

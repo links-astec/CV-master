@@ -182,4 +182,6 @@ export default {
   'How to answer': 'Comment répondre',
   'Cover letters and interview prep come with the Job Hunt Pass.': 'Les lettres de motivation et la préparation aux entretiens sont incluses dans le Job Hunt Pass.',
   'See the pass': 'Voir le pass',
+  'CV in {lang}': 'CV en {lang}',
+  'Headings change, and we translate your content. You review every change first.': 'Les titres changent et nous traduisons votre contenu. Vous validez chaque changement avant.',
 }

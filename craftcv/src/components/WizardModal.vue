@@ -48,7 +48,8 @@
                   <div class="wiz-hd-lbl">{{ $t('Step {n} of {total}', { n: store.wizardStep + 1, total: steps.length }) }} · <strong>{{ $t(steps[store.wizardStep]?.label) }}</strong></div>
                   <div class="wiz-progress"><div :style="{ width: ((store.wizardStep + 1) / steps.length * 100) + '%' }"></div></div>
                 </div>
-                <span class="badge">{{ $t(modeLabel) }}</span>
+                <CvLangPicker />
+                <span class="badge wiz-mode-badge">{{ $t(modeLabel) }}</span>
               </header>
 
               <div class="wiz-content" ref="panelBody">
@@ -101,6 +102,7 @@ import CvPreview from './CvPreview.vue'
 import JobOfferForm from './JobOfferForm.vue'
 import { t } from '../i18n/index.js'
 import { guestEvent } from '../composables/track.js'
+import CvLangPicker from './CvLangPicker.vue'
 
 const StepPersonal   = defineAsyncComponent(() => import('./wizard/StepPersonal.vue'))
 const StepSummary    = defineAsyncComponent(() => import('./wizard/StepSummary.vue'))
@@ -261,6 +263,7 @@ watch(() => store.wizardMode, m => { if (!m) return; guestEvent('cv_started'); i
 .wiz-panel{width:470px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--c-border);min-height:0}
 .wiz-hd{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--c-border)}
 .wiz-hd-mid{flex:1;min-width:0}
+.wiz-mode-badge{display:none}   /* the step name needs the room; the CV language sits here instead */
 .wiz-hd-lbl{font-size:13px;color:var(--c-text2);margin-bottom:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wiz-hd-lbl strong{color:var(--c-text);font-weight:600}
 .wiz-progress{height:4px;border-radius:4px;background:var(--c-surface2);overflow:hidden}

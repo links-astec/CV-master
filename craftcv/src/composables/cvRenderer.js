@@ -68,7 +68,11 @@ export const MORE_FONTS = [
   { id: 'Outfit',        name: 'Outfit',        note: 'Geometric, modern' },
   { id: 'Space Grotesk', name: 'Space Grotesk', note: 'Technical, distinctive' },
   { id: 'EB Garamond',   name: 'EB Garamond',   note: 'Elegant serif' },
+  // Licensed, so not bundled: computers that have it show it, PDFs use Tinos (free, the same letter widths)
+  { id: 'Times New Roman', name: 'Times New Roman', note: 'Traditional serif', stack: "'Times New Roman',Tinos" },
 ]
+// The CSS font-family for a font id
+export const fontStack = (id) => ALL_FONTS.find(f => f.id === id)?.stack || `'${id}'`
 export const ALL_FONTS = [...FONTS, ...MORE_FONTS]
 
 export const DEFAULT_TEMPLATE = 'modern:indigo'
@@ -723,11 +727,11 @@ export function render(tpl, rawData, fmt = {}, opts = {}) {
   const sp    = fmt.sectionSpacing === 'compact' ? 0.78 : fmt.sectionSpacing === 'relaxed' ? 1.22 : 1
   // The layout's heading font; the old serif layouts keep Lora headings when Lora is chosen
   const lf    = layoutById[layout].hfont
-  const hfont = lf && !(lf === 'DM Serif Display' && font === 'Lora') ? HFONT_STACK[lf] : `'${font}'`
+  const hfont = lf && !(lf === 'DM Serif Display' && font === 'Lora') ? HFONT_STACK[lf] : fontStack(font)
 
   const vars = [
     `--ac:${t.accent}`, `--acd:${t.dark}`, `--act:${t.tint}`,
-    `--font:'${font}'`, `--hfont:${hfont}`,
+    `--font:${fontStack(font)}`, `--hfont:${hfont}`,
     `--s:${scale}`, `--lh:${lh}`, `--sp:${sp}`, `--gap:calc(20px*${sp})`,
   ].join(';')
 

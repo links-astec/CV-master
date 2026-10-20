@@ -2755,6 +2755,7 @@ async function loadFontFaces() {
       ['eb-garamond', 'EB Garamond', [400, 500, 600], []],
       ['manrope', 'Manrope', [400, 600, 700, 800], []],
       ['ibm-plex-mono', 'IBM Plex Mono', [400, 500], []],
+      ['tinos', 'Tinos', [400, 700], [400, 700]],   // stands in for Times New Roman (same letter widths)
     ];
     let n = 0;
     for (const [pkg, family, weights, italics] of FAMILIES) {
@@ -3237,6 +3238,10 @@ const draftTooBig = (data) => data && JSON.stringify(data).length > MAX_DRAFT_BY
 // off ("profile_autofill") and forget these details in Settings.
 const PROFILE_TEXT = ['fn', 'ln', 'email', 'phone', 'loc', 'li', 'github', 'website'];
 const PROFILE_PHOTO = /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/;
+// A picture removed in Settings is remembered by its fingerprint ("photoOff"), so the CVs that still
+// have it don't bring it back. A different picture (a new one on a CV, or one added in Settings) is used as usual.
+const photoPrint = (photo) => createHash('sha256').update(String(photo)).digest('hex').slice(0, 32);
+const publicProfile = (p) => { const { photoOff, ...rest } = p || {}; return rest; };
 function profileFromCv(cv) {
   const p = {};
   for (const k of PROFILE_TEXT) { const v = typeof cv?.[k] === 'string' ? cv[k].trim() : ''; if (v) p[k] = v.slice(0, 200); }
@@ -3255,6 +3260,8 @@ async function rememberProfile(userId, cv) {
   await ensureReferralColumns();
   const u = (await query('SELECT name, profile, profile_autofill FROM users WHERE id = $1', [userId])).rows[0];
   if (!u || u.profile_autofill === false) return;
+  if (p.photo && u.profile?.photoOff && photoPrint(p.photo) === u.profile.photoOff) delete p.photo;
+  if (!Object.keys(p).length) return;
   // CVs save every few seconds while someone types: only write when a detail really changed
   if (!Object.entries(p).some(([k, v]) => JSON.stringify(u.profile?.[k]) !== JSON.stringify(v))) return;
   // No explicit "Me": only when the name on the CV matches the account (or the CV has no name yet)
@@ -3269,7 +3276,7 @@ app.get('/api/me/profile', authMiddleware, async (req, res) => {
     await ensureReferralColumns();
     const u = (await query('SELECT profile, profile_autofill FROM users WHERE id = $1', [req.user.sub])).rows[0];
     if (!u) return res.status(404).json({ error: 'User not found.' });
-    res.json({ autofill: u.profile_autofill !== false, profile: u.profile || {} });
+    res.json({ autofill: u.profile_autofill !== false, profile: publicProfile(u.profile) });
   } catch (e) { console.error('[me/profile]', e.message); res.status(500).json({ error: 'Could not load your details.' }); }
 });
 // Switch filling new CVs on or off. Turning it off also forgets what was kept
@@ -3296,14 +3303,17 @@ app.put('/api/me/profile', authMiddleware, async (req, res) => {
     }
     if (set.email && !isEmail(set.email)) return res.status(400).json({ error: 'That email address doesn’t look right.' });
     if ('photo' in b) {
-      if (b.photo === null || b.photo === '') drop.push('photo');
-      else if (typeof b.photo === 'string' && b.photo.length <= PROFILE_PICTURE_MAX && PROFILE_PHOTO.test(b.photo)) set.photo = b.photo;
+      if (b.photo === null || b.photo === '') {
+        drop.push('photo');
+        const old = (await query('SELECT profile FROM users WHERE id = $1', [req.user.sub])).rows[0]?.profile?.photo;
+        if (old) set.photoOff = photoPrint(old);
+      } else if (typeof b.photo === 'string' && b.photo.length <= PROFILE_PICTURE_MAX && PROFILE_PHOTO.test(b.photo)) { set.photo = b.photo; drop.push('photoOff'); }
       else return res.status(400).json({ error: 'That picture can’t be used. Try a JPG or PNG photo.' });
     }
     const row = (await query(`UPDATE users SET profile = (profile - $3::text[]) || $2::jsonb, profile_autofill = TRUE WHERE id = $1 RETURNING profile`,
       [req.user.sub, JSON.stringify(set), drop])).rows[0];
     if (!row) return res.status(404).json({ error: 'User not found.' });
-    res.json({ ok: true, autofill: true, profile: row.profile });
+    res.json({ ok: true, autofill: true, profile: publicProfile(row.profile) });
   } catch (e) { console.error('[me/profile put]', e.message); res.status(500).json({ error: 'Could not save your details.' }); }
 });
 app.delete('/api/me/profile', authMiddleware, async (req, res) => {
