@@ -4,10 +4,10 @@
       <div class="page-intro">
         <div>
           <h1>{{ $t('My CVs') }}</h1>
-          <p v-if="auth.isLoggedIn">{{ $t(cards.length ? 'Open a CV to edit it, or download and send it.' : 'Your saved CVs will appear here.') }}</p>
-          <p v-else>{{ $t('You’re using CVMaster as a guest. Your CV is saved in this browser.') }}</p>
+          <p v-if="auth.isLoggedIn" class="hide-mobile">{{ $t(cards.length ? 'Open a CV to edit it, or download and send it.' : 'Your saved CVs will appear here.') }}</p>
+          <p v-else class="hide-mobile">{{ $t('You’re using CVMaster as a guest. Your CV is saved in this browser.') }}</p>
         </div>
-        <button class="btn-primary accent" @click="newCV()">
+        <button class="btn-primary accent hide-mobile" @click="newCV()">
           <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           {{ $t('New CV') }}
         </button>
@@ -23,19 +23,19 @@
           <span class="db-li-txt"><span class="db-li-k">{{ $t('Your next step') }}</span><b>{{ $t(next.title) }}</b><span>{{ $t(next.body) }}</span></span>
           <span class="db-li-act">{{ $t(NEXT_LABEL[next.action] || 'Continue') }}</span><svg class="db-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
         </button>
-        <button type="button" class="db-li" @click="newCV('narrate')">
+        <button type="button" class="db-li" :class="{ 'db-extra': cards.length }" @click="newCV('narrate')">
           <span class="db-li-ic"><svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg></span>
           <span class="db-li-txt"><b>{{ $t('Tell your story') }}</b><span>{{ $t('Speak or type about your career. AI writes your CV from it.') }}</span></span><svg class="db-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
         </button>
-        <button type="button" class="db-li" @click="checkAts">
+        <button type="button" class="db-li" :class="{ 'db-extra': cards.length }" @click="checkAts">
           <span class="db-li-ic"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span>
           <span class="db-li-txt"><b>{{ $t(auth.user?.pass ? 'Tailor a CV to a new job' : 'Check your ATS score') }}</b><span>{{ $t(cards.length ? 'Paste a job offer and see how well your CV matches it.' : 'Paste a job offer and build a CV that matches it.') }}</span></span><svg class="db-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
         </button>
       </div>
 
       <div v-if="!auth.isLoggedIn && store.hasContent" class="notice info db-guest">
-        <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        <span><strong>{{ $t('This CV only lives in this browser.') }}</strong> {{ $t('Create a free account to keep it safe, edit it on any device and export it.') }}</span>
+        <svg class="hide-mobile" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span><strong>{{ $t('This CV only lives in this browser.') }}</strong> <span class="hide-mobile">{{ $t('Create a free account to keep it safe, edit it on any device and export it.') }}</span></span>
         <button class="btn-primary accent btn-sm" @click="openAuth('register', 'save')">{{ $t('Create account') }}</button>
       </div>
 
@@ -350,6 +350,12 @@ async function remove(c) {
 
 <style scoped>
 .db-guest{margin-bottom:22px;align-items:center}
+@media (max-width:768px){
+  .page-intro{margin-bottom:18px}
+  .db-extra{display:none}
+  .db-list:not(:has(> .db-li:not(.db-extra))){display:none}
+  .db-guest{padding:12px 14px;font-size:14px}
+}
 .db-next{display:flex;align-items:center;gap:20px;margin-bottom:28px;padding:22px 26px;border:none;border-radius:24px;box-shadow:none;background:var(--c-surface)}
 .db-next-txt{flex:1;min-width:0}
 .db-next-k{font-size:13px;font-weight:600;letter-spacing:-.005em;color:var(--c-text3)}
