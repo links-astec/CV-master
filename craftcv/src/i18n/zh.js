@@ -1525,6 +1525,7 @@ export default {
   "Write a summary to improve your score.": "撰写简介以提高您的得分。",
   "Write again": "重新撰写",
   "Write it": "立即撰写",
+  "Write it once. Tailor it to each offer. Send a clean PDF.": "一次编写，针对每个职位量身定制，发送干净的 PDF。",
   "Writing check": "写作检查",
   "Writing check as you type": "实时写作检查",
   "Writing suggestions": "写作建议",

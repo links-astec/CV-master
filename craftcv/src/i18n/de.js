@@ -1525,6 +1525,7 @@ export default {
   "Write a summary to improve your score.": "Schreiben Sie eine Zusammenfassung, um Ihren Score zu verbessern.",
   "Write again": "Erneut schreiben",
   "Write it": "Schreiben",
+  "Write it once. Tailor it to each offer. Send a clean PDF.": "Einmal schreiben. Für jedes Angebot anpassen. Sauberes PDF senden.",
   "Writing check": "Schreib‑Check",
   "Writing check as you type": "Schreibprüfung während der Eingabe",
   "Writing suggestions": "Schreibvorschläge",
