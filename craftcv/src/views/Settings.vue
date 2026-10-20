@@ -247,6 +247,12 @@
               </button>
             </div>
           </div>
+          <div class="st-ai-g st-ai-want">
+            <label><span class="st-lbl">{{ $t('The job you want') }}</span>
+              <input class="f-inp" :value="auth.user?.targetRole || ''" :placeholder="$t('e.g. Marketing assistant')" maxlength="80" @change="saveAiProfile({ targetRole: $event.target.value })" /></label>
+            <label><span class="st-lbl">{{ $t('Where') }}</span>
+              <input class="f-inp" :value="auth.user?.targetLocation || ''" :placeholder="$t('e.g. Lille, or remote')" maxlength="80" @change="saveAiProfile({ targetLocation: $event.target.value })" /></label>
+          </div>
         </div>
       </section>
 
@@ -591,7 +597,7 @@ async function saveAiProfile(change) {
     })
     const data = await r.json().catch(() => ({}))
     if (!r.ok) throw new Error(data.error)
-    if (auth.user && data.user) Object.assign(auth.user, { aiPersonalize: data.user.aiPersonalize, industry: data.user.industry, goal: data.user.goal, experience: data.user.experience })
+    if (auth.user && data.user) Object.assign(auth.user, { aiPersonalize: data.user.aiPersonalize, industry: data.user.industry, goal: data.user.goal, experience: data.user.experience, targetRole: data.user.targetRole, targetLocation: data.user.targetLocation })
     showToast('Saved')
   } catch (e) { showToast(e.message || 'Could not save, please try again.') }
   profileSaving.value = false
@@ -914,6 +920,9 @@ button.st-gl:hover{background:color-mix(in srgb,var(--c-text) 8%,transparent)}
 .st-row{display:grid;grid-template-columns:140px 1fr;align-items:center;gap:14px}
 .st-lbl{font-size:14px;font-weight:600;color:var(--c-text)}
 .st-ai{display:flex;flex-direction:column;gap:20px}
+.st-ai-want{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.st-ai-want label{display:flex;flex-direction:column;gap:6px}
+@media (max-width:560px){ .st-ai-want{grid-template-columns:1fr} }
 .st-ai-g{display:flex;flex-direction:column;gap:10px}
 .st-chips{display:flex;flex-wrap:wrap;gap:8px}
 .st-chip{height:38px;padding:0 16px;border-radius:999px;border:none;background:var(--fill);color:var(--c-text);

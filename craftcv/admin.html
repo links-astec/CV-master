@@ -1795,7 +1795,17 @@ function renderCountries() {
     ${x.rows.map(r => `<tr><td><span class="cty-flag">${flag(r.country)}</span>${esc(r.country ? countryName(r.country) : 'Not known yet')}</td>
       <td class="n">${r.accounts}</td><td class="n">${r.new}</td><td class="n">${r.active}</td><td class="n">${r.paying}</td><td class="n">${r.guests}</td><td class="n">${r.signed_up}</td></tr>`).join('')}
     </tbody></table></div>
-    <p class="muted" style="font-size:12px;margin-top:12px">New, Active and Guests count the ${p}; Accounts and Paid are all time. The country comes from each device’s time zone setting, never the internet address. Accounts show a country after their next visit (“Not known yet” until then); guests who ask not to be tracked are never counted.</p>`
+    <p class="muted" style="font-size:12px;margin-top:12px">New, Active and Guests count the ${p}; Accounts and Paid are all time. The country comes from each device’s time zone setting, never the internet address. Accounts show a country after their next visit (“Not known yet” until then); guests who ask not to be tracked are never counted.</p>
+    ${renderSources(x)}`
+}
+// How people found CVMaster (asked once, at sign-up)
+const SOURCE_NAMES = { friend: 'A friend or classmate', school: 'School or career centre', instagram: 'Instagram', tiktok: 'TikTok', linkedin: 'LinkedIn', google: 'Google', youtube: 'YouTube', ai: 'ChatGPT or another AI', other: 'Somewhere else', '': 'Didn’t say (or signed up before we asked)' }
+function renderSources(x) {
+  if (!x.sources?.length) return ''
+  return `<h3 style="font-size:15px;margin:22px 0 10px">How people found CVMaster</h3>
+    <div class="cty-wrap"><table class="tbl cty"><thead><tr><th>Where</th><th class="n">Accounts</th><th class="n">New, last ${x.days} days</th></tr></thead><tbody>
+    ${x.sources.map(r => `<tr><td>${esc(SOURCE_NAMES[r.source] || r.source)}</td><td class="n">${r.accounts}</td><td class="n">${r.new}</td></tr>`).join('')}
+    </tbody></table></div>`
 }
 
 // Which address sends what (from the server, so it always matches what is really sent)
