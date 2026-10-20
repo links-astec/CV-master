@@ -34,6 +34,9 @@
         </div>
       </div>
 
+      <!-- Colour, font, size and spacing: always in view, above the CV -->
+      <QuickStyle @more="showDesign" />
+
       <div class="ed-canvas" :class="{ zoomed: phone && zoom !== 'fit' }">
         <CvPreview :template="store.template" :data="store.data" :fmt="store.fmt"
                    :scale="zoom" :max-scale="1.05" :padding="phone ? 0 : 64"
@@ -72,6 +75,7 @@ import { useAuthStore } from '../stores/auth.js'
 import { parseTemplate, templateLabel, getTheme } from '../composables/cvRenderer.js'
 import CvEditor from '../components/CvEditor.vue'
 import CvPreview from '../components/CvPreview.vue'
+import QuickStyle from '../components/QuickStyle.vue'
 import { t } from '../i18n/index.js'
 
 const store = useCvStore()
@@ -124,7 +128,7 @@ const savedText = computed(() => {
 })
 
 function showDesign() {
-  if (window.innerWidth <= 768) { drawer.value = true; return }
+  if (window.innerWidth <= 768) { drawer.value = true; nextTick(() => drawerRef.value?.show?.('design')); return }
   panelOpen.value = true
   editorRef.value?.show('design')
 }

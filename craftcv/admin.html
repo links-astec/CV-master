@@ -666,6 +666,29 @@ textarea.inp{padding:12px 14px}
   .ib-subject{font-size:22px}
   .login-card{padding:32px 24px 28px}
 }
+/* Phones, the rest: nothing squeezed, nothing cut off */
+@media (max-width:760px){
+  .kpis,.kpis:has(> .kpi:nth-child(3):last-child),.kpis[style]{grid-template-columns:1fr 1fr!important;gap:10px}
+  .kpis > .kpi:nth-child(3):last-child,.kpis > .kpi:nth-child(odd):last-child{grid-column:1/-1}
+  .kpi-l{font-size:12.5px}.kpi-s{font-size:12px}
+  .set-tabs{flex-wrap:nowrap;overflow-x:auto;width:100%;scrollbar-width:none;border-radius:99px}
+  .set-tabs::-webkit-scrollbar{display:none}
+  .set-tab{flex-shrink:0;height:34px;padding:0 14px}
+  .g-period{display:flex;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;gap:6px;width:100%}
+  .g-period::-webkit-scrollbar{display:none}
+  .g-period .btn{flex-shrink:0}
+  .st-banner{flex-wrap:wrap;gap:4px 12px}.st-banner span{margin-left:0;width:100%}
+  .push-tpls{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -18px;padding:0 18px 4px}
+  .push-tpls::-webkit-scrollbar{display:none}
+  .push-tpl{flex-shrink:0}
+  .card .tbl:not(.cards){display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap}
+  .svc-sum{flex-direction:column}
+  .svc-sum > div{min-width:0}
+  .ib-tools{padding:12px}
+  .ib-folders button{padding:0 4px;font-size:12px}
+  .chk{gap:10px}
+  .card-hd h3{font-size:16px}
+}
 </style>
 </head>
 <body>
@@ -1127,10 +1150,10 @@ function renderGuests() {
     <div class="card"><div class="card-hd"><h3>What guests do</h3></div>${actRows}</div>
   </div>
   <div class="card"><div class="card-hd"><h3>Latest guests</h3></div>
-    ${g.recent.length ? `<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Guest</th><th>First seen</th><th>Last seen</th><th>Days</th><th>CVs</th><th>AI</th><th>PDFs</th><th></th></tr></thead><tbody>
-      ${g.recent.map(r => `<tr><td><b>${esc(r.label)}</b><div class="muted" style="font-size:12px">${esc({ web: 'Website', ios: 'iPhone app', android: 'Android app' }[r.platform] || 'Website')}</div></td>
-        <td>${fmtDate(r.first_seen)}</td><td>${ago(r.last_seen)}</td><td>${fmt(r.days_active)}</td><td>${c(r, 'cv_started')}</td><td>${fmt(r.ai)}</td><td>${c(r, 'download')}</td>
-        <td>${r.converted_at ? '<span class="badge b-green">Created an account</span>' : ''}</td></tr>`).join('')}
+    ${g.recent.length ? `<div style="overflow-x:auto"><table class="tbl cards"><thead><tr><th>Guest</th><th>First seen</th><th>Last seen</th><th>Days</th><th>CVs</th><th>AI</th><th>PDFs</th><th></th></tr></thead><tbody>
+      ${g.recent.map(r => `<tr><td class="full"><b>${esc(r.label)}</b><div class="muted" style="font-size:12px">${esc({ web: 'Website', ios: 'iPhone app', android: 'Android app' }[r.platform] || 'Website')}</div></td>
+        <td data-label="First seen">${fmtDate(r.first_seen)}</td><td data-label="Last seen">${ago(r.last_seen)}</td><td data-label="Days">${fmt(r.days_active)}</td><td data-label="CVs">${c(r, 'cv_started')}</td><td data-label="AI">${fmt(r.ai)}</td><td data-label="PDFs">${c(r, 'download')}</td>
+        <td class="full">${r.converted_at ? '<span class="badge b-green">Created an account</span>' : ''}</td></tr>`).join('')}
     </tbody></table></div>` : `<div class="empty"><strong>No guests yet</strong>They appear here as people use the site without an account.</div>`}
   </div>
   <p class="muted" style="font-size:12.5px;margin-top:14px">Anonymous: each guest is a random browser ID (the same one used for the free AI allowance). No name, email, address or CV content is kept, browsers with Global Privacy Control aren’t counted, and everything is deleted after 13 months.</p>`

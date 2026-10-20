@@ -160,6 +160,8 @@ export default {
   'Your Job Hunt Pass is on': 'Votre Job Hunt Pass est actif',
   'Every CV you make is now unlocked as a clean PDF, with more AI every day. Good luck with the job hunt!': 'Chaque CV que vous créez est maintenant débloqué en PDF sans filigrane, avec plus d’IA chaque jour. Bonne recherche d’emploi !',
   'Could not load your pass.': 'Impossible de charger votre pass.',
+  'Cover letters and interview prep come with the Job Hunt Pass.': 'Les lettres de motivation et la préparation aux entretiens sont incluses dans le Job Hunt Pass.',
+  'This CV is too long to use in one go.': 'Ce CV est trop long pour être utilisé en une fois.',
 }
 
 // Server messages that contain a value; tried when there's no exact match

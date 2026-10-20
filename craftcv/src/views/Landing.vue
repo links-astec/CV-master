@@ -29,15 +29,12 @@
           <a href="#how" class="lp-more" @click.prevent="go('#how')">{{ $t('See how it works') }} <span aria-hidden="true">›</span></a>
         </div>
         <!-- The two things people should not miss -->
-        <div class="lp-quick">
-          <span class="lp-quick-lbl">{{ $t('Or start with:') }}</span>
-          <button class="lp-q" @click="$emit('start', 'narrate')">
-            <svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>{{ $t('Tell your story') }}
-          </button>
-          <button class="lp-q" @click="$emit('start', 'ats')">
-            <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>{{ $t('Check your ATS score') }}
-          </button>
-        </div>
+        <p class="lp-quick">
+          {{ $t('Or start with:') }}
+          <button class="lp-q" @click="$emit('start', 'narrate')">{{ $t('Tell your story') }}</button>
+          <span aria-hidden="true">·</span>
+          <button class="lp-q" @click="$emit('start', 'ats')">{{ $t('Check your ATS score') }}</button>
+        </p>
       </div>
       <div class="lp-stage" aria-hidden="true" inert :style="{ '--drift': drift }">
         <div class="lp-sheet s-l"><CvThumb template="harvard:charcoal" :data="sampleCv()" /></div>
@@ -62,10 +59,10 @@
     <section v-for="(c, i) in CHAPTERS" :key="c.k" :id="'ch-' + c.k" class="lp-ch" :class="[i === CHAPTERS.length - 1 ? 'dark' : i % 2 === 0 ? 'lp-alt' : '', { rev: i % 2 === 1 }]">
       <div class="lp-wrap lp-ch-in">
         <div class="lp-ch-copy" v-reveal>
-          <span class="lp-ch-step">{{ $t('Step {n} of {total}', { n: i + 1, total: CHAPTERS.length }) }} · {{ $t(c.short) }}</span>
+          <span class="lp-ch-step">{{ $t(c.short) }}</span>
           <h2>{{ $t(c.t) }}</h2>
           <p>{{ $t(c.lead) }}</p>
-          <ul><li v-for="p in c.pts" :key="p"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg>{{ $t(p) }}</li></ul>
+          <ul><li v-for="p in c.pts" :key="p">{{ $t(p) }}</li></ul>
           <button class="btn-primary accent btn-lg" @click="$emit('start', c.mode)">{{ $t(c.cta) }}</button>
         </div>
         <div class="lp-media lp-ch-media" :class="'m-' + c.k" aria-hidden="true" inert v-reveal="120">
@@ -454,7 +451,7 @@ const PLANS = [
   { name: 'Clean PDF', price: '€0.99', eur: 0.99, per: ' per CV', cta: 'Build my CV', featured: true,
     items: ['Watermark-free, one-page PDF', 'Emailed and downloadable', 'Free re-downloads after edits'] },
   { name: 'Job Hunt Pass', price: '€6.99', eur: 6.99, per: ' a month', cta: 'Get the pass', pass: true,
-    items: ['Every CV you make as a clean PDF', '100 AI requests a day', 'Or €14.99 every 3 months (save 29%)', 'Cancel any time'] },
+    items: ['Every CV you make as a clean PDF', 'A cover letter for every job offer', 'Interview prep for every job offer', '100 AI requests a day', 'Or €14.99 every 3 months (save 29%)'] },
 ]
 
 const FAQ = [
@@ -489,12 +486,10 @@ const FAQ = [
 .lp-lead{font-size:clamp(18px,2vw,22px);line-height:1.5;color:var(--c-text2);max-width:620px;margin:24px auto 0;letter-spacing:-.01em;animation:fup .9s var(--ease) .1s both}
 .lp-cta{display:flex;align-items:center;justify-content:center;gap:26px;margin-top:36px;flex-wrap:wrap;animation:fup .9s var(--ease) .18s both}
 .lp-more{color:var(--c-accent);text-decoration:none;font-size:16px;font-weight:600;white-space:nowrap}
-.lp-quick{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px 10px;margin-top:22px;animation:fup .9s var(--ease) .26s both}
-.lp-quick-lbl{font-size:14px;color:var(--c-text3);font-weight:500}
-.lp-q{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 16px;border-radius:99px;border:none;background:var(--c-surface);box-shadow:var(--shadow-xs),inset 0 0 0 1px var(--hair);font:inherit;font-size:14px;font-weight:600;color:var(--c-text);cursor:pointer;transition:transform .15s,box-shadow .15s}
-.lp-q:hover{transform:translateY(-1px);box-shadow:var(--shadow-sm,0 4px 14px rgba(20,20,43,.08)),inset 0 0 0 1px var(--c-accent)}
-.lp-q:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}
-.lp-q svg{width:16px;height:16px;fill:none;stroke:var(--c-accent);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.lp-quick{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px 8px;margin-top:20px;font-size:15px;color:var(--c-text3);animation:fup .9s var(--ease) .26s both}
+.lp-q{border:none;background:none;padding:4px 2px;font:inherit;font-size:15px;font-weight:500;color:var(--c-accent);cursor:pointer}
+.lp-q:hover{text-decoration:underline}
+.lp-q:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px;border-radius:4px}
 .lp-more:hover{text-decoration:underline}
 .lp-more span{font-size:1.2em;margin-left:2px}
 
@@ -529,26 +524,26 @@ const FAQ = [
 .lp-ch{padding:110px 0}
 .lp-ch-in{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:64px;align-items:center}
 .lp-ch.rev .lp-ch-copy{order:2}
-.lp-ch-step{display:inline-block;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--c-accent);margin-bottom:14px}
+.lp-ch-step{display:inline-block;font-size:17px;font-weight:600;color:var(--c-text3);margin-bottom:12px}
 .lp-ch-copy h2{font-size:clamp(32px,4.4vw,50px);font-weight:800;letter-spacing:-.034em;line-height:1.05}
 .lp-ch-copy > p{margin-top:18px;font-size:clamp(16.5px,1.6vw,19px);line-height:1.55;color:var(--c-text2);letter-spacing:-.01em}
-.lp-ch-copy ul{list-style:none;margin:22px 0 30px;padding:0;display:flex;flex-direction:column;gap:10px}
-.lp-ch-copy li{display:flex;align-items:flex-start;gap:10px;font-size:16px;font-weight:550;color:var(--c-text)}
-.lp-ch-copy li svg{width:20px;height:20px;flex-shrink:0;margin-top:1px;padding:3.5px;border-radius:50%;background:var(--c-accent-lt);fill:none;stroke:var(--c-accent);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
+.lp-ch-copy ul{list-style:none;margin:26px 0 32px;padding:0;display:flex;flex-direction:column}
+.lp-ch-copy li{padding:13px 0;border-top:1px solid var(--hair);font-size:16px;font-weight:500;color:var(--c-text)}
+.lp-ch-copy li:last-child{border-bottom:1px solid var(--hair)}
 .lp-ch.dark{background:#0C0C10;color:#F3F4F6}
-.lp-ch.dark .lp-ch-step{color:#A5A0FF}
+.lp-ch.dark .lp-ch-step{color:#86868b}
 .lp-ch.dark .lp-ch-copy > p{color:#B4B8C2}
 .lp-ch.dark .lp-ch-copy li{color:#F3F4F6}
-.lp-ch.dark .lp-ch-copy li svg{background:rgba(165,160,255,.16);stroke:#A5A0FF}
+.lp-ch.dark .lp-ch-copy li{border-color:rgba(255,255,255,.12)}
 .lp-media{position:relative;aspect-ratio:16/12;border-radius:32px;overflow:hidden;display:flex;align-items:center;justify-content:center;gap:5%;padding:6%}
 .m-fit-sub{font-size:11.5px;font-weight:700;color:#6B6B84;text-transform:uppercase;letter-spacing:.04em}
 
 /* Referral: invite friends, get free CVs */
-.lp-ref{position:relative;overflow:hidden;padding:120px 0;color:#fff;background:radial-gradient(900px 500px at 85% 20%,rgba(167,139,250,.55),transparent 60%),radial-gradient(800px 500px at 10% 100%,rgba(56,189,248,.28),transparent 60%),linear-gradient(135deg,#2A2390 0%,#4338CA 55%,#5B4FE0 100%)}
+.lp-ref{position:relative;overflow:hidden;padding:120px 0;color:#fff;background:#4338CA}
 .lp-ref-in{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:64px;align-items:center}
-.lp-ref-kick{display:inline-flex;align-items:center;height:30px;padding:0 14px;border-radius:999px;background:rgba(255,255,255,.14);font-size:13px;font-weight:700;letter-spacing:.03em}
+.lp-ref-kick{display:inline-block;font-size:17px;font-weight:600;color:rgba(255,255,255,.7)}
 .lp-ref-copy h2{margin-top:18px;font-size:clamp(36px,5vw,58px);font-weight:800;letter-spacing:-.036em;line-height:1.02}
-.lp-ref-copy h2 span{background:linear-gradient(90deg,#FDE68A,#FBCFE8);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lp-ref-copy h2 span{color:rgba(255,255,255,.65)}
 .lp-ref-copy > p{margin-top:18px;font-size:clamp(16.5px,1.6vw,19px);line-height:1.55;color:rgba(255,255,255,.82);max-width:520px}
 .lp-ref-steps{list-style:none;margin:28px 0 32px;padding:0;display:flex;flex-direction:column;gap:12px}
 .lp-ref-steps li{display:flex;gap:14px;align-items:flex-start;background:rgba(255,255,255,.08);border-radius:18px;padding:14px 16px;backdrop-filter:blur(6px)}
@@ -581,11 +576,10 @@ const FAQ = [
 @media (prefers-reduced-motion:reduce){.lp-ref-chip{animation:none}}
 
 /* Card pictures */
-.m-story{background:linear-gradient(140deg,#EEF0FF,#D9DCFF)}
-.m-tailor{background:linear-gradient(140deg,#F4F1EA,#E6E0D3)}
-.m-fit{background:linear-gradient(140deg,#E9F1E8,#D4E4D2)}
-.m-ats{background:linear-gradient(140deg,#E8EEF8,#D3DFF2)}
-.m-pdf{background:radial-gradient(120% 120% at 70% 0%,#6A60F2 0%,#4338CA 45%,#2A2390 100%)}
+/* Flat, quiet backgrounds: the product is the colour */
+.m-story,.m-tailor,.m-fit,.m-ats{background:#EDEDF2}
+:global([data-theme="dark"]) .m-story,:global([data-theme="dark"]) .m-tailor,:global([data-theme="dark"]) .m-fit,:global([data-theme="dark"]) .m-ats{background:#1c1c22}
+.m-pdf{background:#4338CA}
 .m-mic{width:44%;background:#fff;border-radius:22px;padding:24px 20px;display:flex;flex-direction:column;align-items:center;gap:14px;box-shadow:0 20px 50px rgba(20,20,43,.14)}
 .m-mic-btn{width:64px;height:64px;border-radius:50%;background:#4338CA;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 10px rgba(67,56,202,.12)}
 .m-mic-btn svg{width:28px;height:28px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round}

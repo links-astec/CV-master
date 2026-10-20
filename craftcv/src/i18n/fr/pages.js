@@ -185,4 +185,8 @@ export default {
   'CVMaster (CV Master) | Free AI CV Builder: ATS-Friendly CVs Tailored to Any Job': 'CVMaster (CV Master) | Créateur de CV gratuit avec IA : des CV compatibles ATS adaptés à chaque offre',
   'CVMaster (CV Master) is a free AI CV builder and CV maker: build a professional CV in minutes, tailor it to any job offer, check your ATS score and download a one-page PDF. 50 CV templates.': 'CVMaster (CV Master) est un créateur de CV gratuit avec IA : créez un CV professionnel en quelques minutes, adaptez-le à chaque offre, vérifiez votre score ATS et téléchargez un PDF d’une page. 50 modèles de CV.',
   'You save 29% compared with paying monthly.': 'Vous économisez 29 % par rapport au paiement mensuel.',
+  'Cover letter for each job': 'Lettre de motivation pour chaque offre',
+  'Interview prep for each job': 'Préparation à l’entretien pour chaque offre',
+  'A cover letter for every job offer': 'Une lettre de motivation pour chaque offre',
+  'Interview prep for every job offer': 'Une préparation à l’entretien pour chaque offre',
 }

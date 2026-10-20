@@ -29,8 +29,8 @@
                   <span class="wiz-mode-tag">{{ $t(m.tag) }}</span>
                 </button>
               </div>
-              <div class="notice info wiz-offer">
-                <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
+              <div class="wiz-offer" :class="{ on: store.data.jobOffer }">
+                <span class="wiz-offer-dot" aria-hidden="true"></span>
                 <span>{{ $t(store.data.jobOffer ? 'Job offer added. The AI uses it as you go, and you check your ATS score at the end.' : 'No job offer yet. You can add one at the end, in Job match.') }}</span>
                 <button class="link-btn" @click="store.wizardAskOffer = true">{{ $t(store.data.jobOffer ? 'Change' : 'Add one now') }}</button>
               </div>
@@ -233,25 +233,28 @@ watch(() => store.wizardMode, m => { if (!m) return; guestEvent('cv_started'); i
 .wiz-fade-enter-from,.wiz-fade-leave-to{opacity:0}
 
 /* Mode picker */
-.wiz-pick{flex:1;position:relative;display:flex;align-items:center;justify-content:center;padding:40px;overflow:auto;background:radial-gradient(900px 400px at 50% -10%,var(--c-accent-lt),transparent 70%)}
+.wiz-pick{flex:1;position:relative;display:flex;align-items:center;justify-content:center;padding:40px;overflow:auto;background:var(--c-bg)}
 .wiz-x{position:absolute;top:16px;right:16px}
 .wiz-pick-in{max-width:820px;width:100%;text-align:center}
-.wiz-pick-in h2{font-size:28px;font-weight:700;letter-spacing:-.025em}
-.wiz-pick-in > p{color:var(--c-text2);margin-top:8px;font-size:15px}
+.wiz-pick-in h2{font-size:32px;font-weight:700;letter-spacing:-.035em;line-height:1.1}
+.wiz-pick-in > p{color:var(--c-text2);margin-top:10px;font-size:16px}
 .wiz-modes{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:32px}
-.wiz-mode{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:22px;border-radius:16px;border:1px solid var(--hair);background:var(--c-surface);text-align:left;box-shadow:var(--shadow-xs);transition:border-color .15s,box-shadow .15s,transform .15s}
-.wiz-mode:hover{border-color:var(--c-accent);box-shadow:0 0 0 3px var(--c-accent-ring);transform:translateY(-2px)}
-.wiz-mode-ic{width:42px;height:42px;border-radius:12px;background:var(--c-accent-lt);display:flex;align-items:center;justify-content:center;margin-bottom:6px}
-.wiz-mode-ic svg{width:21px;height:21px;fill:none;stroke:var(--c-accent);stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-.wiz-mode-name{font-size:16px;font-weight:600;color:var(--c-text)}
-.wiz-mode-desc{font-size:13.5px;color:var(--c-text2);line-height:1.5;flex:1}
-.wiz-mode-tag{font-size:12px;font-weight:600;color:var(--c-accent);margin-top:6px}
-.wiz-offer{margin:22px auto 0;max-width:560px;text-align:left;align-items:center}
+.wiz-mode{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:26px 24px;border-radius:22px;border:none;background:var(--c-surface);text-align:left;box-shadow:inset 0 0 0 2px transparent;transition:box-shadow .2s ease,transform .2s ease}
+.wiz-mode:hover{box-shadow:inset 0 0 0 2px var(--c-text);transform:translateY(-2px)}
+.wiz-mode-ic{width:44px;height:44px;border-radius:50%;background:var(--fill);display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+.wiz-mode-ic svg{width:21px;height:21px;fill:none;stroke:var(--c-text);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.wiz-mode-name{font-size:18px;font-weight:650;letter-spacing:-.015em;color:var(--c-text)}
+.wiz-mode-desc{font-size:14.5px;color:var(--c-text2);line-height:1.5;flex:1}
+.wiz-mode-tag{font-size:13px;font-weight:500;color:var(--c-text3);margin-top:8px}
+.wiz-offer{margin:22px auto 0;max-width:560px;text-align:left;display:flex;align-items:center;gap:12px;padding:14px 18px;border-radius:16px;background:var(--fill);font-size:14px;line-height:1.45;color:var(--c-text2)}
+.wiz-offer-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--c-text3)}
+.wiz-offer.on .wiz-offer-dot{background:#16a34a}
 .wiz-offer .link-btn{margin-left:auto;white-space:nowrap;font-weight:600}
 .wiz-jo-wrap{max-width:600px;width:100%}
 .wiz-mode{position:relative}
-.wiz-mode.featured{border-color:var(--c-accent);box-shadow:0 0 0 3px var(--c-accent-ring),var(--shadow-xs);background:linear-gradient(180deg,var(--c-accent-lt),var(--c-surface) 70%)}
-.wiz-mode-rec{position:absolute;top:14px;right:14px;font-size:11.5px;font-weight:700;color:#fff;background:var(--c-accent);padding:3px 10px;border-radius:99px}
+.wiz-mode.featured{box-shadow:inset 0 0 0 2px var(--c-accent)}
+.wiz-mode.featured .wiz-mode-ic{background:var(--c-accent)}.wiz-mode.featured .wiz-mode-ic svg{stroke:#fff}
+.wiz-mode-rec{position:absolute;top:24px;right:22px;font-size:13px;font-weight:600;color:var(--c-accent)}
 
 /* Steps */
 .wiz-body{flex:1;display:flex;min-width:0}

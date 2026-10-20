@@ -360,9 +360,9 @@ async function remove(c) {
 
 <style scoped>
 .db-guest{margin-bottom:22px;align-items:center}
-.db-next{display:flex;align-items:center;gap:20px;margin-bottom:28px;padding:22px 26px;border:none;border-radius:24px;box-shadow:none;background:linear-gradient(120deg,var(--c-accent-lt),color-mix(in srgb,var(--c-accent-lt) 35%,var(--c-surface)))}
+.db-next{display:flex;align-items:center;gap:20px;margin-bottom:28px;padding:22px 26px;border:none;border-radius:24px;box-shadow:none;background:var(--c-surface)}
 .db-next-txt{flex:1;min-width:0}
-.db-next-k{font-size:13px;font-weight:650;letter-spacing:-.005em;color:var(--c-accent)}
+.db-next-k{font-size:13px;font-weight:600;letter-spacing:-.005em;color:var(--c-text3)}
 .db-next-t{font-size:18px;font-weight:700;letter-spacing:-.025em;color:var(--c-text);margin-top:3px}
 .db-next p{font-size:14px;color:var(--c-text2);line-height:1.5;margin-top:3px}
 @media (max-width:560px){ .db-next{flex-direction:column;align-items:stretch} }

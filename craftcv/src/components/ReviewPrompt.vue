@@ -83,10 +83,10 @@ async function send() {
 .rv.compact{margin-top:18px}
 .rv-q{font-size:20px;font-weight:750;letter-spacing:-.025em;color:var(--c-text)}
 .rv-stars{display:flex;align-items:center;gap:6px;margin:14px 0 4px}
-.rv-stars button{width:44px;height:44px;border-radius:14px;background:var(--fill);border:none;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;
+.rv-stars button{width:40px;height:40px;border-radius:10px;background:transparent;border:none;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;
   transition:transform .25s var(--ease),background .25s var(--ease)}
 .rv-stars svg{width:24px;height:24px;fill:color-mix(in srgb,var(--c-text) 18%,var(--c-surface));stroke:none;transition:fill .2s var(--ease)}
-.rv-stars button.on{background:#FFF4D6}
+.rv-stars button.on{background:transparent}
 .rv-stars button.on svg{fill:#F5A623}
 [data-theme="dark"] .rv-stars button.on{background:#3a2e10}
 .rv-stars button:hover{transform:translateY(-2px) scale(1.06)}

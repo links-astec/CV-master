@@ -56,7 +56,7 @@
           <p>{{ $t('A tailored CV for each job gets more interviews. Slide to see what that costs.') }}</p>
         </div>
         <div class="px-slider">
-          <input type="range" min="1" max="20" v-model.number="cvs" :aria-label="$t('CVs this month')" :style="{ '--p': ((cvs - 1) / 19 * 100) + '%' }" />
+          <input type="range" min="1" max="50" v-model.number="cvs" :aria-label="$t('CVs this month')" :style="{ '--p': ((cvs - 1) / 49 * 100) + '%' }" />
           <output class="px-count"><b>{{ cvs }}</b> {{ $t(cvs === 1 ? 'CV' : 'CVs') }}</output>
         </div>
         <div class="px-rows">
@@ -92,6 +92,7 @@
           <span class="px-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg></span>
           <h3>{{ $t('Need more AI?') }}</h3>
           <p>{{ $t('100 extra AI requests for €0.50. They never expire.') }}<template v-if="approx(0.5)"> {{ approx(0.5) }}</template></p>
+          <button class="px-link" @click="buyAi">{{ $t('Get 100 more for €0.50') }} ›</button>
         </div>
         <div class="px-extra" v-reveal="60">
           <span class="px-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></span>
@@ -127,13 +128,17 @@ const Tick = () => h('svg', { viewBox: '0 0 24 24', class: 'px-tick', 'aria-hidd
 const router = useRouter()
 const auth = useAuthStore()
 const startBuilding = inject('startBuilding', null)
+const openAiAllowance = inject('openAiAllowance', null)
+const openAuth = inject('openAuth', null)
+// The €0.50 pack is bought from the AI requests window (it needs an account)
+function buyAi() { if (!auth.isLoggedIn) { openAuth?.('register'); return } openAiAllowance ? openAiAllowance() : router.push({ path: '/settings', hash: '#ai' }) }
 const bill = ref('quarter')
 const cvs = ref(6)
 const passActive = computed(() => !!auth.user?.pass)
 
 const FREE = ['All 50 templates in 12 colours', '30 AI requests a day with a free account', 'Tailor your CV to any job offer', 'ATS score and job match check', 'Writing check as you type', 'Preview PDF with a watermark']
 const ONE = ['Everything in Free', 'A watermark-free, one-page PDF', 'Emailed and downloadable', 'Free re-downloads after edits']
-const PASS = ['Every CV you make as a clean PDF', '100 AI requests a day', 'Re-send any CV after edits, free', 'Cancel any time']
+const PASS = ['Every CV you make as a clean PDF', 'A cover letter for every job offer', 'Interview prep for every job offer', '100 AI requests a day', 'Cancel any time']
 const ROWS = [
   ['Templates', '50', '50', '50'],
   ['AI requests a day', '30', '30', '100'],
@@ -144,6 +149,8 @@ const ROWS = [
   ['Watermark-free PDF', false, 'That CV', 'Every CV'],
   ['Emailed to you', false, true, true],
   ['Re-send after edits', false, true, true],
+  ['Cover letter for each job', false, false, true],
+  ['Interview prep for each job', false, false, true],
 ]
 const FAQ = [
   { q: 'Can I cancel the Job Hunt Pass?', a: 'Yes, any time in Settings, in two clicks. Nothing more is charged, and the pass keeps working until the end of the month (or 3 months) you already paid for.' },
