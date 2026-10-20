@@ -102,6 +102,9 @@
       </template>
     </section>
 
+    <!-- Job Hunt Pass perks: cover letter and interview prep for this job -->
+    <ApplicationKit v-if="hasJob && !editingJob" />
+
     <!-- Checklist -->
     <section class="jm-check">
       <div class="jm-check-hd">{{ $t('Before you export') }}</div>
@@ -128,6 +131,7 @@ import { useCvStore, hasDraftableContent } from '../stores/cv.js'
 import StepTailor from './wizard/StepTailor.vue'
 import StepReview from './wizard/StepReview.vue'
 import AtsScorer from './AtsScorer.vue'
+import ApplicationKit from './ApplicationKit.vue'
 import { lang } from '../i18n/index.js'
 
 defineEmits(['pay', 'next'])

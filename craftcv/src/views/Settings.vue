@@ -29,21 +29,18 @@
           <button class="btn-secondary btn-sm" @click="logout">{{ $t('Sign out') }}</button>
         </div>
         <!-- At a glance: plan, AI left today, free CVs earned -->
-        <div class="st-glance">
-          <button type="button" class="st-gl st-gl-plan" :class="{ pass }" @click="pass ? jump('pass') : router.push('/pricing')">
-            <span class="st-gl-k">{{ $t('Your plan') }}</span>
-            <b>{{ $t(pass ? 'Job Hunt Pass' : 'Free') }}</b>
-            <span class="st-gl-s">{{ pass ? $t(pass.cancelAtEnd ? 'until {date}' : 'renews {date}', { date: fmtDay(pass.until) }) : $t('See plans') + ' →' }}</span>
+        <div class="st-group">
+          <button type="button" class="st-grow" @click="pass ? jump('pass') : router.push('/pricing')">
+            <span class="st-grow-k">{{ $t('Plan') }}</span>
+            <span class="st-grow-v"><template v-if="pass"><span class="st-passmark">{{ $t('Pass') }}</span>{{ $t('Job Hunt Pass') }}</template><template v-else>{{ $t('Free') }} · <span class="st-accent">{{ $t('See plans') }}</span></template></span><svg class="st-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
           </button>
-          <div class="st-gl">
-            <span class="st-gl-k">{{ $t('AI today') }}</span>
-            <b>{{ aiQuota ? aiQuota.freeLeft : '·' }}<small v-if="aiQuota">/{{ aiQuota.limit }}</small></b>
-            <span class="st-gl-s">{{ aiQuota?.credits ? $t('{n} extra', { n: aiQuota.credits }) : $t('requests left') }}</span>
+          <div class="st-grow">
+            <span class="st-grow-k">{{ $t('AI requests today') }}</span>
+            <span class="st-grow-v">{{ aiQuota ? $t('{n} of {limit} left', { n: aiQuota.freeLeft, limit: aiQuota.limit }) : '·' }}<template v-if="aiQuota?.credits"> · {{ $t('{n} extra', { n: aiQuota.credits }) }}</template></span>
           </div>
-          <button type="button" class="st-gl" @click="jump('invite')">
-            <span class="st-gl-k">{{ $t('Free CVs') }}</span>
-            <b>{{ referralInfo?.credits ?? 0 }}</b>
-            <span class="st-gl-s">{{ $t('{n} friends joined', { n: referralInfo?.count ?? 0 }) }}</span>
+          <button type="button" class="st-grow" @click="jump('invite')">
+            <span class="st-grow-k">{{ $t('Free CVs from friends') }}</span>
+            <span class="st-grow-v">{{ referralInfo?.credits ?? 0 }} · {{ $t('{n} friends joined', { n: referralInfo?.count ?? 0 }) }}</span><svg class="st-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
           </button>
         </div>
 
@@ -165,10 +162,10 @@
           <div class="st-mine-t">{{ $t(pass.cancelAtEnd ? 'Your pass is cancelled' : 'Your pass is on') }}</div>
           <p class="st-mine-p">{{ pass.cancelAtEnd ? $t('Cancelled. You keep everything until {date}.', { date: fmtDay(pass.until) })
             : $t(pass.plan === 'quarter' ? 'Active. Renews on {date} for €14.99.' : 'Active. Renews on {date} for €6.99.', { date: fmtDay(pass.until) }) }}</p>
-          <div class="st-mine-stats" :aria-label="$t('Your pass at work')">
-            <div><b>{{ passSum ? passSum.cvs : '·' }}</b><span>{{ $t('CVs unlocked') }}</span></div>
-            <div><b>{{ passSum ? '€' + (passSum.worthCents / 100).toFixed(2) : '·' }}</b><span>{{ $t('their value at €0.99 each') }}</span></div>
-            <div><b>{{ passSum ? Math.max(0, passSum.aiLimit - passSum.aiToday) : '·' }}</b><span>{{ $t('AI requests left today') }}</span></div>
+          <div class="st-group st-mine-group" :aria-label="$t('Your pass at work')">
+            <div class="st-grow"><span class="st-grow-k">{{ $t('Price') }}</span><span class="st-grow-v">{{ $t(pass.plan === 'quarter' ? '€14.99 every 3 months' : '€6.99 a month') }}</span></div>
+            <div class="st-grow"><span class="st-grow-k">{{ $t('CVs unlocked') }}</span><span class="st-grow-v">{{ passSum ? passSum.cvs : '·' }}<template v-if="passSum"> · {{ $t('worth €{v}', { v: (passSum.worthCents / 100).toFixed(2) }) }}</template></span></div>
+            <div class="st-grow"><span class="st-grow-k">{{ $t('AI requests today') }}</span><span class="st-grow-v">{{ passSum ? $t('{n} of {limit} left', { n: Math.max(0, passSum.aiLimit - passSum.aiToday), limit: passSum.aiLimit }) : '·' }}</span></div>
           </div>
           <div class="st-mine-acts">
             <button class="btn-primary accent btn-sm" @click="router.push('/')">{{ $t('Go to my CVs') }}</button>
@@ -218,7 +215,7 @@
         </div>
         <template v-if="aiQuota">
           <div class="st-meter"><div :style="{ width: (aiQuota.freeLeft / aiQuota.limit * 100) + '%' }"></div></div>
-          <div class="st-meter-txt">{{ $t('{n} of {limit} free left today', { n: aiQuota.freeLeft, limit: aiQuota.limit }) }}<template v-if="aiQuota.credits"> · {{ $t('{n} extra', { n: aiQuota.credits }) }}</template></div>
+          <div class="st-meter-txt">{{ $t(aiQuota.tier === 'pass' ? '{n} of {limit} left today' : '{n} of {limit} free left today', { n: aiQuota.freeLeft, limit: aiQuota.limit }) }}<template v-if="aiQuota.credits"> · {{ $t('{n} extra', { n: aiQuota.credits }) }}</template></div>
         </template>
       </section>
 
@@ -686,7 +683,7 @@ function shareLinkedIn() { track('invite_shared', { channel: 'linkedin' }); wind
 function shareEmail()    { track('invite_shared', { channel: 'email' }); window.location.href = `mailto:?subject=${encodeURIComponent(t('Try CVMaster for your CV'))}&body=${encodeURIComponent(shareMsg())}` }
 
 // ── Job Hunt Pass ──
-const PASS_FEATURES = ['Every CV as a clean PDF, emailed and downloadable', '100 AI requests a day (instead of 30)', 'Re-send any CV after edits, free', 'Cancel any time']
+const PASS_FEATURES = ['Every CV as a clean PDF, emailed and downloadable', 'A cover letter for every job offer', 'Interview prep for every job offer', '100 AI requests a day (instead of 30)']
 const pass = computed(() => auth.user?.pass || null)
 const passBusy = ref(false)
 const passConsent = ref(false)
@@ -788,7 +785,19 @@ watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota(); lo
 .st-card{scroll-margin-top:64px}
 /* Account: like an Apple ID page, plain and centred on the person */
 .st-hero .st-acct{align-items:center}
-.st-glance{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:24px 0 22px}
+/* Grouped rows, like iOS Settings: label on the left, value on the right */
+.st-group{margin:22px 0 22px;border-radius:16px;background:var(--fill);overflow:hidden}
+.st-grow{display:flex;align-items:center;gap:12px;width:100%;min-height:50px;padding:12px 16px;border:none;background:none;font:inherit;text-align:left;color:var(--c-text);position:relative}
+.st-grow + .st-grow::before{content:'';position:absolute;top:0;left:16px;right:0;height:1px;background:var(--hair)}
+button.st-grow{cursor:pointer;transition:background .15s ease}
+button.st-grow:hover{background:color-mix(in srgb,var(--c-text) 5%,transparent)}
+.st-grow-k{font-size:15px;font-weight:500;color:var(--c-text)}
+.st-grow-v{margin-left:auto;font-size:15px;color:var(--c-text2);text-align:right;display:inline-flex;align-items:center;gap:8px}
+.st-chev{width:16px;height:16px;flex-shrink:0;fill:none;stroke:var(--c-text3);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;margin-right:-4px}
+.st-accent{color:var(--c-accent)}
+.st-passmark{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:99px;background:var(--c-accent);color:#fff;font-size:11.5px;font-weight:700}
+.st-mine-group{margin:18px 0}
+.st-glance{display:none}
 .st-gl{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:16px 18px;border-radius:18px;background:var(--fill);border:none;font:inherit;color:inherit;text-align:left}
 button.st-gl{cursor:pointer;transition:background .2s ease}
 button.st-gl:hover{background:color-mix(in srgb,var(--c-text) 8%,transparent)}
@@ -956,7 +965,7 @@ button.st-gl:hover{background:color-mix(in srgb,var(--c-text) 8%,transparent)}
 
 /* AI */
 .st-meter{height:10px;border-radius:99px;background:color-mix(in srgb,var(--c-text) 7%,transparent);overflow:hidden;margin-top:6px}
-.st-meter div{height:100%;border-radius:99px;background:linear-gradient(90deg,#4338CA,#8B85FF);transition:width .6s var(--ease)}
+.st-meter div{height:100%;border-radius:99px;background:var(--c-accent);transition:width .6s var(--ease)}
 .st-meter-txt{font-size:13.5px;color:var(--c-text2);margin-top:10px}
 .st-meter-txt strong{color:var(--c-text)}
 

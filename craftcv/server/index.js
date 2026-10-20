@@ -1842,6 +1842,74 @@ async function personalContext(req, cv) {
 // careers adviser: what already matches first, then a few concrete things that would strengthen
 // the application. It never tells anyone not to apply; reaching for a role is normal, above all
 // for students and graduates.
+// ── JOB HUNT PASS PERKS: a cover letter and interview prep for a job offer ─────────
+// Only for pass holders (402 PASS_ONLY otherwise); each counts as one AI request like any other feature.
+async function passOnly(req, res, next) {
+  const u = await userFromToken(tokenOf(req)).catch(() => null);
+  if (!u || !(await hasPass(u.sub).catch(() => false)))
+    return res.status(402).json({ code: 'PASS_ONLY', error: 'Cover letters and interview prep come with the Job Hunt Pass.' });
+  next();
+}
+// The CV's facts for a prompt (what the person really did; nothing else may be used)
+function cvFactsText(cv) {
+  const str = (v) => (typeof v === 'string' ? v.trim() : '');
+  const arr = (v) => (Array.isArray(v) ? v : []);
+  const exps = arr(cv.experiences).filter(e => e && (str(e.title) || str(e.company) || str(e.desc))).slice(0, 10);
+  return [
+    `Name: ${[str(cv.fn), str(cv.ln)].filter(Boolean).join(' ') || 'not given'}`, `Headline: ${str(cv.title) || 'none'}`, `Summary: ${str(cv.sum) || 'none'}`,
+    `Experience:\n${exps.map(e => `- ${str(e.title)} at ${str(e.company)} (${str(e.period)}): ${str(e.desc).slice(0, 500)}`).join('\n') || 'none'}`,
+    `Projects: ${arr(cv.projects).map(p => [str(p?.name), str(p?.desc).slice(0, 200)].filter(Boolean).join(': ')).filter(Boolean).join('; ') || 'none'}`,
+    `Skills: ${arr(cv.skills).map(str).filter(Boolean).join(', ') || 'none'}`,
+    `Education: ${arr(cv.education).map(e => [str(e?.degree), str(e?.school), str(e?.year)].filter(Boolean).join(', ')).filter(Boolean).join('; ') || 'none'}`,
+    `Languages: ${arr(cv.languages).map(l => [str(l?.name), str(l?.level)].filter(Boolean).join(' ')).filter(Boolean).join(', ') || 'none'}`,
+  ].join('\n');
+}
+app.post('/api/ai/cover-letter', needsCvContent, passOnly, aiAccess, async (req, res) => {
+  try {
+    const cv = cvFromBody(req.body);
+    if (!cv) return res.status(413).json({ error: 'This CV is too long to use in one go.' });
+    const brief = await jobBrief(req.body?.jobOffer, req);
+    if (!brief) return res.status(400).json({ error: 'Please paste the full job description (at least a few sentences).' });
+    const lang = UI_LANG_NAME[cv.lang] || 'English';
+    const system = `You write cover letters for job applications. Write one for the person on this CV, for this job, in ${lang}.
+Use ONLY facts from the CV: never invent experience, numbers, employers, skills or qualifications. Pick the 2-3 experiences or skills that best match the job's main requirements and show how they fit, concretely.
+Shape: a greeting ("Dear Hiring Manager," or the local equivalent, unless the advert names a person), an opening that names the role and the company and why this person is interested, one or two paragraphs that connect their experience to the job, and a short confident close asking for an interview, then a sign-off with their name.
+Tone: confident, warm, specific, professional; no clichés ("I am writing to express my interest", "team player", "fast-paced environment"), no flattery, nothing generic that could fit any job. 220 to 320 words.
+Reply with ONLY the letter text, no title and no notes.`;
+    const out = await callAi(`JOB:\n${briefForPrompt(brief)}\n\nCV:\n${cvFactsText(cv)}`, AI_MODEL, system, 1100, 'medium');
+    const letter = noEmDash(String(out || '')).replace(/^\s*```[a-z]*\s*|```\s*$/g, '').trim().slice(0, 6000);
+    if (letter.length < 200) return res.status(500).json({ error: 'AI is unavailable right now. Please try again in a moment.' });
+    track(req, 'cover_letter');
+    res.json({ letter, job: { title: brief.title, company: brief.company } });
+  } catch (e) {
+    console.error('[ai/cover-letter]', e.message);
+    res.status(500).json({ error: 'AI is unavailable right now. Please try again in a moment.' });
+  }
+});
+app.post('/api/ai/interview', needsCvContent, passOnly, aiAccess, async (req, res) => {
+  try {
+    const cv = cvFromBody(req.body);
+    if (!cv) return res.status(413).json({ error: 'This CV is too long to use in one go.' });
+    const brief = await jobBrief(req.body?.jobOffer, req);
+    if (!brief) return res.status(400).json({ error: 'Please paste the full job description (at least a few sentences).' });
+    const outLang = uiLangName(req.body?.uiLang);
+    const system = `You are an experienced recruiter preparing a candidate for an interview for this job.
+List the 7 questions this employer is most likely to ask THIS candidate: questions about the job's main requirements, two behavioural questions ("Tell me about a time..."), and one about the most visible gap between the CV and the job, asked kindly.
+For each: "q" the question as the interviewer would say it; "why" what the interviewer wants to learn, in one sentence; "tip" how this person can answer, pointing to a specific experience or project from their CV by name (never invent one; if the CV has nothing relevant, suggest an honest angle).
+Write in ${outLang}, speaking to the candidate as "you". Reply with ONLY JSON: {"questions":[{"q":"...","why":"...","tip":"..."}]}`;
+    const out = parseJsonObject(await callAi(`JOB:\n${briefForPrompt(brief)}\n\nCV:\n${cvFactsText(cv)}`, AI_MODEL, system, 1600, 'medium'));
+    const str = (v) => (typeof v === 'string' ? noEmDash(v.trim()) : '');
+    const questions = (Array.isArray(out?.questions) ? out.questions : []).map(x => ({ q: str(x?.q).slice(0, 300), why: str(x?.why).slice(0, 300), tip: str(x?.tip).slice(0, 500) }))
+      .filter(x => x.q).slice(0, 8);
+    if (!questions.length) return res.status(500).json({ error: 'AI is unavailable right now. Please try again in a moment.' });
+    track(req, 'interview_prep');
+    res.json({ questions, job: { title: brief.title, company: brief.company } });
+  } catch (e) {
+    console.error('[ai/interview]', e.message);
+    res.status(500).json({ error: 'AI is unavailable right now. Please try again in a moment.' });
+  }
+});
+
 app.post('/api/ai/fit', needsCvContent, aiAccess, async (req, res) => {
   try {
     const cv = cvFromBody(req.body);

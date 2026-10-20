@@ -334,8 +334,8 @@ defineExpose({ handleStripeReturn })
 
 <style scoped>
 .pw-dl{margin-top:10px}
-.pw-included{display:inline-flex;align-items:center;gap:8px;margin-top:12px;height:32px;padding:0 14px 0 6px;border-radius:99px;background:var(--c-accent);color:#fff;font-size:13.5px;font-weight:600}
-.pw-included svg{width:20px;height:20px;padding:3px;border-radius:50%;background:#fff;fill:none;stroke:var(--c-accent);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.pw-included{display:inline-flex;align-items:center;gap:7px;margin-top:10px;font-size:14px;font-weight:600;color:var(--c-accent)}
+.pw-included svg{width:18px;height:18px;padding:3px;border-radius:50%;background:var(--c-accent);fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
 .pw-pass{display:block;width:100%;margin-top:14px;padding:12px 14px;border:none;border-radius:14px;background:color-mix(in srgb,var(--c-accent) 9%,transparent);color:var(--c-text2);font:inherit;font-size:13.5px;line-height:1.5;text-align:left;cursor:pointer}
 .pw-pass b{color:var(--c-text)}
 .pw-pass:hover{background:color-mix(in srgb,var(--c-accent) 14%,transparent)}
