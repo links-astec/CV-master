@@ -121,7 +121,7 @@ async function downloadPdf() {
   if (!auth.isLoggedIn && !(await requireAccount?.('download'))) return
   pdfBusy.value = true
   try {
-    const id = await store.saveDraft()
+    const id = await store.saveDraft({ force: true })
     const r = await fetch(apiUrl('/api/cv/letter-pdf'), {
       method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ draftId: id || store.currentDraftId }),
     })

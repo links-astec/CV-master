@@ -297,7 +297,7 @@ async function download(c) {
   busy.value = c.key
   try {
     // PDFs are built on the server from the saved CV. Save the open one's latest edits first
-    if (!c.id || c.id === store.currentDraftId) await store.saveDraft()
+    if (!c.id || c.id === store.currentDraftId) await store.saveDraft({ force: true })
     const draftId = c.id || store.currentDraftId
     if (!draftId) throw new Error('Save your CV first.')
     const card = c.id ? c : { ...c, data: { ...store.data, fmt: store.fmt }, template: store.template }
@@ -344,7 +344,7 @@ function unlockPending() {
 async function resend(c) {
   busy.value = c.key + 'send'
   try {
-    if (c.id === store.currentDraftId) await store.saveDraft()
+    if (c.id === store.currentDraftId) await store.saveDraft({ force: true })
     const res = await fetch(apiUrl('/api/cv/redownload'), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },

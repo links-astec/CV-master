@@ -72,7 +72,7 @@
 
 <script setup>
 import { ref, computed, inject, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, onBeforeRouteLeave } from 'vue-router'
 import { useCvStore } from '../stores/cv.js'
 import { useAuthStore } from '../stores/auth.js'
 import { parseTemplate, templateLabel, getTheme } from '../composables/cvRenderer.js'
@@ -85,6 +85,7 @@ import { t } from '../i18n/index.js'
 const store = useCvStore()
 const auth  = useAuthStore()
 const openPaywall = inject('openPaywall')
+const askConfirm = inject('confirm', null)
 
 const ZOOMS = [{ l: 'Fit', v: 'fit' }, { l: '75%', v: 0.75 }, { l: '100%', v: 1 }]
 const zoom = ref('fit')
@@ -111,6 +112,14 @@ const theme = computed(() => getTheme(parseTemplate(store.template).theme))
 const now = ref(Date.now())
 let tick
 const route = useRoute()
+onBeforeRouteLeave(async () => {
+  if (!store.needsKeepDecision) return true
+  const confirm = askConfirm
+  if (!confirm) return true
+  const discard = await confirm({ title: t('Keep this CV?'), message: t('It only has a few details so far. Keep it in My CVs, or discard it?'), ok: t('Discard'), cancel: t('Keep it'), mode: 'danger' })
+  if (discard) store.resetData(); else await store.saveDraft({ force: true })
+  return true
+})
 onMounted(() => {
   tick = setInterval(() => { now.value = Date.now() }, 15000)
   openTab(route.query.tab)
