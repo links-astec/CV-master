@@ -99,7 +99,8 @@ watch(tab, (t) => emit('tab', t), { immediate: true })
 .ced{display:flex;flex-direction:column;height:100%;min-height:0}
 .ced-tabs{padding:14px 18px;border-bottom:1px solid var(--c-border);flex-shrink:0}
 .ced-tabs .seg{display:flex;width:100%}
-.ced-tabs .seg button{flex:1}
+.ced-tabs .seg button{flex:1;white-space:nowrap;padding:0 6px;min-width:0}
+@media (max-width:420px){ .ced-tabs{padding:12px 14px} .ced-tabs .seg button{font-size:12.5px} }
 .ced-body{flex:1;overflow-y:auto;padding:18px;min-height:0}
 
 /* Step components are reused here. Hide their wizard-style headings */
