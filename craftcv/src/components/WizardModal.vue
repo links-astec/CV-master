@@ -1,8 +1,8 @@
 <template>
   <Teleport to="body">
     <Transition name="wiz-fade">
-      <div v-if="store.wizardOpen" class="wiz-backdrop" :class="{ 'wiz-offer-bg': offerStep }">
-        <div class="wiz" :class="{ 'wiz-offer': offerStep }">
+      <div v-if="store.wizardOpen" class="wiz-backdrop">
+        <div class="wiz">
 
           <!-- ── 1 · JOB OFFER FIRST (paste it, or skip) ── -->
           <div v-if="!store.wizardMode && store.wizardAskOffer" class="wiz-pick">
@@ -123,7 +123,6 @@ async function keepOrDiscard() {
   if (!discard) await store.saveDraft({ force: true })
   return discard ? 'discard' : 'keep'
 }
-const offerStep = computed(() => !store.wizardMode && store.wizardAskOffer)   // the job offer screen, in a compact window
 const emit = defineEmits(['open-builder', 'pay'])
 
 // "Tell your story" first and highlighted: the quickest way to a full CV
@@ -240,14 +239,6 @@ watch(() => store.wizardMode, m => { if (!m) return; guestEvent('cv_started'); i
 </script>
 
 <style scoped>
-/* The job offer step: the same compact window as on the Templates page */
-.wiz.wiz-offer{max-width:680px;height:auto;max-height:calc(100dvh - 40px);border:none;background:var(--c-surface);background-image:radial-gradient(700px 300px at 50% -20%,var(--c-accent-lt),transparent 70%)}
-.wiz.wiz-offer .wiz-pick{background:none;padding:40px 44px 36px}
-@media (max-width:768px){
-  .wiz-backdrop.wiz-offer-bg{align-items:flex-end}
-  .wiz.wiz-offer{height:auto;border-radius:24px 24px 0 0;max-height:calc(100dvh - 24px - env(safe-area-inset-top))}
-  .wiz.wiz-offer .wiz-pick{padding:48px 18px calc(24px + env(safe-area-inset-bottom))}
-}
 .wiz-backdrop{position:fixed;inset:0;z-index:7000;background:rgba(15,15,25,.45);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px}
 .wiz{width:100%;max-width:1240px;height:min(860px,calc(100vh - 40px));background:var(--c-surface);border-radius:28px;box-shadow:var(--shadow-xl);overflow:hidden;display:flex;border:1px solid var(--hair)}
 .wiz-fade-enter-active,.wiz-fade-leave-active{transition:opacity .2s}
