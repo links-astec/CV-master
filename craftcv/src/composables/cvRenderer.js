@@ -497,9 +497,10 @@ const LAYOUT_HTML = {
     </header>
     <main class="body">
       ${sections(m, MAIN)}
+      ${sections(m, ['education'])}
       <div class="split">
-        <div>${sections(m, ['education', 'certifications'])}</div>
         <div>${sections(m, ['skills', 'languages'])}</div>
+        <div>${sections(m, ['certifications'])}</div>
       </div>
     </main>`,
 
@@ -529,7 +530,7 @@ const BASE_CSS = `
 .cvr .muted{color:#6b7280}
 .cvr .nw{white-space:nowrap}
 .cvr .accent{color:var(--ac)}
-.cvr .name{font-family:var(--hfont);font-weight:700;color:#111827;font-size:calc(30px*var(--s));line-height:1.12;letter-spacing:-.015em}
+.cvr .name{font-family:var(--hfont);font-weight:700;color:#111827;font-size:calc(30px*var(--s));line-height:1.12;letter-spacing:-.015em;word-spacing:.12em}
 .cvr .title{color:var(--ac);font-weight:600;font-size:calc(12.4px*var(--s));margin-top:5px;letter-spacing:.01em}
 .cvr .contact{color:#4b5563;font-size:calc(9.8px*var(--s));margin-top:9px;line-height:1.65}
 .cvr .sep{color:#9ca3af}
@@ -538,7 +539,7 @@ const BASE_CSS = `
 .cvr .contact-list li{overflow-wrap:anywhere}
 .cvr .sec{margin-top:var(--gap)}
 .cvr .body > .sec:first-child,.cvr .main > .sec:first-child,.cvr .aside > .sec:first-child{margin-top:0}
-.cvr .sec-h{font-family:var(--font);font-size:calc(9.4px*var(--s));font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--ac);margin-bottom:9px;line-height:1.3}
+.cvr .sec-h{font-family:var(--font);font-size:calc(9.4px*var(--s));font-weight:700;letter-spacing:0;text-transform:uppercase;color:var(--ac);margin-bottom:9px;line-height:1.3}
 .cvr .prose,.cvr .inline,.cvr .bl{color:#374151}
 .cvr .item{margin-bottom:calc(var(--gap)*.62)}
 .cvr .item:last-child{margin-bottom:0}
@@ -649,7 +650,7 @@ const LAYOUT_CSS = {
 .l-studio .title{text-transform:uppercase;letter-spacing:.16em;font-size:calc(10.4px*var(--s));margin-top:10px}
 .l-studio .avatar{width:124px;height:124px;margin:0 auto 26px;border:4px solid rgba(255,255,255,.14);font-size:40px;background:var(--ac)}
 .l-studio .aside .sec{margin-top:calc(var(--gap)*1.05)}
-.l-studio .aside .sec-h{color:#fff;letter-spacing:.18em;border-bottom:1px solid rgba(255,255,255,.18);padding-bottom:6px}
+.l-studio .aside .sec-h{color:#fff;letter-spacing:0;border-bottom:1px solid rgba(255,255,255,.18);padding-bottom:6px}
 .l-studio .aside .contact-list{color:rgba(255,255,255,.86)}
 .l-studio .aside .chips li{background:rgba(255,255,255,.12);color:#fff}
 .l-studio .aside .list,.l-studio .aside strong,.l-studio .aside .inline,.l-studio .aside .prose{color:rgba(255,255,255,.86)}
@@ -666,7 +667,7 @@ const LAYOUT_CSS = {
 .l-elegant .orn{margin:18px auto 0;width:180px;height:9px;position:relative}
 .l-elegant .orn::before{content:'';position:absolute;left:0;right:0;top:4px;height:1px;background:var(--ac);opacity:.6}
 .l-elegant .orn::after{content:'';position:absolute;left:50%;top:0;width:8px;height:8px;margin-left:-4px;background:#fffdf9;border:1px solid var(--ac);transform:rotate(45deg)}
-.l-elegant .sec-h{display:flex;align-items:center;gap:14px;justify-content:center;color:var(--acd);letter-spacing:.24em;font-weight:600;margin-bottom:12px}
+.l-elegant .sec-h{display:flex;align-items:center;gap:14px;justify-content:center;color:var(--acd);letter-spacing:0;font-weight:600;margin-bottom:12px}
 .l-elegant .sec-h::before,.l-elegant .sec-h::after{content:'';flex:1;height:1px;background:color-mix(in srgb,var(--ac) 30%,transparent)}
 .l-elegant .s-profile .prose,.l-elegant .s-skills .inline,.l-elegant .s-languages .inline{text-align:center}
 .l-elegant .item-t{font-family:var(--hfont);font-weight:400;font-size:calc(13px*var(--s))}`,
@@ -679,7 +680,7 @@ const LAYOUT_CSS = {
 .l-bold .contact{color:rgba(255,255,255,.88);margin-top:14px}
 .l-bold .contact .sep{color:rgba(255,255,255,.5)}
 .l-bold .grid{display:grid;grid-template-columns:1fr 196px;gap:30px;padding:0 46px 36px}
-.l-bold .sec-h{display:flex;align-items:baseline;gap:10px;color:#111827;font-size:calc(11px*var(--s));letter-spacing:.1em;margin-bottom:11px}
+.l-bold .sec-h{display:flex;align-items:baseline;gap:10px;color:#111827;font-size:calc(11px*var(--s));letter-spacing:0;margin-bottom:11px}
 .l-bold .sec-h::before{counter-increment:sec;content:counter(sec,decimal-leading-zero);font-size:calc(20px*var(--s));font-weight:800;color:var(--ac);letter-spacing:-.02em}
 .l-bold .aside .sec{margin-top:calc(var(--gap)*.9)}
 .l-bold .aside .sec:first-child{margin-top:0}`,
