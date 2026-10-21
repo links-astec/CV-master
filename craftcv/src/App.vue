@@ -337,12 +337,22 @@ provide('requireAccount', (reason) => auth.isLoggedIn ? Promise.resolve(true) : 
 
 // Onboarding (industry / goal / experience) is optional context for the AI
 const onboardingDismissed = ref(false)
-async function onOnboarded({ tour = false } = {}) {
+const pendingTour = ref(false)
+function onOnboarded({ tour = false } = {}) {
   onboardingDismissed.value = true
-  if (!tour) return
-  if (route.path !== '/') await router.push('/')
-  setTimeout(() => { showTutorial.value = true }, 450)
+  pendingTour.value = tour
 }
+// Signing up is often for something (a new CV, a template, a payment) that carries on right after:
+// the tour starts once nothing else is open, so it's never hidden behind it
+const busyElsewhere = computed(() => store.wizardOpen || authState.open || showPaywall.value || !!document.querySelector('.jo-backdrop'))
+watch([pendingTour, busyElsewhere, () => route.path], () => {
+  if (!pendingTour.value) return
+  setTimeout(() => {
+    if (!pendingTour.value || busyElsewhere.value || store.wizardOpen) return
+    pendingTour.value = false
+    showTutorial.value = true
+  }, 900)
+}, { flush: 'post' })
 const showOnboarding = computed(() => ready.value && auth.isLoggedIn && !auth.isOnboarded && !onboardingDismissed.value && !authState.open)
 
 // The account's language follows the user to other devices. Unless they picked one here

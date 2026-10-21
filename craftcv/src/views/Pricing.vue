@@ -72,8 +72,8 @@
         </p>
       </section>
 
-      <!-- Side by side -->
-      <section v-reveal>
+      <!-- Side by side (computers: the plan cards already list everything, and four columns don't fit a phone) -->
+      <section v-reveal class="hide-mobile">
         <h2 class="px-h2 px-center">{{ $t('Compare the plans') }}</h2>
         <div class="px-table" role="table">
           <div class="px-tr px-th" role="row"><div role="columnheader"></div><div role="columnheader">{{ $t('Free') }}</div><div role="columnheader">{{ $t('Clean PDF') }}</div><div role="columnheader">{{ $t('Job Hunt Pass') }}</div></div>
@@ -277,8 +277,14 @@ function getPass() { router.push({ path: '/settings', query: passActive.value ? 
   .px-extras{grid-template-columns:1fr}
 }
 @media (max-width:640px){
-  .pr{gap:72px}
-  .px-plan{padding:30px 24px 26px}
+  .pr{gap:56px}
+  .px-hero{text-align:left;padding-top:4px}
+  .px-h1{font-size:34px;line-height:1.08}
+  .px-h1 span{display:block}
+  .px-lead{font-size:16px;margin:14px 0 0}
+  .px-plan{padding:24px 22px 22px;border-radius:22px}
+  .px-amt{font-size:40px;margin-top:20px}
+  .px-h2{font-size:26px!important}
   .px-row{padding:14px 18px;gap:12px}
   .px-slider{padding:20px}
   .px-tr{grid-template-columns:1.3fr .8fr .9fr .9fr}

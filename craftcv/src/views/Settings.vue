@@ -1,13 +1,42 @@
 <template>
   <div class="view-page st-page">
     <div class="view-inner st">
-      <h1 class="st-h1">{{ $t('Settings') }}</h1>
-      <nav class="st-jump" :aria-label="$t('Settings sections')">
+      <!-- Phone, inside a section: back to the list -->
+      <button v-if="phone && msec" type="button" class="sm-back" @click="openSec('')">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 6 9 12 15 18"/></svg>{{ $t('Settings') }}
+      </button>
+      <h1 v-show="!(phone && msec)" class="st-h1">{{ $t('Settings') }}</h1>
+
+      <!-- Phone: the list of sections -->
+      <div v-if="phone && !msec" class="sm-index">
+        <button v-if="auth.isLoggedIn" type="button" class="sm-acct" @click="openSec('account')">
+          <span class="sm-ava"><img v-if="auth.user?.photo" :src="auth.user.photo" alt="" /><template v-else>{{ (auth.user?.name || auth.user?.email || '?')[0].toUpperCase() }}</template></span>
+          <span class="sm-acct-t"><b>{{ auth.user?.name }}</b><small>{{ auth.user?.email }}</small></span><svg class="sm-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
+        </button>
+        <button v-else type="button" class="sm-acct" @click="openSec('account')">
+          <span class="sm-acct-t"><b>{{ $t('You’re using CVMaster as a guest') }}</b><small>{{ $t('Create a free account to keep your CVs safe') }}</small></span><svg class="sm-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
+        </button>
+        <div class="sm-group">
+          <button type="button" class="sm-row" @click="openSec('pass')"><span class="sm-k">{{ $t('Job Hunt Pass') }}</span><span class="sm-v">{{ pass ? $t('On') : $t('Free plan') }}</span><svg class="sm-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
+          <button v-if="auth.isLoggedIn" type="button" class="sm-row" @click="openSec('invite')"><span class="sm-k">{{ $t('Invite friends') }}</span><span class="sm-v">{{ $t('{n} joined', { n: referralInfo?.count ?? 0 }) }}</span><svg class="sm-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
+          <button type="button" class="sm-row" @click="openSec('ai')"><span class="sm-k">{{ $t('AI') }}</span><span class="sm-v">{{ aiQuota ? $t('{n} left today', { n: aiQuota.freeLeft }) : '' }}</span><svg class="sm-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
+        </div>
+        <div class="sm-group">
+          <button v-if="auth.isLoggedIn" type="button" class="sm-row" @click="openSec('details')"><span class="sm-k">{{ $t('Your details') }}</span><svg class="sm-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
+          <button type="button" class="sm-row" @click="openSec('prefs')"><span class="sm-k">{{ $t('Preferences') }}</span><svg class="sm-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
+          <button type="button" class="sm-row" @click="openSec('help')"><span class="sm-k">{{ $t('Help & feedback') }}</span><svg class="sm-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
+        </div>
+        <div v-if="auth.isLoggedIn" class="sm-group">
+          <button type="button" class="sm-row sm-out" @click="logout"><span class="sm-k">{{ $t('Sign out') }}</span></button>
+        </div>
+      </div>
+
+      <nav v-show="!phone" class="st-jump" :aria-label="$t('Settings sections')">
         <a v-for="j in jumps" :key="j.id" :href="'#' + j.id" :class="{ on: activeJump === j.id }" @click.prevent="jump(j.id)">{{ $t(j.label) }}</a>
       </nav>
 
       <!-- Account -->
-      <section v-if="auth.isLoggedIn" id="account" class="st-card st-hero">
+      <section v-show="showSec('account')" v-if="auth.isLoggedIn" id="account" class="st-card st-hero">
         <div class="st-acct">
           <!-- Profile picture: the account's avatar everywhere, and the photo offered for CV layouts with one -->
           <button type="button" class="st-ava" :class="{ busy: detailsSaving }" :aria-label="$t('Change profile picture')" :title="$t('Change profile picture')" @click="picInput?.click()">
@@ -107,7 +136,7 @@
       </section>
 
       <!-- Guest -->
-      <section v-else id="account" class="st-card st-guest">
+      <section v-show="showSec('account')" v-else id="account" class="st-card st-guest">
         <div>
           <div class="st-card-t">{{ $t('You’re using CVMaster as a guest') }}</div>
           <p class="st-p">{{ $t('Your CV is saved in this browser only. Create a free account to keep it safe, use it on any device and export it.') }}</p>
@@ -119,7 +148,7 @@
       </section>
 
       <!-- Invite friends -->
-      <section v-if="auth.isLoggedIn" id="invite" class="st-card">
+      <section v-show="showSec('invite')" v-if="auth.isLoggedIn" id="invite" class="st-card">
         <div class="st-card-hd">
           <div>
             <div class="st-card-t">{{ $t('Invite friends') }}</div>
@@ -153,7 +182,7 @@
 
       <!-- Job Hunt Pass -->
       <!-- Pass holders: their card, what the pass is doing for them, and the plan -->
-      <section v-if="pass" id="pass" class="st-card st-mine">
+      <section v-show="showSec('pass')" v-if="pass" id="pass" class="st-card st-mine">
         <div class="st-mine-card">
           <PassCard :name="auth.user?.name || ''" :since="pass.since || ''" :plan="pass.plan" />
         </div>
@@ -175,7 +204,7 @@
         </div>
       </section>
 
-      <section v-else id="pass" class="st-card st-pass">
+      <section v-show="showSec('pass')" v-else id="pass" class="st-card st-pass">
         <div class="st-pass-brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>{{ $t('Job Hunt Pass') }}</div>
           <div class="st-pass-title">{{ $t('Every CV you make, unlocked.') }}</div>
           <p class="st-pass-p">{{ $t('Applying to lots of jobs? Every CV you make as a clean PDF, emailed and downloadable, and 100 AI requests a day.') }}</p>
@@ -205,7 +234,7 @@
       </section>
 
       <!-- AI requests -->
-      <section id="ai" class="st-sec">
+      <section v-show="showSec('ai')" id="ai" class="st-sec">
         <h2 class="st-sec-t">{{ $t('AI requests') }}</h2>
         <div class="st-list">
           <div class="st-li">
@@ -225,7 +254,7 @@
       </section>
 
       <!-- AI personalisation (own CVs only) -->
-      <section v-if="auth.isLoggedIn" class="st-card">
+      <section v-show="showSec('ai')" v-if="auth.isLoggedIn" class="st-card">
         <div class="st-card-hd">
           <div>
             <div class="st-card-t">{{ $t('AI personalisation') }}</div>
@@ -257,7 +286,7 @@
       </section>
 
       <!-- Saved personal details: new CVs start with them filled in -->
-      <section v-if="auth.isLoggedIn" id="details" class="st-card">
+      <section v-show="showSec('details')" v-if="auth.isLoggedIn" id="details" class="st-card">
         <div class="st-card-hd">
           <div>
             <div class="st-card-t">{{ $t('Your details') }}</div>
@@ -285,7 +314,7 @@
       </section>
 
       <!-- Preferences -->
-      <section id="prefs" class="st-card">
+      <section v-show="showSec('prefs')" id="prefs" class="st-card">
         <div class="st-card-t">{{ $t('Preferences') }}</div>
         <div class="st-pref">
           <div><div class="st-pref-t">{{ $t('Language') }}</div><div class="st-pref-s">{{ $t('The language of CVMaster itself. Your CV’s language is set in the editor.') }}</div></div>
@@ -328,10 +357,10 @@
       <PassWelcome :show="welcome" :until="pass ? fmtDay(pass.until) : ''" :name="auth.user?.name || ''" :since="pass?.since || ''" :plan="pass?.plan || 'month'" @close="welcome = false" @start="welcome = false; router.push('/')" />
 
       <!-- Review (only shows for people who have made a CV) -->
-      <ReviewPrompt id="review" class="st-review" />
+      <ReviewPrompt v-show="showSec('help')" id="review" class="st-review" />
 
       <!-- Help -->
-      <section id="help" class="st-sec">
+      <section v-show="showSec('help')" id="help" class="st-sec">
         <h2 class="st-sec-t">{{ $t('Help & feedback') }}</h2>
         <div class="st-list">
           <button type="button" class="st-li" @click="openFeedback('suggestion')"><span class="st-li-k">{{ $t('Send feedback') }}</span><svg class="st-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
@@ -342,7 +371,7 @@
       </section>
 
       <!-- Delete account -->
-      <section v-if="auth.isLoggedIn" class="st-sec">
+      <section v-show="showSec('account')" v-if="auth.isLoggedIn" class="st-sec">
         <div class="st-list">
           <button v-if="!deleting" type="button" class="st-li st-li-red" @click="deleting = true"><span class="st-li-k">{{ $t('Delete account') }}</span></button>
           <div v-else class="st-del">
@@ -364,7 +393,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, inject, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { useCvStore } from '../stores/cv.js'
 import ReviewPrompt from '../components/ReviewPrompt.vue'
@@ -381,6 +410,7 @@ const apiUrl    = (p) => (import.meta.env.VITE_API_URL || '') + p
 const auth      = useAuthStore()
 const store     = useCvStore()
 const router    = useRouter()
+const route     = useRoute()
 const showToast = inject('showToast')
 const openAuth  = inject('openAuth')
 const openFeedback    = inject('openFeedback')
@@ -712,7 +742,22 @@ const jumps = computed(() => [
   ...(auth.isLoggedIn ? [{ id: 'details', label: 'Your details' }] : []), { id: 'prefs', label: 'Preferences' }, { id: 'help', label: 'Help' },
 ])
 const activeJump = ref('account')
-function jump(id) { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); activeJump.value = id }
+function jump(id) {
+  if (phone.value) return openSec(SEC_OF[id] || id)
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); activeJump.value = id
+}
+// Phones: the list, or one section at a time (?s=pass), so the back gesture returns to the list
+const phoneMq = typeof matchMedia === 'function' ? matchMedia('(max-width: 768px)') : null
+const phone = ref(!!phoneMq?.matches)
+phoneMq?.addEventListener?.('change', (e) => { phone.value = e.matches })
+const SEC_OF = { review: 'help' }
+const msec = computed(() => (phone.value ? String(route.query.s || '') : ''))
+const showSec = (key) => !phone.value || msec.value === key
+function openSec(key) {
+  if (key) router.push({ query: { ...route.query, s: key }, hash: '' })
+  else if (route.query.s) router.replace({ query: { ...route.query, s: undefined } })
+  document.querySelector('.st-page')?.scrollTo({ top: 0 })
+}
 function onScroll(e) {
   const top = e.target.getBoundingClientRect().top + 120
   // the section whose top most recently passed the line under the shortcuts
@@ -764,6 +809,7 @@ async function passReturn() {
 
 onMounted(() => {
   passReturn()
+  if (phone.value && location.hash && !route.query.s) { const id = location.hash.slice(1); router.replace({ query: { ...route.query, s: SEC_OF[id] || id }, hash: '' }) }
   document.querySelector('.st-page')?.addEventListener('scroll', onScroll, { passive: true })
   if (location.hash === '#pass') setTimeout(() => document.getElementById('pass')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 600)
   loadAiQuota(); if (auth.isLoggedIn) { loadReferral(); loadNewsletter(); loadDetails() }
@@ -777,6 +823,25 @@ watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota(); lo
 
 <style scoped>
 .st{max-width:760px;display:flex;flex-direction:column;gap:20px}
+/* Phones: the list of sections, like iPhone Settings */
+.sm-index{display:flex;flex-direction:column;gap:22px}
+.sm-acct{display:flex;align-items:center;gap:14px;width:100%;padding:14px 16px;border:none;border-radius:18px;background:var(--c-surface);font:inherit;text-align:left;color:var(--c-text);cursor:pointer}
+.sm-ava{width:56px;height:56px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--c-accent);color:#fff;font-size:22px;font-weight:700}
+.sm-ava img{width:100%;height:100%;object-fit:cover}
+.sm-acct-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.sm-acct-t b{font-size:19px;font-weight:600;letter-spacing:-.015em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sm-acct-t small{font-size:14px;color:var(--c-text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sm-group{background:var(--c-surface);border-radius:16px;overflow:hidden}
+.sm-row{display:flex;align-items:center;gap:10px;width:100%;min-height:52px;padding:12px 16px;border:none;background:none;font:inherit;text-align:left;color:var(--c-text);cursor:pointer;position:relative}
+.sm-row + .sm-row::before{content:'';position:absolute;top:0;left:16px;right:0;height:1px;background:var(--hair)}
+.sm-row:active,.sm-acct:active{background:color-mix(in srgb,var(--c-text) 5%,var(--c-surface))}
+.sm-k{flex:1;font-size:16.5px}
+.sm-v{font-size:15.5px;color:var(--c-text3);white-space:nowrap}
+.sm-chev{width:15px;height:15px;flex-shrink:0;fill:none;stroke:var(--c-text3);stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round}
+.sm-out{justify-content:center}
+.sm-out .sm-k{flex:none;color:#e5484d}
+.sm-back{display:inline-flex;align-items:center;gap:2px;align-self:flex-start;margin:-6px 0 -4px -6px;padding:6px 8px 6px 2px;border:none;background:none;font:inherit;font-size:17px;color:var(--c-accent);cursor:pointer}
+.sm-back svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 .st-h1{font-size:clamp(32px,4vw,44px);font-weight:800;letter-spacing:-.04em;line-height:1.05;color:var(--c-text);margin:4px 0 10px}
 .st-card{background:var(--c-surface);border:none;border-radius:22px;padding:26px 28px;box-shadow:none;animation:stIn .7s var(--ease) backwards}
 /* iOS Settings: a grey heading outside, a white group of rows, a grey footnote under it */

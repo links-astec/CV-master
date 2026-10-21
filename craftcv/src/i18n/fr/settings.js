@@ -193,4 +193,9 @@ export default {
   '{n} of {limit}': '{n} sur {limit}',
   'Extra requests': 'Requêtes en plus',
   'Get 100 more': 'En obtenir 100 de plus',
+  'Free plan': 'Gratuit',
+  'On': 'Activé',
+  '{n} joined': '{n} inscrits',
+  '{n} left today': '{n} restantes aujourd’hui',
+  'Create a free account to keep your CVs safe': 'Créez un compte gratuit pour garder vos CV en sécurité',
 }
