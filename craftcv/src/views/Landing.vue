@@ -30,7 +30,7 @@
         </div>
         <!-- The two things people should not miss -->
         <p class="lp-quick">
-          {{ $t('Or start with:') }}
+          <span class="lp-quick-l">{{ $t('Or start with:') }}</span>
           <button class="lp-q" @click="$emit('start', 'narrate')">{{ $t('Tell your story') }}</button>
           <span aria-hidden="true">·</span>
           <button class="lp-q" @click="$emit('start', 'ats')">{{ $t('Check your ATS score') }}</button>
@@ -468,7 +468,7 @@ const FAQ = [
 .lp-wrap{max-width:1080px;margin:0 auto;padding:0 24px}
 
 /* Nav */
-.lp-nav{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--c-surface) 78%,transparent);backdrop-filter:saturate(1.8) blur(20px);-webkit-backdrop-filter:saturate(1.8) blur(20px);border-bottom:1px solid transparent;transition:border-color .3s var(--ease)}
+.lp-nav{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--c-surface) 94%,transparent);backdrop-filter:saturate(1.8) blur(20px);-webkit-backdrop-filter:saturate(1.8) blur(20px);border-bottom:1px solid transparent;transition:border-color .3s var(--ease)}
 .lp-nav.scrolled{border-bottom-color:var(--hair)}
 .lp-nav-in{height:56px;display:flex;align-items:center;justify-content:space-between;gap:24px}
 .lp-logo{display:flex;text-decoration:none}
@@ -834,4 +834,5 @@ const FAQ = [
   .lp-news-row .f-inp{flex:none;width:100%}
   .lp-news-row .btn-primary{width:100%}
 }
+@media (max-width:560px){ .lp-quick{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px 10px} .lp-quick-l{flex-basis:100%;text-align:center} }
 </style>

@@ -3,7 +3,7 @@
     <div class="view-inner pr">
       <!-- Hero: plain, confident type -->
       <header class="px-hero">
-        <p class="px-eyebrow">{{ $t('Pricing') }}</p>
+        <p class="px-eyebrow hide-mobile">{{ $t('Pricing') }}</p>
         <h1 class="px-h1">{{ $t('Free to build.') }} <span>{{ $t('Pay only when you send it.') }}</span></h1>
         <p class="px-lead">{{ $t('Build, tailor and check every CV for free. When you’re ready to apply, download it once for €0.99, or get every CV with the Job Hunt Pass.') }}</p>
       </header>
@@ -89,13 +89,11 @@
       <!-- Extras -->
       <section class="px-extras">
         <div class="px-extra" v-reveal>
-          <span class="px-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg></span>
           <h3>{{ $t('Need more AI?') }}</h3>
           <p>{{ $t('100 extra AI requests for €0.50. They never expire.') }}<template v-if="approx(0.5)"> {{ approx(0.5) }}</template></p>
           <button class="px-link" @click="buyAi">{{ $t('Get 100 more for €0.50') }} ›</button>
         </div>
         <div class="px-extra" v-reveal="60">
-          <span class="px-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></span>
           <h3>{{ $t('Or earn your CVs') }}</h3>
           <p>{{ $t('Invite friends: you get a free CV for every friend who gets their first clean CV.') }}</p>
           <button class="px-link" @click="start('invite')">{{ $t('Get my invite link') }} ›</button>

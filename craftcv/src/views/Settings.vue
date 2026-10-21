@@ -130,9 +130,9 @@
         <div v-if="referralLoading" class="st-muted">{{ $t('Loading…') }}</div>
         <template v-else-if="referralInfo">
           <div class="st-stats">
-            <div><span>{{ referralInfo.count }}</span>{{ $t('joined') }}</div>
+            <div><span>{{ referralInfo.count ?? 0 }}</span>{{ $t('joined') }}</div>
             <div><span>{{ referralInfo.rewarded ?? 0 }}</span>{{ $t('got their CV') }}</div>
-            <div class="hl"><span>{{ referralInfo.credits }}</span>{{ $t(referralInfo.credits === 1 ? 'free CV to use' : 'free CVs to use') }}</div>
+            <div class="hl"><span>{{ referralInfo.credits ?? 0 }}</span>{{ $t(referralInfo.credits === 1 ? 'free CV to use' : 'free CVs to use') }}</div>
           </div>
           <p v-if="referralInfo.credits > 0" class="st-note">{{ $t('Use a free CV at export. Choose “Use a referral credit”.') }}</p>
 
@@ -335,7 +335,7 @@
         <h2 class="st-sec-t">{{ $t('Help & feedback') }}</h2>
         <div class="st-list">
           <button type="button" class="st-li" @click="openFeedback('suggestion')"><span class="st-li-k">{{ $t('Send feedback') }}</span><svg class="st-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
-          <button type="button" class="st-li" @click="openFeedback('complaint')"><span class="st-li-k">{{ $t('Make a complaint') }}</span><span class="st-li-v">{{ $t('We reply to every complaint') }}</span><svg class="st-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
+          <button type="button" class="st-li" @click="openFeedback('complaint')"><span class="st-li-k">{{ $t('Make a complaint') }}</span><span class="st-li-v hide-mobile">{{ $t('We reply to every complaint') }}</span><svg class="st-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
           <RouterLink to="/privacy" class="st-li"><span class="st-li-k">{{ $t('Privacy policy') }}</span><svg class="st-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></RouterLink>
           <RouterLink to="/terms" class="st-li"><span class="st-li-k">{{ $t('Terms of service') }}</span><svg class="st-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></RouterLink>
         </div>
@@ -789,6 +789,7 @@ button.st-li,a.st-li{cursor:pointer;transition:background .15s ease}
 button.st-li:hover,a.st-li:hover{background:color-mix(in srgb,var(--c-text) 4%,transparent)}
 .st-li-k{font-size:15.5px;font-weight:500}
 .st-li-v{margin-left:auto;font-size:15px;color:var(--c-text3);text-align:right}
+@media (max-width:560px){ .st-li-v{font-size:14px;max-width:52%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .st-grow-v{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:48%} }
 .st-li-blue{color:var(--c-accent)}
 .st-li-red .st-li-k{color:#e5484d;font-weight:500}
 .st-li-red{justify-content:center}
@@ -799,9 +800,9 @@ button.st-li:hover,a.st-li:hover{background:color-mix(in srgb,var(--c-text) 4%,t
 @media (prefers-reduced-motion:reduce){ .st-card{animation:none} }
 .st-card-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
 /* Section shortcuts: a quiet segmented row that follows the page */
-.st-jump{position:sticky;top:-36px;z-index:5;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin:-2px -8px 2px;padding:10px 8px;background:color-mix(in srgb,var(--c-bg) 86%,transparent);backdrop-filter:saturate(1.8) blur(20px);-webkit-backdrop-filter:saturate(1.8) blur(20px)}
+.st-jump{position:sticky;top:-36px;z-index:5;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin:-2px -8px 2px;padding:10px 8px;background:color-mix(in srgb,var(--c-bg) 96%,transparent);backdrop-filter:saturate(1.8) blur(20px);-webkit-backdrop-filter:saturate(1.8) blur(20px)}
 .st-jump::-webkit-scrollbar{display:none}
-@media (max-width:768px){ .st-jump{top:-22px} }
+@media (max-width:768px){ .st-jump{top:0;margin-top:-6px} }
 .st-jump a{flex-shrink:0;height:34px;padding:0 14px;border-radius:99px;display:inline-flex;align-items:center;font-size:14px;font-weight:500;color:var(--c-text2);text-decoration:none;transition:background .2s ease,color .2s ease}
 .st-jump a:hover{color:var(--c-text)}
 .st-jump a.on{background:var(--c-surface);color:var(--c-text);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08)}
