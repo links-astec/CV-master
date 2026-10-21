@@ -140,11 +140,12 @@ const summary = computed(() => [
 ])
 
 // Saves what they answered (nothing is made up when they skip) and closes; the tour follows unless they said no
+// (it tells the app first: saving marks the account onboarded, which closes this window, and a closed window can't tell anyone)
 async function finish(tour) {
   saving.value = true
+  emit('done', { tour })
   await auth.completeOnboarding({ ...form.value }).catch(() => {})
   saving.value = false
-  emit('done', { tour })
 }
 </script>
 
