@@ -127,7 +127,8 @@ const ENGINE = {
     const host = region === 'us' ? 'https://api.us.textkernel.com' : 'https://api.eu.textkernel.com'
     const r = await fetch(host + '/tx/v10/parser/resume', {
       method: 'POST', headers: { 'Tx-AccountId': acc, 'Tx-ServiceKey': key, 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ DocumentAsBase64String: Buffer.from(pdf).toString('base64'), DocumentLastModified: new Date().toISOString().slice(0, 10) }),
+      // TEXTKERNEL_EXTRA: more request options as JSON, e.g. {"UseLLMParser":true} or {"OutputHtml":true}
+      body: JSON.stringify({ DocumentAsBase64String: Buffer.from(pdf).toString('base64'), DocumentLastModified: new Date().toISOString().slice(0, 10), ...JSON.parse(process.env.TEXTKERNEL_EXTRA || '{}') }),
       signal: AbortSignal.timeout(120000),
     })
     const j = await r.json().catch(() => ({}))
@@ -160,7 +161,7 @@ for (const engine of ENGINES) {
     if (sent >= LIMIT) break
     const cv = CVS[lang], tpl = `${l.id}:${l.theme}`, name = `CVMaster-${l.id}-${lang}.pdf`
     const pdf = Buffer.from(await cvPdfForChecks(tpl, cv, {}))
-    const hash = crypto.createHash('sha256').update(engine).update(pdf).digest('hex').slice(0, 20)
+    const hash = crypto.createHash('sha256').update(engine + (engine === 'textkernel' ? process.env.TEXTKERNEL_EXTRA || '' : '')).update(pdf).digest('hex').slice(0, 20)
     const cacheFile = path.join(CACHE, `${engine}-${l.id}-${lang}-${hash}.json`)
     let res
     try {
