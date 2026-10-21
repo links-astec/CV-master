@@ -214,4 +214,8 @@ export default {
   'Open': 'Ouvrir',
   'Interview prep comes with the Job Hunt Pass.': 'La préparation à l’entretien est incluse dans le Job Hunt Pass.',
   'Preview': 'Aperçu',
+  'Keep this CV?': 'Garder ce CV ?',
+  'It only has a few details so far. Keep it in My CVs, or discard it?': 'Il ne contient que quelques informations pour l’instant. Le garder dans Mes CV, ou le supprimer ?',
+  'Discard': 'Supprimer',
+  'Keep it': 'Le garder',
 }

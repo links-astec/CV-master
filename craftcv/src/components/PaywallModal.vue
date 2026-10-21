@@ -262,7 +262,7 @@ async function sendEmail(sessionId = null) {
   state.value = 'sending'
   try {
     // The server builds the PDF from the saved CV, so save the latest edits first
-    if (!sessionId) await store.saveDraft()
+    if (!sessionId) await store.saveDraft({ force: true })
     const data = await api('/api/cv/email', {
       overrideEmail: deliveryEmail.value.trim() || null,
       sessionId,
@@ -288,7 +288,7 @@ async function sendEmail(sessionId = null) {
 async function downloadPdf() {
   downloading.value = true
   try {
-    await store.saveDraft()
+    await store.saveDraft({ force: true })
     const r = await fetch(apiUrl('/api/cv/export-pdf'), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },

@@ -81,6 +81,21 @@ export function hasDraftableContent(d) {
 // Something the AI can work with: anything beyond the name, contact details and photo.
 // The AI is never called for a CV without it (see the fetch guard in App.vue and
 // cvHasContent in server/index.js, which use the same rule).
+// Enough to keep as a CV in My CVs: more than contact details or a pasted job offer
+export function hasSubstance(d) {
+  if (!d || typeof d !== 'object') return false
+  const s = (v) => typeof v === 'string' && v.trim() !== ''
+  const list = (v) => (Array.isArray(v) ? v : [])
+  return Boolean(
+    (s(d.sum) && d.sum.trim().length >= 20) ||
+    list(d.experiences).some(e => s(e?.title) || s(e?.company) || s(e?.desc)) ||
+    list(d.education).some(e => s(e?.degree) || s(e?.school)) ||
+    list(d.projects).some(p => s(p?.name) || s(p?.desc)) ||
+    list(d.certifications).some(s) ||
+    list(d.skills).filter(s).length >= 2
+  )
+}
+
 export function hasCvContent(d) {
   if (!d || typeof d !== 'object') return false
   const s = (v) => typeof v === 'string' && v.trim() !== ''
@@ -158,7 +173,8 @@ export const useCvStore = defineStore('cv', () => {
     clearTimeout(saveTimer)
     saveTimer = setTimeout(() => {
       saveTimer = null
-      if (currentDraftId.value || (hasDraftableContent(data.value) && !onlyPrefill(data.value))) saveDraft().catch(() => {})
+      // a new CV goes into the account only once it has substance (picking a template or pasting a job offer isn't a CV yet)
+      if (currentDraftId.value || hasSubstance(data.value)) saveDraft().catch(() => {})
     }, delay)
   }
   watch(data, (v) => {
@@ -184,6 +200,8 @@ export const useCvStore = defineStore('cv', () => {
   const fullName = computed(() => `${data.value.fn} ${data.value.ln}`.trim() || 'Your Name')
   const initials = computed(() => ((data.value.fn?.[0] || '') + (data.value.ln?.[0] || '')).toUpperCase())
   const hasContent = computed(() => hasDraftableContent(data.value) && !onlyPrefill(data.value))
+  // A new CV with something typed in, but not enough to keep on its own: leaving it asks "keep or discard?"
+  const needsKeepDecision = computed(() => auth.isLoggedIn && !currentDraftId.value && hasContent.value && !hasSubstance(data.value))
   // While the CV is still empty, its language follows the app language switch
   watch(uiLang, (l) => { if (!hasContent.value) data.value.lang = l === 'fr' ? 'fr' : 'en' })
 
@@ -378,11 +396,12 @@ export const useCvStore = defineStore('cv', () => {
 
   // Saves to the account. Guests have no account yet. Their CV lives in this
   // browser until they sign up (App.vue then saves it as their first draft).
-  async function saveDraft() {
+  // force: save even a CV with only a few details (the user asked to keep it, or is exporting it)
+  async function saveDraft({ force = false } = {}) {
     if (!auth.isLoggedIn) return false
     if (savePromise) return savePromise
     savePromise = (async () => {
-      if (!currentDraftId.value && !hasDraftableContent(data.value)) return false
+      if (!currentDraftId.value && !(force ? hasDraftableContent(data.value) : hasSubstance(data.value))) return false
       const name = fullName.value
       const payload = {
         title: `${name}${data.value.title ? ' · ' + data.value.title : ''}`,
@@ -444,7 +463,7 @@ export const useCvStore = defineStore('cv', () => {
   return {
     data, template, fmt, darkMode, wizardOpen, wizardMode, wizardStep, wizardAskOffer, wizardStart,
     wizardDraftId, currentDraftId, lastSavedAt,
-    fullName, initials, hasContent,
+    fullName, initials, hasContent, needsKeepDecision,
     initDarkMode, openWizard, openWizardAtStep, closeWizard, clearPrefill, profile, loadProfile,
     setMode, nextStep, prevStep,
     addExperience, removeExperience, addSkill, removeSkill,

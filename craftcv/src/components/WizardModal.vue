@@ -95,7 +95,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, defineAsyncComponent } from 'vue'
+import { ref, computed, watch, nextTick, defineAsyncComponent, inject } from 'vue'
 import { useCvStore } from '../stores/cv.js'
 import { LAYOUTS, THEMES, parseTemplate, templateId, getLayout } from '../composables/cvRenderer.js'
 import CvPreview from './CvPreview.vue'
@@ -114,6 +114,15 @@ const StepNarrate    = defineAsyncComponent(() => import('./wizard/StepNarrate.v
 const StepUpload     = defineAsyncComponent(() => import('./wizard/StepUpload.vue'))
 
 const store = useCvStore()
+const confirm = inject('confirm', null)
+// A new CV with a few details but nothing substantial yet: keep it in My CVs, or discard it?
+// (dismissing the question keeps it, so nothing is lost by accident)
+async function keepOrDiscard() {
+  if (!store.needsKeepDecision || !confirm) return 'none'
+  const discard = await confirm({ title: t('Keep this CV?'), message: t('It only has a few details so far. Keep it in My CVs, or discard it?'), ok: t('Discard'), cancel: t('Keep it'), mode: 'danger' })
+  if (!discard) await store.saveDraft({ force: true })
+  return discard ? 'discard' : 'keep'
+}
 const offerStep = computed(() => !store.wizardMode && store.wizardAskOffer)   // the job offer screen, in a compact window
 const emit = defineEmits(['open-builder', 'pay'])
 
@@ -190,7 +199,8 @@ function handleBack() {
   scrollTop()
 }
 async function handleClose() {
-  await store.saveDraft()
+  if (await keepOrDiscard() === 'discard') store.resetData()
+  else await store.saveDraft()
   store.closeWizard()
 }
 async function finish() {
@@ -200,7 +210,7 @@ async function finish() {
 }
 // Job match step's "Export PDF" button
 async function payFromWizard() {
-  await store.saveDraft()
+  await store.saveDraft({ force: true })
   store.closeWizard()
   emit('pay')
 }
