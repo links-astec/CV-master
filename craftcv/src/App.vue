@@ -327,7 +327,10 @@ async function onAuthDone() {
   authState.open = false
   showLanding.value = false
   lsSet('pcv-started', '1')
-  if (hadReason) onboardingDismissed.value = true // don't interrupt an export with onboarding
+  // Each sign-in starts fresh (another account may have done its onboarding earlier in this tab, e.g. before
+  // deleting it); onboarding waits only when signing in was for something, like an export, not to interrupt it
+  onboardingDismissed.value = hadReason
+  pendingTour.value = false
   await afterSignIn()
   authResolve?.(true); authResolve = null
 }
