@@ -52,17 +52,27 @@ function flatten(x, p = '', out = []) {
   if (x == null) return out
   if (typeof x === 'string' || typeof x === 'number') { out.push({ path: p, value: String(x) }); return out }
   if (Array.isArray(x)) { x.forEach((v, i) => flatten(v, `${p}[${i}]`, out)); return out }
-  if (typeof x === 'object') for (const [k, v] of Object.entries(x)) if (!/^(raw|rawText|text|ResumeFileName|DetailResume|HtmlResume|pages|meta|_meta)$/i.test(k)) flatten(v, p ? `${p}.${k}` : k, out)
+  if (typeof x === 'object') for (const [k, v] of Object.entries(x)) if (!/^(rawText|redactedText|sections|ResumeFileName|DetailResume|HtmlResume|TextResume|pages|meta|_meta)$/i.test(k)) flatten(v, p ? `${p}.${k}` : k, out)
   return out
 }
 function grade(cv, found) {
   return expected(cv).map(e => {
     const want = e.digits ? digits(e.value).slice(-9) : norm(e.value)
-    const ok = found.some(f => e.where.test(f.path) && (e.digits ? digits(f.value).includes(want) : norm(f.value).includes(want)))
+    const near = (v) => e.field === 'Skill' && norm(e.value).split(' ').filter(w => w.length > 3).some(w => norm(v).split(' ').includes(w))
+    const ok = found.some(f => e.where.test(f.path) && (e.digits ? digits(f.value).includes(want) : norm(f.value).includes(want) || near(f.value)))
     return { ...e, ok }
   })
 }
 
+// Affinda keeps each account in one region; find it once from the key
+let _affBase = null
+async function affindaBase(key) {
+  if (_affBase) return _affBase
+  for (const base of ['https://api.eu1.affinda.com', 'https://api.affinda.com', 'https://api.us1.affinda.com']) {
+    try { const r = await fetch(base + '/v3/organizations', { headers: { Authorization: 'Bearer ' + key }, signal: AbortSignal.timeout(15000) }); if (r.ok) return (_affBase = base) } catch {}
+  }
+  throw new Error('Affinda did not accept this API key in any region')
+}
 // ── The engines ──
 const ENGINE = {
   // What any system that reads PDF text gets (no structure): every expected value in the text, in reading order
@@ -79,11 +89,15 @@ const ENGINE = {
   },
   async affinda(pdf, cv, name) {
     const { AFFINDA_API_KEY: key, AFFINDA_WORKSPACE: ws, AFFINDA_DOCUMENT_TYPE: dt } = process.env
-    if (!key || !ws) throw new Error('AFFINDA_API_KEY and AFFINDA_WORKSPACE are missing in .env')
+    if (!key) throw new Error('AFFINDA_API_KEY is missing in .env')
+    const base = await affindaBase(key)
     const form = new FormData()
     form.append('file', new Blob([pdf], { type: 'application/pdf' }), name)
-    form.append('workspace', ws); if (dt) form.append('documentType', dt); form.append('wait', 'true')
-    const r = await fetch('https://api.affinda.com/v3/documents', { method: 'POST', headers: { Authorization: 'Bearer ' + key }, body: form })
+    form.append('wait', 'true')
+    // With a workspace: the current API. Without one (a new account): the resume endpoint, which needs only the key
+    let url = base + '/v2/resumes'
+    if (ws) { url = base + '/v3/documents'; form.append('workspace', ws); if (dt) form.append('documentType', dt) }
+    const r = await fetch(url, { method: 'POST', headers: { Authorization: 'Bearer ' + key }, body: form, signal: AbortSignal.timeout(120000) })
     const j = await r.json().catch(() => ({}))
     if (!r.ok) throw new Error(`Affinda ${r.status}: ${JSON.stringify(j).slice(0, 300)}`)
     return { found: flatten(j.data || j), raw: j }
@@ -119,10 +133,12 @@ for (const engine of ENGINES) {
       else { res = await ENGINE[engine](pdf, cv, name); if (engine !== 'local') { fs.writeFileSync(cacheFile, JSON.stringify(res)); sent++ } }
     } catch (e) { console.log(`${NAMES[engine]} · ${l.name} (${lang}): ${e.message}`); if (/missing in \.env/.test(e.message)) break; continue }
     const g = grade(cv, res.found)
-    const score = Math.round(100 * g.filter(x => x.ok).length / g.length)
-    const missed = g.filter(x => !x.ok).map(x => `${x.field}: ${x.value}`)
-    rows.push({ engine, layout: l.name, id: l.id, kind: l.kind, lang, score, missed, extra: res.extra || null })
-    console.log(`${NAMES[engine].padEnd(26)} ${l.name.padEnd(14)} ${lang}  ${String(score).padStart(3)}%${missed.length ? '  missed: ' + missed.slice(0, 4).join('; ') : ''}${res.extra && !res.extra.readingOrder ? '  (reading order off)' : ''}`)
+    const core = g.filter(x => x.field !== 'Skill'), sk = g.filter(x => x.field === 'Skill')
+    const score = Math.round(100 * core.filter(x => x.ok).length / core.length)
+    const skills = `${sk.filter(x => x.ok).length}/${sk.length}`
+    const missed = core.filter(x => !x.ok).map(x => `${x.field}: ${x.value}`)
+    rows.push({ engine, layout: l.name, id: l.id, kind: l.kind, lang, score, skills, missed, extra: res.extra || null })
+    console.log(`${NAMES[engine].padEnd(26)} ${l.name.padEnd(14)} ${lang}  ${String(score).padStart(3)}%  skills ${skills}${missed.length ? '  missed: ' + missed.slice(0, 4).join('; ') : ''}${res.extra && !res.extra.readingOrder ? '  (reading order off)' : ''}`)
   }
 }
 
@@ -130,12 +146,12 @@ for (const engine of ENGINES) {
 const date = new Date().toISOString().slice(0, 10)
 const byEngine = ENGINES.map(e => ({ e, r: rows.filter(x => x.engine === e) })).filter(x => x.r.length)
 const avg = (r) => Math.round(r.reduce((t, x) => t + x.score, 0) / r.length)
-let md = `# CVMaster CVs read by CV parsers, ${date}\n\nThe exact PDFs CVMaster users download (example CV, ${layouts.length} ${pick === 'all' ? '' : pick === 'ats' ? 'ATS-friendly ' : ''}layouts, ${LANGS.join(' and ')}), read by each engine. A field counts only when the engine put it in the right place (a job title under work experience, a school under education).\n\n`
-md += `| Engine | Documents | Average | 100% read | Lowest |\n|---|---|---|---|---|\n`
+let md = `# CVMaster CVs read by CV parsers, ${date}\n\nThe exact PDFs CVMaster users download (example CV, ${layouts.length} ${pick === 'all' ? '' : pick === 'ats' ? 'ATS-friendly ' : ''}layouts, ${LANGS.join(' and ')}), read by each engine. Fields read: name, email, phone, each job title, employer and date, each school; a field counts only when the engine put it in the right place (a job title under work experience, a school under education). Skills are shown apart: parsers map them to their own skill lists.\n\n`
+md += `| Engine | Documents | Fields read (average) | 100% read | Lowest |\n|---|---|---|---|---|\n`
 for (const { e, r } of byEngine) { const low = r.reduce((m, x) => x.score < m.score ? x : m, r[0]); md += `| ${NAMES[e]} | ${r.length} | ${avg(r)}% | ${r.filter(x => x.score === 100).length} | ${low.layout} ${low.lang} (${low.score}%) |\n` }
 for (const { e, r } of byEngine) {
-  md += `\n## ${NAMES[e]}\n\n| Layout | Language | Fields read | Missed |\n|---|---|---|---|\n`
-  for (const x of r) md += `| ${x.layout} | ${x.lang} | ${x.score}% | ${x.missed.join('; ') || 'none'} |\n`
+  md += `\n## ${NAMES[e]}\n\n| Layout | Language | Fields read | Skills recognised | Missed |\n|---|---|---|---|---|\n`
+  for (const x of r) md += `| ${x.layout} | ${x.lang} | ${x.score}% | ${x.skills} | ${x.missed.join('; ') || 'none'} |\n`
 }
 fs.writeFileSync(path.join(OUT, `report-${date}.md`), md)
 fs.writeFileSync(path.join(OUT, `report-${date}.json`), JSON.stringify({ date, rows }, null, 1))

@@ -163,7 +163,7 @@ export const MORE_LAYOUT_CSS = {
 .l-standard .hd{margin-bottom:20px}
 .l-standard .name{font-size:calc(28px*var(--s))}
 .l-standard .title{color:#374151}
-.l-standard .sec-h{color:#111827;font-size:calc(10.4px*var(--s));letter-spacing:.08em;border-bottom:1.5px solid #111827;padding-bottom:4px;margin-bottom:8px}
+.l-standard .sec-h{color:#111827;font-size:calc(10.4px*var(--s));letter-spacing:0;border-bottom:1.5px solid #111827;padding-bottom:4px;margin-bottom:8px}
 .l-standard .item-s{color:#374151}`,
 
   harvard: `
@@ -172,7 +172,7 @@ export const MORE_LAYOUT_CSS = {
 .l-harvard .name{font-size:calc(30px*var(--s));font-weight:500;text-transform:uppercase;letter-spacing:.07em}
 .l-harvard .title{font-family:var(--hfont);color:#374151;font-weight:500;font-size:calc(13px*var(--s));font-style:italic;margin-top:4px}
 .l-harvard .contact{margin-top:6px}
-.l-harvard .sec-h{font-family:var(--hfont);color:#111827;font-size:calc(13px*var(--s));font-weight:600;letter-spacing:.09em;border-bottom:1px solid #111827;padding-bottom:3px;margin-bottom:8px}
+.l-harvard .sec-h{font-family:var(--hfont);color:#111827;font-size:calc(13px*var(--s));font-weight:600;letter-spacing:0;border-bottom:1px solid #111827;padding-bottom:3px;margin-bottom:8px}
 .l-harvard .item-t{font-family:var(--hfont);font-size:calc(13px*var(--s));font-weight:600}
 .l-harvard .item-s{font-family:var(--hfont);font-style:italic;font-weight:500;color:#374151;font-size:calc(12px*var(--s))}
 .l-harvard .bl li::marker{color:#111827}`,
@@ -182,7 +182,7 @@ export const MORE_LAYOUT_CSS = {
 .l-corporate .hd{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;padding-bottom:16px;margin-bottom:22px;border-bottom:4px double var(--ac)}
 .l-corporate .name{font-weight:800;font-size:calc(30px*var(--s));letter-spacing:-.02em}
 .l-corporate .contact-list{text-align:right;flex-shrink:0;max-width:250px}
-.l-corporate .sec-h{font-family:var(--hfont);color:#111827;font-size:calc(10.6px*var(--s));letter-spacing:.1em;border-left:3px solid var(--ac);padding-left:9px;margin-bottom:10px}`,
+.l-corporate .sec-h{font-family:var(--hfont);color:#111827;font-size:calc(10.6px*var(--s));letter-spacing:0;border-left:3px solid var(--ac);padding-left:9px;margin-bottom:10px}`,
 
   swiss: `
 .l-swiss{padding:50px 50px 40px}
@@ -199,7 +199,7 @@ export const MORE_LAYOUT_CSS = {
 .l-banner .name{font-weight:600;font-size:calc(32px*var(--s));color:var(--acd);letter-spacing:-.01em}
 .l-banner .contact{margin-top:18px;padding:11px 0 12px;border-top:1px solid color-mix(in srgb,var(--ac) 22%,transparent)}
 .l-banner .body{padding:28px 48px 36px}
-.l-banner .sec-h{font-family:var(--hfont);font-weight:600;color:var(--acd);letter-spacing:.1em;padding-bottom:6px;border-bottom:2px solid var(--act)}`,
+.l-banner .sec-h{font-family:var(--hfont);font-weight:600;color:var(--acd);letter-spacing:0;padding-bottom:6px;border-bottom:2px solid var(--act)}`,
 
   ledger: TWO('ledger', 206, 0) + `
 .l-ledger .hd{padding:38px 46px 24px;border-bottom:1px solid #e5e7eb}
@@ -224,7 +224,7 @@ export const MORE_LAYOUT_CSS = {
 .l-clarity{padding:46px 52px 40px}
 .l-clarity .hd{margin-bottom:24px}
 .l-clarity .name{font-weight:800;font-size:calc(34px*var(--s));letter-spacing:-.03em}
-.l-clarity .sec-h{display:inline-block;background:var(--act);color:var(--acd);padding:5px 14px;border-radius:99px;letter-spacing:.1em;font-size:calc(10px*var(--s));margin-bottom:11px}`,
+.l-clarity .sec-h{display:inline-block;background:var(--act);color:var(--acd);padding:5px 14px;border-radius:99px;letter-spacing:0;font-size:calc(10px*var(--s));margin-bottom:11px}`,
 
   margin: `
 .l-margin{padding:46px 52px 40px}
@@ -240,7 +240,7 @@ export const MORE_LAYOUT_CSS = {
 .l-statement .name{font-weight:800;font-size:calc(48px*var(--s));letter-spacing:-.045em;line-height:.98}
 .l-statement .title{font-family:var(--hfont);font-size:calc(14px*var(--s));margin-top:10px}
 .l-statement .contact-list{display:flex;flex-wrap:wrap;gap:3px 26px;margin:18px 0 24px;padding:11px 0;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb}
-.l-statement .sec-h{color:#111827;letter-spacing:.1em}
+.l-statement .sec-h{color:#111827;letter-spacing:0}
 .l-statement .sec-h::after{content:'';display:block;width:26px;height:2px;background:var(--ac);margin-top:6px}`,
 
   graduate: `
@@ -248,7 +248,7 @@ export const MORE_LAYOUT_CSS = {
 .l-graduate .hd{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:22px}
 .l-graduate .name{font-weight:700;font-size:calc(32px*var(--s))}
 .l-graduate .contact-list{text-align:right;flex-shrink:0;max-width:250px}
-.l-graduate .sec-h{font-family:var(--hfont);font-weight:600;letter-spacing:.1em;padding-bottom:5px;border-bottom:2px solid var(--ac)}
+.l-graduate .sec-h{font-family:var(--hfont);font-weight:600;letter-spacing:0;padding-bottom:5px;border-bottom:2px solid var(--ac)}
 .l-graduate .s-education .item-t{font-size:calc(11.3px*var(--s))}`,
 
   technical: `
@@ -256,7 +256,7 @@ export const MORE_LAYOUT_CSS = {
 .l-technical .hd{padding-bottom:18px;margin-bottom:22px;border-bottom:1px solid #d1d5db}
 .l-technical .name{font-size:calc(32px*var(--s));letter-spacing:-.03em}
 .l-technical .title{font-family:var(--hfont)}
-.l-technical .sec-h{font-family:var(--hfont);letter-spacing:.08em}
+.l-technical .sec-h{font-family:var(--hfont);letter-spacing:0}
 .l-technical .sgrid li::before{content:'';display:inline-block;width:5px;height:5px;background:var(--ac);margin:0 7px 2px 0}`,
 
   consultant: `
@@ -295,7 +295,7 @@ export const MORE_LAYOUT_CSS = {
 .l-airy .hd{margin-bottom:30px}
 .l-airy .name{font-weight:300;font-size:calc(38px*var(--s));letter-spacing:-.01em}
 .l-airy .title{font-weight:500;margin-top:8px}
-.l-airy .sec-h{font-family:var(--hfont);font-weight:500;color:#9ca3af;letter-spacing:.2em;display:flex;align-items:center;gap:8px}
+.l-airy .sec-h{font-family:var(--hfont);font-weight:500;color:#9ca3af;letter-spacing:0;display:flex;align-items:center;gap:8px}
 .l-airy .sec-h::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--ac)}`,
 
   nordic: `
@@ -337,7 +337,7 @@ export const MORE_LAYOUT_CSS = {
 .l-neo .sec{border:2px solid #111827;background:#fff;box-shadow:4px 4px 0 #111827;padding:14px 16px;margin-top:18px}
 .l-neo .main > .sec:first-child,.l-neo .aside > .sec:first-child{margin-top:0}
 .l-neo .aside .sec{margin-top:18px}
-.l-neo .sec-h{display:inline-block;background:var(--ac);color:#fff;padding:3px 8px;letter-spacing:.08em;font-family:var(--hfont)}
+.l-neo .sec-h{display:inline-block;background:var(--ac);color:#fff;padding:3px 8px;letter-spacing:0;font-family:var(--hfont)}
 .l-neo .chips li{border-radius:0;background:#fff;border:1.5px solid #111827;color:#111827}`,
 
   pastel: TWO('pastel', 196, 16) + `
@@ -354,7 +354,7 @@ export const MORE_LAYOUT_CSS = {
 .l-ribbon{padding:44px 50px 40px}
 .l-ribbon .hd{margin-bottom:22px;padding-bottom:18px;border-bottom:1px solid #e5e7eb}
 .l-ribbon .name{font-size:calc(36px*var(--s))}
-.l-ribbon .sec-h{display:inline-block;background:var(--ac);color:#fff;margin-left:-50px;padding:5px 16px 5px 50px;border-radius:0 99px 99px 0;letter-spacing:.12em;margin-bottom:11px}`,
+.l-ribbon .sec-h{display:inline-block;background:var(--ac);color:#fff;margin-left:-50px;padding:5px 16px 5px 50px;border-radius:0 99px 99px 0;letter-spacing:0;margin-bottom:11px}`,
 
   circle: TWO('circle', 190, 28) + `
 .l-circle{padding:40px 48px 38px}
@@ -394,7 +394,7 @@ export const MORE_LAYOUT_CSS = {
 .l-zen .name{font-weight:200;font-size:calc(40px*var(--s));letter-spacing:.02em}
 .l-zen .title{color:#6b7280;font-weight:400;letter-spacing:.1em;margin-top:10px}
 .l-zen .contact{margin-top:12px}
-.l-zen .sec-h{font-family:var(--hfont);font-weight:500;color:#111827;text-transform:lowercase;letter-spacing:.04em;font-size:calc(13px*var(--s));display:flex;align-items:center;gap:9px}
+.l-zen .sec-h{font-family:var(--hfont);font-weight:500;color:#111827;text-transform:lowercase;letter-spacing:0;font-size:calc(13px*var(--s));display:flex;align-items:center;gap:9px}
 .l-zen .sec-h::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--ac)}`,
 
   journey: `
@@ -404,7 +404,7 @@ export const MORE_LAYOUT_CSS = {
 .l-journey .body{position:relative;padding:4px 50px 38px 86px;flex:1}
 .l-journey .body::before{content:'';position:absolute;left:56px;top:0;bottom:30px;width:2px;background:var(--act)}
 .l-journey .sec{position:relative}
-.l-journey .sec-h{font-family:var(--hfont);color:#111827;letter-spacing:.1em;line-height:22px}
+.l-journey .sec-h{font-family:var(--hfont);color:#111827;letter-spacing:0;line-height:22px}
 .l-journey .sec-h::before{counter-increment:stop;content:counter(stop);position:absolute;left:-41px;top:0;width:22px;height:22px;border-radius:50%;background:var(--ac);color:#fff;font-size:10px;font-weight:700;letter-spacing:0;display:flex;align-items:center;justify-content:center}
 .l-journey .item.tl{display:grid;grid-template-columns:84px 1fr;gap:14px}
 .l-journey .tl-d{font-size:calc(9.4px*var(--s));color:#6b7280;padding-top:2px}`,
@@ -427,7 +427,7 @@ export const MORE_LAYOUT_CSS = {
 .l-deco .contact{color:rgba(255,255,255,.8);margin-top:12px}
 .l-deco .contact .sep{color:rgba(255,255,255,.4)}
 .l-deco .grid{padding:0 48px 36px}
-.l-deco .sec-h{font-family:var(--hfont);color:var(--acd);letter-spacing:.2em;font-weight:600;padding-bottom:5px;border-bottom:1px solid var(--ac)}`,
+.l-deco .sec-h{font-family:var(--hfont);color:var(--acd);letter-spacing:0;font-weight:600;padding-bottom:5px;border-bottom:1px solid var(--ac)}`,
 
   column: `
 .l-column .grid{display:grid;grid-template-columns:1fr 226px}
@@ -466,7 +466,7 @@ export const MORE_LAYOUT_CSS = {
 .l-monogram .hd{display:grid;grid-template-columns:82px 1fr;gap:22px;align-items:center;padding-bottom:20px;margin-bottom:24px;border-bottom:1px solid color-mix(in srgb,var(--ac) 35%,transparent)}
 .l-monogram .mono-mark{width:82px;height:82px;border:2px solid var(--ac);outline:1px solid var(--ac);outline-offset:3px;display:flex;align-items:center;justify-content:center;font-family:var(--hfont);font-size:30px;color:var(--ac);letter-spacing:.02em}
 .l-monogram .name{font-size:calc(32px*var(--s));font-weight:600}
-.l-monogram .sec-h{font-family:var(--hfont);font-variant:small-caps;text-transform:lowercase;letter-spacing:.12em;font-size:calc(14px*var(--s));font-weight:600}`,
+.l-monogram .sec-h{font-family:var(--hfont);font-variant:small-caps;text-transform:lowercase;letter-spacing:0;font-size:calc(14px*var(--s));font-weight:600}`,
 
   bento: TWO('bento', 190, 14) + `
 .l-bento{padding:30px 30px 28px}
