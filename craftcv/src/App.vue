@@ -340,19 +340,23 @@ const onboardingDismissed = ref(false)
 const pendingTour = ref(false)
 function onOnboarded({ tour = false } = {}) {
   onboardingDismissed.value = true
+  // the tour shows the app, not the homepage (e.g. after a Google sign-up, which reloads the page)
+  if (tour && showLanding.value) { lsSet('pcv-started', '1'); showLanding.value = false }
   pendingTour.value = tour
 }
 // Signing up is often for something (a new CV, a template, a payment) that carries on right after:
 // the tour starts once nothing else is open, so it's never hidden behind it
-const busyElsewhere = computed(() => store.wizardOpen || authState.open || showPaywall.value || !!document.querySelector('.jo-backdrop'))
-watch([pendingTour, busyElsewhere, () => route.path], () => {
-  if (!pendingTour.value) return
-  setTimeout(() => {
-    if (!pendingTour.value || busyElsewhere.value || store.wizardOpen) return
+let tourTimer = null
+watch(pendingTour, (on) => {
+  clearInterval(tourTimer)
+  if (!on) return
+  tourTimer = setInterval(() => {
+    if (store.wizardOpen || authState.open || showPaywall.value || showLanding.value || document.querySelector('.jo-backdrop, .confirm-backdrop')) return
+    clearInterval(tourTimer)
     pendingTour.value = false
     showTutorial.value = true
   }, 900)
-}, { flush: 'post' })
+})
 const showOnboarding = computed(() => ready.value && auth.isLoggedIn && !auth.isOnboarded && !onboardingDismissed.value && !authState.open)
 
 // The account's language follows the user to other devices. Unless they picked one here

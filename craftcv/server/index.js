@@ -3978,6 +3978,34 @@ app.put('/api/admin/services/:id', adminAuthMiddleware, async (req, res) => {
   } catch (e) { console.error('[admin/services put]', e.message); res.status(500).json({ error: 'Could not save.' }); }
 });
 // Where people use CVMaster from: accounts (all, new, active, paying) and guests, per country
+// GET /api/admin/onboarding?days=30: what people answer at sign-up, and how each kind of person does afterwards
+// (still using it, paying), plus the jobs and places they're aiming for. Counts only, never who said what.
+app.get('/api/admin/onboarding', adminAuthMiddleware, async (req, res) => {
+  try {
+    const days = Math.max(1, Math.min(365, Math.floor(Number(req.query.days) || 30)));
+    await Promise.all([ensureOnboardCols(), ensureActivity(), ensurePassCols()]);
+    const isNew = `u.created_at > NOW() - make_interval(days => $1)`;
+    const paid = `(u.pass_until IS NOT NULL OR EXISTS (SELECT 1 FROM payments p WHERE p.user_id = u.id AND p.paid AND p.source = 'stripe'))`;
+    const answered = `(u.goal IS NOT NULL OR u.experience IS NOT NULL OR u.industry IS NOT NULL OR u.target_role IS NOT NULL OR u.target_location IS NOT NULL OR u.heard_from IS NOT NULL)`;
+    const by = (col) => query(`SELECT COALESCE(u.${col}, '') AS v, COUNT(*)::int AS accounts,
+        COUNT(*) FILTER (WHERE ${isNew})::int AS new,
+        COUNT(*) FILTER (WHERE u.last_active_at > NOW() - make_interval(days => $1))::int AS active,
+        COUNT(*) FILTER (WHERE ${paid})::int AS paying,
+        ROUND(AVG((SELECT COUNT(*) FROM drafts d WHERE d.user_id = u.id)), 1)::float AS cvs
+      FROM users u GROUP BY 1 ORDER BY 2 DESC`, [days]).then(r => r.rows);
+    const top = (col) => query(`SELECT MODE() WITHIN GROUP (ORDER BY TRIM(u.${col})) AS v, COUNT(*)::int AS accounts, COUNT(*) FILTER (WHERE ${isNew})::int AS new
+      FROM users u WHERE COALESCE(TRIM(u.${col}), '') <> '' GROUP BY LOWER(TRIM(u.${col})) ORDER BY 2 DESC, 1 LIMIT 15`, [days]).then(r => r.rows);
+    const [totals, goal, experience, industry, heardFrom, roles, places] = await Promise.all([
+      query(`SELECT COUNT(*)::int AS accounts, COUNT(*) FILTER (WHERE ${isNew})::int AS new,
+          COUNT(*) FILTER (WHERE ${answered})::int AS answered, COUNT(*) FILTER (WHERE ${isNew} AND ${answered})::int AS new_answered,
+          COUNT(*) FILTER (WHERE ${answered} AND ${paid})::int AS answered_paying, COUNT(*) FILTER (WHERE NOT ${answered} AND ${paid})::int AS skipped_paying
+        FROM users u`, [days]).then(r => r.rows[0]),
+      by('goal'), by('experience'), by('industry'), by('heard_from'), top('target_role'), top('target_location'),
+    ]);
+    res.json({ days, totals, goal, experience, industry, heardFrom, roles, places });
+  } catch (e) { console.error('[admin/onboarding]', e.message); res.status(500).json({ error: 'Could not load the sign-up answers.' }); }
+});
+
 app.get('/api/admin/countries', adminAuthMiddleware, async (req, res) => {
   try {
     const days = Math.max(1, Math.min(365, Math.floor(Number(req.query.days) || 30)));
@@ -3997,11 +4025,7 @@ app.get('/api/admin/countries', adminAuthMiddleware, async (req, res) => {
     for (const r of acc.rows) Object.assign(row(r.country), { accounts: r.accounts, new: r.new, active: r.active, paying: r.paying });
     for (const r of gst.rows) Object.assign(row(r.country), { guests: r.guests, signed_up: r.signed_up });
     const rows = Object.values(by).sort((a, b) => (b.active + b.guests) - (a.active + a.guests) || b.accounts - a.accounts);
-    await ensureOnboardCols();
-    const src = await query(`SELECT COALESCE(heard_from, '') AS source, COUNT(*)::int AS accounts,
-        COUNT(*) FILTER (WHERE created_at > NOW() - make_interval(days => $1))::int AS new
-      FROM users GROUP BY 1 ORDER BY 2 DESC`, [days]);
-    res.json({ days, rows, sources: src.rows });
+    res.json({ days, rows });   // how people found CVMaster: /api/admin/onboarding
   } catch (e) { console.error('[admin/countries]', e.message); res.status(500).json({ error: 'Could not load countries.' }); }
 });
 app.get('/api/admin/guests', adminAuthMiddleware, async (req, res) => {
@@ -4324,13 +4348,16 @@ app.get('/api/admin/users', adminAuthMiddleware, async (req, res) => {
     const { page = 1, search = '', plan = '' } = req.query;
     const limit = 25, offset = (Number(page) - 1) * limit;
     await ensureReferralColumns().catch(() => {});   // makes sure ai_credits exists
+    await Promise.all([ensureAiTables(), ensurePassCols()]).catch(() => {});
     const params = [], conds = ['1=1'];
     if (search) { params.push(`%${search}%`); conds.push(`(email ILIKE $${params.length} OR name ILIKE $${params.length})`); }
     if (plan)   { params.push(plan); conds.push(`plan = $${params.length}`); }
     const where = 'WHERE ' + conds.join(' AND ');
     params.push(limit, offset);
     const { rows } = await query(
-      `SELECT id, email, name, plan, provider, onboarded, referral_code, referral_credits, ai_credits,
+      `SELECT id, email, name, plan, provider, onboarded, referral_code, referral_credits, ai_credits, email_verified,
+              COALESCE(pass_until > NOW(), FALSE) AS has_pass,
+              COALESCE((SELECT count FROM ai_usage WHERE subject = 'u:' || users.id::text AND day = CURRENT_DATE), 0) AS ai_used_today,
               (SELECT COUNT(*) FROM users r WHERE r.referred_by = users.id) AS referred_count,
               (SELECT COUNT(*) FROM payments WHERE user_id = users.id AND paid = TRUE AND source = 'stripe') AS payment_count,
               (SELECT COUNT(*) FROM drafts WHERE user_id = users.id) AS draft_count,
@@ -4339,6 +4366,13 @@ app.get('/api/admin/users', adminAuthMiddleware, async (req, res) => {
       params
     );
     const { rows: tot } = await query(`SELECT COUNT(*) FROM users ${where}`, params.slice(0, -2));
+    // What each person can really use today: the daily allowance for their kind of account, then their extra requests
+    for (const u of rows) {
+      const tier = u.has_pass ? 'pass' : (u.provider === 'google' || u.email_verified) ? 'verified' : 'unverified';
+      u.ai_tier = tier;
+      u.ai_limit = aiLimitFor(tier);
+      u.ai_left_today = Math.max(0, u.ai_limit - Number(u.ai_used_today || 0));
+    }
     res.json({ users: rows, total: Number(tot[0].count), page: Number(page), pages: Math.ceil(Number(tot[0].count) / limit) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

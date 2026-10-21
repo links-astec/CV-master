@@ -207,6 +207,25 @@ textarea.inp{height:auto;padding:10px 12px;line-height:1.55;resize:vertical}
 .u-who span{font-size:12px;color:var(--t3)}
 .num-edit{display:inline-flex;align-items:center;gap:6px}
 .num-edit b{color:var(--t1);min-width:18px}
+.ob-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:22px 28px;margin-top:18px}
+.ob-block{min-width:0}
+.ob-block h4{font-size:14px;font-weight:700;margin:0 0 8px;color:var(--t1)}
+.ob-tbl td:first-child{min-width:170px}
+.ob-lbl{display:block;font-size:13.5px}
+.ob-bar{display:block;height:4px;border-radius:99px;background:var(--fill);margin-top:5px;overflow:hidden}
+.ob-bar i{display:block;height:100%;border-radius:99px;background:var(--ac)}
+.ob-none{color:var(--t3)}
+.ob-none .ob-bar i{background:var(--b2)}
+.ob-top{list-style:none;margin:0;padding:0;background:var(--fill);border-radius:12px;overflow:hidden}
+.ob-top li{display:flex;align-items:baseline;gap:8px;padding:9px 14px;font-size:13.5px}
+.ob-top li + li{border-top:1px solid var(--b1)}
+.ob-top li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ob-top li small{font-size:12px;color:var(--green)}
+.ob-note{font-size:13.5px;color:var(--t2);margin:14px 0 0}
+.ai-cell > span{display:flex;flex-direction:column;line-height:1.25}
+.ai-cell small{font-size:12px;color:var(--t3);font-weight:500}
+.ai-cell .ai-l1{white-space:nowrap}
+.ai-cell .ai-extra{color:var(--ac)}
 .pager{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-top:1px solid var(--b1);font-size:12.5px;color:var(--t3)}
 .pager .pg{display:flex;gap:4px}
 
@@ -468,9 +487,9 @@ input[type=range]{flex:1;accent-color:var(--ac)}
   .tbl.cards.users-tbl td[data-label="Joined"]{flex:0 1 auto;font-size:13px;color:var(--t2)}
   /* the numbers start on their own line, the buttons after them */
   .tbl.cards.users-tbl tr::after{content:"";flex-basis:100%;height:0;order:1}
-  .tbl.cards.users-tbl td[data-label="CVs"],.tbl.cards.users-tbl td[data-label="Paid"],.tbl.cards.users-tbl td[data-label="Invited"],.tbl.cards.users-tbl td[data-label="Free CVs"],.tbl.cards.users-tbl td[data-label="AI credits"]{order:2}
+  .tbl.cards.users-tbl td[data-label="CVs"],.tbl.cards.users-tbl td[data-label="Paid"],.tbl.cards.users-tbl td[data-label="Invited"],.tbl.cards.users-tbl td[data-label="Free CVs"],.tbl.cards.users-tbl td[data-label="AI today"]{order:2}
   .tbl.cards.users-tbl td.acts{order:3}
-  .tbl.cards.users-tbl td[data-label="CVs"],.tbl.cards.users-tbl td[data-label="Paid"],.tbl.cards.users-tbl td[data-label="Invited"],.tbl.cards.users-tbl td[data-label="Free CVs"],.tbl.cards.users-tbl td[data-label="AI credits"]{flex:0 0 auto;font-size:14px;font-weight:700;color:var(--t1);display:inline-flex;align-items:baseline}
+  .tbl.cards.users-tbl td[data-label="CVs"],.tbl.cards.users-tbl td[data-label="Paid"],.tbl.cards.users-tbl td[data-label="Invited"],.tbl.cards.users-tbl td[data-label="Free CVs"],.tbl.cards.users-tbl td[data-label="AI today"]{flex:0 0 auto;font-size:14px;font-weight:700;color:var(--t1);display:inline-flex;align-items:baseline}
   .tbl.cards.users-tbl .num-edit{display:inline-flex;align-items:baseline;gap:2px}
   .tbl.cards.users-tbl .num-edit .btn{height:auto;padding:0 2px 0 4px;font-size:12.5px;font-weight:600;color:var(--ac);background:none;border:0}
   .tbl.cards.users-tbl td.acts{flex:1 1 100%;justify-content:flex-start;gap:8px;margin-top:4px}
@@ -831,7 +850,7 @@ async function go(p) {
   render()
   if (p === 'overview') await loadStats()
   if (p === 'inbox') await loadInbox()
-  if (p === 'users' && !S.users.length) await loadUsers(1)
+  if (p === 'users') await loadUsers(S.userPage || 1)   // always fresh: new sign-ups and today's AI use
   if (p === 'guests') await loadGuests()
   if (p === 'reviews') await loadReviews()
   if (p === 'subscribers' || p === 'newsletter') await loadSubs()
@@ -1447,7 +1466,7 @@ function renderDetail() {
 
 // ── Users ─────────────────────────────────────────────────────────────────────
 async function loadUsers(page = 1) {
-  S.usersLoading = true; S.userPage = page; render()
+  S.usersLoading = !S.users.length; S.userPage = page; render()
   try { const q = new URLSearchParams({ page, search: S.uSearch }); const d = await api('GET', '/users?' + q); S.users = d.users; S.userTotal = d.total; S.userPages = Math.max(1, d.pages) } catch (e) { toast(e.message) }
   S.usersLoading = false; render()
 }
@@ -1462,6 +1481,7 @@ async function deleteUser(id, email) {
   if (!(await ask({ title: 'Delete this account?', message: `${email} and all their CVs will be deleted permanently. This can’t be undone.`, ok: 'Delete account', danger: true }))) return
   try { await api('DELETE', `/users/${id}`); toast('User deleted'); await loadUsers(S.userPage) } catch (e) { toast(e.message) }
 }
+const AI_TIER_NAMES = { pass: 'Job Hunt Pass', verified: 'Confirmed account', unverified: 'Email not confirmed yet' }
 function renderUsers() {
   const pages = S.userPages
   const start = Math.max(1, Math.min(pages - 6, S.userPage - 3))
@@ -1469,14 +1489,14 @@ function renderUsers() {
     <div class="card-hd"><h3>${fmt(S.userTotal)} users</h3>
       <form data-form="user-search" style="display:flex;gap:8px"><input class="inp" id="u-q" placeholder="Search name or email…" value="${esc(S.uSearch)}" style="width:240px"><button class="btn">Search</button></form></div>
     ${S.usersLoading ? `<div class="loading"><div class="spinner"></div></div>` : `
-    <table class="tbl cards users-tbl"><thead><tr><th>User</th><th>Sign-in</th><th>Joined</th><th>CVs</th><th>Paid</th><th>Free CVs</th><th>AI credits</th><th>Referred</th><th></th></tr></thead>
+    <table class="tbl cards users-tbl"><thead><tr><th>User</th><th>Sign-in</th><th>Joined</th><th>CVs</th><th>Paid</th><th>Free CVs</th><th>AI today</th><th>Referred</th><th></th></tr></thead>
     <tbody>${!S.users.length ? `<tr><td colspan="9"><div class="empty">No users found</div></td></tr>` : S.users.map(u => `<tr>
       <td class="full"><div class="u-who"><div class="av">${esc(initials(u.name || u.email))}</div><div><b>${esc(u.name || u.email.split('@')[0])}</b><span>${esc(u.email)}</span></div></div></td>
       <td data-label="Sign-in"><span class="badge ${u.provider === 'google' ? 'b-sky' : u.provider === 'apple' ? 'b-gray' : 'b-gray'}">${esc(u.provider === 'google' ? 'Google' : u.provider === 'apple' ? 'Apple' : 'Email')}</span></td>
-      <td data-label="Joined">${fmtDate(u.created_at)}</td>
+      <td data-label="Joined" style="white-space:nowrap">${fmtDate(u.created_at)}</td>
       <td data-label="CVs">${fmt(u.draft_count)}</td><td data-label="Paid">${fmt(u.payment_count)}</td>
       <td data-label="Free CVs"><span class="num-edit"><b>${fmt(u.referral_credits)}</b><button class="btn btn-sm btn-ghost" data-edit="referral_credits" data-id="${u.id}" data-cur="${u.referral_credits}" data-label="Free CV credits for ${esc(u.email)}">Edit</button></span></td>
-      <td data-label="AI credits"><span class="num-edit"><b>${fmt(u.ai_credits)}</b><button class="btn btn-sm btn-ghost" data-edit="ai_credits" data-id="${u.id}" data-cur="${u.ai_credits || 0}" data-label="Extra AI requests for ${esc(u.email)}">Edit</button></span></td>
+      <td data-label="AI today"><span class="num-edit ai-cell" title="${esc(AI_TIER_NAMES[u.ai_tier] || '')}: ${u.ai_limit} AI requests a day, ${fmt(u.ai_used_today)} used today, plus ${fmt(u.ai_credits)} extra"><span><span class="ai-l1"><b>${fmt(u.ai_left_today)}</b> <small>of ${fmt(u.ai_limit)} left</small></span>${u.ai_credits ? `<small class="ai-extra">+${fmt(u.ai_credits)} extra</small>` : ''}</span><button class="btn btn-sm btn-ghost" data-edit="ai_credits" data-id="${u.id}" data-cur="${u.ai_credits || 0}" data-label="Extra AI requests for ${esc(u.email)} (on top of their ${u.ai_limit} a day)">Extra</button></span></td>
       <td data-label="Invited">${fmt(u.referred_count)}</td>
       <td class="full acts" style="white-space:nowrap"><button class="btn btn-sm" data-act="email-user" data-email="${esc(u.email)}">Email</button> <button class="btn btn-sm btn-danger" data-del="${u.id}" data-email="${esc(u.email)}">Delete</button></td></tr>`).join('')}</tbody></table>
     <div class="pager"><span>Page ${S.userPage} of ${pages}</span><div class="pg">
@@ -1676,6 +1696,9 @@ function renderSettings() {
   if (tab === 'people') return tabs + `<div class="card"><div class="card-hd"><h3>People by country</h3>
       <div class="g-period" role="group" aria-label="Period">${[7, 30, 90, 365].map(d => `<button class="btn btn-sm ${(S.ctyDays || 30) === d ? 'btn-primary' : ''}" data-act="cty-days" data-d="${d}">${d === 365 ? 'Year' : d + ' days'}</button>`).join('')}</div></div><div class="card-bd">
       ${renderCountries()}
+    </div></div>
+    <div class="card" style="margin-top:16px"><div class="card-hd"><h3>Who signs up</h3><span class="muted" style="font-size:13px">From the questions after sign-up</span></div><div class="card-bd">
+      ${renderOnboarding()}
     </div></div>`
   return tabs + `<div class="set-grid">
     <div class="card"><div class="card-hd"><h3>Maintenance mode</h3></div><div class="card-bd">
@@ -1773,7 +1796,11 @@ async function editService(id) {
 // ── PEOPLE BY COUNTRY ─────────────────────────────────────────────────────────
 // From each device's time zone setting (never the internet address)
 async function loadCountries() {
-  try { S.cty = await api('GET', '/countries?days=' + (S.ctyDays || 30)) } catch (e) { S.cty = { error: e.message } }
+  const q = '?days=' + (S.ctyDays || 30)
+  await Promise.all([
+    api('GET', '/countries' + q).then(d => { S.cty = d }, e => { S.cty = { error: e.message } }),
+    api('GET', '/onboarding' + q).then(d => { S.ob = d }, e => { S.ob = { error: e.message } }),
+  ])
   render()
 }
 const countryName = (() => { let dn = null; try { dn = new Intl.DisplayNames(['en'], { type: 'region' }) } catch {} return (c) => { try { return dn?.of(c) || c } catch { return c } } })()
@@ -1795,18 +1822,51 @@ function renderCountries() {
     ${x.rows.map(r => `<tr><td><span class="cty-flag">${flag(r.country)}</span>${esc(r.country ? countryName(r.country) : 'Not known yet')}</td>
       <td class="n">${r.accounts}</td><td class="n">${r.new}</td><td class="n">${r.active}</td><td class="n">${r.paying}</td><td class="n">${r.guests}</td><td class="n">${r.signed_up}</td></tr>`).join('')}
     </tbody></table></div>
-    <p class="muted" style="font-size:12px;margin-top:12px">New, Active and Guests count the ${p}; Accounts and Paid are all time. The country comes from each device’s time zone setting, never the internet address. Accounts show a country after their next visit (“Not known yet” until then); guests who ask not to be tracked are never counted.</p>
-    ${renderSources(x)}`
+    <p class="muted" style="font-size:12px;margin-top:12px">New, Active and Guests count the ${p}; Accounts and Paid are all time. The country comes from each device’s time zone setting, never the internet address. Accounts show a country after their next visit (“Not known yet” until then); guests who ask not to be tracked are never counted.</p>`
 }
+// What people answer after signing up, and how each kind of person does afterwards
+const OB_NAMES = {
+  goal: { internship: 'An internship or work-study', grad: 'Their first job', 'new-job': 'A new job', switch: 'A career change', promotion: 'A promotion', freelance: 'Freelance work', update: 'Just updating their CV' },
+  experience: { student: 'Student (0–1 yr)', junior: 'Junior (1–3 yrs)', mid: 'Mid-level (3–7 yrs)', senior: 'Senior (7–12 yrs)', exec: 'Executive (12+ yrs)' },
+  industry: { tech: 'Technology', finance: 'Finance', marketing: 'Marketing', design: 'Design', healthcare: 'Healthcare', education: 'Education', legal: 'Legal', engineering: 'Engineering', sales: 'Sales', hr: 'HR', creative: 'Creative', other: 'Other' },
+}
+const pct = (a, b) => b ? Math.round(100 * a / b) + '%' : '–'
+function renderOnboarding() {
+  const x = S.ob
+  if (!x) return '<div class="loading"><span class="spinner"></span></div>'
+  if (x.error) return `<div class="muted">${esc(x.error)}</div>`
+  const t = x.totals, p = `last ${x.days} days`
+  if (!t.accounts) return '<div class="muted">No one yet.</div>'
+  // the answer whose people pay most often (3 people at least, so one person doesn't make a trend)
+  const best = (rows) => rows.filter(r => r.v && r.accounts >= 3).sort((a, b) => b.paying / b.accounts - a.paying / a.accounts)[0]
+  const table = (title, rows, names) => {
+    const max = Math.max(1, ...rows.map(r => r.accounts))
+    return `<div class="ob-block"><h4>${title}</h4><div class="cty-wrap"><table class="tbl ob-tbl"><thead><tr><th>Answer</th><th class="n">Accounts</th><th class="n">New</th><th class="n">Active</th><th class="n">Paid</th><th class="n">CVs each</th></tr></thead><tbody>
+      ${rows.map(r => `<tr class="${r.v ? '' : 'ob-none'}"><td><span class="ob-lbl">${esc(r.v ? (names[r.v] || r.v) : 'Didn’t say')}</span><span class="ob-bar"><i style="width:${Math.round(100 * r.accounts / max)}%"></i></span></td>
+        <td class="n">${r.accounts}</td><td class="n">${r.new}</td><td class="n">${r.active}</td><td class="n" title="${r.paying} of ${r.accounts}">${pct(r.paying, r.accounts)}</td><td class="n">${r.cvs ?? 0}</td></tr>`).join('')}
+      </tbody></table></div></div>`
+  }
+  const list = (title, rows, none) => `<div class="ob-block"><h4>${title}</h4>${rows.length ? `<ol class="ob-top">${rows.map(r => `<li><span>${esc(r.v)}</span><b>${r.accounts}</b>${r.new ? `<small>+${r.new} new</small>` : ''}</li>`).join('')}</ol>` : `<div class="muted" style="font-size:13px">${none}</div>`}</div>`
+  const bg = best(x.goal), bs = best(x.heardFrom)
+  return `<div class="svc-sum">
+      <div><b>${pct(t.answered, t.accounts)}</b><span>of all accounts answered at least one question (${t.answered.toLocaleString('en')})</span></div>
+      <div><b>${pct(t.new_answered, t.new)}</b><span>of the ${t.new.toLocaleString('en')} new accounts, ${p}</span></div>
+      <div><b>${pct(t.answered_paying, t.answered)}</b><span>of those who answered have paid, vs ${pct(t.skipped_paying, t.accounts - t.answered)} of those who didn’t</span></div>
+      <div><b>${bs ? esc(SOURCE_NAMES[bs.v] || bs.v) : '–'}</b><span>${bs ? `brings the most paying people (${pct(bs.paying, bs.accounts)} pay)` : 'best source, once 3 or more people name one'}</span></div></div>
+    ${bg ? `<p class="ob-note">People looking for <b>${esc((OB_NAMES.goal[bg.v] || bg.v).toLowerCase())}</b> pay most often (${pct(bg.paying, bg.accounts)} of ${bg.accounts}).</p>` : ''}
+    <div class="ob-grid">
+      ${table('What they want', x.goal, OB_NAMES.goal)}
+      ${table('Career stage', x.experience, OB_NAMES.experience)}
+      ${table('Field', x.industry, OB_NAMES.industry)}
+      ${table('How they found CVMaster', x.heardFrom, SOURCE_NAMES)}
+      ${list('Jobs they’re aiming for', x.roles, 'No one has named a job yet.')}
+      ${list('Where they want to work', x.places, 'No one has named a place yet.')}
+    </div>
+    <p class="muted" style="font-size:12px;margin-top:12px">Accounts and Paid are all time; New and Active count the ${p}. Paid means at least one CV paid for, or a Job Hunt Pass. CVs each is the average number of CVs in their account. “Didn’t say” includes people who signed up before a question was asked.</p>`
+}
+
 // How people found CVMaster (asked once, at sign-up)
 const SOURCE_NAMES = { friend: 'A friend or classmate', school: 'School or career centre', instagram: 'Instagram', tiktok: 'TikTok', linkedin: 'LinkedIn', google: 'Google', youtube: 'YouTube', ai: 'ChatGPT or another AI', other: 'Somewhere else', '': 'Didn’t say (or signed up before we asked)' }
-function renderSources(x) {
-  if (!x.sources?.length) return ''
-  return `<h3 style="font-size:15px;margin:22px 0 10px">How people found CVMaster</h3>
-    <div class="cty-wrap"><table class="tbl cty"><thead><tr><th>Where</th><th class="n">Accounts</th><th class="n">New, last ${x.days} days</th></tr></thead><tbody>
-    ${x.sources.map(r => `<tr><td>${esc(SOURCE_NAMES[r.source] || r.source)}</td><td class="n">${r.accounts}</td><td class="n">${r.new}</td></tr>`).join('')}
-    </tbody></table></div>`
-}
 
 // Which address sends what (from the server, so it always matches what is really sent)
 function renderSenders() {
