@@ -51,16 +51,17 @@ defineExpose({ ask })
   background: rgba(15,15,25,.45); backdrop-filter: blur(3px);
   display: flex; align-items: center; justify-content: center; padding: 20px;
 }
+/* The same size and look as the new-CV wizard */
 .jo-box {
-  position: relative; background: var(--c-surface); border-radius: 28px;
-  padding: 40px 44px 36px; width: 100%; max-width: 680px; max-height: calc(100dvh - 40px); overflow: auto;
-  box-shadow: var(--shadow-xl); display: flex; justify-content: center;
-  background-image: radial-gradient(700px 300px at 50% -20%, var(--c-accent-lt), transparent 70%);
+  position: relative; background: var(--c-bg); border-radius: 28px; border: 1px solid var(--hair);
+  padding: 40px; width: 100%; max-width: 1240px; height: min(860px, calc(100vh - 40px)); overflow: auto;
+  box-shadow: var(--shadow-xl); display: flex; align-items: center; justify-content: center;
 }
+.jo-box > :deep(.jof) { max-width: 600px; width: 100%; }
 .jo-x { position: absolute; top: 16px; right: 16px; }
 
 @media (max-width: 768px) {
-  .jo-backdrop { align-items: flex-end; padding: 0; }
-  .jo-box { border-radius: 24px 24px 0 0; max-width: 100%; padding: 48px 18px calc(24px + env(safe-area-inset-bottom)); max-height: calc(100dvh - 24px - env(safe-area-inset-top)); }
+  .jo-backdrop { padding: 0; }
+  .jo-box { height: 100%; border-radius: 0; border: none; padding: 56px 18px calc(24px + env(safe-area-inset-bottom)); align-items: flex-start; }
 }
 </style>
