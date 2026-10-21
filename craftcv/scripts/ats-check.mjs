@@ -52,7 +52,7 @@ function flatten(x, p = '', out = []) {
   if (x == null) return out
   if (typeof x === 'string' || typeof x === 'number') { out.push({ path: p, value: String(x) }); return out }
   if (Array.isArray(x)) { x.forEach((v, i) => flatten(v, `${p}[${i}]`, out)); return out }
-  if (typeof x === 'object') for (const [k, v] of Object.entries(x)) if (!/^(rawText|redactedText|sections|ResumeFileName|DetailResume|HtmlResume|TextResume|pages|meta|_meta)$/i.test(k)) flatten(v, p ? `${p}.${k}` : k, out)
+  if (typeof x === 'object') for (const [k, v] of Object.entries(x)) if (!/^(rawText|redactedText|sections|ResumeFileName|DetailResume|HtmlResume|TextResume|PlainText|DocumentText|ConversionMetadata|ParsingMetadata|pages|meta|_meta)$/i.test(k)) flatten(v, p ? `${p}.${k}` : k, out)
   return out
 }
 function grade(cv, found) {
@@ -72,6 +72,23 @@ async function affindaBase(key) {
     try { const r = await fetch(base + '/v3/organizations', { headers: { Authorization: 'Bearer ' + key }, signal: AbortSignal.timeout(15000) }); if (r.ok) return (_affBase = base) } catch {}
   }
   throw new Error('Affinda did not accept this API key in any region')
+}
+async function eden(provider, pdf, name) {
+  const key = process.env.EDEN_AI_LIVE_API_KEY || process.env.EDEN_AI_API_KEY
+  if (!key) throw new Error('EDEN_AI_LIVE_API_KEY is missing in .env')
+  const form = new FormData()
+  form.append('file', new Blob([pdf], { type: 'application/pdf' }), name); form.append('expires_in_days', '1')
+  const up = await fetch('https://api.edenai.run/v3/upload', { method: 'POST', headers: { Authorization: 'Bearer ' + key }, body: form, signal: AbortSignal.timeout(60000) })
+  const u = await up.json().catch(() => ({}))
+  if (!up.ok || !u.file_id) throw new Error(`Eden AI upload ${up.status}: ${JSON.stringify(u).slice(0, 200)}`)
+  const r = await fetch('https://api.edenai.run/v3/universal-ai', {
+    method: 'POST', headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'ocr/resume_parser/' + provider, input: { file: u.file_id } }), signal: AbortSignal.timeout(180000),
+  })
+  const j = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(`Eden AI ${provider} ${r.status}: ${JSON.stringify(j).slice(0, 300)}`)
+  const data = j.output?.extracted_data || j.extracted_data || j.output || j
+  return { found: flatten(data), raw: j }
 }
 // ── The engines ──
 const ENGINE = {
@@ -102,6 +119,24 @@ const ENGINE = {
     if (!r.ok) throw new Error(`Affinda ${r.status}: ${JSON.stringify(j).slice(0, 300)}`)
     return { found: flatten(j.data || j), raw: j }
   },
+  // Textkernel (formerly Sovren), the Tx Platform v10: account id + service key, EU data centre unless TEXTKERNEL_REGION=us
+  async textkernel(pdf, cv, name) {
+    const { TEXTKERNEL_ACCOUNT_ID: acc, TEXTKERNEL_EU_SERVICE_KEY: euKey, TEXTKERNEL_SERVICE_KEY: anyKey, TEXTKERNEL_REGION: region } = process.env
+    const key = anyKey || euKey
+    if (!acc || !key) throw new Error('TEXTKERNEL_ACCOUNT_ID and TEXTKERNEL_EU_SERVICE_KEY are missing in .env')
+    const host = region === 'us' ? 'https://api.us.textkernel.com' : 'https://api.eu.textkernel.com'
+    const r = await fetch(host + '/tx/v10/parser/resume', {
+      method: 'POST', headers: { 'Tx-AccountId': acc, 'Tx-ServiceKey': key, 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ DocumentAsBase64String: Buffer.from(pdf).toString('base64'), DocumentLastModified: new Date().toISOString().slice(0, 10) }),
+      signal: AbortSignal.timeout(120000),
+    })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(`Textkernel ${r.status}: ${JSON.stringify(j.Info || j).slice(0, 300)}`)
+    return { found: flatten(j.Value || j), raw: j }
+  },
+  // Through Eden AI (one key, several parsers): Klippa and Senseloaf. The PDF is uploaded, then parsed.
+  klippa: (pdf, cv, name) => eden('klippa', pdf, name),
+  senseloaf: (pdf, cv, name) => eden('senseloaf', pdf, name),
   async rchilli(pdf, cv, name) {
     const { RCHILLI_USER_KEY: userkey, RCHILLI_SUB_USER_ID: subuserid } = process.env
     if (!userkey) throw new Error('RCHILLI_USER_KEY is missing in .env')
@@ -116,7 +151,7 @@ const ENGINE = {
 }
 
 // ── Run ──
-const NAMES = { local: 'Plain text read (pdf.js)', affinda: 'Affinda', rchilli: 'RChilli' }
+const NAMES = { local: 'Plain text read (pdf.js)', affinda: 'Affinda', rchilli: 'RChilli', textkernel: 'Textkernel', klippa: 'Klippa (via Eden AI)', senseloaf: 'Senseloaf (via Eden AI)' }
 const rows = []
 for (const engine of ENGINES) {
   if (!ENGINE[engine]) { console.log('Unknown engine:', engine); continue }
