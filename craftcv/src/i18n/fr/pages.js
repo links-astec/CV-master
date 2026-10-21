@@ -195,4 +195,5 @@ export default {
   'Cover letter as a PDF': 'Lettre de motivation en PDF',
   'With that CV': 'Avec ce CV',
   'Every letter': 'Chaque lettre',
+  'More for {title}': 'Plus d’options pour {title}',
 }

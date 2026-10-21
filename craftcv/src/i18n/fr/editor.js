@@ -213,4 +213,5 @@ export default {
   'A letter for this job, from your real experience, in your CV’s design.': 'Une lettre pour cette offre, à partir de votre vraie expérience, dans le design de votre CV.',
   'Open': 'Ouvrir',
   'Interview prep comes with the Job Hunt Pass.': 'La préparation à l’entretien est incluse dans le Job Hunt Pass.',
+  'Preview': 'Aperçu',
 }

@@ -58,7 +58,9 @@
             <div class="drawer-hd">
               <span class="drawer-grab" aria-hidden="true"></span>
               <span class="drawer-t">{{ $t('Edit CV') }}</span>
-              <button class="btn-primary btn-sm accent" @click="drawer = false">{{ $t('Done') }}</button>
+              <button class="drawer-prev" @click="drawer = false">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>{{ $t('Preview') }}
+              </button>
             </div>
             <CvEditor ref="drawerRef" @pay="drawer = false; openPaywall()" />
           </div>
@@ -112,6 +114,8 @@ const route = useRoute()
 onMounted(() => {
   tick = setInterval(() => { now.value = Date.now() }, 15000)
   openTab(route.query.tab)
+  // On a phone, editing comes first (the preview is one tap away)
+  if (window.innerWidth <= 768 && !route.query.preview) drawer.value = true
 })
 // e.g. /editor?tab=job ("Check your ATS score", or a layout picked with a job offer). On a phone
 // the editor lives in the drawer, so open it on that tab; on a computer, the side panel
@@ -169,6 +173,16 @@ function showDesign() {
 .drawer-grab{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:40px;height:5px;border-radius:3px;background:var(--c-border)}
 .drawer-t{font-size:18px;font-weight:700;letter-spacing:-.02em}
 .drawer > :deep(.ced){flex:1;min-height:0}
+.drawer-prev{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 14px;border:none;border-radius:99px;background:var(--c-accent);color:#fff;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.drawer-prev svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+/* Phones: the editor is a full page, not a sheet over the preview */
+@media (max-width:768px){
+  .drawer-backdrop{background:var(--c-bg)}
+  .drawer{height:100vh;height:100dvh;max-height:100dvh;border-radius:0;box-shadow:none}
+  .drawer-hd{padding:calc(12px + env(safe-area-inset-top)) 16px 12px;border-bottom:1px solid var(--hair)}
+  .drawer-grab{display:none}
+  .drawer-t{font-size:22px}
+}
 .drawer-enter-active,.drawer-leave-active{transition:opacity .2s}
 .drawer-enter-active .drawer,.drawer-leave-active .drawer{transition:transform .22s ease}
 .drawer-enter-from,.drawer-leave-to{opacity:0}

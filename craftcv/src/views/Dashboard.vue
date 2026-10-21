@@ -52,6 +52,9 @@
             <div class="db-title-row">
               <h3 class="db-title" :title="c.title">{{ c.title }}</h3>
               <span v-if="c.paid" class="badge green">{{ $t('Paid') }}</span>
+              <button type="button" class="db-more show-mobile" :aria-label="$t('More for {title}', { title: c.title })" @click="sheet = c">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+              </button>
             </div>
             <div class="db-meta">
               <span>{{ templateLabel(c.template) }}</span>
@@ -78,10 +81,28 @@
       </div>
 
       <!-- Now and then: ask for a rating (only people with a CV a few days old who haven't reviewed) -->
-      <div v-if="askReview" v-show="reviewShown" class="db-review card">
+      <div v-if="askReview" v-show="reviewShown" class="db-review card hide-mobile">
         <ReviewPrompt compact only-if-new @shown="reviewShown = true" />
         <button class="link-btn db-review-later" @click="laterReview">{{ $t('Not now') }}</button>
       </div>
+
+      <!-- Phones: what you can do with one CV, as a sheet from the bottom -->
+      <Teleport to="body">
+        <Transition name="db-sheet">
+          <div v-if="sheet" class="db-sheet-bg" @click.self="sheet = null">
+            <div class="db-sheet" role="dialog" :aria-label="sheet.title">
+              <div class="db-sheet-group">
+                <div class="db-sheet-t">{{ sheet.title }}</div>
+                <button type="button" @click="open(sheet); sheet = null">{{ $t('Open') }}</button>
+                <button type="button" :disabled="busy === sheet.key" @click="download(sheet); sheet = null">{{ $t('Download') }}</button>
+                <button v-if="sheet.unlocked" type="button" @click="resend(sheet); sheet = null">{{ $t('Email again') }}</button>
+                <button v-if="sheet.id" type="button" class="red" @click="remove(sheet); sheet = null">{{ $t('Delete') }}</button>
+              </div>
+              <button type="button" class="db-sheet-cancel" @click="sheet = null">{{ $t('Cancel') }}</button>
+            </div>
+          </div>
+        </Transition>
+      </Teleport>
 
       <!-- Empty state: only when there are no CVs -->
       <div v-if="!loading && !cards.length" class="db-empty card">
@@ -137,7 +158,8 @@ const openPaywall    = inject('openPaywall')
 const drafts   = ref([])
 const paidIds  = ref(new Set())
 const legacyPaidAll = ref(false)
-const passOn = ref(false)   // Job Hunt Pass: every CV unlocked (not "paid")
+const passOn = ref(false)
+const sheet = ref(null)   // phones: the CV whose actions are open   // Job Hunt Pass: every CV unlocked (not "paid")
 const loading  = ref(false)
 const busy     = ref(null)
 const showUnlock    = ref(false)
@@ -400,6 +422,35 @@ async function remove(c) {
 .db-review-later{position:absolute;top:14px;right:16px;font-size:12.5px}
 .db-guest span{flex:1}
 .db-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:24px}
+.db-more{display:none;width:32px;height:32px;margin:-4px -6px -4px auto;flex-shrink:0;border:none;border-radius:50%;background:none;align-items:center;justify-content:center;color:var(--c-text2);cursor:pointer}
+.db-more svg{width:20px;height:20px;fill:currentColor}
+/* Phones: documents in two columns, like Files; the "…" holds the actions */
+@media (max-width:768px){
+  .db-grid{grid-template-columns:1fr 1fr;gap:20px 14px}
+  .db-grid .db-card{background:none;box-shadow:none;border-radius:0;overflow:visible;animation:none;min-width:0}
+  .db-grid .db-card:hover{transform:none;box-shadow:none}
+  .db-grid .db-thumb{display:block;width:100%;min-width:0;border-radius:12px;overflow:hidden;background:var(--c-surface);box-shadow:0 1px 2px rgba(0,0,0,.06),0 6px 18px -8px rgba(0,0,0,.18);padding:0}
+  .db-grid .db-body{padding:10px 2px 0}
+  .db-title-row{gap:4px;align-items:center}
+  .db-title{font-size:14px;font-weight:600}
+  .db-title-row .badge{font-size:10.5px;padding:1px 6px}
+  .db-meta{font-size:12.5px;margin-top:1px}
+  .db-meta > span:first-child{display:none}
+  .db-meta > span:nth-child(2){margin:0}
+  .db-prog,.db-actions{display:none!important}
+}
+.db-sheet-bg{position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.32);display:flex;align-items:flex-end;justify-content:center;padding:0 10px calc(10px + env(safe-area-inset-bottom))}
+.db-sheet{width:100%;max-width:480px;display:flex;flex-direction:column;gap:8px}
+.db-sheet-group{background:color-mix(in srgb,var(--c-surface) 96%,transparent);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:14px;overflow:hidden}
+.db-sheet-t{font-size:13px;color:var(--c-text3);text-align:center;padding:14px 16px 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.db-sheet button{display:block;width:100%;height:56px;border:none;border-top:1px solid var(--hair);background:none;font:inherit;font-size:18px;color:var(--c-accent);cursor:pointer}
+.db-sheet button.red{color:#e5484d}
+.db-sheet button:disabled{opacity:.5}
+.db-sheet .db-sheet-cancel{border:none;border-radius:14px;background:var(--c-surface);font-weight:600}
+.db-sheet-enter-active,.db-sheet-leave-active{transition:opacity .2s ease}
+.db-sheet-enter-active .db-sheet,.db-sheet-leave-active .db-sheet{transition:transform .28s cubic-bezier(.2,.8,.2,1)}
+.db-sheet-enter-from,.db-sheet-leave-to{opacity:0}
+.db-sheet-enter-from .db-sheet,.db-sheet-leave-to .db-sheet{transform:translateY(30px)}
 .db-card{background:var(--c-surface);border:none;border-radius:24px;overflow:hidden;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;transition:transform .45s var(--ease),box-shadow .45s var(--ease)}
 .db-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg)}
 /* the cards rise in one after another, like the homepage */
