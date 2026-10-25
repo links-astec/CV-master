@@ -182,6 +182,34 @@
       </div>
     </section>
 
+    <!-- Referral: invite friends, get free CVs. High up, as a card that floats on the page -->
+    <section class="lp-ref" id="invite">
+      <div class="lp-wrap lp-ref-in">
+        <div class="lp-ref-copy" v-reveal>
+          <span class="lp-ref-kick">{{ $t('Invite friends') }}</span>
+          <h2>{{ $t('Help a friend.') }}<br><span>{{ $t('Get your CV free.') }}</span></h2>
+          <p>{{ $t('Share your invite link with classmates and friends. They get 25 extra AI requests to build their CV, and every friend who gets their first clean CV earns you a free one.') }}</p>
+          <ol class="lp-ref-steps">
+            <li><b>1</b><div><strong>{{ $t('Share your link') }}</strong><span>{{ $t('By WhatsApp, email or anywhere you like.') }}</span></div></li>
+            <li><b>2</b><div><strong>{{ $t('They build their CV') }}</strong><span>{{ $t('With 25 extra AI requests, on you.') }}</span></div></li>
+            <li><b>3</b><div><strong>{{ $t('You get a free CV') }}</strong><span>{{ $t('For every friend who gets their first clean CV. No limit.') }}</span></div></li>
+          </ol>
+          <button class="btn-lg lp-ref-btn" @click="$emit('start', 'invite')">{{ $t('Get my invite link') }}</button>
+        </div>
+        <div class="lp-ref-art" aria-hidden="true" inert v-reveal="120">
+          <div class="lp-ref-card">
+            <div class="lp-ref-card-hd"><span class="lp-ref-gift"><svg viewBox="0 0 24 24"><polyline points="20 12 20 22 4 22 4 12" /><rect x="2" y="7" width="20" height="5" rx="1" /><line x1="12" y1="22" x2="12" y2="7" /><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z" /><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z" /></svg></span>{{ $t('Your invite link') }}</div>
+            <div class="lp-ref-link">cvmaster.live/invite/CHRISTABEL</div>
+            <div class="lp-ref-share"><span>WhatsApp</span><span>{{ $t('Email') }}</span><span class="pri">{{ $t('Copy') }}</span></div>
+            <div class="lp-ref-stats"><div><b>3</b><span>{{ $t('friends joined') }}</span></div><div><b>2</b><span>{{ $t('free CVs earned') }}</span></div></div>
+          </div>
+          <span class="lp-ref-chip c1">+1 {{ $t('free CV') }}</span>
+          <span class="lp-ref-chip c2">+25 {{ $t('AI requests') }}</span>
+          <div class="lp-ref-faces"><i>K</i><i>Y</i><i>S</i></div>
+        </div>
+      </div>
+    </section>
+
     <!-- Reviews. Real ones only, shown once there are enough -->
     <section v-if="rv.average" class="lp-sec lp-alt" id="reviews">
       <div class="lp-wrap">
@@ -215,34 +243,6 @@
         </div>
         <p class="lp-small">{{ $t('Need more AI? 100 extra requests cost €0.50 and never expire.') }}</p>
         <div class="lp-center" style="margin-top:18px"><button class="btn-secondary btn-lg" @click="$emit('start', 'pricing')">{{ $t('Compare all plans') }}</button></div>
-      </div>
-    </section>
-
-    <!-- Referral: invite friends, get free CVs -->
-    <section class="lp-ref" id="invite">
-      <div class="lp-wrap lp-ref-in">
-        <div class="lp-ref-copy" v-reveal>
-          <span class="lp-ref-kick">{{ $t('Invite friends') }}</span>
-          <h2>{{ $t('Help a friend.') }}<br><span>{{ $t('Get your CV free.') }}</span></h2>
-          <p>{{ $t('Share your invite link with classmates and friends. They get 25 extra AI requests to build their CV, and every friend who gets their first clean CV earns you a free one.') }}</p>
-          <ol class="lp-ref-steps">
-            <li><b>1</b><div><strong>{{ $t('Share your link') }}</strong><span>{{ $t('By WhatsApp, email or anywhere you like.') }}</span></div></li>
-            <li><b>2</b><div><strong>{{ $t('They build their CV') }}</strong><span>{{ $t('With 25 extra AI requests, on you.') }}</span></div></li>
-            <li><b>3</b><div><strong>{{ $t('You get a free CV') }}</strong><span>{{ $t('For every friend who gets their first clean CV. No limit.') }}</span></div></li>
-          </ol>
-          <button class="btn-lg lp-ref-btn" @click="$emit('start', 'invite')">{{ $t('Get my invite link') }}</button>
-        </div>
-        <div class="lp-ref-art" aria-hidden="true" inert v-reveal="120">
-          <div class="lp-ref-card">
-            <div class="lp-ref-card-hd"><span class="lp-ref-gift"><svg viewBox="0 0 24 24"><polyline points="20 12 20 22 4 22 4 12" /><rect x="2" y="7" width="20" height="5" rx="1" /><line x1="12" y1="22" x2="12" y2="7" /><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z" /><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z" /></svg></span>{{ $t('Your invite link') }}</div>
-            <div class="lp-ref-link">cvmaster.live/invite/CHRISTABEL</div>
-            <div class="lp-ref-share"><span>WhatsApp</span><span>{{ $t('Email') }}</span><span class="pri">{{ $t('Copy') }}</span></div>
-            <div class="lp-ref-stats"><div><b>3</b><span>{{ $t('friends joined') }}</span></div><div><b>2</b><span>{{ $t('free CVs earned') }}</span></div></div>
-          </div>
-          <span class="lp-ref-chip c1">+1 {{ $t('free CV') }}</span>
-          <span class="lp-ref-chip c2">+25 {{ $t('AI requests') }}</span>
-          <div class="lp-ref-faces"><i>K</i><i>Y</i><i>S</i></div>
-        </div>
       </div>
     </section>
 
@@ -541,7 +541,8 @@ const FAQ = [
 .m-fit-sub{font-size:11.5px;font-weight:700;color:#6B6B84;text-transform:uppercase;letter-spacing:.04em}
 
 /* Referral: invite friends, get free CVs */
-.lp-ref{position:relative;overflow:hidden;padding:120px 0;color:#fff;background:#4338CA}
+.lp-ref{position:relative;overflow:hidden;padding:104px 0;color:#fff;background:#4338CA;width:calc(100% - 48px);max-width:1320px;margin:24px auto 72px;border-radius:44px;box-shadow:0 40px 100px -20px rgba(67,56,202,.55)}
+@media (max-width:760px){ .lp-ref{width:calc(100% - 24px);border-radius:32px;padding:64px 0;margin:12px auto 48px} .lp-ref-faces{display:none} }
 .lp-ref-in{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:64px;align-items:center}
 .lp-ref-kick{display:inline-block;font-size:17px;font-weight:600;color:rgba(255,255,255,.7)}
 .lp-ref-copy h2{margin-top:18px;font-size:clamp(36px,5vw,58px);font-weight:800;letter-spacing:-.036em;line-height:1.02}
