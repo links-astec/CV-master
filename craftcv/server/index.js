@@ -3172,6 +3172,10 @@ async function useFreeCv(userId, draftId) {
        ON CONFLICT (session_id) DO NOTHING RETURNING session_id`, [userId, String(draftId), `free:${userId}:${used + 1}`]);
     if (r.rows.length) {
       await notify(userId, 'payment', 'Your CV is unlocked', 'Download it or email it again any time from My CVs. Free, even after edits.', '/').catch(() => {});
+      // a friend who got their CV completes the referral too, free or paid (only with a confirmed address,
+      // so made-up accounts can't earn anyone free CVs)
+      const u = (await query('SELECT provider, email_verified FROM users WHERE id = $1', [userId])).rows[0];
+      if (u && (u.provider === 'google' || u.email_verified)) await rewardReferrer(userId).catch(e => console.warn('[referral] reward failed:', e.message));
       return true;
     }
   }
