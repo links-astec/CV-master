@@ -237,4 +237,22 @@ export default {
   'PhD': 'Doctorat',
   'School': 'École',
   'Confirm your student email to switch on your free JUNIA access. We sent a link to {email}.': 'Confirmez votre adresse étudiante pour activer votre accès gratuit JUNIA. Nous avons envoyé un lien à {email}.',
+  // JUNIA student access and the 3 free CVs
+  'A clean, one-page PDF, emailed to you. Free: this is the last of your free CVs.': 'Un PDF propre d’une page, envoyé par e-mail. Gratuit : c’est le dernier de vos CV gratuits.',
+  'A clean, one-page PDF, emailed to you. Free: you have {n} of {total} free CVs left.': 'Un PDF propre d’une page, envoyé par e-mail. Gratuit : il vous reste {n} CV gratuits sur {total}.',
+  'Your first 5 CVs are free with your JUNIA student account. Confirm your student email to switch it on: we sent you a link.': 'Vos 5 premiers CV sont gratuits avec votre compte étudiant JUNIA. Confirmez votre adresse étudiante pour l’activer : nous vous avons envoyé un lien.',
+  'Use “Export PDF” in the editor for the clean PDF by email and as a download. With your JUNIA student account your first 5 CVs are free.': 'Utilisez « Exporter en PDF » dans l’éditeur pour recevoir le PDF propre par e-mail et en téléchargement. Avec votre compte étudiant JUNIA, vos 5 premiers CV sont gratuits.',
+  'Your first 5 CVs are free.': 'Vos 5 premiers CV sont gratuits.',
+  'Thanks to JUNIA, your first 5 CVs are free, with 100 AI requests a day.': 'Grâce à JUNIA, vos 5 premiers CV sont gratuits, avec 100 requêtes IA par jour.',
+  'JUNIA students get their first 5 CVs free. Confirm {email} to switch it on: we sent you a link.': 'Les étudiants JUNIA ont leurs 5 premiers CV gratuits. Confirmez {email} pour l’activer : nous vous avons envoyé un lien.',
+  'Your first 5 CVs free, as clean PDFs': 'Vos 5 premiers CV gratuits, en PDF propres',
+  '5 free CVs': '5 CV gratuits',
+  'Thanks to JUNIA, your first 5 CVs are free.': 'Grâce à JUNIA, vos 5 premiers CV sont gratuits.',
+  'Confirm your student email to get your 5 free CVs. We sent a link to {email}.': 'Confirmez votre adresse étudiante pour obtenir vos 5 CV gratuits. Nous avons envoyé un lien à {email}.',
+  'Get a free CV for every friend who gets theirs.': 'Un CV gratuit pour chaque ami qui obtient le sien.',
+  'Invite friends, get free CVs': 'Invitez vos amis, obtenez des CV gratuits',
+  'Share your invite link: friends get 25 extra AI requests, and you get a free CV for each friend who gets theirs.': 'Partagez votre lien d’invitation : vos amis reçoivent 25 requêtes IA en plus, et vous gagnez un CV gratuit pour chaque ami qui obtient le sien.',
+  // JUNIA student access and the 3 free CVs
+  'Write a cover letter': 'Écrire une lettre de motivation',
+  'For the job you’re applying to, written from your CV, in its design.': 'Pour le poste que vous visez, rédigée à partir de votre CV, dans son design.',
 }
