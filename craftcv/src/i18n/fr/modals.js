@@ -258,4 +258,8 @@ export default {
   // JUNIA student access and the 3 free CVs
   'Cover letters': 'Lettres de motivation',
   'Write a cover letter for any job in a minute, from your CV, in your CV’s design. Find it in the sidebar.': 'Écrivez une lettre de motivation pour n’importe quelle offre en une minute, à partir de votre CV, dans son design. Elle est dans le menu.',
+  // JUNIA student access and the 3 free CVs
+  'Know someone looking for a job?': 'Vous connaissez quelqu’un qui cherche un emploi ?',
+  'Send them your link. When they get their CV, your next one is free.': 'Envoyez-lui votre lien. Quand il obtient son CV, votre prochain est gratuit.',
+  'Copy my invite link': 'Copier mon lien d’invitation',
 }

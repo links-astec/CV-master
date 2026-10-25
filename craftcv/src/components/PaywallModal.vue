@@ -23,7 +23,12 @@
               <button class="btn-secondary" :disabled="downloading" @click="downloadPdf">{{ $t(downloading ? 'Preparing…' : 'Download PDF') }}</button>
               <button class="btn-primary accent" @click="close">{{ $t('Done') }}</button>
             </div>
-            <ReviewPrompt compact only-if-new />
+            <!-- The moment they're happiest with CVMaster: a quiet word about the invite link, nothing more -->
+            <div v-if="refLink && !campus" class="pw-ref">
+              <p><b>{{ $t('Know someone looking for a job?') }}</b> {{ $t('Send them your link. When they get their CV, your next one is free.') }}</p>
+              <button type="button" class="pw-ref-btn" @click="copyRef">{{ $t(refCopied ? 'Copied' : 'Copy my invite link') }}</button>
+            </div>
+            <ReviewPrompt v-else compact only-if-new />
           </div>
 
           <!-- Paid, but the email failed -->
@@ -151,6 +156,9 @@ const paidForDraft  = ref(false)
 const credits       = ref(0)
 const freeLeft      = ref(0)   // of everyone's first free CVs (3, or 5 for JUNIA students)
 const freeTotal     = ref(3)
+const refLink       = ref('')
+const refCopied     = ref(false)
+async function copyRef() { try { await navigator.clipboard.writeText(refLink.value); refCopied.value = true; setTimeout(() => { refCopied.value = false }, 1800) } catch {} }
 // JUNIA students: everything free once their student address is confirmed; never a price or the pass
 const campus   = computed(() => !!auth.user?.campus)
 const campusOn = computed(() => !!auth.user?.campusActive)
@@ -225,6 +233,7 @@ async function prepare() {
     freeLeft.value = Number(status.freeLeft) || 0
     freeTotal.value = Number(status.freeTotal) || 3
     credits.value = Number(refInfo.credits) || 0
+    refLink.value = refInfo.link || ''
     state.value = info.overflow && !store.data.shrinkToFit ? 'tooLong' : 'ready'
   } catch (e) {
     error.value = e.message
@@ -378,6 +387,10 @@ defineExpose({ handleStripeReturn })
 .f-hint.err{color:var(--c-rose)}
 .pw-err{margin-bottom:14px}
 .pw-credit{margin-top:8px}
+.pw-ref{margin-top:22px;padding:16px 18px;border-radius:18px;background:var(--fill);text-align:left;display:flex;flex-direction:column;gap:12px}
+.pw-ref p{margin:0;font-size:14px;line-height:1.5;color:var(--c-text2)}
+.pw-ref b{color:var(--c-text);font-weight:600}
+.pw-ref-btn{align-self:flex-start;height:36px;padding:0 16px;border:none;border-radius:99px;background:var(--c-surface);box-shadow:var(--shadow-sm);font:inherit;font-size:14px;font-weight:600;color:var(--c-accent);cursor:pointer}
 .pw-fix{background:none;border:none;padding:0;font:inherit;font-weight:700;color:var(--c-accent);text-decoration:underline;cursor:pointer}
 .pw-consent{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:var(--c-text2);line-height:1.45;margin:4px 0 12px;cursor:pointer}
 .pw-consent input{margin-top:2px;accent-color:var(--c-accent);flex-shrink:0;width:15px;height:15px}
