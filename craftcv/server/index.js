@@ -610,7 +610,10 @@ async function notifyReferralOnce() {
   if (_refNotified) return; _refNotified = true;
   await query(`INSERT INTO notifications (user_id, type, title, body, link)
     SELECT u.id, 'referral', 'Invite friends, get free CVs', 'Share your invite link: friends get 25 extra AI requests, and you get a free CV for each friend who gets theirs.', '/settings#invite'
-    FROM users u WHERE NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = u.id AND n.type = 'referral')`).catch(e => { _refNotified = false; console.warn('[referral notice]', e.message); });
+    FROM users u WHERE NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = u.id AND n.type = 'referral')`)
+    .then(() => query(`INSERT INTO notifications (user_id, type, title, body, link)
+    SELECT u.id, 'feature', 'Cover letters', 'Write a cover letter for any job in a minute, from your CV, in your CV’s design. Find it in the sidebar.', '/editor?tab=letter'
+    FROM users u WHERE NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = u.id AND n.title = 'Cover letters')`)).catch(e => { _refNotified = false; console.warn('[referral notice]', e.message); });
 }
 setTimeout(() => notifyReferralOnce(), 20000);
 
@@ -618,6 +621,7 @@ async function seedNotifications(userId) {
   await query(`
     INSERT INTO notifications (user_id, type, title, body, created_at) VALUES
     ($1, 'welcome', 'Welcome to CVMaster',  'Your account is ready. Start building your CV now.',                                   NOW()),
+    ($1, 'feature', 'Cover letters', 'Write a cover letter for any job in a minute, from your CV, in your CV’s design. Find it in the sidebar.', NOW() - INTERVAL '40 seconds'),
     ($1, 'referral', 'Invite friends, get free CVs', 'Share your invite link: friends get 25 extra AI requests, and you get a free CV for each friend who gets theirs.', NOW() - INTERVAL '30 seconds'),
     ($1, 'tip',     'AI tip',               'Try “Tell your story”. Describe your career and AI builds your CV, asking about anything missing.', NOW() - INTERVAL '1 minute'),
     ($1, 'feature', '50 templates',         'ATS-friendly layouts for online applications and creative ones for print, switch any time.',     NOW() - INTERVAL '2 minutes')

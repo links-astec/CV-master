@@ -34,6 +34,8 @@
           <button class="lp-q" @click="$emit('start', 'narrate')">{{ $t('Tell your story') }}</button>
           <span aria-hidden="true">·</span>
           <button class="lp-q" @click="$emit('start', 'ats')">{{ $t('Check your ATS score') }}</button>
+          <span aria-hidden="true">·</span>
+          <button class="lp-q" @click="$emit('start', 'letter')">{{ $t('Write a cover letter') }}</button>
         </p>
         <a href="#invite" class="lp-ref-pill" @click.prevent="go('#invite')"><b>{{ $t('Invite friends') }}</b> {{ $t('Get a free CV for every friend who gets theirs.') }} <span aria-hidden="true">›</span></a>
       </div>

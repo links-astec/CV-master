@@ -437,6 +437,7 @@ function startBuilding(mode) {
     return
   }
   if (mode === 'mycvs') { router.push('/'); return }
+  if (mode === 'letter') { router.push({ path: '/editor', query: { tab: 'letter' } }); return }
   if (mode === 'templates') { router.push('/templates'); return }
   if ((mode === 'pass' || mode === 'pricing') && auth.user?.campus) { router.push('/'); return }
   if (mode === 'pass') { router.push({ path: '/settings', hash: '#pass' }); return }
