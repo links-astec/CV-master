@@ -255,4 +255,7 @@ export default {
   // JUNIA student access and the 3 free CVs
   'Write a cover letter': 'Écrire une lettre de motivation',
   'For the job you’re applying to, written from your CV, in its design.': 'Pour le poste que vous visez, rédigée à partir de votre CV, dans son design.',
+  // JUNIA student access and the 3 free CVs
+  'Cover letters': 'Lettres de motivation',
+  'Write a cover letter for any job in a minute, from your CV, in your CV’s design. Find it in the sidebar.': 'Écrivez une lettre de motivation pour n’importe quelle offre en une minute, à partir de votre CV, dans son design. Elle est dans le menu.',
 }
