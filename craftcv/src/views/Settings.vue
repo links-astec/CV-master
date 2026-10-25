@@ -17,8 +17,9 @@
           <span class="sm-acct-t"><b>{{ $t('You’re using CVMaster as a guest') }}</b><small>{{ $t('Create a free account to keep your CVs safe') }}</small></span><svg class="sm-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
         </button>
         <div class="sm-group">
-          <button type="button" class="sm-row" @click="openSec('pass')"><span class="sm-k">{{ $t('Job Hunt Pass') }}</span><span class="sm-v">{{ pass ? $t('On') : $t('Free plan') }}</span><svg class="sm-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
-          <button v-if="auth.isLoggedIn" type="button" class="sm-row" @click="openSec('invite')"><span class="sm-k">{{ $t('Invite friends') }}</span><span class="sm-v">{{ $t('{n} joined', { n: referralInfo?.count ?? 0 }) }}</span><svg class="sm-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
+          <button v-if="campus" type="button" class="sm-row" @click="openSec('pass')"><span class="sm-k">{{ $t('Student access') }}</span><span class="sm-v">{{ $t(auth.user?.campusActive ? 'Free' : 'Confirm your email') }}</span><svg class="sm-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
+          <button v-else type="button" class="sm-row" @click="openSec('pass')"><span class="sm-k">{{ $t('Job Hunt Pass') }}</span><span class="sm-v">{{ pass ? $t('On') : $t('Free plan') }}</span><svg class="sm-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
+          <button v-if="auth.isLoggedIn && !campus" type="button" class="sm-row" @click="openSec('invite')"><span class="sm-k">{{ $t('Invite friends') }}</span><span class="sm-v">{{ $t('{n} joined', { n: referralInfo?.count ?? 0 }) }}</span><svg class="sm-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
           <button type="button" class="sm-row" @click="openSec('ai')"><span class="sm-k">{{ $t('AI') }}</span><span class="sm-v">{{ aiQuota ? $t('{n} left today', { n: aiQuota.freeLeft }) : '' }}</span><svg class="sm-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
         </div>
         <div class="sm-group">
@@ -148,7 +149,7 @@
       </section>
 
       <!-- Invite friends -->
-      <section v-show="showSec('invite')" v-if="auth.isLoggedIn" id="invite" class="st-card">
+      <section v-show="showSec('invite')" v-if="auth.isLoggedIn && !campus" id="invite" class="st-card">
         <div class="st-card-hd">
           <div>
             <div class="st-card-t">{{ $t('Invite friends') }}</div>
@@ -180,9 +181,20 @@
         <div v-else class="st-muted">{{ $t('Couldn’t load your invite link, try refreshing.') }}</div>
       </section>
 
+      <!-- JUNIA students: everything free (no pass, no prices), once their student address is confirmed -->
+      <section v-show="showSec('pass')" v-if="campus" id="pass" class="st-card st-pass st-campus">
+        <div class="st-pass-brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>{{ $t('JUNIA student access') }}</div>
+        <div class="st-pass-title">{{ $t(auth.user?.campusActive ? 'Everything is free for you.' : 'Confirm your student email.') }}</div>
+        <p class="st-pass-p">{{ auth.user?.campusActive ? $t('Thanks to JUNIA, CVMaster is free while you study. No payments, no subscription.') : $t('Everything is free for JUNIA students. Confirm {email} to switch it on: we sent you a link.', { email: auth.user?.email }) }}</p>
+        <ul class="st-pass-list"><li v-for="f in CAMPUS_FEATURES" :key="f"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ $t(f) }}</li></ul>
+        <div v-if="!auth.user?.campusActive" class="st-pass-row">
+          <button class="st-pass-cta" :disabled="campusResent" @click="resendVerification(); campusResent = true">{{ $t(campusResent ? 'Sent. Check your inbox' : 'Resend the confirmation email') }}</button>
+        </div>
+      </section>
+
       <!-- Job Hunt Pass -->
       <!-- Pass holders: their card, what the pass is doing for them, and the plan -->
-      <section v-show="showSec('pass')" v-if="pass" id="pass" class="st-card st-mine">
+      <section v-show="showSec('pass')" v-else-if="pass" id="pass" class="st-card st-mine">
         <div class="st-mine-card">
           <PassCard :name="auth.user?.name || ''" :since="pass.since || ''" :plan="pass.plan" />
         </div>
@@ -245,12 +257,12 @@
             <span class="st-li-k">{{ $t('Extra requests') }}</span>
             <span class="st-li-v">{{ aiQuota.credits }}</span>
           </div>
-          <button type="button" class="st-li" @click="openAiAllowance()">
+          <button v-if="!campus" type="button" class="st-li" @click="openAiAllowance()">
             <span class="st-li-k st-li-blue">{{ $t('Get 100 more') }}</span>
             <span class="st-li-v">€0.50<template v-if="approx(0.5)"> · {{ approx(0.5) }}</template></span><svg class="st-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
           </button>
         </div>
-        <p class="st-sec-foot">{{ $t(aiQuota?.tier === 'pass' ? '100 every day with your Job Hunt Pass, reset at midnight (UTC). Extra requests never expire.' : aiQuota?.tier === 'verified' ? '30 free every day, reset at midnight (UTC). Extra requests never expire.' : '5 free a day. 30 once your email is confirmed. Reset at midnight (UTC). Extra requests never expire.') }}</p>
+        <p class="st-sec-foot">{{ $t(aiQuota?.tier === 'campus' ? '100 every day with your JUNIA student account, reset at midnight (UTC).' : aiQuota?.tier === 'pass' ? '100 every day with your Job Hunt Pass, reset at midnight (UTC). Extra requests never expire.' : aiQuota?.tier === 'verified' ? '30 free every day, reset at midnight (UTC). Extra requests never expire.' : '5 free a day. 30 once your email is confirmed. Reset at midnight (UTC). Extra requests never expire.') }}</p>
       </section>
 
       <!-- AI personalisation (own CVs only) -->
@@ -723,6 +735,10 @@ function shareEmail()    { track('invite_shared', { channel: 'email' }); window.
 // ── Job Hunt Pass ──
 const PASS_FEATURES = ['Every CV as a clean PDF, emailed and downloadable', 'Every cover letter as a PDF', 'Interview prep for every job offer', '100 AI requests a day (instead of 30)']
 const pass = computed(() => auth.user?.pass || null)
+// JUNIA students: free, so no pass, prices or referral rewards
+const campus = computed(() => !!auth.user?.campus)
+const campusResent = ref(false)
+const CAMPUS_FEATURES = ['Every CV as a clean PDF, emailed and downloadable', 'A cover letter and interview prep for each job', '100 AI requests a day']
 const passBusy = ref(false)
 const passConsent = ref(false)
 const welcome = ref(false)   // the welcome sheet after buying
@@ -737,8 +753,8 @@ watch(() => auth.user?.pass?.until, loadPassSummary, { immediate: true })
 const passPlan = ref(new URLSearchParams(location.search).get('plan') === 'month' ? 'month' : 'quarter')
 // Section shortcuts, and which one is in view
 const jumps = computed(() => [
-  { id: 'account', label: 'Account' }, { id: 'pass', label: 'Job Hunt Pass' },
-  ...(auth.isLoggedIn ? [{ id: 'invite', label: 'Invite friends' }] : []), { id: 'ai', label: 'AI' },
+  { id: 'account', label: 'Account' }, { id: 'pass', label: campus.value ? 'Student access' : 'Job Hunt Pass' },
+  ...(auth.isLoggedIn && !campus.value ? [{ id: 'invite', label: 'Invite friends' }] : []), { id: 'ai', label: 'AI' },
   ...(auth.isLoggedIn ? [{ id: 'details', label: 'Your details' }] : []), { id: 'prefs', label: 'Preferences' }, { id: 'help', label: 'Help' },
 ])
 const activeJump = ref('account')

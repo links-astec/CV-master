@@ -50,7 +50,7 @@
           <button type="button" class="cl-btn" :disabled="pdfBusy" @click="downloadPdf">{{ $t(pdfBusy ? 'Preparing…' : 'Download PDF') }}</button>
         </div>
       </div>
-      <p class="cl-foot">{{ $t(unlocked ? 'The PDF uses your CV’s design, colours and fonts.' : 'The PDF comes with this CV’s PDF (€0.99), or with every CV on the Job Hunt Pass.') }}</p>
+      <p class="cl-foot">{{ $t(unlocked ? 'The PDF uses your CV’s design, colours and fonts.' : auth.user?.campus ? 'The PDF is free with your JUNIA student account once you confirm your student email.' : 'The PDF comes with this CV’s PDF (€0.99), or with every CV on the Job Hunt Pass.') }}</p>
     </template>
   </section>
 </template>
@@ -97,7 +97,7 @@ const letterText = computed({
 const words = computed(() => (letterText.value.match(/\S+/g) || []).length)
 watch(opts, (o) => { if (store.data.coverLetter) store.data.coverLetter = { ...store.data.coverLetter, ...o } }, { deep: true })
 
-const unlocked = computed(() => !!auth.user?.pass)
+const unlocked = computed(() => !!auth.user?.pass || !!auth.user?.campusActive)
 
 async function write() {
   error.value = ''
