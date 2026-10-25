@@ -27,6 +27,10 @@
           <span class="db-li-ic"><svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg></span>
           <span class="db-li-txt"><b>{{ $t('Tell your story') }}</b><span>{{ $t('Speak or type about your career. AI writes your CV from it.') }}</span></span><svg class="db-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
         </button>
+        <button type="button" class="db-li" @click="$router.push({ path: '/editor', query: { tab: 'letter' } })">
+          <span class="db-li-ic"><svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z"/><polyline points="22 6 12 13 2 6"/></svg></span>
+          <span class="db-li-txt"><b>{{ $t('Write a cover letter') }}</b><span>{{ $t('For the job you’re applying to, written from your CV, in its design.') }}</span></span><svg class="db-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
+        </button>
         <button type="button" class="db-li" :class="{ 'db-extra': cards.length }" @click="checkAts">
           <span class="db-li-ic"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span>
           <span class="db-li-txt"><b>{{ $t(auth.user?.pass ? 'Tailor a CV to a new job' : 'Check your ATS score') }}</b><span>{{ $t(cards.length ? 'Paste a job offer and see how well your CV matches it.' : 'Paste a job offer and build a CV that matches it.') }}</span></span><svg class="db-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>

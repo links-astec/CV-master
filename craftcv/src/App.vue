@@ -29,8 +29,8 @@
       </button>
 
       <nav class="sb-nav">
-        <RouterLink v-for="n in NAV" :key="n.to" :to="n.to" class="sb-link" :data-tour="`nav-${n.id}`"
-                    :class="{ active: route.path === n.to }" :title="sbMini ? $t(n.label) : null" @click="navOpen = false">
+        <RouterLink v-for="n in NAV" :key="n.id" :to="n.to" class="sb-link" :data-tour="`nav-${n.id}`"
+                    :class="{ active: n.id === 'letter' ? route.path === '/editor' && route.query.tab === 'letter' : route.path === n.to && !(n.id === 'editor' && route.query.tab === 'letter') }" :title="sbMini ? $t(n.label) : null" @click="navOpen = false">
           <svg viewBox="0 0 24 24" v-html="n.icon"></svg>
           <span class="sb-lbl">{{ $t(n.label) }}</span>
         </RouterLink>
@@ -96,7 +96,7 @@
       </header>
       <!-- Email accounts that haven't confirmed yet -->
       <div v-if="auth.isLoggedIn && auth.user && auth.user.emailVerified === false && !verifyHidden" class="verify-bar">
-        <span>{{ $t(auth.user?.campus ? 'Confirm your student email to switch on your free JUNIA access. We sent a link to {email}.' : 'Confirm your email to unlock 30 AI requests a day. We sent a link to {email}.', { email: auth.user.email }) }}</span>
+        <span>{{ $t(auth.user?.campus ? 'Confirm your student email to get your 5 free CVs. We sent a link to {email}.' : 'Confirm your email to unlock 30 AI requests a day. We sent a link to {email}.', { email: auth.user.email }) }}</span>
         <button class="btn-secondary btn-sm" :disabled="verifySending" @click="resendVerification">{{ $t(verifySent ? 'Sent ✓' : verifySending ? 'Sending…' : 'Resend email') }}</button>
         <button class="verify-x" :aria-label="$t('Hide')" @click="verifyHidden = true">×</button>
       </div>
@@ -120,7 +120,7 @@
         <svg viewBox="0 0 24 24" v-html="NAV[2].icon"></svg>{{ $t('Editor') }}
       </RouterLink>
       <RouterLink to="/settings" class="bnav-btn" :class="{ active: route.path === '/settings' }">
-        <svg viewBox="0 0 24 24" v-html="NAV[3].icon"></svg>{{ $t('Settings') }}
+        <svg viewBox="0 0 24 24" v-html="NAV[4].icon"></svg>{{ $t('Settings') }}
       </RouterLink>
     </nav>
   </div>
@@ -181,6 +181,7 @@ const NAV = [
   { id: 'home',      to: '/',          label: 'My CVs',    icon: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>' },
   { id: 'templates', to: '/templates', label: 'Templates', icon: '<rect x="4" y="3" width="16" height="18" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/>' },
   { id: 'editor',    to: '/editor',    label: 'Editor',    icon: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/>' },
+  { id: 'letter',    to: { path: '/editor', query: { tab: 'letter' } }, label: 'Cover letter', icon: '<path d="M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z"/><polyline points="22 6 12 13 2 6"/>' },
   { id: 'settings',  to: '/settings',  label: 'Settings',  icon: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>' },
 ]
 

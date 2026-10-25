@@ -35,6 +35,7 @@
           <span aria-hidden="true">·</span>
           <button class="lp-q" @click="$emit('start', 'ats')">{{ $t('Check your ATS score') }}</button>
         </p>
+        <a href="#invite" class="lp-ref-pill" @click.prevent="go('#invite')"><b>{{ $t('Invite friends') }}</b> {{ $t('Get a free CV for every friend who gets theirs.') }} <span aria-hidden="true">›</span></a>
       </div>
       <div class="lp-stage" aria-hidden="true" inert :style="{ '--drift': drift }">
         <div class="lp-sheet s-l"><CvThumb template="harvard:charcoal" :data="sampleCv()" /></div>
@@ -476,6 +477,9 @@ const FAQ = [
 .lp-links a{color:var(--c-text2);text-decoration:none;font-size:13.5px;font-weight:500;transition:color .2s}
 .lp-links a:hover{color:var(--c-text)}
 .lp-nav-cta{display:flex;gap:8px;align-items:center}
+.lp-ref-pill{display:inline-flex;align-items:center;gap:6px;margin-top:22px;padding:8px 16px;border-radius:99px;background:color-mix(in srgb,var(--c-accent) 9%,transparent);color:var(--c-text2);font-size:14.5px;text-decoration:none;max-width:100%}
+.lp-ref-pill b{color:var(--c-accent);font-weight:650}
+.lp-ref-pill:hover{background:color-mix(in srgb,var(--c-accent) 14%,transparent)}
 .lp-signin{background:none;border:none;font-size:13.5px;font-weight:500;color:var(--c-text2);padding:0 8px}
 .lp-signin:hover{color:var(--c-text)}
 

@@ -17,7 +17,7 @@
           <span class="sm-acct-t"><b>{{ $t('You’re using CVMaster as a guest') }}</b><small>{{ $t('Create a free account to keep your CVs safe') }}</small></span><svg class="sm-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
         </button>
         <div class="sm-group">
-          <button v-if="campus" type="button" class="sm-row" @click="openSec('pass')"><span class="sm-k">{{ $t('Student access') }}</span><span class="sm-v">{{ $t(auth.user?.campusActive ? 'Free' : 'Confirm your email') }}</span><svg class="sm-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
+          <button v-if="campus" type="button" class="sm-row" @click="openSec('pass')"><span class="sm-k">{{ $t('Student access') }}</span><span class="sm-v">{{ $t(auth.user?.campusActive ? '5 free CVs' : 'Confirm your email') }}</span><svg class="sm-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
           <button v-else type="button" class="sm-row" @click="openSec('pass')"><span class="sm-k">{{ $t('Job Hunt Pass') }}</span><span class="sm-v">{{ pass ? $t('On') : $t('Free plan') }}</span><svg class="sm-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
           <button v-if="auth.isLoggedIn && !campus" type="button" class="sm-row" @click="openSec('invite')"><span class="sm-k">{{ $t('Invite friends') }}</span><span class="sm-v">{{ $t('{n} joined', { n: referralInfo?.count ?? 0 }) }}</span><svg class="sm-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
           <button type="button" class="sm-row" @click="openSec('ai')"><span class="sm-k">{{ $t('AI') }}</span><span class="sm-v">{{ aiQuota ? $t('{n} left today', { n: aiQuota.freeLeft }) : '' }}</span><svg class="sm-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg></button>
@@ -184,8 +184,8 @@
       <!-- JUNIA students: everything free (no pass, no prices), once their student address is confirmed -->
       <section v-show="showSec('pass')" v-if="campus" id="pass" class="st-card st-pass st-campus">
         <div class="st-pass-brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>{{ $t('JUNIA student access') }}</div>
-        <div class="st-pass-title">{{ $t(auth.user?.campusActive ? 'Everything is free for you.' : 'Confirm your student email.') }}</div>
-        <p class="st-pass-p">{{ auth.user?.campusActive ? $t('Thanks to JUNIA, CVMaster is free while you study. No payments, no subscription.') : $t('Everything is free for JUNIA students. Confirm {email} to switch it on: we sent you a link.', { email: auth.user?.email }) }}</p>
+        <div class="st-pass-title">{{ $t(auth.user?.campusActive ? 'Your first 5 CVs are free.' : 'Confirm your student email.') }}</div>
+        <p class="st-pass-p">{{ auth.user?.campusActive ? $t('Thanks to JUNIA, your first 5 CVs are free, with 100 AI requests a day.') : $t('JUNIA students get their first 5 CVs free. Confirm {email} to switch it on: we sent you a link.', { email: auth.user?.email }) }}</p>
         <ul class="st-pass-list"><li v-for="f in CAMPUS_FEATURES" :key="f"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>{{ $t(f) }}</li></ul>
         <div v-if="!auth.user?.campusActive" class="st-pass-row">
           <button class="st-pass-cta" :disabled="campusResent" @click="resendVerification(); campusResent = true">{{ $t(campusResent ? 'Sent. Check your inbox' : 'Resend the confirmation email') }}</button>
@@ -738,7 +738,7 @@ const pass = computed(() => auth.user?.pass || null)
 // JUNIA students: free, so no pass, prices or referral rewards
 const campus = computed(() => !!auth.user?.campus)
 const campusResent = ref(false)
-const CAMPUS_FEATURES = ['Every CV as a clean PDF, emailed and downloadable', 'A cover letter and interview prep for each job', '100 AI requests a day']
+const CAMPUS_FEATURES = ['Your first 5 CVs free, as clean PDFs', 'A cover letter and interview prep for each job', '100 AI requests a day']
 const passBusy = ref(false)
 const passConsent = ref(false)
 const welcome = ref(false)   // the welcome sheet after buying

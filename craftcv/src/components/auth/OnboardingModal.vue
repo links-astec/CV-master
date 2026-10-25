@@ -21,7 +21,7 @@
               <BrandLogo mark-only large animate />
               <span class="ob-badge">{{ $t('JUNIA student access') }}</span>
               <h2 :id="'ob-t-' + step">{{ firstName ? $t('Welcome, {name}', { name: firstName }) : $t('Welcome to CVMaster') }}</h2>
-              <p>{{ $t('Thanks to JUNIA, CVMaster is free for you while you study.') }}</p>
+              <p>{{ $t('Thanks to JUNIA, your first 5 CVs are free.') }}</p>
               <div class="ob-list ob-perks">
                 <div v-for="f in CAMPUS_PERKS" :key="f" class="ob-row"><svg class="ob-tick" viewBox="0 0 24 24"><polyline points="5 12.5 10 17.5 19 7"/></svg><span>{{ $t(f) }}</span></div>
               </div>
@@ -151,7 +151,7 @@ const SCHOOLS = [{ id: 'hei', label: 'JUNIA HEI', sub: 'Engineering' }, { id: 'i
   { id: 'isa', label: 'JUNIA ISA', sub: 'Agriculture, food and environment' }, { id: 'other', label: 'Another programme' }]
 const YEARS = [{ id: 'y1', label: '1st year' }, { id: 'y2', label: '2nd year' }, { id: 'y3', label: '3rd year' }, { id: 'y4', label: '4th year' },
   { id: 'y5', label: '5th year' }, { id: 'phd', label: 'PhD' }, { id: 'other', label: 'Other' }]
-const CAMPUS_PERKS = ['Every CV as a clean PDF, emailed and downloadable', 'A cover letter and interview prep for each job', '100 AI requests a day']
+const CAMPUS_PERKS = ['Your first 5 CVs free, as clean PDFs', 'A cover letter and interview prep for each job', '100 AI requests a day']
 const goals = campus ? GOALS.filter(g => ['internship', 'grad', 'update'].includes(g.id)) : GOALS
 const resendVerification = inject('resendVerification', null)
 const resent = ref(false)

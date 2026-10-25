@@ -556,8 +556,8 @@ async function aiAccess(req, res, next) {
 }
 
 // ── SCHOOLS ───────────────────────────────────────────────────────────────────
-// Students of partner schools use everything free (not announced on the site): every CV as a clean PDF,
-// cover letters, interview prep and the pass's 100 AI requests a day. Only with a confirmed school address,
+// Students of partner schools (not announced on the site): their first 5 CVs free (others get 3), interview prep
+// and the pass's 100 AI requests a day. Only with a confirmed school address,
 // so nobody gets it by typing someone else's.
 const CAMPUS_DOMAINS = { 'student.junia.com': 'junia' };
 const campusOf = (row) => CAMPUS_DOMAINS[String(row?.email || '').trim().toLowerCase().split('@')[1] || ''] || null;
@@ -604,10 +604,21 @@ function publicUser(row) {
   };
 }
 
+// Once for every account made before the referral notification existed (does nothing after the first run)
+let _refNotified = false;
+async function notifyReferralOnce() {
+  if (_refNotified) return; _refNotified = true;
+  await query(`INSERT INTO notifications (user_id, type, title, body, link)
+    SELECT u.id, 'referral', 'Invite friends, get free CVs', 'Share your invite link: friends get 25 extra AI requests, and you get a free CV for each friend who gets theirs.', '/settings#invite'
+    FROM users u WHERE NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = u.id AND n.type = 'referral')`).catch(e => { _refNotified = false; console.warn('[referral notice]', e.message); });
+}
+setTimeout(() => notifyReferralOnce(), 20000);
+
 async function seedNotifications(userId) {
   await query(`
     INSERT INTO notifications (user_id, type, title, body, created_at) VALUES
     ($1, 'welcome', 'Welcome to CVMaster',  'Your account is ready. Start building your CV now.',                                   NOW()),
+    ($1, 'referral', 'Invite friends, get free CVs', 'Share your invite link: friends get 25 extra AI requests, and you get a free CV for each friend who gets theirs.', NOW() - INTERVAL '30 seconds'),
     ($1, 'tip',     'AI tip',               'Try “Tell your story”. Describe your career and AI builds your CV, asking about anything missing.', NOW() - INTERVAL '1 minute'),
     ($1, 'feature', '50 templates',         'ATS-friendly layouts for online applications and creative ones for print, switch any time.',     NOW() - INTERVAL '2 minutes')
   `, [userId]);
@@ -3128,7 +3139,7 @@ app.post('/api/payment/pass/:action(cancel|resume)', authMiddleware, async (req,
 });
 
 async function hasEmailExport(userId, draftId) {
-  if (await hasFullAccess(userId)) return true;
+  if (await hasPass(userId).catch(() => false)) return true;
   const { rows } = await query(
     `SELECT 1 FROM payments
      WHERE user_id = $1 AND paid = TRUE AND product = 'email_export' AND draft_id = ANY($2)
@@ -3138,18 +3149,20 @@ async function hasEmailExport(userId, draftId) {
   return rows.length > 0;
 }
 
-// Every account's first 3 CVs are free (the clean PDF, same as paying €0.99)
-const FREE_CVS = 3;
+// Every account's first 3 CVs are free (the clean PDF, same as paying €0.99); JUNIA students' first 5
+const FREE_CVS = 3, FREE_CVS_CAMPUS = 5;
+const freeCvLimit = async (userId) => (await hasCampusAccess(userId).catch(() => false)) ? FREE_CVS_CAMPUS : FREE_CVS;
 async function freeCvsUsed(userId) {
   return (await query(`SELECT COUNT(*)::int AS n FROM payments WHERE user_id = $1 AND paid AND product = 'email_export' AND source = 'free'`, [userId])).rows[0].n;
 }
-async function freeCvsLeft(userId) { return Math.max(0, FREE_CVS - await freeCvsUsed(userId)); }
+async function freeCvsLeft(userId) { return Math.max(0, await freeCvLimit(userId) - await freeCvsUsed(userId)); }
 // Unlocks this CV with one of them, if any are left. Each free CV takes a numbered slot (free:<user>:1..3),
 // so two clicks at the same moment can never make it four.
 async function useFreeCv(userId, draftId) {
-  for (let i = 0; i < FREE_CVS; i++) {
+  const limit = await freeCvLimit(userId);
+  for (let i = 0; i < limit; i++) {
     const used = await freeCvsUsed(userId);
-    if (used >= FREE_CVS) return false;
+    if (used >= limit) return false;
     const r = await query(
       `INSERT INTO payments (user_id, draft_id, session_id, paid, product, source) VALUES ($1, $2, $3, TRUE, 'email_export', 'free')
        ON CONFLICT (session_id) DO NOTHING RETURNING session_id`, [userId, String(draftId), `free:${userId}:${used + 1}`]);
@@ -3555,8 +3568,8 @@ app.get('/api/payment/paid-drafts', authMiddleware, async (req, res) => {
       [req.user.sub]
     );
     const ids = rows.map(r => r.draft_id);
-    const pass = await hasFullAccess(req.user.sub);
-    // pass (or a partner school): every CV can be downloaded, but only CVs really paid for count as paid
+    const pass = await hasPass(req.user.sub).catch(() => false);
+    // pass: every CV can be downloaded while the pass lasts, but only CVs really paid for count as paid
     res.json({ draftIds: ids.filter(id => id !== 'current'), legacyAll: ids.includes('current'), pass });
   } catch (e) { res.status(500).json({ error: 'Status check failed.' }); }
 });
@@ -3564,7 +3577,7 @@ app.get('/api/payment/paid-drafts', authMiddleware, async (req, res) => {
 app.get('/api/payment/status/:draftId', authMiddleware, async (req, res) => {
   try {
     const paid = await hasEmailExport(req.user.sub, req.params.draftId);
-    res.json({ paid, freeLeft: paid ? undefined : await freeCvsLeft(req.user.sub) });
+    res.json({ paid, freeLeft: paid ? undefined : await freeCvsLeft(req.user.sub), freeTotal: await freeCvLimit(req.user.sub) });
   } catch (e) { res.status(500).json({ error: 'Status check failed.' }); }
 });
 

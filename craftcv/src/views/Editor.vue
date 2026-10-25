@@ -129,7 +129,7 @@ onMounted(() => {
 // e.g. /editor?tab=job ("Check your ATS score", or a layout picked with a job offer). On a phone
 // the editor lives in the drawer, so open it on that tab; on a computer, the side panel
 function openTab(t) {
-  if (!['content', 'design', 'job'].includes(t)) return
+  if (!['content', 'design', 'job', 'letter'].includes(t)) return
   if (window.innerWidth <= 768) { drawer.value = true; nextTick(() => drawerRef.value?.show(t)) }
   else { panelOpen.value = true; nextTick(() => editorRef.value?.show(t)) }
 }
