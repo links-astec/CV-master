@@ -20,8 +20,9 @@
               <div class="al-li"><span>{{ $t('Left today') }}</span><span class="al-v">{{ quota ? $t('{n} of {limit}', { n: quota.freeLeft, limit: quota.limit }) : '·' }}</span></div>
               <div class="al-li"><span>{{ $t('Extra requests') }}</span><span class="al-v">{{ quota ? quota.credits : '·' }}</span></div>
             </div>
-            <p class="al-foot">{{ $t(tier === 'pass' ? '100 every day with your Job Hunt Pass, reset at midnight (UTC). Extra requests never expire.' : '30 free every day, reset at midnight (UTC). Extra requests never expire.') }}</p>
+            <p class="al-foot">{{ $t(tier === 'campus' ? '100 every day with your JUNIA student account, reset at midnight (UTC).' : tier === 'pass' ? '100 every day with your Job Hunt Pass, reset at midnight (UTC). Extra requests never expire.' : '30 free every day, reset at midnight (UTC). Extra requests never expire.') }}</p>
 
+            <template v-if="tier !== 'campus'">
             <div class="al-list">
               <div class="al-li al-li-buy">
                 <span><b>{{ $t('100 extra requests') }}</b><small>{{ $t('One-time payment. They never expire.') }}</small></span>
@@ -30,6 +31,7 @@
             </div>
             <label class="al-consent"><input type="checkbox" v-model="withdrawalOk" /><span>{{ $t('I want the requests straight away and agree that I lose my 14-day right of withdrawal once they’re added.') }}</span></label>
             <button class="al-cta" :disabled="buying || !withdrawalOk" @click="buy">{{ $t(buying ? 'Please wait…' : 'Buy for €0.50') }}</button>
+            </template>
           </template>
           <div v-if="error" class="al-err">{{ $t(error) }}</div>
         </div>

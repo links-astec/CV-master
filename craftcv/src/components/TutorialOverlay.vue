@@ -48,7 +48,7 @@
 
           <!-- Content -->
           <h3 class="tut-title">{{ $t(currentStepData.title) }}</h3>
-          <p class="tut-desc">{{ $t(currentStepData.desc) }}</p>
+          <p class="tut-desc">{{ $t(campus && currentStepData.descCampus || currentStepData.desc) }}</p>
 
           <!-- Tip badge -->
           <div v-if="currentStepData.tip" class="tut-tip">
@@ -82,6 +82,9 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { track } from '../composables/track.js'
+import { useAuthStore } from '../stores/auth.js'
+const auth = useAuthStore()
+const campus = computed(() => !!auth.user?.campus)
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -132,7 +135,8 @@ const steps = [
   },
   {
     title: 'Export',
-    desc:  'Use “Export PDF” in the editor: €0.99 per CV gets you the clean PDF by email and as a download, re-sendable free after edits. From My CVs you can also download a free copy with a watermark.',
+    desc:  'Use “Export PDF” in the editor for the clean PDF by email and as a download, re-sendable free after edits. Your first 3 CVs are free, then it’s €0.99 per CV. From My CVs you can also download a free copy with a watermark.',
+    descCampus: 'Use “Export PDF” in the editor for the clean PDF by email and as a download. With your JUNIA student account every CV is free, as often as you like.',
     icon:  '<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
     iconBg:'var(--c-green-lt)',
     target: null,

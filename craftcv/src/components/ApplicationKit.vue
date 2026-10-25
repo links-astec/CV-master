@@ -4,7 +4,7 @@
   <section class="ak">
     <div class="ak-hd">
       <div class="ak-t">{{ $t('Your application kit') }}</div>
-      <span v-if="pass" class="ak-pass">{{ $t('Job Hunt Pass') }}</span>
+      <span v-if="auth.user?.pass" class="ak-pass">{{ $t('Job Hunt Pass') }}</span>
     </div>
     <p class="ak-sub">{{ $t('For this job offer, written from your CV.') }}</p>
 
@@ -19,7 +19,7 @@
       <div class="ak-row">
         <div class="ak-row-t"><b>{{ $t('Interview prep') }}</b><span>{{ $t('The questions this employer is likely to ask you, and how to answer from your CV.') }}</span></div>
         <button v-if="pass" class="ak-btn" :disabled="busy === 'interview'" @click="prepInterview">{{ $t(busy === 'interview' ? 'Preparing…' : prep ? 'Prepare again' : 'Prepare me') }}</button>
-        <button v-else class="ak-lock" @click="toPass"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>{{ $t('With the pass') }}</button>
+        <button v-else class="ak-lock" @click="toPass"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>{{ $t(campus ? 'Confirm your email' : 'With the pass') }}</button>
       </div>
       <div v-if="pass && prep" class="ak-out">
         <details v-for="(x, i) in prep" :key="i" class="ak-q" :open="i === 0">
@@ -30,7 +30,8 @@
       </div>
     </div>
     <p v-if="error" class="ak-err">{{ $t(error) }}</p>
-    <p v-if="!pass" class="ak-note">{{ $t('Interview prep comes with the Job Hunt Pass.') }} <button class="ak-link" @click="toPass">{{ $t('See the pass') }}</button></p>
+    <p v-if="!pass && campus" class="ak-note">{{ $t('Free with your JUNIA student account once you confirm your student email.') }} <button class="ak-link" @click="toPass">{{ $t('Resend the link') }}</button></p>
+    <p v-else-if="!pass" class="ak-note">{{ $t('Interview prep comes with the Job Hunt Pass.') }} <button class="ak-link" @click="toPass">{{ $t('See the pass') }}</button></p>
   </section>
 </template>
 
@@ -44,7 +45,10 @@ import { lang } from '../i18n/index.js'
 const store = useCvStore()
 const auth = useAuthStore()
 const router = useRouter()
-const pass = computed(() => !!auth.user?.pass)
+// unlocked by the pass, or by a confirmed JUNIA student address (who never see the pass)
+const pass = computed(() => !!auth.user?.pass || !!auth.user?.campusActive)
+const campus = computed(() => !!auth.user?.campus)
+const resendVerification = inject('resendVerification', null)
 const showTab = inject('showEditorTab', null)
 const busy = ref('')
 const error = ref('')
@@ -91,7 +95,10 @@ function downloadLetter() {
   a.download = `Cover letter - ${who}.txt`
   a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000)
 }
-function toPass() { router.push(auth.isLoggedIn ? { path: '/settings', hash: '#pass' } : '/pricing') }
+function toPass() {
+  if (campus.value) return resendVerification?.()
+  router.push(auth.isLoggedIn ? { path: '/settings', hash: '#pass' } : '/pricing')
+}
 watch(jobKey, () => { error.value = '' })
 </script>
 

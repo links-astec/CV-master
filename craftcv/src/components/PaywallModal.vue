@@ -53,13 +53,16 @@
           <div v-else-if="state === 'ready'" class="pw-body">
             <div class="pw-hd">
               <h2>{{ $t(paidForDraft ? 'Send your CV' : 'Get your CV as a PDF') }}</h2>
-              <p v-if="paidForDraft && auth.user?.pass">{{ $t('Your Job Hunt Pass covers this CV. Send it as often as you like, even after edits.') }}</p>
+              <p v-if="paidForDraft && campusOn">{{ $t('Free with your JUNIA student account. Send it as often as you like, even after edits.') }}</p>
+              <p v-else-if="paidForDraft && auth.user?.pass">{{ $t('Your Job Hunt Pass covers this CV. Send it as often as you like, even after edits.') }}</p>
               <p v-else-if="paidForDraft">{{ $t('This CV is already paid for. Send it as often as you like, even after edits.') }}</p>
               <p v-else-if="demoMode">{{ $t('Payments aren’t switched on yet, so this is free for now.') }}</p>
+              <p v-else-if="isFree">{{ $t(freeLeft === 1 ? 'A clean, one-page PDF, emailed to you. Free: this is the last of your 3 free CVs.' : 'A clean, one-page PDF, emailed to you. Free: you have {n} of 3 free CVs left.', { n: freeLeft }) }}</p>
+              <p v-else-if="campus">{{ $t('Every CV is free with your JUNIA student account. Confirm your student email to switch it on: we sent you a link.') }}</p>
               <p v-else>{{ $t('A clean, one-page PDF, emailed to you.') }}</p>
             </div>
 
-            <div v-if="!paidForDraft && !demoMode" class="pw-price">
+            <div v-if="needsPay && !campus" class="pw-price">
               <div class="pw-amt">{{ $t('€0.99') }} <span>{{ $t('one-time, for this CV') }}</span></div>
               <div v-if="approx(0.99)" class="price-local">{{ approx(0.99) }}</div>
               <ul>
@@ -76,25 +79,27 @@
 
             <!-- EU/French law: buyers of instant digital content must agree before paying
                  that delivery starts now and ends the 14-day right of withdrawal -->
-            <label v-if="!paidForDraft && !demoMode" class="pw-consent">
+            <label v-if="needsPay && !campus" class="pw-consent">
               <input type="checkbox" v-model="withdrawalOk" />
               <span>{{ $t('I want my PDF straight away and agree that I lose my 14-day right of withdrawal once it’s delivered.') }}</span>
             </label>
 
             <div v-if="error" class="notice error pw-err">{{ $t(error) }}</div>
 
-            <button class="btn-primary accent btn-lg btn-block" :disabled="loading || !deliveryOk || (!paidForDraft && !demoMode && !withdrawalOk)" @click="primary">
-              {{ $t(loading ? 'Please wait…' : paidForDraft || demoMode ? 'Email my CV' : 'Pay €0.99 and get my CV') }}
+            <!-- A JUNIA student who hasn't confirmed their address yet (and has no free CV left): confirm, not pay -->
+            <button v-if="needsPay && campus" class="btn-primary accent btn-lg btn-block" :disabled="resent" @click="resend">{{ $t(resent ? 'Sent. Check your inbox' : 'Resend the confirmation email') }}</button>
+            <button v-else class="btn-primary accent btn-lg btn-block" :disabled="loading || !deliveryOk || (needsPay && !withdrawalOk)" @click="primary">
+              {{ $t(loading ? 'Please wait…' : paidForDraft || demoMode ? 'Email my CV' : isFree ? 'Get my CV, free' : 'Pay €0.99 and get my CV') }}
             </button>
-            <button v-if="paidForDraft && auth.user?.pass" class="btn-secondary btn-lg btn-block pw-dl" :disabled="downloading" @click="downloadPdf">{{ $t(downloading ? 'Preparing…' : 'Download PDF') }}</button>
-            <button v-if="!paidForDraft && !demoMode && credits > 0" class="btn-secondary btn-block pw-credit" :disabled="loading || !deliveryOk" @click="useCredit">
+            <button v-if="paidForDraft && (auth.user?.pass || campusOn)" class="btn-secondary btn-lg btn-block pw-dl" :disabled="downloading" @click="downloadPdf">{{ $t(downloading ? 'Preparing…' : 'Download PDF') }}</button>
+            <button v-if="needsPay && !campus && credits > 0" class="btn-secondary btn-block pw-credit" :disabled="loading || !deliveryOk" @click="useCredit">
               {{ $t('Use a referral credit instead, free ({n} left)', { n: credits }) }}
             </button>
-            <p v-if="!paidForDraft && !demoMode" class="pw-secure">
+            <p v-if="needsPay && !campus" class="pw-secure">
               <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
               {{ $t('Secure payment by Stripe · No subscription') }}
             </p>
-            <button v-if="!paidForDraft && !demoMode" type="button" class="pw-pass" @click="toPass">
+            <button v-if="needsPay && !campus" type="button" class="pw-pass" @click="toPass">
               <b>{{ $t('Applying to lots of jobs?') }}</b> {{ $t('The Job Hunt Pass unlocks every CV you make for €6.99 a month.') }}
             </button>
           </div>
@@ -145,6 +150,15 @@ const error         = ref('')
 const demoMode      = ref(false)
 const paidForDraft  = ref(false)
 const credits       = ref(0)
+const freeLeft      = ref(0)   // of everyone's first 3 free CVs
+// JUNIA students: everything free once their student address is confirmed; never a price or the pass
+const campus   = computed(() => !!auth.user?.campus)
+const campusOn = computed(() => !!auth.user?.campusActive)
+const isFree   = computed(() => !paidForDraft.value && !demoMode.value && freeLeft.value > 0)
+const needsPay = computed(() => !paidForDraft.value && !demoMode.value && !isFree.value)
+const resendVerification = inject('resendVerification', null)
+const resent = ref(false)
+async function resend() { await resendVerification?.(); resent.value = true }
 const deliveryEmail = ref('')
 const sentTo        = ref('')
 const draftId       = ref(null)
@@ -207,6 +221,7 @@ async function prepare() {
       api('/api/referral/info').catch(() => ({ credits: 0 })),
     ])
     paidForDraft.value = !!status.paid
+    freeLeft.value = Number(status.freeLeft) || 0
     credits.value = Number(refInfo.credits) || 0
     state.value = info.overflow && !store.data.shrinkToFit ? 'tooLong' : 'ready'
   } catch (e) {
@@ -232,7 +247,7 @@ async function pay() {
   error.value = ''
   try {
     const data = await api('/api/payment/create-session', { draftId: draftId.value, withdrawalConsent: withdrawalOk.value })
-    if (data.alreadyPaid) { paidForDraft.value = true; loading.value = false; return sendEmail() }
+    if (data.alreadyPaid) { if (data.free) freeLeft.value = Math.max(0, freeLeft.value - 1); paidForDraft.value = true; loading.value = false; return sendEmail() }
     if (data.demo)        { demoMode.value = true;     loading.value = false; return sendEmail() }
     if (!data.url) throw new Error('Payment could not be started.')
     if (deliveryEmail.value.trim()) sessionStorage.setItem('pcv_delivery_email', deliveryEmail.value.trim())

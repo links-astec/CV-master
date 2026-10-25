@@ -490,11 +490,12 @@ const aiSubject = (req) => req.user ? `u:${req.user.sub}` : GID.test(req.cookies
 async function aiTier(req) {
   if (!req.user) return 'guest';
   await ensureReferralColumns();
-  const u = (await query('SELECT provider, email_verified FROM users WHERE id = $1', [req.user.sub])).rows[0];
+  const u = (await query('SELECT email, provider, email_verified FROM users WHERE id = $1', [req.user.sub])).rows[0];
   if (u && await hasPass(req.user.sub).catch(() => false)) return 'pass';
+  if (campusActive(u)) return 'campus';
   return !u ? 'guest' : (u.provider === 'google' || u.email_verified) ? 'verified' : 'unverified';
 }
-const aiLimitFor = (tier) => tier === 'pass' ? AI_PASS_PER_DAY : tier === 'verified' ? AI_FREE_PER_DAY : AI_GUEST_PER_DAY;
+const aiLimitFor = (tier) => tier === 'pass' || tier === 'campus' ? AI_PASS_PER_DAY : tier === 'verified' ? AI_FREE_PER_DAY : AI_GUEST_PER_DAY;
 
 // { ok, freeLeft, credits, tier }, counts this request
 async function useAiAllowance(req) {
@@ -554,6 +555,23 @@ async function aiAccess(req, res, next) {
   next();
 }
 
+// ── SCHOOLS ───────────────────────────────────────────────────────────────────
+// Students of partner schools use everything free (not announced on the site): every CV as a clean PDF,
+// cover letters, interview prep and the pass's 100 AI requests a day. Only with a confirmed school address,
+// so nobody gets it by typing someone else's.
+const CAMPUS_DOMAINS = { 'student.junia.com': 'junia' };
+const campusOf = (row) => CAMPUS_DOMAINS[String(row?.email || '').trim().toLowerCase().split('@')[1] || ''] || null;
+const campusActive = (row) => !!campusOf(row) && (row.provider === 'google' || !!row.email_verified);
+async function hasCampusAccess(userId) {
+  if (!userId) return false;
+  const u = (await query('SELECT email, provider, email_verified FROM users WHERE id = $1', [userId])).rows[0];
+  return campusActive(u);
+}
+// Everything unlocked: the Job Hunt Pass, or a partner school
+async function hasFullAccess(userId) {
+  return (await hasPass(userId).catch(() => false)) || (await hasCampusAccess(userId).catch(() => false));
+}
+
 function publicUser(row) {
   return {
     id:         row.id,
@@ -578,6 +596,11 @@ function publicUser(row) {
     // "Personalise with my activity" (Settings)
     personalizeActivity: row.personalize_activity !== false,
     pass: passOf(row),
+    // a partner school's student (the site then never shows prices or the pass), and whether it's switched on
+    campus: campusOf(row),
+    campusActive: campusActive(row),
+    school: row.school || null,
+    studyYear: row.study_year || null,
   };
 }
 
@@ -1215,12 +1238,16 @@ app.get('/api/auth/me', softMe, authMiddleware, async (req, res) => {
 let _onboardCols = null;
 const ensureOnboardCols = () => (_onboardCols ||= query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS target_role TEXT`)
   .then(() => query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS target_location TEXT`))
-  .then(() => query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS heard_from TEXT`)).catch(e => { _onboardCols = null; throw e; }));
+  .then(() => query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS heard_from TEXT`))
+  .then(() => query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS school TEXT`))
+  .then(() => query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS study_year TEXT`)).catch(e => { _onboardCols = null; throw e; }));
 const PROFILE_CHOICES = {
   industry:   ['', 'tech', 'finance', 'marketing', 'design', 'healthcare', 'education', 'legal', 'engineering', 'sales', 'hr', 'creative', 'other'],
   goal:       ['', 'internship', 'grad', 'new-job', 'switch', 'promotion', 'freelance', 'update'],
   experience: ['', 'student', 'junior', 'mid', 'senior', 'exec'],
   heardFrom:  ['', 'friend', 'school', 'instagram', 'tiktok', 'linkedin', 'google', 'youtube', 'ai', 'other'],
+  school:     ['', 'hei', 'isen', 'isa', 'other'],
+  studyYear:  ['', 'y1', 'y2', 'y3', 'y4', 'y5', 'phd', 'other'],
 };
 const choice = (v, key) => (typeof v === 'string' && PROFILE_CHOICES[key].includes(v) ? v : undefined);
 const shortText = (v, n = 80) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, n) : undefined);
@@ -1230,9 +1257,10 @@ app.patch('/api/auth/onboard', authMiddleware, async (req, res) => {
     const b = req.body || {};
     await query(
       `UPDATE users SET onboarded = TRUE, industry = $1, goal = $2, experience = $3, target_role = $4, target_location = $5,
-         heard_from = COALESCE($6, heard_from) WHERE id = $7`,
+         heard_from = COALESCE($6, heard_from), school = COALESCE($8, school), study_year = COALESCE($9, study_year) WHERE id = $7`,
       [choice(b.industry, 'industry') || null, choice(b.goal, 'goal') || null, choice(b.experience, 'experience') || null,
-        shortText(b.targetRole) || null, shortText(b.targetLocation) || null, choice(b.heardFrom, 'heardFrom') || null, req.user.sub]
+        shortText(b.targetRole) || null, shortText(b.targetLocation) || null, choice(b.heardFrom, 'heardFrom') || null, req.user.sub,
+        choice(b.school, 'school') || null, choice(b.studyYear, 'studyYear') || null]
     );
     const row = (await query('SELECT * FROM users WHERE id = $1', [req.user.sub])).rows[0];
     res.json({ ok: true, user: publicUser(row) });
@@ -1874,7 +1902,7 @@ async function personalContext(req, cv) {
 // Only for pass holders (402 PASS_ONLY otherwise); each counts as one AI request like any other feature.
 async function passOnly(req, res, next) {
   const u = await userFromToken(tokenOf(req)).catch(() => null);
-  if (!u || !(await hasPass(u.sub).catch(() => false)))
+  if (!u || !(await hasFullAccess(u.sub)))
     return res.status(402).json({ code: 'PASS_ONLY', error: 'Cover letters and interview prep come with the Job Hunt Pass.' });
   next();
 }
@@ -3100,7 +3128,7 @@ app.post('/api/payment/pass/:action(cancel|resume)', authMiddleware, async (req,
 });
 
 async function hasEmailExport(userId, draftId) {
-  if (await hasPass(userId).catch(() => false)) return true;
+  if (await hasFullAccess(userId)) return true;
   const { rows } = await query(
     `SELECT 1 FROM payments
      WHERE user_id = $1 AND paid = TRUE AND product = 'email_export' AND draft_id = ANY($2)
@@ -3108,6 +3136,29 @@ async function hasEmailExport(userId, draftId) {
     [userId, [String(draftId), 'current']]
   );
   return rows.length > 0;
+}
+
+// Every account's first 3 CVs are free (the clean PDF, same as paying €0.99)
+const FREE_CVS = 3;
+async function freeCvsUsed(userId) {
+  return (await query(`SELECT COUNT(*)::int AS n FROM payments WHERE user_id = $1 AND paid AND product = 'email_export' AND source = 'free'`, [userId])).rows[0].n;
+}
+async function freeCvsLeft(userId) { return Math.max(0, FREE_CVS - await freeCvsUsed(userId)); }
+// Unlocks this CV with one of them, if any are left. Each free CV takes a numbered slot (free:<user>:1..3),
+// so two clicks at the same moment can never make it four.
+async function useFreeCv(userId, draftId) {
+  for (let i = 0; i < FREE_CVS; i++) {
+    const used = await freeCvsUsed(userId);
+    if (used >= FREE_CVS) return false;
+    const r = await query(
+      `INSERT INTO payments (user_id, draft_id, session_id, paid, product, source) VALUES ($1, $2, $3, TRUE, 'email_export', 'free')
+       ON CONFLICT (session_id) DO NOTHING RETURNING session_id`, [userId, String(draftId), `free:${userId}:${used + 1}`]);
+    if (r.rows.length) {
+      await notify(userId, 'payment', 'Your CV is unlocked', 'Download it or email it again any time from My CVs. Free, even after edits.', '/').catch(() => {});
+      return true;
+    }
+  }
+  return false;
 }
 
 // Returns { userId, draftId } for a paid €0.99 Checkout Session, else null.
@@ -3453,6 +3504,8 @@ app.post('/api/payment/create-session', authMiddleware, async (req, res) => {
     if (await hasEmailExport(req.user.sub, draftId)) {
       return res.json({ alreadyPaid: true });
     }
+    // one of the first 3 free CVs (any app that starts a payment gets them, not only the website)
+    if (await useFreeCv(req.user.sub, draftId)) return res.json({ alreadyPaid: true, free: true });
     const stripe = await getStripe();
     if (!stripe) {
       if (!FREE_EXPORTS) return res.status(503).json({ error: PAYMENTS_DOWN });
@@ -3502,15 +3555,16 @@ app.get('/api/payment/paid-drafts', authMiddleware, async (req, res) => {
       [req.user.sub]
     );
     const ids = rows.map(r => r.draft_id);
-    const pass = await hasPass(req.user.sub).catch(() => false);
-    // pass: every CV can be downloaded while the pass lasts, but only CVs really paid for count as paid
+    const pass = await hasFullAccess(req.user.sub);
+    // pass (or a partner school): every CV can be downloaded, but only CVs really paid for count as paid
     res.json({ draftIds: ids.filter(id => id !== 'current'), legacyAll: ids.includes('current'), pass });
   } catch (e) { res.status(500).json({ error: 'Status check failed.' }); }
 });
 
 app.get('/api/payment/status/:draftId', authMiddleware, async (req, res) => {
   try {
-    res.json({ paid: await hasEmailExport(req.user.sub, req.params.draftId) });
+    const paid = await hasEmailExport(req.user.sub, req.params.draftId);
+    res.json({ paid, freeLeft: paid ? undefined : await freeCvsLeft(req.user.sub) });
   } catch (e) { res.status(500).json({ error: 'Status check failed.' }); }
 });
 
@@ -4002,7 +4056,15 @@ app.get('/api/admin/onboarding', adminAuthMiddleware, async (req, res) => {
         FROM users u`, [days]).then(r => r.rows[0]),
       by('goal'), by('experience'), by('industry'), by('heard_from'), top('target_role'), top('target_location'),
     ]);
-    res.json({ days, totals, goal, experience, industry, heardFrom, roles, places });
+    const campusWhere = Object.keys(CAMPUS_DOMAINS).map(d => `LOWER(u.email) LIKE '%@${d.replace(/'/g, '')}'`).join(' OR ');
+    const campus = (await query(`SELECT SPLIT_PART(LOWER(u.email), '@', 2) AS domain, COALESCE(u.school, '') AS school, COALESCE(u.study_year, '') AS year,
+        COUNT(*)::int AS accounts, COUNT(*) FILTER (WHERE ${isNew})::int AS new,
+        COUNT(*) FILTER (WHERE u.provider = 'google' OR u.email_verified)::int AS confirmed,
+        COUNT(*) FILTER (WHERE u.last_active_at > NOW() - make_interval(days => $1))::int AS active,
+        COALESCE(SUM((SELECT COUNT(*) FROM drafts d WHERE d.user_id = u.id)), 0)::int AS cvs
+      FROM users u WHERE ${campusWhere} GROUP BY 1, 2, 3 ORDER BY 4 DESC`, [days])).rows
+      .map(r => ({ ...r, campus: CAMPUS_DOMAINS[r.domain] || r.domain }));
+    res.json({ days, totals, goal, experience, industry, heardFrom, roles, places, campus });
   } catch (e) { console.error('[admin/onboarding]', e.message); res.status(500).json({ error: 'Could not load the sign-up answers.' }); }
 });
 
@@ -4368,7 +4430,8 @@ app.get('/api/admin/users', adminAuthMiddleware, async (req, res) => {
     const { rows: tot } = await query(`SELECT COUNT(*) FROM users ${where}`, params.slice(0, -2));
     // What each person can really use today: the daily allowance for their kind of account, then their extra requests
     for (const u of rows) {
-      const tier = u.has_pass ? 'pass' : (u.provider === 'google' || u.email_verified) ? 'verified' : 'unverified';
+      const tier = u.has_pass ? 'pass' : campusActive(u) ? 'campus' : (u.provider === 'google' || u.email_verified) ? 'verified' : 'unverified';
+      u.campus = campusOf(u);
       u.ai_tier = tier;
       u.ai_limit = aiLimitFor(tier);
       u.ai_left_today = Math.max(0, u.ai_limit - Number(u.ai_used_today || 0));

@@ -1,7 +1,8 @@
 <template>
   <!-- After sign-up: one question per screen (tap to answer), like setting up a new phone. What they want
        helps the AI, the job matches and the tips; how they heard about us is for the marketing numbers.
-       It ends with the tour. -->
+       It ends with the tour. JUNIA students get their own welcome (everything is free for them) and are
+       asked for their school and year instead of their career stage and how they heard about us. -->
   <Teleport to="body">
     <div class="ob-root">
       <div class="ob-card" role="dialog" aria-modal="true" :aria-labelledby="'ob-t-' + step">
@@ -15,28 +16,61 @@
 
         <div class="ob-body">
           <Transition :name="dir > 0 ? 'ob-next' : 'ob-prev'" mode="out-in">
-            <!-- 0 Welcome -->
-            <section v-if="step === 0" key="0" class="ob-step ob-hello">
+            <!-- Welcome, JUNIA students: what's free for them -->
+            <section v-if="kind === 'hello' && campus" key="hello-campus" class="ob-step ob-hello ob-campus">
               <BrandLogo mark-only large animate />
-              <h2 id="ob-t-0">{{ firstName ? $t('Welcome, {name}', { name: firstName }) : $t('Welcome to CVMaster') }}</h2>
+              <span class="ob-badge">{{ $t('JUNIA student access') }}</span>
+              <h2 :id="'ob-t-' + step">{{ firstName ? $t('Welcome, {name}', { name: firstName }) : $t('Welcome to CVMaster') }}</h2>
+              <p>{{ $t('Thanks to JUNIA, CVMaster is free for you while you study.') }}</p>
+              <div class="ob-list ob-perks">
+                <div v-for="f in CAMPUS_PERKS" :key="f" class="ob-row"><svg class="ob-tick" viewBox="0 0 24 24"><polyline points="5 12.5 10 17.5 19 7"/></svg><span>{{ $t(f) }}</span></div>
+              </div>
+              <p v-if="!auth.user?.campusActive" class="ob-confirm">{{ $t('One thing first: confirm your student email. We sent a link to {email}.', { email: auth.user?.email }) }}
+                <button type="button" class="ob-link ob-inline" :disabled="resent" @click="resend">{{ $t(resent ? 'Sent' : 'Resend it') }}</button></p>
+              <button type="button" class="ob-cta" @click="go(1)">{{ $t('Get started') }}</button>
+              <p class="ob-small">{{ $t('A few taps so CVMaster fits your studies. You can change everything later in Settings.') }}</p>
+            </section>
+
+            <!-- Welcome -->
+            <section v-else-if="kind === 'hello'" key="hello" class="ob-step ob-hello">
+              <BrandLogo mark-only large animate />
+              <h2 :id="'ob-t-' + step">{{ firstName ? $t('Welcome, {name}', { name: firstName }) : $t('Welcome to CVMaster') }}</h2>
               <p>{{ $t('A few taps so CVMaster fits you: the AI writes for your level and your field, and tailors your CV to the job you want.') }}</p>
               <button type="button" class="ob-cta" @click="go(1)">{{ $t('Get started') }}</button>
               <p class="ob-small">{{ $t('About 30 seconds. You can change everything later in Settings.') }}</p>
             </section>
 
-            <!-- 1 Goal -->
-            <section v-else-if="step === 1" key="1" class="ob-step">
-              <h2 id="ob-t-1">{{ $t('What brings you to CVMaster?') }}</h2>
+            <!-- JUNIA: which school -->
+            <section v-else-if="kind === 'school'" key="school" class="ob-step">
+              <h2 :id="'ob-t-' + step">{{ $t('Which school are you at?') }}</h2>
               <div class="ob-list" role="radiogroup">
-                <button v-for="o in GOALS" :key="o.id" type="button" role="radio" class="ob-row" :aria-checked="form.goal === o.id" @click="pick('goal', o.id)">
+                <button v-for="o in SCHOOLS" :key="o.id" type="button" role="radio" class="ob-row" :aria-checked="form.school === o.id" @click="pick('school', o.id)">
+                  <span>{{ $t(o.label) }}</span><small v-if="o.sub">{{ $t(o.sub) }}</small><svg v-if="form.school === o.id" class="ob-tick" viewBox="0 0 24 24"><polyline points="5 12.5 10 17.5 19 7"/></svg>
+                </button>
+              </div>
+            </section>
+
+            <!-- JUNIA: which year -->
+            <section v-else-if="kind === 'year'" key="year" class="ob-step">
+              <h2 :id="'ob-t-' + step">{{ $t('Which year are you in?') }}</h2>
+              <div class="ob-grid" role="radiogroup">
+                <button v-for="o in YEARS" :key="o.id" type="button" role="radio" class="ob-tile" :aria-checked="form.studyYear === o.id" @click="pick('studyYear', o.id)">{{ $t(o.label) }}</button>
+              </div>
+            </section>
+
+            <!-- Goal -->
+            <section v-else-if="kind === 'goal'" key="goal" class="ob-step">
+              <h2 :id="'ob-t-' + step">{{ $t(campus ? 'What are you looking for?' : 'What brings you to CVMaster?') }}</h2>
+              <div class="ob-list" role="radiogroup">
+                <button v-for="o in goals" :key="o.id" type="button" role="radio" class="ob-row" :aria-checked="form.goal === o.id" @click="pick('goal', o.id)">
                   <span>{{ $t(o.label) }}</span><svg v-if="form.goal === o.id" class="ob-tick" viewBox="0 0 24 24"><polyline points="5 12.5 10 17.5 19 7"/></svg>
                 </button>
               </div>
             </section>
 
-            <!-- 2 Career stage -->
-            <section v-else-if="step === 2" key="2" class="ob-step">
-              <h2 id="ob-t-2">{{ $t('Where are you in your career?') }}</h2>
+            <!-- Career stage -->
+            <section v-else-if="kind === 'stage'" key="stage" class="ob-step">
+              <h2 :id="'ob-t-' + step">{{ $t('Where are you in your career?') }}</h2>
               <div class="ob-list" role="radiogroup">
                 <button v-for="o in LEVELS" :key="o.id" type="button" role="radio" class="ob-row" :aria-checked="form.experience === o.id" @click="pick('experience', o.id)">
                   <span>{{ $t(o.label) }}</span><small>{{ $t(o.years) }}</small>
@@ -45,31 +79,31 @@
               </div>
             </section>
 
-            <!-- 3 Field -->
-            <section v-else-if="step === 3" key="3" class="ob-step">
-              <h2 id="ob-t-3">{{ $t('Which field are you in?') }}</h2>
+            <!-- Field -->
+            <section v-else-if="kind === 'field'" key="field" class="ob-step">
+              <h2 :id="'ob-t-' + step">{{ $t('Which field are you in?') }}</h2>
               <div class="ob-grid" role="radiogroup">
                 <button v-for="o in INDUSTRIES" :key="o.id" type="button" role="radio" class="ob-tile" :aria-checked="form.industry === o.id" @click="pick('industry', o.id)">{{ $t(o.label) }}</button>
               </div>
             </section>
 
-            <!-- 4 The job they want -->
-            <section v-else-if="step === 4" key="4" class="ob-step">
-              <h2 id="ob-t-4">{{ $t('What job are you looking for?') }}</h2>
+            <!-- The job they want -->
+            <section v-else-if="kind === 'job'" key="job" class="ob-step">
+              <h2 :id="'ob-t-' + step">{{ $t(campus ? 'What job or internship are you after?' : 'What job are you looking for?') }}</h2>
               <p>{{ $t('We use it to tailor your CV, and to suggest jobs that fit.') }}</p>
               <div class="ob-group">
-                <input ref="roleIn" v-model="form.targetRole" class="ob-in" maxlength="80" :placeholder="$t('Job title, e.g. {role}', { role: $t(ideas[0]) })" :aria-label="$t('The job you want')" @keydown.enter="go(5)" />
-                <input v-model="form.targetLocation" class="ob-in" maxlength="80" :placeholder="$t('Where, e.g. {place}', { place: city || 'Paris' })" :aria-label="$t('Where')" @keydown.enter="go(5)" />
+                <input ref="roleIn" v-model="form.targetRole" class="ob-in" maxlength="80" :placeholder="$t('Job title, e.g. {role}', { role: $t(ideas[0]) })" :aria-label="$t('The job you want')" @keydown.enter="go(step + 1)" />
+                <input v-model="form.targetLocation" class="ob-in" maxlength="80" :placeholder="$t('Where, e.g. {place}', { place: city || 'Paris' })" :aria-label="$t('Where')" @keydown.enter="go(step + 1)" />
               </div>
               <div class="ob-ideas">
                 <button v-for="r in ideas" :key="r" type="button" class="ob-idea" :class="{ on: form.targetRole === $t(r) }" @click="form.targetRole = $t(r)">{{ $t(r) }}</button>
               </div>
-              <button type="button" class="ob-cta" @click="go(5)">{{ $t(form.targetRole.trim() ? 'Continue' : 'Not sure yet') }}</button>
+              <button type="button" class="ob-cta" @click="go(step + 1)">{{ $t(form.targetRole.trim() ? 'Continue' : 'Not sure yet') }}</button>
             </section>
 
-            <!-- 5 How they heard about us -->
-            <section v-else-if="step === 5" key="5" class="ob-step">
-              <h2 id="ob-t-5">{{ $t('How did you hear about us?') }}</h2>
+            <!-- How they heard about us -->
+            <section v-else-if="kind === 'heard'" key="heard" class="ob-step">
+              <h2 :id="'ob-t-' + step">{{ $t('How did you hear about us?') }}</h2>
               <p>{{ $t('It helps us reach more people like you.') }}</p>
               <div class="ob-list" role="radiogroup">
                 <button v-for="o in HEARD_FROM" :key="o.id" type="button" role="radio" class="ob-row" :aria-checked="form.heardFrom === o.id" @click="pick('heardFrom', o.id)">
@@ -78,10 +112,10 @@
               </div>
             </section>
 
-            <!-- 6 All set -->
-            <section v-else key="6" class="ob-step ob-hello">
+            <!-- All set -->
+            <section v-else key="done" class="ob-step ob-hello">
               <div class="ob-done" aria-hidden="true"><svg viewBox="0 0 24 24"><polyline points="5 12.5 10 17.5 19 7"/></svg></div>
-              <h2 id="ob-t-6">{{ $t('You’re all set') }}</h2>
+              <h2 :id="'ob-t-' + step">{{ $t('You’re all set') }}</h2>
               <div class="ob-list ob-sum">
                 <button v-for="r in summary" :key="r.step" type="button" class="ob-row" @click="go(r.step)">
                   <span>{{ $t(r.label) }}</span><small>{{ r.value }}</small>
@@ -99,7 +133,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, inject } from 'vue'
 import { useAuthStore } from '../../stores/auth.js'
 import { t } from '../../i18n/index.js'
 import BrandLogo from '../BrandLogo.vue'
@@ -107,14 +141,28 @@ import { INDUSTRIES, GOALS, LEVELS, HEARD_FROM, ROLE_IDEAS } from '../../composa
 
 const auth = useAuthStore()
 const emit = defineEmits(['done'])
-const LAST = 6
+// The screens, in order (both ways have the same number)
+const campus = !!auth.user?.campus
+const FLOW = campus ? ['hello', 'school', 'year', 'goal', 'field', 'job', 'done'] : ['hello', 'goal', 'stage', 'field', 'job', 'heard', 'done']
+const LAST = FLOW.length - 1
+const kind = computed(() => FLOW[step.value])
+const at = (k) => FLOW.indexOf(k)
+const SCHOOLS = [{ id: 'hei', label: 'JUNIA HEI', sub: 'Engineering' }, { id: 'isen', label: 'JUNIA ISEN', sub: 'Digital and electronics' },
+  { id: 'isa', label: 'JUNIA ISA', sub: 'Agriculture, food and environment' }, { id: 'other', label: 'Another programme' }]
+const YEARS = [{ id: 'y1', label: '1st year' }, { id: 'y2', label: '2nd year' }, { id: 'y3', label: '3rd year' }, { id: 'y4', label: '4th year' },
+  { id: 'y5', label: '5th year' }, { id: 'phd', label: 'PhD' }, { id: 'other', label: 'Other' }]
+const CAMPUS_PERKS = ['Every CV as a clean PDF, emailed and downloadable', 'A cover letter and interview prep for each job', '100 AI requests a day']
+const goals = campus ? GOALS.filter(g => ['internship', 'grad', 'update'].includes(g.id)) : GOALS
+const resendVerification = inject('resendVerification', null)
+const resent = ref(false)
+async function resend() { await resendVerification?.(); resent.value = true }
 
 const step = ref(0)
 const dir = ref(1)
 const saving = ref(false)
 const roleIn = ref(null)
 const u = auth.user || {}
-const form = ref({ goal: u.goal || '', experience: u.experience || '', industry: u.industry || '', targetRole: u.targetRole || '', targetLocation: u.targetLocation || '', heardFrom: '' })
+const form = ref({ goal: u.goal || '', experience: u.experience || '', industry: u.industry || '', targetRole: u.targetRole || '', targetLocation: u.targetLocation || '', heardFrom: '', school: u.school || '', studyYear: u.studyYear || '' })
 const firstName = computed(() => (auth.user?.name || '').trim().split(/\s+/)[0] || '')
 const ideas = computed(() => ROLE_IDEAS[form.value.industry] || ROLE_IDEAS.other)
 // The city from the device's time zone, only as an example in the "Where" field
@@ -123,7 +171,7 @@ const city = (() => { try { const z = Intl.DateTimeFormat().resolvedOptions().ti
 function go(n) {
   dir.value = n > step.value ? 1 : -1
   step.value = Math.max(0, Math.min(LAST, n))
-  if (step.value === 4) nextTick(() => setTimeout(() => roleIn.value?.focus(), 350))
+  if (kind.value === 'job') nextTick(() => setTimeout(() => roleIn.value?.focus(), 350))
 }
 // Tap an answer: it's ticked, and the next question follows
 function pick(key, id) {
@@ -133,10 +181,12 @@ function pick(key, id) {
 
 const label = (list, id) => t(list.find(o => o.id === id)?.label || '')
 const summary = computed(() => [
-  { step: 1, label: 'Aiming for', value: label(GOALS, form.value.goal) || t('Not set') },
-  { step: 2, label: 'Career stage', value: label(LEVELS, form.value.experience) || t('Not set') },
-  { step: 3, label: 'Field', value: label(INDUSTRIES, form.value.industry) || t('Not set') },
-  { step: 4, label: 'The job you want', value: [form.value.targetRole, form.value.targetLocation].filter(Boolean).join(' · ') || t('Not set') },
+  ...(campus ? [{ step: at('school'), label: 'School', value: label(SCHOOLS, form.value.school) || t('Not set') },
+    { step: at('year'), label: 'Year', value: label(YEARS, form.value.studyYear) || t('Not set') }] : []),
+  { step: at('goal'), label: 'Aiming for', value: label(GOALS, form.value.goal) || t('Not set') },
+  ...(campus ? [] : [{ step: at('stage'), label: 'Career stage', value: label(LEVELS, form.value.experience) || t('Not set') }]),
+  { step: at('field'), label: 'Field', value: label(INDUSTRIES, form.value.industry) || t('Not set') },
+  { step: at('job'), label: 'The job you want', value: [form.value.targetRole, form.value.targetLocation].filter(Boolean).join(' · ') || t('Not set') },
 ])
 
 // Saves what they answered (nothing is made up when they skip) and closes; the tour follows unless they said no
@@ -144,7 +194,9 @@ const summary = computed(() => [
 async function finish(tour) {
   saving.value = true
   emit('done', { tour })
-  await auth.completeOnboarding({ ...form.value }).catch(() => {})
+  // JUNIA students are students, and we know where they heard of us
+  const answers = campus ? { ...form.value, experience: form.value.experience || 'student', heardFrom: 'school' } : { ...form.value }
+  await auth.completeOnboarding(answers).catch(() => {})
   saving.value = false
 }
 </script>
@@ -171,6 +223,14 @@ async function finish(tour) {
 .ob-hello{align-items:center;text-align:center;padding-top:28px}
 .ob-hello :deep(.brand){margin-bottom:8px}
 .ob-small{font-size:13px!important;color:var(--c-text3)!important;margin-top:14px!important}
+/* JUNIA students' welcome */
+.ob-badge{display:inline-flex;align-items:center;height:28px;padding:0 12px;border-radius:99px;background:color-mix(in srgb,var(--c-accent) 12%,transparent);color:var(--c-accent);font-size:13px;font-weight:600;margin-top:4px}
+.ob-campus h2{margin-top:10px}
+.ob-perks{text-align:left;margin-top:20px}
+.ob-perks .ob-row{cursor:default;font-size:15px;gap:12px}
+.ob-perks .ob-row:hover{background:none}
+.ob-confirm{font-size:14px!important;color:var(--c-text2)!important;margin-top:16px!important}
+.ob-inline{margin:0 0 0 4px;padding:0;font-size:14px;line-height:inherit;vertical-align:baseline}
 
 /* Answers as one group of rows */
 .ob-list{background:var(--c-surface);border-radius:16px;overflow:hidden;margin-top:22px;width:100%}

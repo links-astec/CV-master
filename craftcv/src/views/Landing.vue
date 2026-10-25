@@ -7,7 +7,7 @@
         <nav class="lp-links">
           <a href="#how" @click.prevent="go('#how')">{{ $t('How it works') }}</a>
           <a href="#templates" @click.prevent="go('#templates')">{{ $t('Templates') }}</a>
-          <a href="#pricing" @click.prevent="go('#pricing')">{{ $t('Pricing') }}</a>
+          <a v-if="!campus" href="#pricing" @click.prevent="go('#pricing')">{{ $t('Pricing') }}</a>
           <a href="#invite" @click.prevent="go('#invite')">{{ $t('Invite friends') }}</a>
           <a :href="`/blog?lang=${lang}`">{{ $t('Blog') }}</a>
         </nav>
@@ -196,7 +196,7 @@
     </section>
 
     <!-- Pricing -->
-    <section class="lp-sec" :class="{ 'lp-alt': !rv.average }" id="pricing">
+    <section v-if="!campus" class="lp-sec" :class="{ 'lp-alt': !rv.average }" id="pricing">
       <div class="lp-wrap">
         <h2 class="lp-h2" v-reveal>{{ $t('Free to build. €0.99 when you’re ready.') }}</h2>
         <p class="lp-sub" v-reveal>{{ $t('No subscription, no trial that renews.') }}</p>
@@ -307,7 +307,7 @@
       <div class="lp-wrap">
         <div class="lp-foot-cols">
           <div class="lp-foot-brand"><BrandLogo small /><p>{{ $t('Free AI CV builder. Write, tailor and download a CV that gets you the interview.') }}</p></div>
-          <div><h3>{{ $t('Product') }}</h3><a href="/templates">{{ $t('CV templates') }}</a><a href="#pricing" @click.prevent="go('#pricing')">{{ $t('Pricing') }}</a><a :href="`/blog?lang=${lang}`">{{ $t('Blog') }}</a></div>
+          <div><h3>{{ $t('Product') }}</h3><a href="/templates">{{ $t('CV templates') }}</a><a v-if="!campus" href="#pricing" @click.prevent="go('#pricing')">{{ $t('Pricing') }}</a><a :href="`/blog?lang=${lang}`">{{ $t('Blog') }}</a></div>
           <div><h3>{{ $t('Help') }}</h3><a href="#faq" @click.prevent="go('#faq')">{{ $t('Questions') }}</a><a href="#" @click.prevent="openFeedback?.()">{{ $t('Feedback') }}</a><a href="mailto:support@cvmaster.live">{{ $t('Contact') }}</a></div>
           <div><h3>{{ $t('Legal') }}</h3><a href="/privacy">{{ $t('Privacy') }}</a><a href="/terms">{{ $t('Terms') }}</a></div>
         </div>
@@ -375,7 +375,7 @@ onMounted(async () => {
   } catch {}
 })
 
-defineProps({ signedIn: Boolean })
+defineProps({ signedIn: Boolean, campus: Boolean })   // campus: a JUNIA student (free; no prices shown)
 defineEmits(['start', 'sign-in'])
 
 const rootEl = ref(null)

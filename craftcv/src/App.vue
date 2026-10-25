@@ -9,7 +9,7 @@
     </div>
   </div>
 
-  <LandingPage v-else-if="showLanding" :signed-in="auth.isLoggedIn" @start="startBuilding" @sign-in="openAuth('signin')" />
+  <LandingPage v-else-if="showLanding" :signed-in="auth.isLoggedIn" :campus="!!auth.user?.campus" @start="startBuilding" @sign-in="openAuth('signin')" />
 
   <div v-else-if="ready" class="shell" :class="{ 'sb-mini': sbMini }">
     <!-- Sidebar -->
@@ -34,7 +34,7 @@
           <svg viewBox="0 0 24 24" v-html="n.icon"></svg>
           <span class="sb-lbl">{{ $t(n.label) }}</span>
         </RouterLink>
-        <RouterLink to="/pricing" class="sb-link" :class="{ active: route.path === '/pricing' }" :title="sbMini ? $t('Pricing') : null" @click="navOpen = false">
+        <RouterLink v-if="!auth.user?.campus" to="/pricing" class="sb-link" :class="{ active: route.path === '/pricing' }" :title="sbMini ? $t('Pricing') : null" @click="navOpen = false">
           <svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
           <span class="sb-lbl">{{ $t('Pricing') }}</span>
         </RouterLink>
@@ -96,7 +96,7 @@
       </header>
       <!-- Email accounts that haven't confirmed yet -->
       <div v-if="auth.isLoggedIn && auth.user && auth.user.emailVerified === false && !verifyHidden" class="verify-bar">
-        <span>{{ $t('Confirm your email to unlock 30 AI requests a day. We sent a link to {email}.', { email: auth.user.email }) }}</span>
+        <span>{{ $t(auth.user?.campus ? 'Confirm your student email to switch on your free JUNIA access. We sent a link to {email}.' : 'Confirm your email to unlock 30 AI requests a day. We sent a link to {email}.', { email: auth.user.email }) }}</span>
         <button class="btn-secondary btn-sm" :disabled="verifySending" @click="resendVerification">{{ $t(verifySent ? 'Sent ✓' : verifySending ? 'Sending…' : 'Resend email') }}</button>
         <button class="verify-x" :aria-label="$t('Hide')" @click="verifyHidden = true">×</button>
       </div>
@@ -341,6 +341,8 @@ provide('requireAccount', (reason) => auth.isLoggedIn ? Promise.resolve(true) : 
 // Onboarding (industry / goal / experience) is optional context for the AI
 const onboardingDismissed = ref(false)
 const pendingTour = ref(false)
+// JUNIA students: the site is free for them, so there's no Pricing page to see
+watch([() => route.path, () => auth.user?.campus], ([p, c]) => { if (c && p === '/pricing') router.replace('/') })
 function onOnboarded({ tour = false } = {}) {
   onboardingDismissed.value = true
   // the tour shows the app, not the homepage (e.g. after a Google sign-up, which reloads the page)
@@ -435,6 +437,7 @@ function startBuilding(mode) {
   }
   if (mode === 'mycvs') { router.push('/'); return }
   if (mode === 'templates') { router.push('/templates'); return }
+  if ((mode === 'pass' || mode === 'pricing') && auth.user?.campus) { router.push('/'); return }
   if (mode === 'pass') { router.push({ path: '/settings', hash: '#pass' }); return }
   if (mode === 'pricing') { router.push('/pricing'); return }
   if (mode === 'new') { router.push(auth.isLoggedIn ? '/' : '/templates'); newCV(); return }
