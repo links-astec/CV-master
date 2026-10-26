@@ -299,4 +299,6 @@ export default {
   "Dear Hiring Manager,\n\nWrite your letter here, in your own words. When you’re done, “Refine with AI” fixes the language and the shape, and keeps your voice.": "Madame, Monsieur,\n\nÉcrivez votre lettre ici, avec vos propres mots. Ensuite, « Améliorer avec l’IA » corrige la langue et la forme, et garde votre voix.",
   // JUNIA student access and the 3 free CVs
   'Type a skill and press Enter, or paste a list': 'Tapez une compétence et appuyez sur Entrée, ou collez une liste',
+  // JUNIA student access and the 3 free CVs
+  'Qualification {n}': 'Diplôme {n}',
 }

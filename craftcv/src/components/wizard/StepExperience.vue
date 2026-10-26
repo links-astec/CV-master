@@ -23,12 +23,12 @@
           <div class="f-lbl">{{ $t('Job Title') }}</div>
           <ProofField kind="title" class="f-inp" v-model="exp.title" :placeholder="$t('Senior Product Manager')" />
         </div>
-        <div class="f-row">
+        <div class="f-row exp-row">
           <div class="f-grp">
             <div class="f-lbl">{{ $t('Company') }}</div>
             <input class="f-inp" v-model="exp.company" placeholder="Acme Corp" />
           </div>
-          <div class="f-grp">
+          <div class="f-grp exp-when">
             <div class="f-lbl">{{ $t('Period') }}</div>
             <PeriodField v-model="exp.period" :placeholder="$t('2021 – Present')" />
           </div>
@@ -135,6 +135,8 @@ p{font-size:13px;color:var(--c-text2);line-height:1.5;}
 .exp-rm:hover{text-decoration:underline;}
 .btn-ai-sm{display:flex;align-items:center;gap:5px;background:var(--c-accent-lt);border:1px solid #c5d6f8;color:var(--c-accent);padding:6px 12px;border-radius:var(--radius-sm);font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .14s;margin-top:4px;}
 .btn-ai-sm:hover{background:#dae5fc;}
+.exp-when{flex:0 0 190px}
+@media (max-width:560px){ .exp-when{flex:1 1 100%} }
 .fill-nums{border:none;background:none;padding:4px 0;font:inherit;font-size:12.5px;font-weight:600;color:var(--c-amber,#b45309);cursor:pointer}
 .btn-ai-sm:disabled{opacity:.5;cursor:not-allowed;}
 .add-exp-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:10px;border:2px dashed var(--c-border);border-radius:var(--radius);font-size:12.5px;font-weight:600;color:var(--c-text2);cursor:pointer;background:none;font-family:inherit;transition:all .14s;}
@@ -148,4 +150,9 @@ p{font-size:13px;color:var(--c-text2);line-height:1.5;}
 .btn-sug-dismiss{background:none;border:1px solid var(--hair);padding:4px 10px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;color:var(--c-text2);font-family:inherit;}
 .exp-list-enter-active,.exp-list-leave-active{transition:all .25s ease;}
 .exp-list-enter-from,.exp-list-leave-to{opacity:0;transform:translateY(-10px);}
+.exp-row{grid-template-columns:minmax(0,1fr) 190px}
+@media (max-width:560px){ .exp-row{grid-template-columns:1fr} }
+/* the card decides: two columns when it is wide enough, one under the other when it is not (narrow editor panel) */
+.exp-card{container-type:inline-size}
+@container (max-width:460px){ .exp-row{grid-template-columns:1fr} }
 </style>
