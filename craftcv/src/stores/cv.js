@@ -30,6 +30,7 @@ const emptyData = () => ({
   jobTarget: null,     // { title, company } read from the job offer (shown in Job match)
   jobFit: null,        // the AI's "is this role a good fit?" for this offer: { key, fit, headline, reasons, advice, dismissed }
   coverLetter: null,   // Job Hunt Pass: { key (the job offer it is for), text }
+  letterLayout: 'auto', // the cover letter's layout: 'auto' (like the CV's design) or one picked in the Letter tab
   interviewPrep: null, // Job Hunt Pass: { key, questions: [{ q, why, tip }] }
   cvFor: '',           // '' (guess from the name) | 'self' | 'other' — the AI only personalises your own CVs
   checkIgnored: [],    // checklist warnings the user chose to ignore for this CV

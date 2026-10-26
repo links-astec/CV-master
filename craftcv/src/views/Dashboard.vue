@@ -430,7 +430,7 @@ async function remove(c) {
 .db-more svg{width:20px;height:20px;fill:currentColor}
 /* Phones: documents in two columns, like Files; the "…" holds the actions */
 @media (max-width:768px){
-  .db-grid{grid-template-columns:1fr 1fr;gap:20px 14px}
+  .db-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:20px 14px}   /* 2 on phones, 4 on tablets */
   .db-grid .db-card{background:none;box-shadow:none;border-radius:0;overflow:visible;animation:none;min-width:0}
   .db-grid .db-card:hover{transform:none;box-shadow:none}
   .db-grid .db-thumb{display:block;width:100%;min-width:0;border-radius:12px;overflow:hidden;background:var(--c-surface);box-shadow:0 1px 2px rgba(0,0,0,.06),0 6px 18px -8px rgba(0,0,0,.18);padding:0}

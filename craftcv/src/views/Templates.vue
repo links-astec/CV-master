@@ -113,5 +113,5 @@ async function pick(l) {
 .tp-name{font-size:15px;font-weight:600;color:var(--c-text)}
 .tp-desc{font-size:13px;color:var(--c-text2);margin-top:3px;line-height:1.45}
 .tp-foot{margin-top:24px;font-size:13px;color:var(--c-text3);text-align:center}
-@media (max-width:768px){ .tp-hover{display:none} .tp-grid{grid-template-columns:repeat(2,1fr);gap:12px} .tp-thumb{padding:8px 8px 0} .tp-desc{display:none} }
+@media (max-width:768px){ .tp-hover{display:none} .tp-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px} .tp-thumb{padding:8px 8px 0} .tp-desc{display:none} }
 </style>

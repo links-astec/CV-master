@@ -249,7 +249,10 @@ watch([showLanding, lang], () => { setSeo(showLanding.value ? homeSeo() : seoFor
 provide('showHome', showHome)
 
 // ── Sidebar: collapsed to icons on computers (remembered), and while the editor shows Design ──
-const sbPinned = ref(lsGet('cvm-sb-mini') === '1')
+// Tablets in landscape start with the sidebar as icons (it would take a quarter of the screen); a choice
+// made with the collapse button is remembered and always wins
+const sbStored = lsGet('cvm-sb-mini')
+const sbPinned = ref(sbStored === '1' || (sbStored === null && typeof matchMedia === 'function' && matchMedia('(min-width: 769px) and (max-width: 1279px)').matches))
 const sbAuto = ref(false)
 const sbMini = computed(() => (sbPinned.value || sbAuto.value) && !navOpen.value)
 function toggleSidebar() {
