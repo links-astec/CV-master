@@ -141,7 +141,7 @@ const ICON = {
   rss: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1.2" fill="currentColor"/></svg>',
 };
 const CSS = `
-:root{--logo-from:#14142B;--logo-to:#4338CA;--logo-text:#14142B;--bg:#fff;--bg2:#f5f5fa;--s:#fff;--b:#e4e4ee;--hair:rgba(20,20,43,.08);--t:#14142b;--t2:#4a4a63;--t3:#6b6b84;--ac:#4338ca;--ac2:#6d63ff;--acl:#eef0ff;--fill:rgba(20,20,43,.06);--fill2:rgba(20,20,43,.1);--sh:0 1px 2px rgba(20,20,43,.04),0 2px 8px rgba(20,20,43,.04);--sh2:0 2px 6px rgba(20,20,43,.04),0 18px 44px rgba(20,20,43,.10);--ease:cubic-bezier(.2,.8,.2,1)}
+:root{--logo-from:#14142B;--logo-to:#4338CA;--logo-text:#14142B;--bg:#fff;--bg2:#fff;--s:#fff;--b:#e4e4ee;--hair:rgba(20,20,43,.08);--t:#14142b;--t2:#4a4a63;--t3:#6b6b84;--ac:#4338ca;--ac2:#6d63ff;--acl:#eef0ff;--fill:#fff;--fill2:rgba(20,20,43,.1);--sh:0 1px 2px rgba(20,20,43,.04),0 2px 8px rgba(20,20,43,.04);--sh2:0 2px 6px rgba(20,20,43,.04),0 18px 44px rgba(20,20,43,.10);--ease:cubic-bezier(.2,.8,.2,1)}
 @media (prefers-color-scheme:dark){:root:not(.light){--logo-from:#F3F4F6;--logo-to:#8B85FF;--logo-text:#F3F4F6;--bg:#0c0c10;--bg2:#0c0c10;--s:#15151b;--b:#26262e;--hair:rgba(255,255,255,.08);--t:#f3f4f6;--t2:#b3b7c2;--t3:#8b909c;--ac:#8b85ff;--ac2:#a5a0ff;--acl:#1f1d3d;--fill:rgba(255,255,255,.07);--fill2:rgba(255,255,255,.12);--sh:none;--sh2:0 18px 44px rgba(0,0,0,.45)}}
 .dark{--logo-from:#F3F4F6;--logo-to:#8B85FF;--logo-text:#F3F4F6;--bg:#0c0c10;--bg2:#0c0c10;--s:#15151b;--b:#26262e;--hair:rgba(255,255,255,.08);--t:#f3f4f6;--t2:#b3b7c2;--t3:#8b909c;--ac:#8b85ff;--ac2:#a5a0ff;--acl:#1f1d3d;--fill:rgba(255,255,255,.07);--fill2:rgba(255,255,255,.12);--sh:none;--sh2:0 18px 44px rgba(0,0,0,.45)}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
@@ -252,6 +252,8 @@ a{color:var(--ac)}img{max-width:100%}
 .toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);background:rgba(20,20,43,.88);-webkit-backdrop-filter:saturate(1.8) blur(20px);backdrop-filter:saturate(1.8) blur(20px);color:#fff;padding:12px 20px;border-radius:999px;font-weight:600;font-size:14px;opacity:0;pointer-events:none;transition:opacity .3s var(--ease),transform .3s var(--ease);z-index:40}.toast.show{opacity:1;transform:translate(-50%,0)}
 /* Footer: like the homepage */
 .foot{background:var(--bg2);font-size:13px;color:var(--t3)}.foot .cols{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:32px;padding-top:56px;padding-bottom:32px;border-bottom:1px solid var(--hair)}
+/* white, not grey: what used a grey fill has a fine outline instead (the site does the same) */
+.btn.ghost,.cats a,.share a,.share button,.toc-m,.prose code{box-shadow:inset 0 0 0 1px var(--b)}.search:not(:focus-within){border-color:var(--b)}.related,.foot{border-top:1px solid var(--hair)}
 .foot p{color:var(--t3);font-size:13px;line-height:1.6;max-width:280px;margin:14px 0 0}
 .foot h5{font-size:12.5px;font-weight:650;color:var(--t);margin:4px 0 12px}
 .foot .cols a:not(.brand){display:flex;align-items:center;gap:7px;color:var(--t3);text-decoration:none;font-size:13px;padding:4px 0;transition:color .2s}.foot .cols a:not(.brand):hover{color:var(--t)}.foot .cols a:not(.brand) svg{width:14px;height:14px}

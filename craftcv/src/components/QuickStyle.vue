@@ -149,5 +149,6 @@ onBeforeUnmount(close)
 .qs-scrim{position:fixed;inset:0;z-index:399;background:rgba(0,0,0,.28)}
 .qs-pop.sheet .qs-opt{padding:12px 14px}
 
+@media (max-width:1279px){ .qs{flex-wrap:nowrap} }   /* tablets: one row that scrolls, not three */
 @media (max-width:768px){ .qs{flex-wrap:nowrap;padding:10px 12px;gap:8px} }
 </style>

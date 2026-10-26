@@ -156,6 +156,15 @@ function showDesign() {
 .ed-panel > :deep(.ced){width:420px}
 .ed-panel.wide:not(.collapsed){width:clamp(560px,46vw,760px)}
 .ed-panel.wide > :deep(.ced){width:clamp(560px,46vw,760px)}
+/* Tablets: the panel keeps its width on Design too, so the CV preview beside it stays readable */
+@media (min-width:769px) and (max-width:1279px){
+  .ed-panel.wide:not(.collapsed),.ed-panel.wide > :deep(.ced){width:420px}
+}
+/* tablets: the layout and colour are in the style bar right below, so the top bar drops its own chip and the saved note */
+@media (min-width:769px) and (max-width:1279px){ .ed-design,.ed-saved{display:none!important} }
+@media (min-width:769px) and (max-width:1023px){
+  .ed-panel:not(.collapsed),.ed-panel > :deep(.ced),.ed-panel.wide:not(.collapsed),.ed-panel.wide > :deep(.ced){width:360px}
+}
 .ed-preview{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--c-canvas);position:relative}
 .ed-bar{height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 16px;background:var(--c-surface);border-bottom:1px solid var(--c-border);flex-shrink:0}
 .ed-bar-l,.ed-bar-r{display:flex;align-items:center;gap:10px;min-width:0}

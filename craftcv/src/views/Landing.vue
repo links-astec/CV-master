@@ -482,7 +482,7 @@ const FAQ = [
 .lp-signin:hover{color:var(--c-text)}
 
 /* Hero */
-.lp-hero{padding:96px 0 0;text-align:center;overflow:hidden;background:radial-gradient(1100px 520px at 50% 100%,var(--c-accent-lt) 0%,transparent 70%)}
+.lp-hero{padding:96px 0 0;text-align:center;overflow:hidden;background:var(--c-surface)}
 .lp-hero-copy h1{font-size:clamp(44px,7.2vw,86px);line-height:1.03;letter-spacing:-.036em;font-weight:800;animation:fup .9s var(--ease) both}
 .lp-hero-copy h1 span{color:var(--c-accent)}
 .lp-lead{font-size:clamp(18px,2vw,22px);line-height:1.5;color:var(--c-text2);max-width:620px;margin:24px auto 0;letter-spacing:-.01em;animation:fup .9s var(--ease) .1s both}
@@ -580,7 +580,7 @@ const FAQ = [
 
 /* Card pictures */
 /* Flat, quiet backgrounds: the product is the colour */
-.m-story,.m-tailor,.m-fit,.m-ats{background:#EDEDF2}
+.m-story,.m-tailor,.m-fit,.m-ats{background:#fff;box-shadow:inset 0 0 0 1px #E4E4EE}
 :global([data-theme="dark"]) .m-story,:global([data-theme="dark"]) .m-tailor,:global([data-theme="dark"]) .m-fit,:global([data-theme="dark"]) .m-ats{background:#1c1c22}
 .m-pdf{background:#4338CA}
 .m-mic{width:44%;background:#fff;border-radius:22px;padding:24px 20px;display:flex;flex-direction:column;align-items:center;gap:14px;box-shadow:0 20px 50px rgba(20,20,43,.14)}
