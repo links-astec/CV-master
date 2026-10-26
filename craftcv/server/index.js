@@ -2076,10 +2076,13 @@ app.post('/api/ai/write', needsCvContent, aiAccess, async (req, res) => {
       return res.json({ skills: arr(list).map(str).filter(s => s && s.length <= 50 && !have.has(s.toLowerCase())).slice(0, 12) });
     }
     if (task === 'bullets') {
-      const e = arr(cv.experiences)[Number(req.body?.index)];
+      // a job (experiences) or, with kind: 'project', a project
+      const isProject = req.body?.kind === 'project';
+      const e = arr(isProject ? cv.projects : cv.experiences)[Number(req.body?.index)];
       if (!e) return res.status(400).json({ error: 'This item can’t be fixed automatically.' });
-      const out = await callAi(`ROLE: ${str(e.title)} at ${str(e.company)} (${str(e.period)})\nCURRENT DESCRIPTION:\n${str(e.desc) || 'none'}${job}${personal}`, AI_MODEL,
-        `You are a CV writer. Rewrite the description as 3-4 concise bullet points, each starting with "• " and a strong action verb, one per line. Keep every number exactly as written. Never invent numbers or achievements: where a figure would help, insert a placeholder such as [X%], [N] or [£X] for the person to fill in. ${brief ? 'Use the job’s wording for the same activities where it fits. ' : ''}${RULES} Return only the bullet points.`, 700);
+      const head = isProject ? `PROJECT: ${str(e.name)}${str(e.tech) ? ` (built with ${str(e.tech)})` : ''}` : `ROLE: ${str(e.title)} at ${str(e.company)} (${str(e.period)})`;
+      const out = await callAi(`${head}\nCURRENT DESCRIPTION:\n${str(e.desc) || 'none'}${job}${personal}`, AI_MODEL,
+        `You are a CV writer. Rewrite the description as ${isProject ? '2-3' : '3-4'} concise bullet points${isProject ? ' about what was built, how, and what it achieved' : ''}, each starting with "• " and a strong action verb, one per line. Keep every number exactly as written. Never invent numbers or achievements: where a figure would help, insert a placeholder such as [X%], [N] or [£X] for the person to fill in. ${brief ? 'Use the job’s wording for the same activities where it fits. ' : ''}${RULES} Return only the bullet points.`, 700);
       const text = str(out).split('\n').map(l => l.trim()).filter(l => l.startsWith('•')).join('\n') || str(out);
       return res.json({ result: text });
     }

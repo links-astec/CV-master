@@ -30,14 +30,15 @@
           </div>
           <div class="f-grp">
             <div class="f-lbl">{{ $t('Period') }}</div>
-            <input class="f-inp" v-model="exp.period" :placeholder="$t('2021 – Present')" />
+            <PeriodField v-model="exp.period" :placeholder="$t('2021 – Present')" />
           </div>
         </div>
         <div class="f-grp">
           <div class="f-lbl">{{ $t('Description / Achievements') }}</div>
           <ProofField multiline kind="bullets" class="f-ta" v-model="exp.desc" rows="4"
             :placeholder="$t('• Led product strategy…\n• Grew revenue by 30%…\n• Managed a team of 8…')" />
-          <div class="f-hint">{{ $t('Tip: start each line with • for bullet points on your CV') }}</div>
+          <button v-if="hasPlaceholders(exp.desc)" type="button" class="fill-nums" @click="openMetrics(idx, exp.desc)">{{ $t(countPlaceholders(exp.desc) === 1 ? 'Fill in 1 number' : 'Fill in {n} numbers', { n: countPlaceholders(exp.desc) }) }}</button>
+          <div v-else class="f-hint">{{ $t('Tip: start each line with • for bullet points on your CV') }}</div>
         </div>
         <button class="btn-ai-sm" @click="quantifyExp(exp, idx)" :disabled="quantifyIdx === idx">
           <svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
@@ -62,6 +63,7 @@
       <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       {{ $t('Add Another Role') }}
     </button>
+    <MetricsModal :text="metrics.text" @apply="applyMetrics" @close="metrics.text = ''" />
   </div>
 </template>
 
@@ -71,6 +73,9 @@ import { useCvStore } from '../../stores/cv.js'
 import ProofField from '../ProofField.vue'
 import { useReorder, isOutOfOrder, sortByDate } from '../../composables/reorder.js'
 import ReorderControls from '../ReorderControls.vue'
+import PeriodField from '../PeriodField.vue'
+import MetricsModal from '../MetricsModal.vue'
+import { hasPlaceholders, countPlaceholders } from '../../composables/metrics.js'
 
 const store = useCvStore()
 const ro = useReorder(() => store.data.experiences)
@@ -86,7 +91,10 @@ async function quantifyExp(exp, idx) {
   try {
     // Placeholders like [X%] are added instead of invented numbers; the job offer guides the wording
     const { result } = await store.aiWrite('bullets', { index: idx })
-    suggestions[idx] = (result || '').trim()
+    const text = (result || '').trim()
+    // where the AI left [X%] / [N] for a real figure, ask for the numbers straight away
+    if (hasPlaceholders(text)) openMetrics(idx, text)
+    else suggestions[idx] = text
   } catch (e) {
     showToast?.(e?.message || 'AI is unavailable right now. Please try again in a moment.')
   }
@@ -95,8 +103,18 @@ async function quantifyExp(exp, idx) {
 }
 
 function applySuggestion(exp, idx) {
+  if (hasPlaceholders(suggestions[idx])) return openMetrics(idx, suggestions[idx])
   exp.desc = suggestions[idx]
   delete suggestions[idx]
+}
+// "Add your numbers": for the AI's rewrite, or for placeholders still in a description
+const metrics = reactive({ idx: null, text: '' })
+function openMetrics(idx, text) { metrics.idx = idx; metrics.text = text }
+function applyMetrics(text) {
+  const exp = store.data.experiences[metrics.idx]
+  if (exp) exp.desc = text
+  delete suggestions[metrics.idx]
+  metrics.text = ''
 }
 </script>
 
@@ -117,6 +135,7 @@ p{font-size:13px;color:var(--c-text2);line-height:1.5;}
 .exp-rm:hover{text-decoration:underline;}
 .btn-ai-sm{display:flex;align-items:center;gap:5px;background:var(--c-accent-lt);border:1px solid #c5d6f8;color:var(--c-accent);padding:6px 12px;border-radius:var(--radius-sm);font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .14s;margin-top:4px;}
 .btn-ai-sm:hover{background:#dae5fc;}
+.fill-nums{border:none;background:none;padding:4px 0;font:inherit;font-size:12.5px;font-weight:600;color:var(--c-amber,#b45309);cursor:pointer}
 .btn-ai-sm:disabled{opacity:.5;cursor:not-allowed;}
 .add-exp-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:10px;border:2px dashed var(--c-border);border-radius:var(--radius);font-size:12.5px;font-weight:600;color:var(--c-text2);cursor:pointer;background:none;font-family:inherit;transition:all .14s;}
 .add-exp-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;}

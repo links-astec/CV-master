@@ -273,4 +273,18 @@ export default {
   'We couldn’t read this file. Copy and paste the offer instead.': 'Impossible de lire ce fichier. Copiez-collez plutôt l’offre.',
   'PDF, Word, text or a photo · Max 10MB': 'PDF, Word, texte ou photo · 10 Mo max.',
   'Designed CVs with columns and icons work too: the AI reads the page as you see it, then fills in every section.': 'Les CV graphiques avec colonnes et icônes fonctionnent aussi : l’IA lit la page comme vous la voyez, puis remplit chaque section.',
+  // JUNIA student access and the 3 free CVs
+  'Pick dates': 'Choisir les dates',
+  'Date': 'Date',
+  'End': 'Fin',
+  'Still going': 'Toujours en cours',
+  'Still going (no end date)': 'Toujours en cours (pas de date de fin)',
+  'Years only': 'Années seulement',
+  'Add your numbers': 'Ajoutez vos chiffres',
+  'The AI marked where a real figure would make this stronger. It never makes numbers up: fill in yours, or leave a box empty to skip it.': 'L’IA a indiqué où un vrai chiffre renforcerait le texte. Elle n’invente jamais de chiffres : indiquez les vôtres, ou laissez une case vide pour la passer.',
+  'Use these numbers': 'Utiliser ces chiffres',
+  'Use it without numbers': 'L’utiliser sans chiffres',
+  'Fill in 1 number': 'Compléter 1 chiffre',
+  'Fill in {n} numbers': 'Compléter {n} chiffres',
+  'Project rewritten as bullet points.': 'Projet réécrit en puces.',
 }

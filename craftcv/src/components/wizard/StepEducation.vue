@@ -33,9 +33,9 @@
             <div class="f-lbl">{{ $t('School / University') }}</div>
             <input class="f-inp" v-model="edu.school" :placeholder="$t('UCL')" />
           </div>
-          <div class="f-grp" style="flex:0 0 110px;">
+          <div class="f-grp edu-when">
             <div class="f-lbl">{{ $t('Year') }}</div>
-            <input class="f-inp" v-model="edu.year" placeholder="2016" />
+            <PeriodField v-model="edu.year" placeholder="2016" />
           </div>
         </div>
       </div>
@@ -71,6 +71,13 @@
         <div class="f-grp">
           <div class="f-lbl">{{ $t('Description') }}</div>
           <ProofField multiline kind="bullets" class="f-inp f-area" v-model="proj.desc" :placeholder="$t('What did you build? What problem did it solve? Any key results?')" rows="2" />
+          <div class="proj-ai">
+            <button type="button" class="proj-ai-btn" :disabled="quantifyIdx === i || !(proj.name || proj.desc)" @click="quantifyProject(i)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+              {{ $t(quantifyIdx === i ? 'Enhancing…' : 'Quantify with AI') }}
+            </button>
+            <button v-if="hasPlaceholders(proj.desc)" type="button" class="fill-nums" @click="openMetrics(i, proj.desc)">{{ $t(countPlaceholders(proj.desc) === 1 ? 'Fill in 1 number' : 'Fill in {n} numbers', { n: countPlaceholders(proj.desc) }) }}</button>
+          </div>
         </div>
         <div class="f-grp">
           <div class="f-lbl">{{ $t('URL') }} <span class="opt-badge">{{ $t('optional') }}</span></div>
@@ -128,18 +135,38 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:12px;height:12px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       {{ $t('Add Language') }}
     </button>
-  </div>
+    <MetricsModal :text="metrics.text" @apply="applyMetrics" @close="metrics.text = ''" />
+</div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, reactive, inject } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
 import ProofField from '../ProofField.vue'
 import { useReorder, isOutOfOrder, sortByDate } from '../../composables/reorder.js'
 import ReorderControls from '../ReorderControls.vue'
+import PeriodField from '../PeriodField.vue'
+import MetricsModal from '../MetricsModal.vue'
+import { hasPlaceholders, countPlaceholders } from '../../composables/metrics.js'
 const store = useCvStore()
 const roEdu  = useReorder(() => store.data.education)
 const roProj = useReorder(() => store.data.projects)
+const showToast = inject('showToast', null)
+// Projects: AI bullet points, and the real numbers where it marked [X%] / [N]
+const quantifyIdx = ref(null)
+const metrics = reactive({ idx: null, text: '' })
+function openMetrics(i, text) { metrics.idx = i; metrics.text = text }
+function applyMetrics(text) { const p = store.data.projects[metrics.idx]; if (p) p.desc = text; metrics.text = '' }
+async function quantifyProject(i) {
+  quantifyIdx.value = i
+  try {
+    const { result } = await store.aiWrite('bullets', { index: i, kind: 'project' })
+    const text = (result || '').trim()
+    if (hasPlaceholders(text)) openMetrics(i, text)
+    else if (text) { store.data.projects[i].desc = text; showToast?.('Project rewritten as bullet points.') }
+  } catch (e) { showToast?.(e?.message || 'AI is unavailable right now. Please try again in a moment.') }
+  quantifyIdx.value = null
+}
 const eduOutOfOrder = computed(() => isOutOfOrder(store.data.education, 'year'))
 const LEVELS = {
   en: ['Native', 'Fluent (C2)', 'Advanced (C1)', 'Upper-Intermediate (B2)', 'Intermediate (B1)', 'Basic (A2)', 'Beginner (A1)'],
@@ -259,4 +286,11 @@ p   { font-size: 13px; color: var(--c-text2); line-height: 1.5; }
 
 .f-select { cursor: pointer; }
 .f-area   { resize: vertical; min-height: 60px; }
+.edu-when{flex:0 0 200px}
+@media (max-width:560px){ .edu-when{flex:1 1 100%} }
+.proj-ai{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:6px}
+.proj-ai-btn{display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 12px;border:none;border-radius:99px;background:color-mix(in srgb,var(--c-accent) 10%,transparent);color:var(--c-accent);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
+.proj-ai-btn:disabled{opacity:.5;cursor:default}
+.proj-ai-btn svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2}
+.fill-nums{border:none;background:none;padding:4px 0;font:inherit;font-size:12.5px;font-weight:600;color:var(--c-amber,#b45309);cursor:pointer}
 </style>
