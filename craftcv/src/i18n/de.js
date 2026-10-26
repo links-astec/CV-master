@@ -1598,6 +1598,7 @@ export default {
   "Two-tone header blocks, square markers": "Zweifarbige Header‑Blöcke, quadratische Markierungen",
   "Type": "Tippen",
   "Type a skill and press Enter": "Geben Sie eine Fähigkeit ein und drücken Sie Enter",
+  "Type a skill and press Enter, or paste a list": "Geben Sie eine Fähigkeit ein und drücken Sie Enter, oder fügen Sie eine Liste ein",
   "Type or speak about your career. AI turns it into a CV.": "Tippen oder sprechen Sie über Ihre Karriere. Die KI verwandelt das in einen Lebenslauf.",
   "Type or speak about your work. AI turns it into a full CV, and asks a few short questions where a recruiter would want more.": "Schreiben oder sprechen Sie über Ihre Arbeit. Die KI macht daraus einen vollständigen Lebenslauf und stellt ein paar kurze Fragen, wo ein Personaler mehr wissen möchte.",
   "Type your email address to confirm.": "Geben Sie zur Bestätigung Ihre E-Mail-Adresse ein.",

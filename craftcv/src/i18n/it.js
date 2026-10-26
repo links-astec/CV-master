@@ -1599,6 +1599,7 @@ export default {
   "Two-tone header blocks, square markers": "Blocchi intestazione bicolore, marcatori quadrati",
   "Type": "Scrivi",
   "Type a skill and press Enter": "Digita una competenza e premi Invio",
+  "Type a skill and press Enter, or paste a list": "Digita una competenza e premi Invio, oppure incolla un elenco",
   "Type or speak about your career. AI turns it into a CV.": "Scrivi o parla della tua carriera. L'IA la trasforma in un CV.",
   "Type or speak about your work. AI turns it into a full CV, and asks a few short questions where a recruiter would want more.": "Scrivi o racconta a voce il tuo lavoro. L’IA lo trasforma in un CV completo e fa qualche breve domanda dove un selezionatore vorrebbe saperne di più.",
   "Type your email address to confirm.": "Scrivi il tuo indirizzo email per confermare.",
