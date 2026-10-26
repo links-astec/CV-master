@@ -378,7 +378,7 @@ defineExpose({ handleStripeReturn })
 .pw-ok svg{width:26px;height:26px;fill:none;stroke:var(--c-green);stroke-width:2.6}
 .pw-warn{background:var(--c-amber-lt)}
 .pw-warn svg{width:26px;height:26px;fill:none;stroke:var(--c-amber);stroke-width:2}
-.pw-price{border:none;border-radius:20px;padding:20px 22px;margin-bottom:20px;background:color-mix(in srgb,var(--c-text) 4%,var(--c-surface))}
+.pw-price{border:none;border-radius:20px;padding:20px 22px;margin-bottom:20px;background:var(--c-surface);box-shadow:inset 0 0 0 1px var(--c-border)}
 .pw-amt{font-size:34px;font-weight:800;letter-spacing:-.04em}
 .pw-amt span{font-size:13px;font-weight:500;color:var(--c-text3);letter-spacing:0}
 .pw-price ul{list-style:none;margin-top:10px;display:flex;flex-direction:column;gap:7px}
@@ -387,7 +387,7 @@ defineExpose({ handleStripeReturn })
 .f-hint.err{color:var(--c-rose)}
 .pw-err{margin-bottom:14px}
 .pw-credit{margin-top:8px}
-.pw-ref{margin-top:22px;padding:16px 18px;border-radius:18px;background:var(--fill);text-align:left;display:flex;flex-direction:column;gap:12px}
+.pw-ref{margin-top:22px;padding:16px 18px;border-radius:18px;background:var(--fill);box-shadow:inset 0 0 0 1px var(--c-border);text-align:left;display:flex;flex-direction:column;gap:12px}
 .pw-ref p{margin:0;font-size:14px;line-height:1.5;color:var(--c-text2)}
 .pw-ref b{color:var(--c-text);font-weight:600}
 .pw-ref-btn{align-self:flex-start;height:36px;padding:0 16px;border:none;border-radius:99px;background:var(--c-surface);box-shadow:var(--shadow-sm);font:inherit;font-size:14px;font-weight:600;color:var(--c-accent);cursor:pointer}

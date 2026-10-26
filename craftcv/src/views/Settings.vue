@@ -841,13 +841,13 @@ watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota(); lo
 .st{max-width:760px;display:flex;flex-direction:column;gap:20px}
 /* Phones: the list of sections, like iPhone Settings */
 .sm-index{display:flex;flex-direction:column;gap:22px}
-.sm-acct{display:flex;align-items:center;gap:14px;width:100%;padding:14px 16px;border:none;border-radius:18px;background:var(--c-surface);font:inherit;text-align:left;color:var(--c-text);cursor:pointer}
+.sm-acct{display:flex;align-items:center;gap:14px;width:100%;padding:14px 16px;border:none;border-radius:18px;background:var(--c-surface);box-shadow:inset 0 0 0 1px var(--c-border);font:inherit;text-align:left;color:var(--c-text);cursor:pointer}
 .sm-ava{width:56px;height:56px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--c-accent);color:#fff;font-size:22px;font-weight:700}
 .sm-ava img{width:100%;height:100%;object-fit:cover}
 .sm-acct-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .sm-acct-t b{font-size:19px;font-weight:600;letter-spacing:-.015em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sm-acct-t small{font-size:14px;color:var(--c-text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sm-group{background:var(--c-surface);border-radius:16px;overflow:hidden}
+.sm-group{background:var(--c-surface);border-radius:16px;overflow:hidden;box-shadow:inset 0 0 0 1px var(--c-border)}
 .sm-row{display:flex;align-items:center;gap:10px;width:100%;min-height:52px;padding:12px 16px;border:none;background:none;font:inherit;text-align:left;color:var(--c-text);cursor:pointer;position:relative}
 .sm-row + .sm-row::before{content:'';position:absolute;top:0;left:16px;right:0;height:1px;background:var(--hair)}
 .sm-row:active,.sm-acct:active{background:color-mix(in srgb,var(--c-text) 5%,var(--c-surface))}
@@ -863,7 +863,7 @@ watch(() => auth.isLoggedIn, (v) => { if (v) { loadReferral(); loadAiQuota(); lo
 /* iOS Settings: a grey heading outside, a white group of rows, a grey footnote under it */
 .st-sec{scroll-margin-top:64px;animation:stIn .7s var(--ease) backwards}
 .st-sec-t{font-size:15px;font-weight:600;color:var(--c-text3);margin:0 0 8px 18px;letter-spacing:-.005em}
-.st-list{background:var(--c-surface);border-radius:18px;overflow:hidden}
+.st-list{background:var(--c-surface);border-radius:18px;overflow:hidden;box-shadow:inset 0 0 0 1px var(--c-border)}
 .st-li{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:12px 18px;border:none;background:none;font:inherit;text-align:left;color:var(--c-text);text-decoration:none;position:relative}
 .st-li + .st-li::before,.st-li + .st-del::before{content:'';position:absolute;top:0;left:18px;right:0;height:1px;background:var(--hair)}
 button.st-li,a.st-li{cursor:pointer;transition:background .15s ease}
@@ -891,7 +891,7 @@ button.st-li:hover,a.st-li:hover{background:color-mix(in srgb,var(--c-text) 4%,t
 /* Account: like an Apple ID page, plain and centred on the person */
 .st-hero .st-acct{align-items:center}
 /* Grouped rows, like iOS Settings: label on the left, value on the right */
-.st-group{margin:22px 0 22px;border-radius:16px;background:var(--fill);overflow:hidden}
+.st-group{margin:22px 0 22px;border-radius:16px;background:var(--fill);box-shadow:inset 0 0 0 1px var(--c-border);overflow:hidden}
 .st-grow{display:flex;align-items:center;gap:12px;width:100%;min-height:50px;padding:12px 16px;border:none;background:none;font:inherit;text-align:left;color:var(--c-text);position:relative}
 .st-grow + .st-grow::before{content:'';position:absolute;top:0;left:16px;right:0;height:1px;background:var(--hair)}
 button.st-grow{cursor:pointer;transition:background .15s ease}
@@ -903,7 +903,7 @@ button.st-grow:hover{background:color-mix(in srgb,var(--c-text) 5%,transparent)}
 .st-passmark{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:99px;background:var(--c-accent);color:#fff;font-size:11.5px;font-weight:700}
 .st-mine-group{margin:18px 0}
 .st-glance{display:none}
-.st-gl{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:16px 18px;border-radius:18px;background:var(--fill);border:none;font:inherit;color:inherit;text-align:left}
+.st-gl{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:16px 18px;border-radius:18px;background:var(--fill);box-shadow:inset 0 0 0 1px var(--c-border);border:none;font:inherit;color:inherit;text-align:left}
 button.st-gl{cursor:pointer;transition:background .2s ease}
 button.st-gl:hover{background:color-mix(in srgb,var(--c-text) 8%,transparent)}
 .st-gl-k{font-size:13px;font-weight:500;color:var(--c-text3)}
@@ -921,7 +921,7 @@ button.st-gl:hover{background:color-mix(in srgb,var(--c-text) 8%,transparent)}
 .st-mine-t{font-size:clamp(24px,2.8vw,30px);font-weight:700;letter-spacing:-.035em;line-height:1.15;color:var(--c-text);margin:6px 0 6px}
 .st-mine-p{font-size:15px;line-height:1.5;color:var(--c-text2);margin:0}
 .st-mine-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:20px 0}
-.st-mine-stats > div{padding:14px 14px;border-radius:16px;background:var(--fill);display:flex;flex-direction:column;gap:2px}
+.st-mine-stats > div{padding:14px 14px;border-radius:16px;background:var(--fill);box-shadow:inset 0 0 0 1px var(--c-border);display:flex;flex-direction:column;gap:2px}
 .st-mine-stats b{font-size:22px;font-weight:700;letter-spacing:-.03em;color:var(--c-text);font-variant-numeric:tabular-nums}
 .st-mine-stats span{font-size:12.5px;color:var(--c-text2);line-height:1.35}
 .st-mine-acts{display:flex;gap:10px;flex-wrap:wrap}
@@ -1025,7 +1025,7 @@ button.st-gl:hover{background:color-mix(in srgb,var(--c-text) 8%,transparent)}
 .st-dots{font-size:18px;letter-spacing:.12em;color:var(--c-text2);line-height:1}
 
 /* The password form */
-.st-pwbox{margin-top:20px;padding:24px;border-radius:22px;background:color-mix(in srgb,var(--c-text) 3.5%,var(--c-surface));display:flex;flex-direction:column;gap:14px;transform-origin:top center}
+.st-pwbox{margin-top:20px;padding:24px;border-radius:22px;background:var(--c-surface);box-shadow:inset 0 0 0 1px var(--c-border);display:flex;flex-direction:column;gap:14px;transform-origin:top center}
 .st-pwbox .f-inp{background:var(--c-surface)}
 .st-pwbox .f-inp:hover{background:var(--c-surface)}
 .st-pwbox-hd{display:flex;gap:14px;align-items:flex-start;margin-bottom:4px}
@@ -1059,7 +1059,7 @@ button.st-gl:hover{background:color-mix(in srgb,var(--c-text) 8%,transparent)}
 
 /* Invite */
 .st-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
-.st-stats > div{background:color-mix(in srgb,var(--c-text) 4%,var(--c-surface));border-radius:20px;padding:18px 18px 16px;font-size:13px;color:var(--c-text3)}
+.st-stats > div{background:var(--c-surface);box-shadow:inset 0 0 0 1px var(--c-border);border-radius:20px;padding:18px 18px 16px;font-size:13px;color:var(--c-text3)}
 .st-stats span{display:block;font-size:34px;font-weight:800;color:var(--c-text);letter-spacing:-.04em;line-height:1.05;margin-bottom:4px}
 .st-stats .hl{background:linear-gradient(140deg,var(--c-accent-lt),color-mix(in srgb,var(--c-accent-lt) 40%,var(--c-surface)))}
 .st-stats .hl span{color:var(--c-accent)}
@@ -1068,7 +1068,7 @@ button.st-gl:hover{background:color-mix(in srgb,var(--c-text) 8%,transparent)}
 .st-link .f-inp{flex:1;min-width:0;font-size:13.5px;color:var(--c-text2);border-radius:999px;padding:0 18px}
 .st-share{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;font-size:13px;color:var(--c-text3)}
 .st-share span{margin-right:4px}
-.st-share-btn{height:32px;padding:0 14px;border-radius:999px;border:none;background:color-mix(in srgb,var(--c-text) 6%,var(--c-surface));font-size:12.5px;font-weight:600;color:var(--c-text);transition:background .2s var(--ease)}
+.st-share-btn{height:32px;padding:0 14px;border-radius:999px;border:none;background:var(--c-surface);box-shadow:inset 0 0 0 1px var(--c-border);font-size:12.5px;font-weight:600;color:var(--c-text);transition:background .2s var(--ease)}
 .st-share-btn:hover{background:color-mix(in srgb,var(--c-text) 10%,var(--c-surface))}
 
 /* AI */
@@ -1085,7 +1085,7 @@ button.st-gl:hover{background:color-mix(in srgb,var(--c-text) 8%,transparent)}
 
 /* Help */
 .st-help{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
-.st-help > *{display:flex;flex-direction:column;gap:3px;text-align:left;padding:16px 18px;border-radius:20px;border:none;background:color-mix(in srgb,var(--c-text) 4%,var(--c-surface));text-decoration:none;font:inherit;cursor:pointer;transition:background .2s var(--ease),transform .2s var(--ease)}
+.st-help > *{display:flex;flex-direction:column;gap:3px;text-align:left;padding:16px 18px;border-radius:20px;border:none;background:var(--c-surface);box-shadow:inset 0 0 0 1px var(--c-border);text-decoration:none;font:inherit;cursor:pointer;transition:background .2s var(--ease),transform .2s var(--ease)}
 .st-help > *:hover{background:color-mix(in srgb,var(--c-text) 7%,var(--c-surface));transform:translateY(-1px)}
 .st-help strong{font-size:14.5px;color:var(--c-text);letter-spacing:-.01em}
 .st-help span{font-size:13px;color:var(--c-text3)}

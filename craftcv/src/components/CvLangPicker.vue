@@ -59,7 +59,7 @@ onBeforeUnmount(() => { document.removeEventListener('pointerdown', outside, tru
 
 <style scoped>
 .cl{position:relative;flex-shrink:0}
-.cl-btn{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 10px 0 11px;border:none;border-radius:99px;background:var(--fill);color:var(--c-text);font:inherit;font-size:13.5px;font-weight:500;cursor:pointer;white-space:nowrap;transition:background .15s ease}
+.cl-btn{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 10px 0 11px;border:none;border-radius:99px;background:var(--fill);box-shadow:inset 0 0 0 1px var(--c-border);color:var(--c-text);font:inherit;font-size:13.5px;font-weight:500;cursor:pointer;white-space:nowrap;transition:background .15s ease}
 .cl-btn:hover,.cl-btn.open{background:color-mix(in srgb,var(--c-text) 9%,var(--c-surface))}
 .cl-btn svg{width:16px;height:16px;fill:none;stroke:var(--c-text2);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .cl-btn .cl-chev{width:12px;height:12px;stroke:var(--c-text3);stroke-width:2.4}

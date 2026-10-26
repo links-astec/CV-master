@@ -309,4 +309,7 @@ export default {
   'Header band': 'Bandeau',
   'Dark header': 'En-tête foncé',
   'Side column': 'Colonne latérale',
+  // JUNIA student access and the 3 free CVs
+  'Preview letter': 'Aperçu de la lettre',
+  'Edit letter': 'Modifier la lettre',
 }

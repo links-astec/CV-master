@@ -629,7 +629,7 @@ const FAQ = [
 /* Feature explorer */
 .lp-explore{margin-top:48px;background:var(--c-surface);border-radius:32px;padding:56px;display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:40px;align-items:center;min-height:620px;box-shadow:var(--shadow-sm)}
 .lp-pills{display:flex;flex-direction:column;align-items:flex-start;gap:12px}
-.lp-pill{display:flex;flex-direction:column;align-items:flex-start;text-align:left;border:none;background:color-mix(in srgb,var(--c-text) 6%,var(--c-surface));color:var(--c-text);border-radius:28px;padding:0;max-width:100%;transition:background .3s var(--ease)}
+.lp-pill{display:flex;flex-direction:column;align-items:flex-start;text-align:left;border:none;background:var(--c-surface);box-shadow:inset 0 0 0 1px var(--c-border);color:var(--c-text);border-radius:28px;padding:0;max-width:100%;transition:background .3s var(--ease)}
 .lp-pill:hover{background:color-mix(in srgb,var(--c-text) 9%,var(--c-surface))}
 .lp-pill-hd{display:flex;align-items:center;gap:12px;padding:15px 22px 15px 14px;font-size:16px;font-weight:650;letter-spacing:-.01em}
 .lp-plus{width:26px;height:26px;border-radius:50%;border:1.6px solid currentColor;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .35s var(--ease),opacity .2s}
@@ -655,7 +655,7 @@ const FAQ = [
 .v-file svg{width:84px;height:84px;fill:var(--c-accent-lt);stroke:var(--c-accent);stroke-width:1.2;stroke-linejoin:round}
 .v-arrow{width:34px;height:34px;fill:none;stroke:var(--c-text3);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .v-langs{display:flex;flex-direction:column;gap:8px}
-.v-langs span{font-size:15px;font-weight:650;padding:8px 16px;border-radius:999px;background:color-mix(in srgb,var(--c-text) 6%,var(--c-surface));text-align:center}
+.v-langs span{font-size:15px;font-weight:650;padding:8px 16px;border-radius:999px;background:var(--c-surface);box-shadow:inset 0 0 0 1px var(--c-border);text-align:center}
 .v-langs span:nth-child(2){background:var(--c-accent);color:#fff}
 .v-honest{width:min(440px,92%)}
 .v-lock{width:180px;height:180px;border-radius:50%;background:radial-gradient(circle at 30% 25%,#6A60F2,#4338CA 55%,#2A2390);display:flex;align-items:center;justify-content:center;box-shadow:0 30px 70px rgba(67,56,202,.35)}

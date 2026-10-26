@@ -110,7 +110,7 @@ onBeforeUnmount(close)
 .qs-sep{width:1px;height:22px;background:var(--hair);flex-shrink:0;margin:0 2px}
 
 /* Layout and font buttons */
-.qs-pill{flex-shrink:0;display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 10px 0 12px;border:none;border-radius:99px;background:var(--fill);color:var(--c-text);font:inherit;font-size:13.5px;font-weight:500;cursor:pointer;white-space:nowrap;transition:background .15s ease}
+.qs-pill{flex-shrink:0;display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 10px 0 12px;border:none;border-radius:99px;background:var(--fill);box-shadow:inset 0 0 0 1px var(--c-border);color:var(--c-text);font:inherit;font-size:13.5px;font-weight:500;cursor:pointer;white-space:nowrap;transition:background .15s ease}
 .qs-pill:hover,.qs-pill.open{background:color-mix(in srgb,var(--c-text) 9%,var(--c-surface))}
 .qs-pill svg{width:16px;height:16px;fill:none;stroke:var(--c-text2);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .qs-pill .qs-chev{width:12px;height:12px;stroke:var(--c-text3);stroke-width:2.4;transition:transform .2s ease}
@@ -118,7 +118,7 @@ onBeforeUnmount(close)
 .qs-aa{font-size:15px;font-weight:600;color:var(--c-text2);line-height:1}
 
 /* Size and spacing: segmented, like iOS */
-.qs-seg{flex-shrink:0;display:inline-flex;padding:3px;gap:2px;border-radius:99px;background:var(--fill)}
+.qs-seg{flex-shrink:0;display:inline-flex;padding:3px;gap:2px;border-radius:99px;background:var(--fill);box-shadow:inset 0 0 0 1px var(--c-border)}
 .qs-seg button{width:34px;height:28px;display:flex;align-items:center;justify-content:center;border:none;border-radius:99px;background:none;color:var(--c-text2);cursor:pointer;transition:background .18s ease,color .18s ease,box-shadow .18s ease}
 .qs-seg button:hover{color:var(--c-text)}
 .qs-seg button.on{background:var(--c-surface);color:var(--c-text);box-shadow:0 1px 3px rgba(0,0,0,.1),0 1px 1px rgba(0,0,0,.04)}

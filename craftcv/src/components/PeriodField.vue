@@ -73,7 +73,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', away))
 .pf-cal svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .pf-pop{position:absolute;z-index:30;top:calc(100% + 6px);right:0;width:min(290px,calc(100vw - 48px));background:var(--c-surface);border-radius:16px;box-shadow:var(--shadow-xl);padding:12px;display:flex;flex-direction:column;gap:8px}
 .pf-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13.5px;color:var(--c-text2)}
-.pf-month{flex:1;min-width:0;max-width:170px;height:36px;border:none;border-radius:10px;background:var(--fill);padding:0 10px;font:inherit;font-size:14px;color:var(--c-text)}
+.pf-month{flex:1;min-width:0;max-width:170px;height:36px;border:none;border-radius:10px;background:var(--fill);box-shadow:inset 0 0 0 1px var(--c-border);padding:0 10px;font:inherit;font-size:14px;color:var(--c-text)}
 .pf-month:disabled{opacity:.45}
 .pf-check{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--c-text2);cursor:pointer}
 .pf-check input{accent-color:var(--c-accent);width:16px;height:16px}
