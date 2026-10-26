@@ -761,9 +761,57 @@ const LETTER_CSS = `
 .cvr.l-letter .lt-meta b{color:#111827;font-weight:600}
 .cvr.l-letter .lt-body p{font-size:calc(11.2px*var(--s));line-height:var(--lh);color:#1f2937;margin:0 0 calc(11px*var(--sp))}
 .cvr.l-letter .lt-empty{color:#9ca3af;font-style:italic}
+.cvr.l-letter .lt-contact span + span:before{content:' · '}
+/* classic: centred serif name over a double rule */
+.cvr.lt-classic .lt-hd{text-align:center;border-bottom:3px double var(--acd);padding-bottom:16px}
+.cvr.lt-classic .lt-name{font-weight:400;color:#111827;font-size:calc(32px*var(--s));letter-spacing:0}
+.cvr.lt-classic .lt-title{color:var(--acd);font-weight:500}
+/* band: the name on a tinted band across the top */
+.cvr.l-letter.lt-band,.cvr.l-letter.lt-dark{padding:0 0 56px}
+.cvr.lt-band .lt-hd{background:var(--act);border-bottom:3px solid var(--ac);padding:46px 70px 24px;margin-bottom:34px}
+.cvr.lt-band .lt-meta,.cvr.lt-band .lt-body,.cvr.lt-dark .lt-meta,.cvr.lt-dark .lt-body{padding:0 70px}
+/* dark: a strong colour header with white type */
+.cvr.lt-dark .lt-hd{background:var(--acd);border:0;padding:48px 70px 28px;margin-bottom:34px}
+.cvr.lt-dark .lt-name{color:#fff}
+.cvr.lt-dark .lt-title{color:rgba(255,255,255,.82)}
+.cvr.lt-dark .lt-contact{color:rgba(255,255,255,.75)}
+/* side: name and contact in a colour column, the letter beside it */
+.cvr.l-letter.lt-side{padding:0;display:grid;grid-template-columns:200px 1fr}
+.cvr.lt-side .lt-hd{background:var(--acd);border:0;margin:0;padding:58px 24px}
+.cvr.lt-side .lt-name{color:#fff;font-size:calc(25px*var(--s))}
+.cvr.lt-side .lt-title{color:rgba(255,255,255,.82)}
+.cvr.lt-side .lt-contact{color:rgba(255,255,255,.78);margin-top:22px;line-height:1.9}
+.cvr.lt-side .lt-contact span{display:block;overflow-wrap:anywhere}
+.cvr.lt-side .lt-contact span + span:before{content:''}
+.cvr.lt-side .lt-main{padding:58px 46px 50px}
+/* minimal: light name, no colour rule */
+.cvr.lt-minimal .lt-hd{border-bottom:1px solid #e5e7eb}
+.cvr.lt-minimal .lt-name{font-weight:300;color:#111827;font-size:calc(31px*var(--s))}
+.cvr.lt-minimal .lt-title{color:#6b7280;font-weight:400}
+/* bold: a very large name beside a colour bar */
+.cvr.lt-bold .lt-hd{border:0;border-left:8px solid var(--ac);padding:2px 0 4px 18px;margin-bottom:36px}
+.cvr.lt-bold .lt-name{font-size:calc(40px*var(--s));font-weight:800;color:#111827;letter-spacing:-.035em}
 `
+// The letter's layout: the one the person picked, or the kind of header their CV has
+export const LETTER_LAYOUTS = [
+  { id: 'auto', name: 'Like my CV' }, { id: 'modern', name: 'Modern' }, { id: 'classic', name: 'Classic' },
+  { id: 'band', name: 'Header band' }, { id: 'dark', name: 'Dark header' }, { id: 'side', name: 'Side column' },
+  { id: 'minimal', name: 'Minimal' }, { id: 'bold', name: 'Bold' },
+]
+const LETTER_FOR = {
+  classic: 'classic', harvard: 'classic', standard: 'classic', consultant: 'classic', scholar: 'classic', circle: 'classic', monogram: 'classic', elegant: 'classic',
+  sidebar: 'side', duo: 'side', column: 'side', studio: 'side', portrait: 'side', photo: 'side', ledger: 'side',
+  minimal: 'minimal', airy: 'minimal', zen: 'minimal', margin: 'minimal', clarity: 'minimal',
+  banner: 'band', nordic: 'band', pastel: 'band', mosaic: 'band', blocks: 'band', bento: 'band', wave: 'band', frame: 'band', overview: 'band',
+  executive: 'dark', diagonal: 'dark', deco: 'dark', aurora: 'dark',
+  bold: 'bold', statement: 'bold', headline: 'bold', magazine: 'bold', neo: 'bold', swiss: 'bold',
+}
+export function letterLayoutFor(tpl, chosen) {
+  if (chosen && chosen !== 'auto' && LETTER_LAYOUTS.some(l => l.id === chosen)) return chosen
+  return LETTER_FOR[parseTemplate(tpl).layout] || 'modern'
+}
 export function renderLetter(tpl, rawData, fmt = {}, opts = {}) {
-  const { theme } = parseTemplate(tpl)
+  const { theme, layout } = parseTemplate(tpl)
   const t = themeById[theme] || THEMES[0]
   const d = rawData && typeof rawData === 'object' ? rawData : {}
   const L = d.coverLetter && typeof d.coverLetter === 'object' ? d.coverLetter : {}
@@ -772,9 +820,13 @@ export function renderLetter(tpl, rawData, fmt = {}, opts = {}) {
   const scale = fmt.fontSize === 'small' ? 0.93 : fmt.fontSize === 'large' ? 1.07 : 1
   const lh    = fmt.lineSpacing === 'compact' ? 1.42 : fmt.lineSpacing === 'relaxed' ? 1.68 : 1.55
   const sp    = fmt.sectionSpacing === 'compact' ? 0.78 : fmt.sectionSpacing === 'relaxed' ? 1.22 : 1
-  const vars = [`--ac:${t.accent}`, `--acd:${t.dark}`, `--act:${t.tint}`, `--font:${fontStack(font)}`, `--hfont:${fontStack(font)}`,
+  // the CV's heading font for the name, as on the CV
+  const lf    = layoutById[layout]?.hfont
+  const hfont = lf && !(lf === 'DM Serif Display' && font === 'Lora') ? HFONT_STACK[lf] : fontStack(font)
+  const vars = [`--ac:${t.accent}`, `--acd:${t.dark}`, `--act:${t.tint}`, `--font:${fontStack(font)}`, `--hfont:${hfont}`,
     `--s:${scale}`, `--lh:${lh}`, `--sp:${sp}`].join(';')
   const str = (v) => (typeof v === 'string' ? v.trim() : '')
+  const look = letterLayoutFor(tpl, rawData?.letterLayout)
   const name = [str(d.fn), str(d.ln)].filter(Boolean).join(' ')
   const contact = [str(d.email), str(d.phone), str(d.loc), str(d.li).replace(/^https?:\/\/(www\.)?/, '')].filter(Boolean)
   let date = ''
@@ -785,13 +837,13 @@ export function renderLetter(tpl, rawData, fmt = {}, opts = {}) {
   const paras = text ? text.split(/\n\s*\n|\n/).map(p => p.trim()).filter(Boolean) : []
   const body = paras.length ? paras.map(p => `<p>${esc(p)}</p>`).join('')
     : opts.preview ? `<p class="lt-empty">${esc(fr ? 'Votre lettre de motivation apparaîtra ici.' : 'Your cover letter will appear here.')}</p>` : ''
-  return `<div class="cvr l-letter" data-cv-root data-template="letter:${theme}" lang="${fr ? 'fr' : 'en'}" style="${vars}">`
+  return `<div class="cvr l-letter lt-${look}" data-cv-root data-template="letter:${theme}" lang="${fr ? 'fr' : 'en'}" style="${vars}">`
     + `<style>${BASE_CSS}${LETTER_CSS}</style>`
     + `<header class="lt-hd"><h1 class="lt-name">${esc(name || (opts.preview ? (fr ? 'Votre nom' : 'Your name') : ''))}</h1>`
     + (str(d.title) ? `<div class="lt-title">${esc(str(d.title))}</div>` : '')
-    + (contact.length ? `<div class="lt-contact">${contact.map(esc).join(' · ')}</div>` : '') + `</header>`
-    + `<div class="lt-meta">${date ? `<div>${esc(date)}</div>` : ''}${to.map(x => `<div>${esc(x)}</div>`).join('')}${subject ? `<div style="margin-top:12px"><b>${esc(subject)}</b></div>` : ''}</div>`
-    + `<div class="lt-body">${body}</div></div>`
+    + (contact.length ? `<div class="lt-contact">${contact.map(c => `<span>${esc(c)}</span>`).join('')}</div>` : '') + `</header>`
+    + `<div class="lt-main"><div class="lt-meta">${date ? `<div>${esc(date)}</div>` : ''}${to.map(x => `<div>${esc(x)}</div>`).join('')}${subject ? `<div style="margin-top:12px"><b>${esc(subject)}</b></div>` : ''}</div>`
+    + `<div class="lt-body">${body}</div></div></div>`
 }
 
 // Kept for existing callers: `const { render } = useCvRenderer()`

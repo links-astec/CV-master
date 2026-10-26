@@ -301,4 +301,12 @@ export default {
   'Type a skill and press Enter, or paste a list': 'Tapez une compétence et appuyez sur Entrée, ou collez une liste',
   // JUNIA student access and the 3 free CVs
   'Qualification {n}': 'Diplôme {n}',
+  // JUNIA student access and the 3 free CVs
+  'Letter layout': 'Mise en page de la lettre',
+  'Matches your CV’s design': 'Assortie au design de votre CV',
+  'Your choice': 'Votre choix',
+  'Like my CV': 'Comme mon CV',
+  'Header band': 'Bandeau',
+  'Dark header': 'En-tête foncé',
+  'Side column': 'Colonne latérale',
 }
