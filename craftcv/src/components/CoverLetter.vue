@@ -29,14 +29,21 @@
         <div class="seg cl-seg"><button v-for="o in TONES" :key="o.id" type="button" :class="{ active: opts.tone === o.id }" @click="opts.tone = o.id">{{ $t(o.label) }}</button></div></div>
       <div class="cl-row"><span class="cl-row-k"><b>{{ $t('Length') }}</b></span>
         <div class="seg cl-seg"><button v-for="o in LENGTHS" :key="o.id" type="button" :class="{ active: opts.length === o.id }" @click="opts.length = o.id">{{ $t(o.label) }}</button></div></div>
+      <template v-if="!hasOffer">
+        <label class="cl-row"><span class="cl-row-k"><b>{{ $t('Role') }}</b></span>
+          <input v-model="opts.role" class="cl-in" maxlength="80" :placeholder="$t('Optional, e.g. {role}', { role: store.data.title || $t('Data analyst') })" /></label>
+        <label class="cl-row"><span class="cl-row-k"><b>{{ $t('Company') }}</b></span>
+          <input v-model="opts.company" class="cl-in" maxlength="80" :placeholder="$t('Optional')" /></label>
+      </template>
       <label class="cl-row"><span class="cl-row-k"><b>{{ $t('Addressed to') }}</b></span>
         <input v-model="opts.to" class="cl-in" maxlength="80" :placeholder="$t('Name, if the offer gives one')" /></label>
     </div>
 
-    <button type="button" class="cl-cta" :disabled="busy || !hasOffer" @click="write">
-      <span v-if="busy" class="cl-spin"></span>{{ $t(busy ? 'Writing your letter…' : letter ? 'Write it again' : 'Write my letter') }}
+    <button type="button" class="cl-cta" :disabled="busy" @click="write">
+      <span v-if="busy" class="cl-spin"></span>{{ $t(busy ? 'Writing your letter…' : letter?.text ? 'Write it again' : hasOffer ? 'Write my letter' : 'Write it from my CV') }}
     </button>
-    <p v-if="!hasOffer" class="cl-foot">{{ $t('Add the job offer first: a letter for a specific job works far better.') }}</p>
+    <button v-if="!letter" type="button" class="cl-own" @click="writeOwn">{{ $t('Or write it yourself, and let the AI polish it') }}</button>
+    <p v-if="!hasOffer" class="cl-foot">{{ $t('No job offer? The letter is written from your CV. Add the offer for a letter aimed at one job.') }}</p>
     <p v-else-if="!letter" class="cl-foot">{{ $t('Uses one AI request. Only facts from your CV, nothing invented.') }}</p>
     <p v-if="error" class="cl-err">{{ $t(error) }}</p>
 
@@ -44,9 +51,11 @@
     <template v-if="letter">
       <p class="cl-sec">{{ $t('Your letter') }}<span v-if="stale" class="cl-stale"> · {{ $t('written for another job offer') }}</span></p>
       <div class="cl-group">
-        <textarea v-model="letterText" class="cl-text" rows="16" :aria-label="$t('Cover letter')"></textarea>
+        <textarea ref="letterRef" v-model="letterText" class="cl-text" rows="16" :aria-label="$t('Cover letter')" :placeholder="$t('Dear Hiring Manager,\n\nWrite your letter here, in your own words. When you’re done, “Refine with AI” fixes the language and the shape, and keeps your voice.')"></textarea>
         <div class="cl-group-ft">
           <span class="cl-count">{{ $t('{n} words', { n: words }) }}</span>
+          <button v-if="undoText !== null" type="button" class="cl-link cl-undo" @click="undo">{{ $t('Undo') }}</button>
+          <button type="button" class="cl-link" :disabled="refining || letterText.trim().length < 40" :title="letterText.trim().length < 40 ? $t('Write a few sentences first') : ''" @click="refine">{{ $t(refining ? 'Refining…' : 'Refine with AI') }}</button>
           <button type="button" class="cl-link" @click="copy">{{ $t(copied ? 'Copied' : 'Copy') }}</button>
           <button type="button" class="cl-btn" :disabled="pdfBusy" @click="downloadPdf">{{ $t(pdfBusy ? 'Preparing…' : 'Download PDF') }}</button>
         </div>
@@ -57,7 +66,7 @@
 </template>
 
 <script setup>
-import { ref, computed, inject, watch } from 'vue'
+import { ref, computed, inject, watch, nextTick } from 'vue'
 import { useCvStore } from '../stores/cv.js'
 import { useAuthStore } from '../stores/auth.js'
 import { lang, t } from '../i18n/index.js'
@@ -73,7 +82,7 @@ const apiUrl = (p) => (import.meta.env.VITE_API_URL || '') + p
 const TONES = [{ id: 'professional', label: 'Professional' }, { id: 'warm', label: 'Warm' }, { id: 'confident', label: 'Confident' }]
 const LENGTHS = [{ id: 'short', label: 'Short' }, { id: 'standard', label: 'Standard' }]
 const saved = store.data.coverLetter || {}
-const opts = ref({ tone: saved.tone || 'professional', length: saved.length || 'standard', to: saved.to || '' })
+const opts = ref({ tone: saved.tone || 'professional', length: saved.length || 'standard', to: saved.to || '', role: saved.role || '', company: saved.company || '' })
 const busy = ref(false), pdfBusy = ref(false), error = ref(''), copied = ref(false)
 
 // The job offer (shared with Job match)
@@ -90,7 +99,9 @@ const jobLine = computed(() => {
 
 // The letter lives on the CV, with the offer it was written for
 const jobKey = computed(() => { const s = (store.data.jobOffer || '').trim(); return s.length + ':' + s.slice(0, 60) })
-const letter = computed(() => store.data.coverLetter?.text ? store.data.coverLetter : null)
+// shown once there's text, or as soon as they choose to write it themselves
+const letter = computed(() => store.data.coverLetter?.text || store.data.coverLetter?.own ? store.data.coverLetter : null)
+const letterRef = ref(null)
 const stale = computed(() => letter.value && letter.value.key && letter.value.key !== jobKey.value)
 const letterText = computed({
   get: () => letter.value?.text || '',
@@ -113,9 +124,35 @@ async function write() {
     const j = await r.json().catch(() => ({}))
     if (!r.ok) { if (r.status !== 429) error.value = j.error || 'AI is unavailable right now. Please try again in a moment.'; return }
     store.data.coverLetter = { key: jobKey.value, text: j.letter, job: j.job || null, date: new Date().toISOString(), ...opts.value }
+    undoText.value = null
   } catch { error.value = 'AI is unavailable right now. Please try again in a moment.' }
   finally { busy.value = false }
 }
+// Their own letter: an empty page to type in
+function writeOwn() {
+  store.data.coverLetter = { key: jobKey.value, text: '', own: true, date: new Date().toISOString(), ...opts.value }
+  nextTick(() => letterRef.value?.focus())
+}
+// "Refine with AI": the language and shape fixed, their voice and facts kept (Undo brings theirs back)
+const refining = ref(false), undoText = ref(null)
+async function refine() {
+  error.value = ''
+  refining.value = true
+  try {
+    const before = letterText.value
+    const { photo, coverLetter, interviewPrep, ...cv } = JSON.parse(JSON.stringify(store.data))
+    const r = await fetch(apiUrl('/api/ai/cover-letter'), {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cv, jobOffer: store.data.jobOffer, uiLang: lang.value, mode: 'refine', draft: before, ...opts.value }),
+    })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) { if (r.status !== 429) error.value = j.error || 'AI is unavailable right now. Please try again in a moment.'; return }
+    undoText.value = before
+    store.data.coverLetter = { ...store.data.coverLetter, text: j.letter, job: j.job || store.data.coverLetter?.job || null, date: new Date().toISOString() }
+  } catch { error.value = 'AI is unavailable right now. Please try again in a moment.' }
+  finally { refining.value = false }
+}
+function undo() { store.data.coverLetter = { ...store.data.coverLetter, text: undoText.value }; undoText.value = null }
 async function copy() {
   try { await navigator.clipboard.writeText(letterText.value); copied.value = true; setTimeout(() => { copied.value = false }, 1600) } catch {}
 }
@@ -165,6 +202,9 @@ async function downloadPdf() {
 .cl-link{border:none;background:none;padding:0;font:inherit;font-size:13.5px;font-weight:600;color:var(--c-accent);cursor:pointer}
 .cl-cta{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:48px;margin-top:18px;border:none;border-radius:99px;background:var(--c-accent);color:#fff;font:inherit;font-size:15px;font-weight:600;cursor:pointer}
 .cl-cta:disabled{opacity:.5;cursor:default}
+.cl-own{display:block;margin:12px auto 0;border:none;background:none;font:inherit;font-size:14px;font-weight:600;color:var(--c-accent);cursor:pointer}
+.cl-link:disabled{opacity:.45;cursor:default}
+.cl-undo{color:var(--c-text3)}
 .cl-spin{width:14px;height:14px;border:2px solid #fff;border-right-color:transparent;border-radius:50%;animation:clSpin .8s linear infinite}
 @keyframes clSpin{to{transform:rotate(360deg)}}
 .cl-foot{font-size:12.5px;color:var(--c-text3);margin:8px 4px 0;line-height:1.45}
