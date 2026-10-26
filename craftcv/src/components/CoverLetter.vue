@@ -56,7 +56,7 @@
 
     <!-- The letter -->
     <template v-if="letter">
-      <p class="cl-sec">{{ $t('Your letter') }}<span v-if="stale" class="cl-stale"> · {{ $t('written for another job offer') }}</span></p>
+      <p class="cl-sec">{{ $t('Your letter') }}</p>
       <div class="cl-group">
         <textarea ref="letterRef" v-model="letterText" class="cl-text" rows="16" :aria-label="$t('Cover letter')" :placeholder="$t('Dear Hiring Manager,\n\nWrite your letter here, in your own words. When you’re done, “Refine with AI” fixes the language and the shape, and keeps your voice.')"></textarea>
         <div class="cl-group-ft">
@@ -110,7 +110,6 @@ const jobKey = computed(() => { const s = (store.data.jobOffer || '').trim(); re
 // shown once there's text, or as soon as they choose to write it themselves
 const letter = computed(() => store.data.coverLetter?.text || store.data.coverLetter?.own ? store.data.coverLetter : null)
 const letterRef = ref(null)
-const stale = computed(() => letter.value && letter.value.key && letter.value.key !== jobKey.value)
 const letterText = computed({
   get: () => letter.value?.text || '',
   set: (v) => { store.data.coverLetter = { ...store.data.coverLetter, text: v } },
@@ -193,7 +192,6 @@ async function downloadPdf() {
 .cl-hd h3{font-size:19px;font-weight:700;letter-spacing:-.02em;margin:0;color:var(--c-text)}
 .cl-hd p{font-size:13.5px;color:var(--c-text3);margin:4px 0 0;line-height:1.45}
 .cl-sec{font-size:13px;font-weight:600;color:var(--c-text3);margin:20px 4px 7px}
-.cl-stale{color:var(--c-amber,#b45309);font-weight:500}
 .cl-group{background:var(--fill);border-radius:16px;overflow:hidden}
 .cl-row{display:flex;align-items:center;gap:12px;min-height:50px;padding:9px 14px;position:relative}
 .cl-row + .cl-row::before{content:'';position:absolute;top:0;left:14px;right:0;height:1px;background:var(--hair)}
@@ -223,7 +221,8 @@ async function downloadPdf() {
 .cl-in::placeholder{color:var(--c-text3)}
 .cl-offer,.cl-text{display:block;width:100%;border:none;background:none;padding:14px 16px;font:inherit;font-size:14px;line-height:1.6;color:var(--c-text);resize:vertical;outline:none}
 .cl-offer::placeholder{color:var(--c-text3)}
-.cl-group-ft{display:flex;align-items:center;justify-content:flex-end;gap:14px;padding:8px 12px 12px;border-top:1px solid var(--hair)}
+.cl-group-ft{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:10px 16px;padding:10px 12px 12px;border-top:1px solid var(--hair)}
+.cl-group-ft > *{white-space:nowrap;flex-shrink:0}
 .cl-file{margin-right:auto}
 .cl-count{margin-right:auto;font-size:12.5px;color:var(--c-text3)}
 .cl-btn{height:34px;padding:0 16px;border:none;border-radius:99px;background:var(--c-accent);color:#fff;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer}

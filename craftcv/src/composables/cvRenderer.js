@@ -810,6 +810,18 @@ export function letterLayoutFor(tpl, chosen) {
   if (chosen && chosen !== 'auto' && LETTER_LAYOUTS.some(l => l.id === chosen)) return chosen
   return LETTER_FOR[parseTemplate(tpl).layout] || 'modern'
 }
+// The letter's date, addressee, subject and paragraphs, for either kind of page
+const LETTER_IN_CSS = `
+.cvr .lt-in{display:flex;flex-direction:column}
+.cvr .lt-in .lt-meta{font-size:calc(10.8px*var(--s));color:#374151;line-height:1.6;margin-bottom:22px}
+.cvr .lt-in .lt-meta b{color:#111827;font-weight:600}
+.cvr .lt-in .lt-body p{font-size:calc(11.2px*var(--s));line-height:var(--lh);color:#1f2937;margin:0 0 calc(11px*var(--sp))}
+.cvr .lt-in .lt-empty{color:#9ca3af;font-style:italic}
+.cvr.lt-on-cv main{display:block}
+/* the letter's own text stays plain dark whatever the layout does to text in its content area */
+.cvr.lt-on-cv .lt-in div,.cvr.lt-on-cv .lt-in p{color:#1f2937!important;font-style:normal!important;text-transform:none!important;letter-spacing:normal!important;text-align:left!important}
+.cvr.lt-on-cv .lt-in b{color:#111827!important}
+`
 export function renderLetter(tpl, rawData, fmt = {}, opts = {}) {
   const { theme, layout } = parseTemplate(tpl)
   const t = themeById[theme] || THEMES[0]
@@ -827,6 +839,7 @@ export function renderLetter(tpl, rawData, fmt = {}, opts = {}) {
     `--s:${scale}`, `--lh:${lh}`, `--sp:${sp}`].join(';')
   const str = (v) => (typeof v === 'string' ? v.trim() : '')
   const look = letterLayoutFor(tpl, rawData?.letterLayout)
+  const onCv = !rawData?.letterLayout || rawData.letterLayout === 'auto'
   const name = [str(d.fn), str(d.ln)].filter(Boolean).join(' ')
   const contact = [str(d.email), str(d.phone), str(d.loc), str(d.li).replace(/^https?:\/\/(www\.)?/, '')].filter(Boolean)
   let date = ''
@@ -837,6 +850,18 @@ export function renderLetter(tpl, rawData, fmt = {}, opts = {}) {
   const paras = text ? text.split(/\n\s*\n|\n/).map(p => p.trim()).filter(Boolean) : []
   const body = paras.length ? paras.map(p => `<p>${esc(p)}</p>`).join('')
     : opts.preview ? `<p class="lt-empty">${esc(fr ? 'Votre lettre de motivation apparaîtra ici.' : 'Your cover letter will appear here.')}</p>` : ''
+  const meta = `<div class="lt-meta">${date ? `<div>${esc(date)}</div>` : ''}${to.map(x => `<div>${esc(x)}</div>`).join('')}${subject ? `<div style="margin-top:12px"><b>${esc(subject)}</b></div>` : ''}</div>`
+  // "Like my CV": the CV itself with only the name, headline, contact and photo (every section emptied),
+  // and the letter where the sections would be. Its header, frame, column and colours are the CV's own.
+  if (onCv) {
+    const shellData = {}
+    for (const [k, v] of Object.entries(d)) shellData[k] = Array.isArray(v) ? [] : v
+    Object.assign(shellData, { sum: '', seeking: '' })
+    const shell = render(tpl, shellData, fmt, {})
+    const inner = `<div class="lt-in">${meta}<div class="lt-body">${body}</div></div>`
+    const out = shell.replace(/(<main class="(?:main|body)"[^>]*>)[\s\S]*?(<\/main>)/, (_, a, b) => a + inner + b)
+    if (out !== shell) return out.replace('class="cvr ', 'class="cvr lt-on-cv ').replace('<style>', `<style>${LETTER_IN_CSS}`)
+  }
   return `<div class="cvr l-letter lt-${look}" data-cv-root data-template="letter:${theme}" lang="${fr ? 'fr' : 'en'}" style="${vars}">`
     + `<style>${BASE_CSS}${LETTER_CSS}</style>`
     + `<header class="lt-hd"><h1 class="lt-name">${esc(name || (opts.preview ? (fr ? 'Votre nom' : 'Your name') : ''))}</h1>`
