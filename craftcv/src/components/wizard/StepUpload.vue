@@ -9,12 +9,12 @@
         @dragover.prevent="dragging = true"
         @dragleave="dragging = false"
         @drop.prevent="handleDrop">
-        <input type="file" ref="fileInput" style="display:none;" accept=".pdf,.doc,.docx,.txt" @change="handleFile" />
+        <input type="file" ref="fileInput" style="display:none;" accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.webp" @change="handleFile" />
         <div class="upload-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>
         </div>
         <div class="upload-ttl">{{ $t(dragging ? 'Drop your CV here' : 'Drop your CV here or click to browse') }}</div>
-        <div class="upload-sub">{{ $t('PDF, DOCX or TXT · Max 10MB') }}</div>
+        <div class="upload-sub">{{ $t('PDF, Word, text or a photo · Max 10MB') }}</div>
       </div>
     </div>
 
@@ -65,7 +65,7 @@
 
     <div class="format-note">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px;flex-shrink:0;color:var(--c-text3);"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <div class="fn-txt">{{ $t('For best results use a text-based PDF (not a scanned image). AI reads the text content and structures it into your CV.') }}</div>
+      <div class="fn-txt">{{ $t('Designed CVs with columns and icons work too: the AI reads the page as you see it, then fills in every section.') }}</div>
     </div>
   </div>
 </template>

@@ -262,4 +262,15 @@ export default {
   'Know someone looking for a job?': 'Vous connaissez quelqu’un qui cherche un emploi ?',
   'Send them your link. When they get their CV, your next one is free.': 'Envoyez-lui votre lien. Quand il obtient son CV, votre prochain est gratuit.',
   'Copy my invite link': 'Copier mon lien d’invitation',
+  // JUNIA student access and the 3 free CVs
+  'Free CV Maker & AI CV Builder: ATS-Friendly CVs | CVMaster': 'Créer un CV gratuit en ligne avec l’IA, compatible ATS | CVMaster',
+  'Upload the offer': 'Importer l’offre',
+  'Reading the file…': 'Lecture du fichier…',
+  'This file is over 5 MB.': 'Ce fichier dépasse 5 Mo.',
+  'Added. We left out 1 line written to an AI, not to you.': 'Ajoutée. Nous avons retiré 1 ligne écrite pour une IA, pas pour vous.',
+  'Added. We left out {n} lines written to an AI, not to you.': 'Ajoutée. Nous avons retiré {n} lignes écrites pour une IA, pas pour vous.',
+  'Added. Check it below.': 'Ajoutée. Vérifiez-la ci-dessous.',
+  'We couldn’t read this file. Copy and paste the offer instead.': 'Impossible de lire ce fichier. Copiez-collez plutôt l’offre.',
+  'PDF, Word, text or a photo · Max 10MB': 'PDF, Word, texte ou photo · 10 Mo max.',
+  'Designed CVs with columns and icons work too: the AI reads the page as you see it, then fills in every section.': 'Les CV graphiques avec colonnes et icônes fonctionnent aussi : l’IA lit la page comme vous la voyez, puis remplit chaque section.',
 }

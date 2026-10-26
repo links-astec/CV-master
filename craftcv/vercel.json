@@ -14,6 +14,426 @@
       "destination": "https://api.cvmaster.live/blog/:path*"
     },
     {
+      "source": "/",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "fr"
+        }
+      ],
+      "destination": "/_seo/home.fr.html"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "es"
+        }
+      ],
+      "destination": "/_seo/home.es.html"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "de"
+        }
+      ],
+      "destination": "/_seo/home.de.html"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "it"
+        }
+      ],
+      "destination": "/_seo/home.it.html"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "pt"
+        }
+      ],
+      "destination": "/_seo/home.pt.html"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "zh"
+        }
+      ],
+      "destination": "/_seo/home.zh.html"
+    },
+    {
+      "source": "/",
+      "destination": "/_seo/home.en.html"
+    },
+    {
+      "source": "/templates",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "fr"
+        }
+      ],
+      "destination": "/_seo/templates.fr.html"
+    },
+    {
+      "source": "/templates",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "es"
+        }
+      ],
+      "destination": "/_seo/templates.es.html"
+    },
+    {
+      "source": "/templates",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "de"
+        }
+      ],
+      "destination": "/_seo/templates.de.html"
+    },
+    {
+      "source": "/templates",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "it"
+        }
+      ],
+      "destination": "/_seo/templates.it.html"
+    },
+    {
+      "source": "/templates",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "pt"
+        }
+      ],
+      "destination": "/_seo/templates.pt.html"
+    },
+    {
+      "source": "/templates",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "zh"
+        }
+      ],
+      "destination": "/_seo/templates.zh.html"
+    },
+    {
+      "source": "/templates",
+      "destination": "/_seo/templates.en.html"
+    },
+    {
+      "source": "/pricing",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "fr"
+        }
+      ],
+      "destination": "/_seo/pricing.fr.html"
+    },
+    {
+      "source": "/pricing",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "es"
+        }
+      ],
+      "destination": "/_seo/pricing.es.html"
+    },
+    {
+      "source": "/pricing",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "de"
+        }
+      ],
+      "destination": "/_seo/pricing.de.html"
+    },
+    {
+      "source": "/pricing",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "it"
+        }
+      ],
+      "destination": "/_seo/pricing.it.html"
+    },
+    {
+      "source": "/pricing",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "pt"
+        }
+      ],
+      "destination": "/_seo/pricing.pt.html"
+    },
+    {
+      "source": "/pricing",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "zh"
+        }
+      ],
+      "destination": "/_seo/pricing.zh.html"
+    },
+    {
+      "source": "/pricing",
+      "destination": "/_seo/pricing.en.html"
+    },
+    {
+      "source": "/privacy",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "fr"
+        }
+      ],
+      "destination": "/_seo/privacy.fr.html"
+    },
+    {
+      "source": "/privacy",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "es"
+        }
+      ],
+      "destination": "/_seo/privacy.es.html"
+    },
+    {
+      "source": "/privacy",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "de"
+        }
+      ],
+      "destination": "/_seo/privacy.de.html"
+    },
+    {
+      "source": "/privacy",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "it"
+        }
+      ],
+      "destination": "/_seo/privacy.it.html"
+    },
+    {
+      "source": "/privacy",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "pt"
+        }
+      ],
+      "destination": "/_seo/privacy.pt.html"
+    },
+    {
+      "source": "/privacy",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "zh"
+        }
+      ],
+      "destination": "/_seo/privacy.zh.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/_seo/privacy.en.html"
+    },
+    {
+      "source": "/terms",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "fr"
+        }
+      ],
+      "destination": "/_seo/terms.fr.html"
+    },
+    {
+      "source": "/terms",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "es"
+        }
+      ],
+      "destination": "/_seo/terms.es.html"
+    },
+    {
+      "source": "/terms",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "de"
+        }
+      ],
+      "destination": "/_seo/terms.de.html"
+    },
+    {
+      "source": "/terms",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "it"
+        }
+      ],
+      "destination": "/_seo/terms.it.html"
+    },
+    {
+      "source": "/terms",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "pt"
+        }
+      ],
+      "destination": "/_seo/terms.pt.html"
+    },
+    {
+      "source": "/terms",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "zh"
+        }
+      ],
+      "destination": "/_seo/terms.zh.html"
+    },
+    {
+      "source": "/terms",
+      "destination": "/_seo/terms.en.html"
+    },
+    {
+      "source": "/legal",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "fr"
+        }
+      ],
+      "destination": "/_seo/privacy.fr.html"
+    },
+    {
+      "source": "/legal",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "es"
+        }
+      ],
+      "destination": "/_seo/privacy.es.html"
+    },
+    {
+      "source": "/legal",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "de"
+        }
+      ],
+      "destination": "/_seo/privacy.de.html"
+    },
+    {
+      "source": "/legal",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "it"
+        }
+      ],
+      "destination": "/_seo/privacy.it.html"
+    },
+    {
+      "source": "/legal",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "pt"
+        }
+      ],
+      "destination": "/_seo/privacy.pt.html"
+    },
+    {
+      "source": "/legal",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "zh"
+        }
+      ],
+      "destination": "/_seo/privacy.zh.html"
+    },
+    {
+      "source": "/legal",
+      "destination": "/_seo/privacy.en.html"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
