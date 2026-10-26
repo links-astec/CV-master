@@ -3,6 +3,8 @@ Allow: /
 # Private, per-user pages — nothing useful for search
 Disallow: /editor
 Disallow: /settings
+# The same pages as served under their real addresses
+Disallow: /_seo/
 
 Sitemap: https://www.cvmaster.live/sitemap.xml
 Sitemap: https://www.cvmaster.live/blog/sitemap.xml

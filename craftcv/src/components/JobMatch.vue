@@ -56,6 +56,7 @@
       <template v-if="!hasJob || editingJob">
         <textarea ref="jobRef" v-model="draft" class="f-ta" rows="7"
           :placeholder="$t('Paste the full job description. Title, responsibilities and requirements…')"></textarea>
+        <div class="jm-file"><OfferFileButton @text="v => { draft = v }" /></div>
         <div v-if="draftTooShort" class="jm-hint warn">{{ $t('Paste the full description. A few sentences at least.') }}</div>
         <div class="jm-row">
           <button class="btn-primary accent" :disabled="draft.trim().length < MIN_CHARS" @click="saveJob">{{ $t('Use this job') }}</button>
@@ -129,6 +130,7 @@ const fitInFlight = new Set()   // shared by every Job match panel
 import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import { useCvStore, hasDraftableContent } from '../stores/cv.js'
 import StepTailor from './wizard/StepTailor.vue'
+import OfferFileButton from './OfferFileButton.vue'
 import StepReview from './wizard/StepReview.vue'
 import AtsScorer from './AtsScorer.vue'
 import ApplicationKit from './ApplicationKit.vue'
@@ -299,6 +301,7 @@ onMounted(() => { if (!hasJob.value) draft.value = store.data.jobOffer || ''; ch
 .jm-job-txt{font-size:12.5px;color:var(--c-text2);line-height:1.5;white-space:pre-line;overflow-wrap:anywhere;
   display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .jm-txt{font-size:12.5px;color:var(--c-text2);line-height:1.55}
+.jm-file{margin-top:8px}
 .jm-hint{font-size:12px;color:var(--c-text3)}
 .jm-empty{margin-top:12px;display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:14px;background:var(--c-accent-lt);font-size:13px;line-height:1.5;color:var(--c-text2)}
 .jm-empty b{color:var(--c-text);font-weight:650}

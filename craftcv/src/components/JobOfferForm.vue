@@ -9,6 +9,7 @@
     <label class="f-lbl jof-lbl" :for="fieldId">{{ $t('Job description') }}</label>
     <textarea :id="fieldId" ref="field" v-model="draft" class="f-ta jof-ta" rows="7"
       :placeholder="$t('Paste the full job advert here. Title, responsibilities and requirements…')"></textarea>
+    <div class="jof-file"><OfferFileButton @text="v => { draft = v }" /></div>
     <div class="jof-hint" :class="{ warn: tooShort }">
       {{ tooShort ? $t('Paste the full description. A few sentences at least.') : (draft.trim() ? $t('{n} characters', { n: draft.trim().length }) : $t('Not applying to one job yet? Skip this. You can add an offer later in Job match.')) }}
     </div>
@@ -22,6 +23,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import BrandLogo from './BrandLogo.vue'
+import OfferFileButton from './OfferFileButton.vue'
 
 const props = defineProps({ initial: { type: String, default: '' }, autofocus: Boolean })
 defineEmits(['use', 'skip'])
@@ -46,6 +48,7 @@ defineExpose({ titleId })
 .jof > p.jof-pts{font-size:13.5px;color:var(--c-text3);margin:12px 0 26px;line-height:1.6}
 .jof-lbl{display:block}
 .jof-ta{width:100%;min-height:150px;resize:vertical}
+.jof-file{margin-top:8px}
 .jof-hint{font-size:12.5px;color:var(--c-text3);margin-top:6px}
 .jof-hint.warn{color:var(--c-amber)}
 .jof-acts{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:22px}

@@ -12,6 +12,7 @@
     <div v-if="!hasOffer || editingOffer" class="cl-group">
       <textarea v-model="offerDraft" class="cl-offer" rows="7" :placeholder="$t('Paste the job offer here. Title, responsibilities and requirements…')"></textarea>
       <div class="cl-group-ft">
+        <span class="cl-file"><OfferFileButton @text="v => { offerDraft = v }" /></span>
         <button v-if="hasOffer" type="button" class="cl-link" @click="editingOffer = false">{{ $t('Cancel') }}</button>
         <button type="button" class="cl-btn" :disabled="offerDraft.trim().length < 80" @click="useOffer">{{ $t('Use this offer') }}</button>
       </div>
@@ -60,6 +61,7 @@ import { ref, computed, inject, watch } from 'vue'
 import { useCvStore } from '../stores/cv.js'
 import { useAuthStore } from '../stores/auth.js'
 import { lang, t } from '../i18n/index.js'
+import OfferFileButton from './OfferFileButton.vue'
 
 const emit = defineEmits(['pay'])
 const store = useCvStore()
@@ -156,6 +158,7 @@ async function downloadPdf() {
 .cl-offer,.cl-text{display:block;width:100%;border:none;background:none;padding:14px 16px;font:inherit;font-size:14px;line-height:1.6;color:var(--c-text);resize:vertical;outline:none}
 .cl-offer::placeholder{color:var(--c-text3)}
 .cl-group-ft{display:flex;align-items:center;justify-content:flex-end;gap:14px;padding:8px 12px 12px;border-top:1px solid var(--hair)}
+.cl-file{margin-right:auto}
 .cl-count{margin-right:auto;font-size:12.5px;color:var(--c-text3)}
 .cl-btn{height:34px;padding:0 16px;border:none;border-radius:99px;background:var(--c-accent);color:#fff;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer}
 .cl-btn:disabled{opacity:.5;cursor:default}
