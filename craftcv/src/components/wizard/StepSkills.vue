@@ -9,8 +9,10 @@
     <div class="skill-input-row">
       <input
         class="f-inp" v-model="newSkill"
-        :placeholder="$t('Type a skill and press Enter')"
+        :placeholder="$t('Type a skill and press Enter, or paste a list')"
         @keydown.enter="addSkill"
+        @input="splitTyped"
+        @paste="pasteList"
         style="flex:1;"
       />
       <button class="btn-add-skill" @click="addSkill">{{ $t('Add') }}</button>
@@ -72,7 +74,22 @@ const suggested = ref([])
 
 function addSkill() {
   const v = newSkill.value.trim()
-  if (v) { store.addSkill(v); newSkill.value = '' }
+  if (v) { store.addSkills(v); newSkill.value = '' }
+}
+// A comma (or ; | •) typed after a skill adds it; what comes after stays in the box
+function splitTyped() {
+  const parts = newSkill.value.split(/[,;|\u2022]/)
+  if (parts.length < 2) return
+  newSkill.value = parts.pop().replace(/^\s+/, '')
+  store.addSkills(parts.join(','))
+}
+// A pasted list goes in all at once ("Python, SQL, Figma" or one per line)
+function pasteList(e) {
+  const text = e.clipboardData?.getData('text') || ''
+  if (!/[,;|\n\t\u2022\u00b7]/.test(text.trim())) return
+  e.preventDefault()
+  store.addSkills(newSkill.value + ',' + text)
+  newSkill.value = ''
 }
 function addSuggested(s) {
   if (!store.data.skills.includes(s)) store.addSkill(s)

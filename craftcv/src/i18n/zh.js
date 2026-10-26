@@ -1598,6 +1598,7 @@ export default {
   "Two-tone header blocks, square markers": "双色页眉区块，方形标记",
   "Type": "打字",
   "Type a skill and press Enter": "输入一项技能并按回车键",
+  "Type a skill and press Enter, or paste a list": "输入技能后按回车，或粘贴列表",
   "Type or speak about your career. AI turns it into a CV.": "打字或语音讲述您的职业经历，AI 会把它变成简历。",
   "Type or speak about your work. AI turns it into a full CV, and asks a few short questions where a recruiter would want more.": "输入或说出你的工作经历。AI 会把它变成一份完整的简历，并在招聘者想了解更多的地方问几个简短的问题。",
   "Type your email address to confirm.": "请输入你的邮箱地址以确认。",

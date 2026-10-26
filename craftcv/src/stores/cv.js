@@ -82,6 +82,11 @@ export function hasDraftableContent(d) {
 // The AI is never called for a CV without it (see the fetch guard in App.vue and
 // cvHasContent in server/index.js, which use the same rule).
 // Enough to keep as a CV in My CVs: more than contact details or a pasted job offer
+// A list of skills as people type or paste it, one skill each
+export function splitSkills(text) {
+  return String(text || '').split(/[,;|\n\t\u2022\u00b7]+/).map(x => x.replace(/^[\s*\-–]+|[\s.]+$/g, '').trim()).filter(x => x && x.length <= 60)
+}
+
 export function hasSubstance(d) {
   if (!d || typeof d !== 'object') return false
   const s = (v) => typeof v === 'string' && v.trim() !== ''
@@ -233,6 +238,11 @@ export const useCvStore = defineStore('cv', () => {
   function addSkill(s) {
     const v = String(s || '').trim()
     if (v && !data.value.skills.some(x => x.toLowerCase() === v.toLowerCase())) data.value.skills.push(v)
+  }
+  // "Python, SQL; Figma" (typed or pasted, also one per line, with | or bullets) → three skills.
+  // Slashes and & stay inside a skill: "CI/CD", "HTML & CSS".
+  function addSkills(text) {
+    for (const part of splitSkills(text)) addSkill(part)
   }
   function removeSkill(s) {
     data.value.skills = data.value.skills.filter(x => x !== s)
@@ -466,7 +476,7 @@ export const useCvStore = defineStore('cv', () => {
     fullName, initials, hasContent, needsKeepDecision,
     initDarkMode, openWizard, openWizardAtStep, closeWizard, clearPrefill, profile, loadProfile,
     setMode, nextStep, prevStep,
-    addExperience, removeExperience, addSkill, removeSkill,
+    addExperience, removeExperience, addSkill, addSkills, removeSkill,
     resetData, loadDraft, refreshFromServer, applyExtracted, saveDraft, ensureSavedDraftId, aiWrite,
   }
 })
