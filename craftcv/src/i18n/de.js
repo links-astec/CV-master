@@ -1204,6 +1204,7 @@ export default {
   "Prompt too long.": "Eingabe ist zu lang.",
   "Pure text with side labels, the most ATS-friendly": "Reiner Text mit Seitenbeschriftungen, ATS‑optimiert",
   "Put the most recent first. Recruiters and ATS expect reverse-chronological order. Sort it here, or drag entries in the editor.": "Setzen Sie das Neueste zuerst. Recruiter und ATS erwarten umgekehrte Chronologie. Sortieren Sie hier oder ziehen Sie die Einträge im Editor.",
+  "Qualification {n}": "Qualifikation {n}",
   "Quantified achievements found": "Quantifizierte Erfolge gefunden",
   "Quantify with AI": "Mit KI quantifizieren",
   "Questions": "Fragen",

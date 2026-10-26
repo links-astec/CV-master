@@ -1204,6 +1204,7 @@ export default {
   "Prompt too long.": "提示词过长。",
   "Pure text with side labels, the most ATS-friendly": "纯文本加侧边标签，最适合 ATS",
   "Put the most recent first. Recruiters and ATS expect reverse-chronological order. Sort it here, or drag entries in the editor.": "请将最近的排在最前。招聘人员和 ATS 都期望按时间倒序排列。可在此排序，或在编辑器中拖动条目。",
+  "Qualification {n}": "资格 {n}",
   "Quantified achievements found": "发现量化成果",
   "Quantify with AI": "用 AI 量化成果",
   "Questions": "常见疑问",

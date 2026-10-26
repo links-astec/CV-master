@@ -19,16 +19,14 @@
         <div class="edu-card-hd">
           <ReorderControls v-if="store.data.education.length > 1" :index="i" :total="store.data.education.length"
             @move="d => roEdu.move(i, i + d)" @arm="roEdu.arm(i)" @disarm="roEdu.disarm()" />
-          <span class="edu-num">{{ $t(i === 0 ? 'Primary' : 'Additional') }}</span>
-          <button v-if="i > 0" class="rm-btn" @click="store.data.education.splice(i, 1)" :title="$t('Remove')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
+          <span class="edu-num">{{ $t('Qualification {n}', { n: i + 1 }) }}</span>
+          <button v-if="store.data.education.length > 1" class="item-rm" @click="store.data.education.splice(i, 1)">{{ $t('Remove') }}</button>
         </div>
         <div class="f-grp">
           <div class="f-lbl">{{ $t('Degree / Qualification') }}</div>
           <ProofField kind="degree" class="f-inp" v-model="edu.degree" :placeholder="$t('MSc Product Management')" />
         </div>
-        <div class="f-row">
+        <div class="f-row edu-row">
           <div class="f-grp">
             <div class="f-lbl">{{ $t('School / University') }}</div>
             <input class="f-inp" v-model="edu.school" :placeholder="$t('UCL')" />
@@ -40,7 +38,7 @@
         </div>
       </div>
     </div>
-    <button class="add-btn" @click="store.data.education.push({ degree: '', school: '', year: '' })">
+    <button class="add-btn add-exp-btn" @click="store.data.education.push({ degree: '', school: '', year: '' })">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:12px;height:12px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       {{ $t('Add Another Qualification') }}
     </button>
@@ -56,9 +54,7 @@
           <ReorderControls v-if="store.data.projects.length > 1" :index="i" :total="store.data.projects.length"
             @move="d => roProj.move(i, i + d)" @arm="roProj.arm(i)" @disarm="roProj.disarm()" />
           <span class="proj-num">{{ $t('Project {n}', { n: i + 1 }) }}</span>
-          <button class="rm-btn" @click="store.data.projects.splice(i, 1)" :title="$t('Remove project')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
+          <button class="item-rm" @click="store.data.projects.splice(i, 1)">{{ $t('Remove') }}</button>
         </div>
         <div class="f-grp">
           <div class="f-lbl">{{ $t('Project Name') }}</div>
@@ -85,7 +81,7 @@
         </div>
       </div>
     </div>
-    <button class="add-btn" @click="addProject">
+    <button class="add-btn add-exp-btn" @click="addProject">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:12px;height:12px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       {{ $t('Add Project') }}
     </button>
@@ -102,7 +98,7 @@
         </button>
       </div>
     </div>
-    <button class="add-btn" @click="store.data.certifications.push('')">
+    <button class="add-btn add-exp-btn" @click="store.data.certifications.push('')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:12px;height:12px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       {{ $t('Add Certification') }}
     </button>
@@ -131,7 +127,7 @@
         </div>
       </div>
     </div>
-    <button class="add-btn" @click="store.data.languages.push({ name: '', level: '' })">
+    <button class="add-btn add-exp-btn" @click="store.data.languages.push({ name: '', level: '' })">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:12px;height:12px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       {{ $t('Add Language') }}
     </button>
@@ -211,45 +207,30 @@ p   { font-size: 13px; color: var(--c-text2); line-height: 1.5; }
 }
 
 /* Education cards */
-.edu-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
-.edu-card {
-  background: var(--c-bg); border: 1px solid var(--c-border);
-  border-radius: 10px; padding: 14px;
-}
-.edu-card-hd {
-  display: flex; align-items: center; gap: 8px;
-  margin-bottom: 10px;
-}
-.edu-card-hd .rm-btn, .proj-card-hd .rm-btn { margin-left: auto; }
+.edu-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; }
+.edu-card { background: var(--c-surface2); border: 1px solid var(--hair); border-radius: var(--radius); padding: 16px; }
+.edu-card-hd { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.edu-card-hd .item-rm, .proj-card-hd .item-rm { margin-left: auto; }
 .edu-card.ro-dragging, .proj-card.ro-dragging { opacity: .45; }
 .edu-card.ro-over, .proj-card.ro-over { border-color: var(--c-accent); box-shadow: 0 -3px 0 var(--c-accent); }
 .order-note { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; background: var(--c-amber-lt); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; font-size: 12.5px; color: var(--c-text); line-height: 1.45; }
-.edu-num {
-  font-size: 10.5px; font-weight: 700; color: var(--c-accent);
-  text-transform: uppercase; letter-spacing: .06em;
-}
+.edu-num, .proj-num { font-size: 13px; font-weight: 650; color: var(--c-accent); letter-spacing: -.005em; }
 
 /* Project cards */
-.proj-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 8px; }
-.proj-card {
-  background: var(--c-bg); border: 1px solid var(--c-border);
-  border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px;
-}
+.proj-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; }
+.proj-card { background: var(--c-surface2); border: 1px solid var(--hair); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 10px; }
 .proj-card-hd {
   display: flex; align-items: center; gap: 8px;
 }
-.proj-num {
-  font-size: 10.5px; font-weight: 700; color: var(--c-accent);
-  text-transform: uppercase; letter-spacing: .06em;
-}
+
 
 /* Certifications */
-.cert-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.cert-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
 .cert-row  { display: flex; align-items: center; gap: 6px; }
 
 /* Languages */
-.lang-list   { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
-.lang-card   { background: var(--c-bg); border-radius: 16px; padding: 12px; }
+.lang-list   { display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; }
+.lang-card   { background: var(--c-surface2); border: 1px solid var(--hair); border-radius: var(--radius); padding: 16px; }
 .lang-top    { display: flex; align-items: center; gap: 8px; }
 .lang-name   { flex: 1; min-width: 0; }
 .lang-rm     { flex-shrink: 0; width: 36px; height: 36px; border-radius: 10px; }
@@ -267,9 +248,11 @@ p   { font-size: 13px; color: var(--c-text2); line-height: 1.5; }
 .lang-lv.on { background: var(--c-accent); color: #fff; font-weight: 600; box-shadow: none; }
 
 /* Remove button */
+.item-rm { background: none; border: none; padding: 0; font: inherit; font-size: 11.5px; font-weight: 600; color: var(--c-rose); cursor: pointer; }
+.item-rm:hover { text-decoration: underline; }
 .rm-btn {
-  flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px;
-  background: none; border: 1px solid var(--c-border);
+  flex-shrink: 0; width: 32px; height: 32px; border-radius: 8px;
+  background: none; border: none;
   color: var(--c-text3); cursor: pointer;
   display: flex; align-items: center; justify-content: center; transition: all .15s;
 }
@@ -277,12 +260,9 @@ p   { font-size: 13px; color: var(--c-text2); line-height: 1.5; }
 .rm-btn:hover { background: var(--c-rose-lt); border-color: var(--c-rose); color: var(--c-rose); }
 
 /* Add button */
-.add-btn {
-  display: flex; align-items: center; gap: 6px; background: none; border: none;
-  font-size: 12.5px; font-weight: 700; color: var(--c-accent); cursor: pointer;
-  font-family:inherit; padding: 0; margin-bottom: 4px;
-}
-.add-btn:hover { text-decoration: underline; }
+.add-exp-btn { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 10px; border: 2px dashed var(--c-border); border-radius: var(--radius); font-size: 12.5px; font-weight: 600; color: var(--c-text2); cursor: pointer; background: none; font-family: inherit; transition: all .14s; margin-bottom: 4px; }
+.add-exp-btn svg { width: 14px !important; height: 14px !important; stroke: currentColor; fill: none; stroke-width: 2; }
+.add-exp-btn:hover { border-color: var(--c-accent); color: var(--c-accent); background: var(--c-accent-lt); }
 
 .f-select { cursor: pointer; }
 .f-area   { resize: vertical; min-height: 60px; }
@@ -293,4 +273,9 @@ p   { font-size: 13px; color: var(--c-text2); line-height: 1.5; }
 .proj-ai-btn:disabled{opacity:.5;cursor:default}
 .proj-ai-btn svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2}
 .fill-nums{border:none;background:none;padding:4px 0;font:inherit;font-size:12.5px;font-weight:600;color:var(--c-amber,#b45309);cursor:pointer}
+.edu-row{grid-template-columns:minmax(0,1fr) 170px}
+@media (max-width:560px){ .edu-row{grid-template-columns:1fr} }
+/* the card decides: two columns when it is wide enough, one under the other when it is not (narrow editor panel) */
+.edu-card{container-type:inline-size}
+@container (max-width:460px){ .edu-row{grid-template-columns:1fr} }
 </style>
