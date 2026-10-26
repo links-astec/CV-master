@@ -39,7 +39,7 @@ async function pick(e) {
 
 <style scoped>
 .ofb{display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px 12px}
-.ofb-btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 13px;border:none;border-radius:99px;background:var(--fill);font:inherit;font-size:13.5px;font-weight:600;color:var(--c-accent);cursor:pointer}
+.ofb-btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 13px;border:none;border-radius:99px;background:var(--fill);box-shadow:inset 0 0 0 1px var(--c-border);font:inherit;font-size:13.5px;font-weight:600;color:var(--c-accent);cursor:pointer}
 .ofb-btn:disabled{opacity:.6;cursor:default}
 .ofb-btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .ofb-note{font-size:12.5px;color:var(--c-text3)}

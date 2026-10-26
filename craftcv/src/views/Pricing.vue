@@ -191,7 +191,7 @@ function getPass() { router.push({ path: '/settings', query: passActive.value ? 
 .px-plan ul{flex:1;list-style:none;margin:28px 0 0;padding:24px 0 0;display:flex;flex-direction:column;gap:13px;border-top:1px solid var(--hair)}
 .px-plan li{display:flex;gap:11px;font-size:15px;line-height:1.45;color:var(--c-text2)}
 .pr :deep(.px-tick){width:16px;height:16px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;margin-top:3px;color:var(--c-text)}
-.px-btn{margin-top:26px;height:46px;border:none;border-radius:99px;font:inherit;font-size:15.5px;font-weight:600;cursor:pointer;background:var(--fill);color:var(--c-text);transition:background .2s,transform .2s}
+.px-btn{margin-top:26px;height:46px;border:none;border-radius:99px;font:inherit;font-size:15.5px;font-weight:600;cursor:pointer;background:var(--fill);box-shadow:inset 0 0 0 1px var(--c-border);color:var(--c-text);transition:background .2s,transform .2s}
 .px-btn:hover{background:color-mix(in srgb,var(--c-text) 10%,transparent)}
 .px-btn:active{transform:scale(.98)}
 /* The pass: the dark product card */
@@ -245,7 +245,7 @@ function getPass() { router.push({ path: '/settings', query: passActive.value ? 
 
 .px-extras{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .px-extra{padding:34px 32px;border-radius:28px;background:var(--c-surface)}
-.px-ic{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--fill);margin-bottom:18px}
+.px-ic{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--fill);box-shadow:inset 0 0 0 1px var(--c-border);margin-bottom:18px}
 .px-ic svg{width:21px;height:21px;fill:none;stroke:var(--c-text);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .px-extra h3{font-size:21px;font-weight:700;letter-spacing:-.02em;margin:0 0 8px;color:var(--c-text)}
 .px-extra p{font-size:15.5px;line-height:1.55;color:var(--c-text2);margin:0}

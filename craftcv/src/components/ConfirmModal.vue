@@ -77,7 +77,7 @@ defineExpose({ ask })
 .confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;margin-top:10px}
 .confirm-cancel,.confirm-ok{height:48px;padding:0 16px;border-radius:999px;border:none;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;
   transition:background .2s var(--ease),opacity .2s,transform .2s var(--ease)}
-.confirm-cancel{background:var(--fill);color:var(--c-text)}
+.confirm-cancel{background:var(--fill);box-shadow:inset 0 0 0 1px var(--c-border);color:var(--c-text)}
 .confirm-cancel:hover{background:var(--fill-hover)}
 .confirm-ok{color:#fff}
 .confirm-cancel:active,.confirm-ok:active{transform:scale(.97)}

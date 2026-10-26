@@ -260,14 +260,14 @@ onUnmounted(() => window.removeEventListener('resize', onResize))
 .tut-desc{font-size:14.5px;color:var(--c-text2);line-height:1.6;margin-bottom:16px}
 
 /* Tip */
-.tut-tip{display:flex;align-items:flex-start;gap:8px;background:var(--fill);border:none;color:var(--c-text2);border-radius:16px;padding:11px 14px;font-size:13px;line-height:1.5;margin-bottom:18px}
+.tut-tip{display:flex;align-items:flex-start;gap:8px;background:var(--fill);box-shadow:inset 0 0 0 1px var(--c-border);border:none;color:var(--c-text2);border-radius:16px;padding:11px 14px;font-size:13px;line-height:1.5;margin-bottom:18px}
 
 /* Actions */
 .tut-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
 .tut-skip{background:none;border:none;color:var(--c-text3);font-size:13.5px;font-weight:500;cursor:pointer;font-family:inherit;padding:8px 4px;transition:color .2s}
 .tut-skip:hover{color:var(--c-text)}
 .tut-nav{display:flex;gap:8px}
-.tut-back{display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:999px;border:none;background:var(--fill);color:var(--c-text);cursor:pointer;transition:background .2s var(--ease)}
+.tut-back{display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:999px;border:none;background:var(--fill);box-shadow:inset 0 0 0 1px var(--c-border);color:var(--c-text);cursor:pointer;transition:background .2s var(--ease)}
 .tut-back:hover{background:var(--fill-hover)}
 .tut-next{display:flex;align-items:center;gap:7px;background:var(--c-accent);color:#fff;border:none;height:42px;padding:0 20px;border-radius:999px;font-size:14.5px;font-weight:600;cursor:pointer;font-family:inherit;
   box-shadow:0 6px 16px rgba(67,56,202,.3);transition:background .2s var(--ease),transform .2s var(--ease)}

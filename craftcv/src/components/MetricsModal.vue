@@ -75,7 +75,7 @@ function apply() { emit('apply', filled.value) }
 .mm-item{display:flex;flex-direction:column;gap:8px;background:var(--c-surface);border-radius:16px;padding:12px 14px}
 .mm-ctx{font-size:14px;line-height:1.5;color:var(--c-text)}
 .mm-ctx :deep(mark){background:color-mix(in srgb,var(--c-accent) 14%,transparent);color:var(--c-accent);font-weight:600;border-radius:5px;padding:0 3px}
-.mm-field{display:flex;align-items:center;gap:6px;background:var(--fill);border-radius:10px;padding:0 12px;height:40px}
+.mm-field{display:flex;align-items:center;gap:6px;background:var(--fill);box-shadow:inset 0 0 0 1px var(--c-border);border-radius:10px;padding:0 12px;height:40px}
 .mm-affix{font-size:14px;font-weight:600;color:var(--c-text3)}
 .mm-in{flex:1;min-width:0;border:none;background:none;font:inherit;font-size:15px;color:var(--c-text);outline:none}
 .mm-prev-lbl{font-size:13px;font-weight:600;color:var(--c-text3);margin:16px 4px 6px}

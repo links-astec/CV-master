@@ -192,7 +192,7 @@ async function downloadPdf() {
 .cl-hd h3{font-size:19px;font-weight:700;letter-spacing:-.02em;margin:0;color:var(--c-text)}
 .cl-hd p{font-size:13.5px;color:var(--c-text3);margin:4px 0 0;line-height:1.45}
 .cl-sec{font-size:13px;font-weight:600;color:var(--c-text3);margin:20px 4px 7px}
-.cl-group{background:var(--fill);border-radius:16px;overflow:hidden}
+.cl-group{background:var(--fill);box-shadow:inset 0 0 0 1px var(--c-border);border-radius:16px;overflow:hidden}
 .cl-row{display:flex;align-items:center;gap:12px;min-height:50px;padding:9px 14px;position:relative}
 .cl-row + .cl-row::before{content:'';position:absolute;top:0;left:14px;right:0;height:1px;background:var(--hair)}
 .cl-row-k{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}

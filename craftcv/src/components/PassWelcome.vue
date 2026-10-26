@@ -47,7 +47,7 @@ defineEmits(['close', 'start'])
 .pws-sub{font-size:16px;line-height:1.5;color:var(--c-text2);margin:0 0 28px}
 .pws-list{list-style:none;margin:0 0 30px;padding:0;display:flex;flex-direction:column;gap:20px;text-align:left}
 .pws-list li{display:flex;gap:16px;align-items:flex-start}
-.pws-ic{width:40px;height:40px;flex-shrink:0;border-radius:12px;background:var(--fill);display:flex;align-items:center;justify-content:center}
+.pws-ic{width:40px;height:40px;flex-shrink:0;border-radius:12px;background:var(--fill);box-shadow:inset 0 0 0 1px var(--c-border);display:flex;align-items:center;justify-content:center}
 .pws-ic svg{width:20px;height:20px;fill:none;stroke:var(--c-text);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .pws-list b{display:block;font-size:15.5px;font-weight:600;color:var(--c-text);margin-bottom:2px}
 .pws-list span{font-size:14.5px;line-height:1.45;color:var(--c-text2)}

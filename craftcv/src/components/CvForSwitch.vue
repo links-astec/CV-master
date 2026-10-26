@@ -30,7 +30,7 @@ const who = computed(() => {
 </script>
 
 <style scoped>
-.cvf{border:none;border-radius:18px;padding:16px 18px;margin-bottom:20px;background:var(--fill)}
+.cvf{border:none;border-radius:18px;padding:16px 18px;margin-bottom:20px;background:var(--fill);box-shadow:inset 0 0 0 1px var(--c-border)}
 .cvf-lbl{display:block;font-size:13px;font-weight:600;color:var(--c-text);margin-bottom:8px}
 .cvf-seg{display:inline-flex}
 .cvf-note{font-size:12px;color:var(--c-text3);margin-top:8px;line-height:1.45}

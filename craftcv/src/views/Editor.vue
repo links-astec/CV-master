@@ -46,7 +46,7 @@
 
       <button class="ed-edit-fab show-mobile" @click="drawer = true">
         <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>
-        {{ $t('Edit CV') }}
+        {{ $t(panelTab === 'letter' ? 'Edit letter' : 'Edit CV') }}
       </button>
     </section>
 
@@ -57,12 +57,12 @@
           <div class="drawer">
             <div class="drawer-hd">
               <span class="drawer-grab" aria-hidden="true"></span>
-              <span class="drawer-t">{{ $t('Edit CV') }}</span>
+              <span class="drawer-t">{{ $t(panelTab === 'letter' ? 'Cover letter' : 'Edit CV') }}</span>
               <button class="drawer-prev" @click="drawer = false">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>{{ $t('Preview') }}
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>{{ $t(panelTab === 'letter' ? 'Preview letter' : 'Preview') }}
               </button>
             </div>
-            <CvEditor ref="drawerRef" @pay="drawer = false; openPaywall()" />
+            <CvEditor ref="drawerRef" @pay="drawer = false; openPaywall()" @tab="t => panelTab = t" />
           </div>
         </div>
       </Transition>

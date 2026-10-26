@@ -120,7 +120,7 @@ defineExpose({ show })
 <style scoped>
 .fb-backdrop{position:fixed;inset:0;z-index:9500;background:rgba(12,12,16,.34);backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);display:flex;align-items:center;justify-content:center;padding:20px}
 .fb{position:relative;width:100%;max-width:520px;max-height:92dvh;overflow-y:auto;background:var(--c-surface);border-radius:30px;padding:34px 32px 26px;box-shadow:var(--shadow-xl);border:none}
-.fb-x{position:absolute;top:18px;right:18px;background:var(--fill)}
+.fb-x{position:absolute;top:18px;right:18px;background:var(--fill);box-shadow:inset 0 0 0 1px var(--c-border)}
 .fb h3{font-size:26px;font-weight:800;letter-spacing:-.035em;line-height:1.15;color:var(--c-text);margin:0 40px 8px 0}
 .fb-sub{font-size:15px;color:var(--c-text2);line-height:1.55;margin-bottom:22px}
 .fb-lbl{display:block;font-size:14.5px;font-weight:700;letter-spacing:-.01em;color:var(--c-text);margin:20px 0 10px}

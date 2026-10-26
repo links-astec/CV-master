@@ -253,12 +253,12 @@ watch(() => store.wizardMode, m => { if (!m) return; guestEvent('cv_started'); i
 .wiz-modes{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:32px}
 .wiz-mode{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:26px 24px;border-radius:22px;border:none;background:var(--c-surface);text-align:left;box-shadow:inset 0 0 0 2px transparent;transition:box-shadow .2s ease,transform .2s ease}
 .wiz-mode:hover{box-shadow:inset 0 0 0 2px var(--c-text);transform:translateY(-2px)}
-.wiz-mode-ic{width:44px;height:44px;border-radius:50%;background:var(--fill);display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+.wiz-mode-ic{width:44px;height:44px;border-radius:50%;background:var(--fill);box-shadow:inset 0 0 0 1px var(--c-border);display:flex;align-items:center;justify-content:center;margin-bottom:10px}
 .wiz-mode-ic svg{width:21px;height:21px;fill:none;stroke:var(--c-text);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .wiz-mode-name{font-size:18px;font-weight:650;letter-spacing:-.015em;color:var(--c-text)}
 .wiz-mode-desc{font-size:14.5px;color:var(--c-text2);line-height:1.5;flex:1}
 .wiz-mode-tag{font-size:13px;font-weight:500;color:var(--c-text3);margin-top:8px}
-.wiz-offer{margin:22px auto 0;max-width:560px;text-align:left;display:flex;align-items:center;gap:12px;padding:14px 18px;border-radius:16px;background:var(--fill);font-size:14px;line-height:1.45;color:var(--c-text2)}
+.wiz-offer{margin:22px auto 0;max-width:560px;text-align:left;display:flex;align-items:center;gap:12px;padding:14px 18px;border-radius:16px;background:var(--fill);box-shadow:inset 0 0 0 1px var(--c-border);font-size:14px;line-height:1.45;color:var(--c-text2)}
 .wiz-offer-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--c-text3)}
 .wiz-offer.on .wiz-offer-dot{background:#16a34a}
 .wiz-offer .link-btn{margin-left:auto;white-space:nowrap;font-weight:600}

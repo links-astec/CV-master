@@ -108,7 +108,7 @@ watch(jobKey, () => { error.value = '' })
 .ak-t{font-size:17px;font-weight:650;letter-spacing:-.015em;color:var(--c-text)}
 .ak-pass{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:99px;background:var(--c-accent);color:#fff;font-size:11.5px;font-weight:700}
 .ak-sub{font-size:13.5px;color:var(--c-text3);margin:4px 0 12px}
-.ak-group{border-radius:16px;background:var(--fill);overflow:hidden}
+.ak-group{border-radius:16px;background:var(--fill);box-shadow:inset 0 0 0 1px var(--c-border);overflow:hidden}
 .ak-row{display:flex;align-items:center;gap:14px;padding:14px 16px;position:relative}
 .ak-row + .ak-row,.ak-out + .ak-row{border-top:1px solid var(--hair)}
 .ak-row-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}

@@ -7,7 +7,7 @@
 
 :root{
   --sb:240px; --topbar:60px;
-  --c-bg:#f5f5fa; --c-surface:#ffffff; --c-surface2:#fafafd;
+  --c-bg:#ffffff; --c-surface:#ffffff; --c-surface2:#ffffff;
   --c-border:#e4e4ee; --c-border2:#d0d0de;
   --c-text:#14142b; --c-text2:#4a4a63; --c-text3:#6b6b84;
   --c-accent:#4338ca; --c-accent-lt:#eef0ff; --c-accent-dk:#3730a3; --c-accent-ring:rgba(67,56,202,.18);
@@ -19,7 +19,7 @@
   --c-canvas:#ececf0;
   --radius:14px; --radius-sm:11px; --radius-lg:20px; --radius-xl:28px;
   --hair:color-mix(in srgb,var(--c-border) 75%,transparent);
-  --fill:color-mix(in srgb,var(--c-text) 4.5%,var(--c-surface)); --fill-hover:color-mix(in srgb,var(--c-text) 7%,var(--c-surface));
+  --fill:#ffffff; --fill-hover:#f7f7f8;   /* white, not grey: fields and rows are drawn with a fine outline */
   --ease:cubic-bezier(.2,.8,.2,1);
   --shadow-xs:0 1px 2px rgba(20,20,43,.04);
   --shadow-sm:0 1px 2px rgba(20,20,43,.04),0 2px 8px rgba(20,20,43,.04);
@@ -32,6 +32,7 @@
   text-rendering:optimizeLegibility;
 }
 [data-theme="dark"]{
+  --fill:color-mix(in srgb,var(--c-text) 4.5%,var(--c-surface)); --fill-hover:color-mix(in srgb,var(--c-text) 7%,var(--c-surface));
   --c-bg:#0c0c10; --c-surface:#15151b; --c-surface2:#1b1b22;
   --c-border:#26262e; --c-border2:#34343e;
   --c-text:#f3f4f6; --c-text2:#a8adb7; --c-text3:#8b909c;
@@ -73,7 +74,7 @@ a{color:var(--c-accent)}
 [data-theme="dark"] .btn-primary.accent{background:#5b54e8}
 [data-theme="dark"] .btn-primary.accent:hover{background:#6a63f0}
 .btn-primary:disabled,.btn-secondary:disabled,.btn-ghost:disabled{opacity:.45;cursor:not-allowed}
-.btn-secondary{background:color-mix(in srgb,var(--c-text) 6%,var(--c-surface));border:1px solid transparent;color:var(--c-text)}
+.btn-secondary{background:var(--c-surface);box-shadow:inset 0 0 0 1px var(--c-border);border:1px solid transparent;color:var(--c-text)}
 .btn-secondary:hover{background:color-mix(in srgb,var(--c-text) 10%,var(--c-surface))}
 .btn-ghost{background:none;border:1px solid transparent;color:var(--c-text2)}
 .btn-ghost:hover{background:color-mix(in srgb,var(--c-text) 6%,transparent);color:var(--c-text)}
@@ -97,7 +98,7 @@ a{color:var(--c-accent)}
 /* ── FORMS ──────────────────────────────────────────────────── */
 .f-grp{margin-bottom:14px}
 .f-lbl{display:block;font-size:13px;font-weight:600;color:var(--c-text2);margin-bottom:7px;letter-spacing:-.005em}
-.f-inp,.f-ta,select.f-inp{width:100%;background:var(--fill);border:1px solid transparent;color:var(--c-text);
+.f-inp,.f-ta,select.f-inp{width:100%;background:var(--fill);border:1px solid var(--c-border);color:var(--c-text);
   padding:10px 14px;border-radius:13px;font-size:14.5px;line-height:1.45;resize:vertical;
   transition:background .2s var(--ease),border-color .2s var(--ease),box-shadow .2s var(--ease)}
 .f-inp{height:46px}
@@ -119,7 +120,7 @@ a{color:var(--c-accent)}
 /* ── SKILL TAGS ─────────────────────────────────────────────── */
 .skill-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .skill-tag{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 6px 0 13px;border-radius:999px;
-  background:var(--fill);border:1px solid transparent;color:var(--c-text);font-size:13px;font-weight:500}
+  background:var(--fill);box-shadow:inset 0 0 0 1px var(--c-border);border:1px solid transparent;color:var(--c-text);font-size:13px;font-weight:500}
 .skill-rm{width:22px;height:22px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;
   color:var(--c-text3);font-size:15px;line-height:1;background:none;border:none;padding:0}
 .skill-rm:hover{background:var(--c-rose-lt);color:var(--c-rose)}
@@ -146,7 +147,7 @@ a{color:var(--c-accent)}
 
 /* ── BADGES / CHIPS ─────────────────────────────────────────── */
 .badge{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 9px;border-radius:999px;font-size:11.5px;font-weight:600;
-  background:color-mix(in srgb,var(--c-text) 6%,var(--c-surface));color:var(--c-text2);border:1px solid transparent}
+  background:var(--c-surface);box-shadow:inset 0 0 0 1px var(--c-border);color:var(--c-text2);border:1px solid transparent}
 .badge.green{background:var(--c-green-lt);color:var(--c-green);border-color:transparent}
 .badge.amber{background:var(--c-amber-lt);color:var(--c-amber);border-color:transparent}
 .badge.accent{background:var(--c-accent-lt);color:var(--c-accent);border-color:transparent}
@@ -164,10 +165,10 @@ a{color:var(--c-accent)}
 .notice.success{background:var(--c-green-lt);color:var(--c-green)}
 
 /* ── TABS ───────────────────────────────────────────────────── */
-.seg{display:inline-flex;background:color-mix(in srgb,var(--c-text) 6%,var(--c-surface));border:none;border-radius:999px;padding:3px;gap:2px}
+.seg{display:inline-flex;background:var(--c-surface);box-shadow:inset 0 0 0 1px var(--c-border);border:none;border-radius:999px;padding:3px;gap:2px}
 .seg button{height:30px;padding:0 14px;border-radius:999px;border:none;background:none;font-size:13px;font-weight:500;color:var(--c-text2);transition:background .2s var(--ease),color .2s var(--ease),box-shadow .2s var(--ease)}
 .seg button:hover{color:var(--c-text)}
-.seg button.active{background:var(--c-surface);color:var(--c-text);box-shadow:var(--shadow-sm)}
+.seg button.active{background:var(--c-accent-lt);color:var(--c-accent);font-weight:600;box-shadow:none}
 
 /* ── TOGGLE ─────────────────────────────────────────────────── */
 .toggle-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid var(--c-border)}
