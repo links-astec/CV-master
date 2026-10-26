@@ -1936,11 +1936,38 @@ function cvFactsText(cv) {
   ].join('\n');
 }
 // A cover letter for this CV and job, from the CV's facts only. Throws { status, message } for bad input.
-async function writeCoverLetter(cv, jobOffer, req, { tone, length, to } = {}) {
+// mode 'write' (default): a letter for the job, or, with openApplication and no job offer, an open application
+// from the CV (aimed at role / company when given). mode 'refine': the person's own letter (draft), polished.
+async function writeCoverLetter(cv, jobOffer, req, { tone, length, to, mode = 'write', draft = '', role = '', company = '', openApplication = false } = {}) {
+  const clip = (v, n) => String(v || '').replace(/[\r\n"]/g, ' ').trim().slice(0, n);
+  const lang = UI_LANG_NAME[cv.lang] || 'English';
+  const toneText = tone === 'warm' ? 'warm and personal, still professional' : tone === 'confident' ? 'confident and direct, short sentences' : 'professional, confident and warm';
+  const words = length === 'short' ? '150 to 210 words' : '220 to 320 words';
+  const brief = jobOffer && String(jobOffer).trim().length >= 80 ? await jobBrief(jobOffer, req) : null;
+  const jobText = brief ? `\n\nJOB:\n${briefForPrompt(brief)}` : (role || company) ? `\n\nWHAT THEY ARE APPLYING FOR:\n${[clip(role, 80) && 'Role: ' + clip(role, 80), clip(company, 80) && 'Company: ' + clip(company, 80)].filter(Boolean).join('\n')}` : '';
+  if (mode === 'refine') {
+    const own = String(draft || '').trim().slice(0, 6000);
+    if (own.length < 40) throw Object.assign(new Error('Write a few sentences of your letter first.'), { status: 400 });
+    const system = `You edit a cover letter the person wrote themselves, in ${lang}. Keep their voice, their ideas and every fact they wrote; do not add any experience, number, employer, skill or qualification that is not in their letter or their CV. Fix spelling and grammar, make sentences clearer and more confident, cut repetition and clichés, and give it a proper shape: a greeting, an opening, one or two paragraphs, a short close asking for an interview, and a sign-off with their name. Tone: ${toneText}. About ${words}, unless their letter is much shorter: then keep it short.${to ? ` Address it to ${clip(to, 80)}.` : ''}${jobText ? ' Where it fits, use the wording of the job they are applying for.' : ''}
+Reply with ONLY the letter text, no title and no notes.`;
+    const out = await callAi(`THEIR LETTER:\n${own}\n\nCV:\n${cvFactsText(cv)}${jobText}`, AI_MODEL, system, 1100, 'medium');
+    const letter = noEmDash(String(out || '')).replace(/^\s*```[a-z]*\s*|```\s*$/g, '').trim().slice(0, 6000);
+    if (letter.length < 80) throw Object.assign(new Error('AI is unavailable right now. Please try again in a moment.'), { status: 500 });
+    return { letter, job: brief ? { title: brief.title, company: brief.company } : (role || company) ? { title: clip(role, 80), company: clip(company, 80) } : null };
+  }
+  if (!brief && openApplication) {
+    const system = `You write cover letters. There is no job advert: write an open application (a speculative letter) for the person on this CV, in ${lang}, ${role || company ? 'for what they are applying for (below)' : 'for the kind of role their CV points to (their headline and latest experience)'}.
+Use ONLY facts from the CV: never invent experience, numbers, employers, skills or qualifications. Pick the 2-3 experiences or skills that best show what they bring, concretely.
+Shape: a greeting ("Dear Hiring Manager," or the local equivalent), an opening that says what kind of role they are looking for${company ? ' and why this company' : ''}, one or two paragraphs on what they bring, a short confident close asking for a conversation, then a sign-off with their name. Never name a company that is not given.
+Tone: ${toneText}, specific; no clichés ("I am writing to express my interest", "team player", "fast-paced environment"), no flattery. ${words}.${to ? ` Address it to ${clip(to, 80)}.` : ''}
+Reply with ONLY the letter text, no title and no notes.`;
+    const out = await callAi(`CV:\n${cvFactsText(cv)}${jobText}`, AI_MODEL, system, 1100, 'medium');
+    const letter = noEmDash(String(out || '')).replace(/^\s*```[a-z]*\s*|```\s*$/g, '').trim().slice(0, 6000);
+    if (letter.length < 200) throw Object.assign(new Error('AI is unavailable right now. Please try again in a moment.'), { status: 500 });
+    return { letter, job: (role || company) ? { title: clip(role, 80), company: clip(company, 80) } : null };
+  }
   {
-    const brief = await jobBrief(jobOffer, req);
     if (!brief) throw Object.assign(new Error('Please paste the full job description (at least a few sentences).'), { status: 400 });
-    const lang = UI_LANG_NAME[cv.lang] || 'English';
     const system = `You write cover letters for job applications. Write one for the person on this CV, for this job, in ${lang}.
 Use ONLY facts from the CV: never invent experience, numbers, employers, skills or qualifications. Pick the 2-3 experiences or skills that best match the job's main requirements and show how they fit, concretely.
 Shape: a greeting ("Dear Hiring Manager," or the local equivalent, unless the advert names a person), an opening that names the role and the company and why this person is interested, one or two paragraphs that connect their experience to the job, and a short confident close asking for an interview, then a sign-off with their name.
@@ -1957,7 +1984,9 @@ app.post('/api/ai/cover-letter', needsCvContent, aiAccess, async (req, res) => {
     const cv = cvFromBody(req.body);
     if (!cv) return res.status(413).json({ error: 'This CV is too long to use in one go.' });
     const b = req.body || {};
-    const out = await writeCoverLetter(cv, b.jobOffer, req, { tone: ['professional', 'warm', 'confident'].includes(b.tone) ? b.tone : 'professional', length: b.length === 'short' ? 'short' : 'standard', to: typeof b.to === 'string' ? b.to.trim() : '' });
+    const str = (v) => (typeof v === 'string' ? v.trim() : '');
+    const out = await writeCoverLetter(cv, b.jobOffer, req, { tone: ['professional', 'warm', 'confident'].includes(b.tone) ? b.tone : 'professional', length: b.length === 'short' ? 'short' : 'standard', to: str(b.to),
+      mode: b.mode === 'refine' ? 'refine' : 'write', draft: str(b.draft), role: str(b.role), company: str(b.company), openApplication: true });
     track(req, 'cover_letter');
     res.json(out);
   } catch (e) {

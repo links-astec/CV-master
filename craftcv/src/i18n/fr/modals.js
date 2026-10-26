@@ -287,4 +287,14 @@ export default {
   'Fill in 1 number': 'Compléter 1 chiffre',
   'Fill in {n} numbers': 'Compléter {n} chiffres',
   'Project rewritten as bullet points.': 'Projet réécrit en puces.',
+  // JUNIA student access and the 3 free CVs
+  'Role': 'Poste',
+  'Optional, e.g. {role}': 'Facultatif, ex. {role}',
+  'Write it from my CV': 'L’écrire à partir de mon CV',
+  'Or write it yourself, and let the AI polish it': 'Ou écrivez-la vous-même, et laissez l’IA la peaufiner',
+  'No job offer? The letter is written from your CV. Add the offer for a letter aimed at one job.': 'Pas d’offre ? La lettre est écrite à partir de votre CV. Ajoutez l’offre pour une lettre ciblée sur un poste.',
+  'Refining…': 'Amélioration…',
+  'Refine with AI': 'Améliorer avec l’IA',
+  'Write a few sentences first': 'Écrivez d’abord quelques phrases',
+  "Dear Hiring Manager,\n\nWrite your letter here, in your own words. When you’re done, “Refine with AI” fixes the language and the shape, and keeps your voice.": "Madame, Monsieur,\n\nÉcrivez votre lettre ici, avec vos propres mots. Ensuite, « Améliorer avec l’IA » corrige la langue et la forme, et garde votre voix.",
 }
