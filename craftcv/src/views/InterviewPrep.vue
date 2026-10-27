@@ -1,149 +1,125 @@
 <template>
-  <!-- CVM AI Interviewer: a mock interview for the job on this CV. The intro with an embedded card to choose
-       how to talk (text, audio or video), the difficulty and the language; then the interview, one question at
-       a time; then a report. Speech uses the browser's own recognition and voice; the camera is only shown
-       to the person (nothing is recorded or sent). -->
+  <!-- CVM AI Interviewer. The intro (a glass card on a soft glow), then the interview full screen (an orb that
+       moves with CVM's voice, captions, a floating dock), then the report. Voice: natural speech from the server
+       for English, the browser's voice otherwise; listening: the browser's speech recognition. Video: the camera
+       stays on the device; a face check (MediaPipe, in the browser) keeps the person in the frame. -->
   <div class="view-page iv-page">
-    <div class="iv">
+    <div class="iv-aura" aria-hidden="true"><i class="a1"></i><i class="a2"></i><i class="a3"></i><span class="iv-lines"></span></div>
 
-      <!-- ── Intro ─────────────────────────────────────────────── -->
-      <section v-if="stage === 'intro'" class="iv-intro">
-        <div class="iv-hero">
-          <span class="iv-kicker"><span class="iv-live"></span>{{ $t('CVM AI Interviewer') }}</span>
-          <h1>{{ $t('Practise the interview before the real one.') }}</h1>
-          <p class="iv-lead">{{ $t('CVM asks the questions this employer is likely to ask, from your CV and the job, listens to your answers and follows up like a real interviewer. At the end you get a score for every answer and a stronger way to say it.') }}</p>
-          <ul class="iv-points">
-            <li><b>{{ $t('Questions about you') }}</b><span>{{ $t('From your CV and the job, never generic.') }}</span></li>
-            <li><b>{{ $t('A real conversation') }}</b><span>{{ $t('Type, talk, or go face to face.') }}</span></li>
-            <li><b>{{ $t('An honest report') }}</b><span>{{ $t('What worked, what to change, and a better answer.') }}</span></li>
-          </ul>
+    <!-- ── Intro ───────────────────────────────────────────────── -->
+    <section v-if="stage === 'intro'" class="iv-intro">
+      <span class="iv-tag"><span class="iv-live"></span>CVM · {{ $t('AI Interviewer') }}</span>
+      <h1 class="iv-h1">{{ $t('Ready when you are.') }}</h1>
+      <p class="iv-sub">{{ $t('Rehearse your interview with CVM.') }}</p>
+
+      <div class="iv-glass">
+        <div class="iv-dock" role="radiogroup" :aria-label="$t('How to talk')">
+          <button v-for="m in MODES" :key="m.id" type="button" role="radio" class="iv-dock-btn" :class="{ on: mode === m.id }" :aria-checked="mode === m.id" @click="mode = m.id">
+            <svg viewBox="0 0 24 24" aria-hidden="true" v-html="m.icon"></svg><span>{{ $t(m.name) }}</span>
+          </button>
         </div>
 
-        <!-- The card: the interviewer, already in the page -->
-        <div class="iv-card">
-          <header class="iv-card-hd">
-            <span class="iv-ava"><BrandLogo mark-only /></span>
-            <span class="iv-who"><b>CVM</b><small><span class="iv-dot"></span>{{ $t('AI Interviewer · ready') }}</small></span>
-          </header>
-          <div class="iv-card-body">
-            <p class="iv-say">{{ firstName ? $t('Hi {name}, I’m CVM. How would you like to do this interview?', { name: firstName }) : $t('Hi, I’m CVM. How would you like to do this interview?') }}</p>
-            <div class="iv-modes" role="radiogroup" :aria-label="$t('How to talk')">
-              <button v-for="m in MODES" :key="m.id" type="button" role="radio" class="iv-mode" :class="{ on: mode === m.id }" :aria-checked="mode === m.id" @click="mode = m.id">
-                <span class="iv-mode-ic"><svg viewBox="0 0 24 24" aria-hidden="true" v-html="m.icon"></svg></span>
-                <b>{{ $t(m.name) }}</b><small>{{ $t(m.sub) }}</small>
-              </button>
-            </div>
-            <p v-if="mode !== 'text' && !canListen" class="iv-warn">{{ $t('This browser can’t listen to speech, so you’ll type your answers. CVM still speaks. Chrome, Edge or Safari can listen.') }}</p>
+        <div class="iv-chips">
+          <label class="iv-chip iv-chip-job"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+            <input v-model="role" maxlength="100" :placeholder="offerTitle ? $t('From your job offer') : (store.data.title || $t('The job'))" :aria-label="$t('The job')" /></label>
+          <div class="iv-chip iv-levels" role="radiogroup" :aria-label="$t('Difficulty')">
+            <button v-for="d in LEVELS" :key="d.id" type="button" role="radio" :class="{ on: level === d.id }" :aria-checked="level === d.id" @click="level = d.id">{{ $t(d.name) }}</button>
+          </div>
+          <label class="iv-chip"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/></svg>
+            <select v-model="ivLang" :aria-label="$t('Language')"><option v-for="l in LANGS" :key="l.code" :value="l.code">{{ l.label }}</option></select></label>
+        </div>
 
-            <div class="iv-opts">
-              <label class="iv-opt"><span>{{ $t('The job') }}</span>
-                <input v-model="role" class="iv-in" maxlength="100" :placeholder="$t('e.g. {role}', { role: store.data.title || $t('Data analyst') })" /></label>
-              <p v-if="offerTitle" class="iv-opt-note">{{ $t('Questions follow the job offer on this CV.') }}</p>
-              <div class="iv-opt"><span>{{ $t('Difficulty') }}</span>
-                <div class="seg iv-seg"><button v-for="d in LEVELS" :key="d.id" type="button" :class="{ active: level === d.id }" @click="level = d.id">{{ $t(d.name) }}</button></div></div>
-              <label class="iv-opt"><span>{{ $t('Language') }}</span>
-                <select v-model="ivLang" class="iv-in iv-select"><option v-for="l in LANGS" :key="l.code" :value="l.code">{{ l.label }}</option></select></label>
-            </div>
+        <div v-if="gate" class="iv-gate">
+          <b>{{ $t(gate === 'confirm' ? 'Confirm your student email first' : 'Included with the Job Hunt Pass') }}</b>
+          <button v-if="gate === 'confirm'" type="button" class="iv-go sm" @click="resendVerification?.()">{{ $t('Resend the link') }}</button>
+          <button v-else type="button" class="iv-go sm" @click="$router.push({ path: '/settings', hash: '#pass' })">{{ $t('See the pass') }}</button>
+        </div>
+        <button v-else type="button" class="iv-go" :disabled="busy" @click="start">
+          <span v-if="busy" class="iv-spin"></span>{{ $t(busy ? 'Getting ready…' : 'Start') }}
+          <svg v-if="!busy" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+        <p class="iv-fine">{{ $t('6 questions · about 10 minutes') }}<template v-if="mode === 'video'"> · {{ $t('Camera stays on your device') }}</template></p>
+        <p v-if="error" class="iv-err">{{ $t(error) }}</p>
+      </div>
+    </section>
 
-            <div v-if="gate" class="iv-gate">
-              <b>{{ $t(gate === 'confirm' ? 'Confirm your student email first' : 'Interview practice comes with the Job Hunt Pass') }}</b>
-              <span>{{ $t(gate === 'confirm' ? 'We sent you a link. Once it’s confirmed, CVM is ready for you.' : 'Unlimited mock interviews with a report after each one, plus every CV unlocked.') }}</span>
-              <button v-if="gate === 'confirm'" type="button" class="iv-btn" @click="resendVerification?.()">{{ $t('Resend the link') }}</button>
-              <button v-else type="button" class="iv-btn" @click="$router.push({ path: '/settings', hash: '#pass' })">{{ $t('See the pass') }}</button>
-            </div>
-            <button v-else type="button" class="iv-start" :disabled="busy" @click="start">
-              <span v-if="busy" class="iv-spin"></span>{{ $t(busy ? 'Getting ready…' : 'Start the interview') }}
-            </button>
-            <p class="iv-fine">{{ $t('About 10 minutes · 6 questions') }}<template v-if="mode === 'video'"> · {{ $t('Your camera stays on your device. Nothing is recorded.') }}</template></p>
-            <p v-if="error" class="iv-err">{{ $t(error) }}</p>
+    <!-- ── The report ──────────────────────────────────────────── -->
+    <section v-else-if="stage === 'report'" class="iv-report">
+      <div v-if="!report" class="iv-loading">
+        <span class="iv-orb sm thinking"><i></i></span>
+        <b>{{ $t('Scoring your answers…') }}</b>
+        <p v-if="error" class="iv-err">{{ $t(error) }} <button type="button" class="iv-link" @click="makeReport">{{ $t('Try again') }}</button></p>
+      </div>
+      <template v-else>
+        <div class="iv-rep-top">
+          <div class="iv-ring" :style="{ '--p': report.overall }"><b>{{ report.overall }}</b></div>
+          <div>
+            <span class="iv-tag">{{ shownRole || $t('Mock interview') }}</span>
+            <p class="iv-rep-sum">{{ report.summary }}</p>
           </div>
         </div>
-      </section>
+        <div class="iv-pills">
+          <span v-for="x in report.strengths" :key="'s' + x" class="iv-pill good">{{ x }}</span>
+          <span v-for="x in report.improve" :key="'i' + x" class="iv-pill work">{{ x }}</span>
+        </div>
+        <details v-for="(q, i) in report.questions" :key="i" class="iv-q" :open="i === 0">
+          <summary><span class="iv-q-t">{{ q.q }}</span><span class="iv-bars" :aria-label="$t('{n} out of 5', { n: q.score })"><i v-for="n in 5" :key="n" :class="{ on: n <= q.score }"></i></span></summary>
+          <div class="iv-q-body">
+            <p class="iv-q-you">“{{ q.a || $t('(no answer)') }}”</p>
+            <p>{{ q.feedback }}</p>
+            <p class="iv-better"><b>{{ $t('Try') }}</b> {{ q.better }}</p>
+          </div>
+        </details>
+        <div class="iv-acts">
+          <button type="button" class="iv-go" @click="reset">{{ $t('Again') }}</button>
+          <button type="button" class="iv-link" @click="$router.push('/editor')">{{ $t('Back to my CV') }}</button>
+        </div>
+      </template>
+    </section>
 
-      <!-- ── The interview ─────────────────────────────────────── -->
-      <section v-else-if="stage === 'session'" class="iv-session" :class="'is-' + mode">
-        <header class="iv-top">
-          <span class="iv-ava sm"><BrandLogo mark-only /></span>
-          <span class="iv-who"><b>CVM</b><small>{{ shownRole || $t('Mock interview') }} · {{ $t(levelName) }}</small></span>
-          <span class="iv-prog"><span>{{ $t('Question {n} of {total}', { n: Math.max(1, qn), total }) }}</span><i><b :style="{ width: (Math.min(qn, total) / total * 100) + '%' }"></b></i></span>
-          <button type="button" class="iv-end" @click="endEarly">{{ $t('End') }}</button>
+    <!-- ── The interview: full screen ──────────────────────────── -->
+    <Teleport to="body">
+      <div v-if="stage === 'session'" class="iv-full" :class="'is-' + mode" role="dialog" aria-modal="true" :aria-label="$t('Interview with CVM')">
+        <div class="iv-aura" aria-hidden="true"><i class="a1"></i><i class="a2"></i><i class="a3"></i><span class="iv-lines"></span></div>
+        <header class="iv-bar">
+          <span class="iv-tag"><span class="iv-live"></span>CVM</span>
+          <span class="iv-steps" :aria-label="$t('Question {n} of {total}', { n: Math.max(1, qn), total })"><i v-for="n in total" :key="n" :class="{ on: n <= qn, now: n === qn }"></i></span>
+          <button type="button" class="iv-x" :aria-label="$t('End the interview')" @click="askEnd"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
         </header>
 
-        <!-- Text: a conversation -->
-        <div v-if="mode === 'text'" class="iv-chat" ref="chatEl">
-          <div v-for="(m, i) in messages" :key="i" class="iv-msg" :class="m.from">
-            <span v-if="m.from === 'cvm'" class="iv-ava xs"><BrandLogo mark-only /></span>
-            <p>{{ m.text }}</p>
-          </div>
-          <div v-if="thinking" class="iv-msg cvm"><span class="iv-ava xs"><BrandLogo mark-only /></span><p class="iv-typing"><i></i><i></i><i></i></p></div>
+        <main class="iv-center">
+          <span class="iv-orb" :class="{ speaking, listening, thinking }" :style="{ '--lv': vol.toFixed(3) }"><i></i></span>
+          <Transition name="iv-cap" mode="out-in"><p :key="lastSay" class="iv-cap">{{ lastSay }}</p></Transition>
+          <p v-if="mode !== 'text'" class="iv-heard" :class="{ dim: !draft }">{{ draft || $t(!canListen ? 'Type below' : listening ? 'Listening…' : thinking ? '' : 'Tap the mic') }}</p>
+        </main>
+
+        <!-- The person, in a circle: red when they're out of the frame -->
+        <div v-if="mode === 'video'" class="iv-me" :class="face">
+          <video ref="camEl" autoplay playsinline muted></video>
+          <span v-if="!camOn" class="iv-me-off">{{ $t(camError ? 'No camera' : '…') }}</span>
+          <span v-if="face === 'out'" class="iv-me-tip">{{ $t('Step into the frame') }}</span>
         </div>
 
-        <!-- Audio and video: the interviewer speaks, listens, and shows captions -->
-        <div v-else class="iv-stage">
-          <div class="iv-tiles" :class="{ two: mode === 'video' }">
-            <div class="iv-tile cvm" :class="{ speaking, listening }">
-              <span class="iv-orb"><span class="iv-ring"></span><span class="iv-ring r2"></span><BrandLogo mark-only /></span>
-              <span class="iv-tile-name">CVM</span>
-              <span class="iv-state">{{ $t(thinking ? 'Thinking…' : speaking ? 'Speaking' : listening ? 'Listening' : 'Your turn') }}</span>
+        <footer class="iv-float">
+          <template v-if="mode === 'text' || !canListen">
+            <div class="iv-type">
+              <textarea ref="taEl" v-model="draft" rows="1" :placeholder="$t('Your answer…')" :disabled="thinking || done" @keydown.enter.exact.prevent="send" @input="grow"></textarea>
+              <button type="button" class="iv-send" :disabled="thinking || done || !draft.trim()" :aria-label="$t('Send')" @click="send"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
             </div>
-            <div v-if="mode === 'video'" class="iv-tile me">
-              <video ref="camEl" autoplay playsinline muted></video>
-              <span v-if="!camOn" class="iv-cam-off">{{ $t(camError ? 'Camera not available' : 'Camera off') }}</span>
-              <span class="iv-tile-name">{{ firstName || $t('You') }}</span>
-            </div>
-          </div>
-          <p class="iv-caption">{{ lastSay }}</p>
-          <p class="iv-heard" :class="{ empty: !draft }">{{ draft || $t(!canListen ? 'Type your answer below' : listening ? 'Listening… answer out loud' : 'Press the microphone to answer') }}</p>
-        </div>
-
-        <!-- Answering -->
-        <footer class="iv-compose">
-          <template v-if="mode === 'text' || !voice">
-            <textarea v-model="draft" class="iv-ta" rows="2" :placeholder="$t('Type your answer…')" :disabled="thinking || done" @keydown.enter.exact.prevent="send"></textarea>
-            <button type="button" class="iv-send" :disabled="thinking || done || !draft.trim()" :aria-label="$t('Send')" @click="send"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
           </template>
-          <template v-else>
-            <button type="button" class="iv-ctl" :class="{ on: listening }" :disabled="thinking || speaking || done" :aria-label="$t(listening ? 'Stop listening' : 'Answer out loud')" @click="listening ? stopListening() : listen()">
+          <div v-else class="iv-dock iv-dock-live">
+            <button type="button" class="iv-dock-btn round" :class="{ on: listening }" :disabled="thinking || speaking || done" :aria-label="$t(listening ? 'Stop listening' : 'Answer out loud')" @click="listening ? stopListening() : listen()">
               <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg></button>
-            <button v-if="mode === 'video'" type="button" class="iv-ctl" :class="{ off: !camOn }" :aria-label="$t(camOn ? 'Turn camera off' : 'Turn camera on')" @click="toggleCam">
+            <button v-if="mode === 'video'" type="button" class="iv-dock-btn round" :class="{ off: !camOn }" :aria-label="$t(camOn ? 'Camera off' : 'Camera on')" @click="toggleCam">
               <svg viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/></svg></button>
-            <button type="button" class="iv-ctl" :disabled="thinking || speaking" :aria-label="$t('Repeat the question')" @click="speak(lastSay)">
+            <button type="button" class="iv-dock-btn round" :disabled="thinking || speaking" :aria-label="$t('Repeat')" @click="speak(lastSay)">
               <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
-            <button type="button" class="iv-answer" :disabled="thinking || done || !draft.trim()" @click="send">{{ $t('Send my answer') }}</button>
-          </template>
+            <button type="button" class="iv-done" :disabled="thinking || done || !draft.trim()" @click="send">{{ $t('Done') }}</button>
+          </div>
         </footer>
-        <p v-if="error" class="iv-err">{{ $t(error) }}</p>
-      </section>
-
-      <!-- ── The report ────────────────────────────────────────── -->
-      <section v-else class="iv-report">
-        <div v-if="!report" class="iv-loading"><span class="iv-ava lg"><BrandLogo mark-only animate /></span><b>{{ $t('CVM is writing your report…') }}</b><span>{{ $t('Every answer, scored and explained.') }}</span>
-          <p v-if="error" class="iv-err">{{ $t(error) }} <button type="button" class="iv-link" @click="makeReport">{{ $t('Try again') }}</button></p></div>
-        <template v-else>
-          <header class="iv-rep-hd">
-            <div class="iv-score" :style="{ '--p': report.overall }"><b>{{ report.overall }}</b><small>/100</small></div>
-            <div><span class="iv-kicker">{{ $t('Your interview report') }}</span><h1>{{ shownRole || $t('Mock interview') }}</h1><p>{{ report.summary }}</p></div>
-          </header>
-          <div class="iv-two">
-            <div class="iv-box"><h3>{{ $t('What worked') }}</h3><ul><li v-for="x in report.strengths" :key="x">{{ x }}</li></ul></div>
-            <div class="iv-box"><h3>{{ $t('What to work on') }}</h3><ul><li v-for="x in report.improve" :key="x">{{ x }}</li></ul></div>
-          </div>
-          <h2 class="iv-h2">{{ $t('Answer by answer') }}</h2>
-          <details v-for="(q, i) in report.questions" :key="i" class="iv-q" :open="i === 0">
-            <summary><span class="iv-q-n">{{ i + 1 }}</span><span class="iv-q-t">{{ q.q }}</span><span class="iv-dots" :aria-label="$t('{n} out of 5', { n: q.score })"><i v-for="n in 5" :key="n" :class="{ on: n <= q.score }"></i></span></summary>
-            <div class="iv-q-body">
-              <p class="iv-q-lbl">{{ $t('You said') }}</p><p class="iv-q-a">{{ q.a || $t('(no answer)') }}</p>
-              <p class="iv-q-lbl">{{ $t('Feedback') }}</p><p>{{ q.feedback }}</p>
-              <p class="iv-q-lbl">{{ $t('A stronger answer') }}</p><p class="iv-better">{{ q.better }}</p>
-            </div>
-          </details>
-          <div class="iv-acts">
-            <button type="button" class="iv-start" @click="reset">{{ $t('Practise again') }}</button>
-            <button type="button" class="iv-link" @click="$router.push('/editor')">{{ $t('Back to my CV') }}</button>
-          </div>
-        </template>
-      </section>
-    </div>
+        <p v-if="error" class="iv-err iv-err-float">{{ $t(error) }}</p>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -151,59 +127,100 @@
 import { ref, computed, nextTick, onBeforeUnmount, inject } from 'vue'
 import { useCvStore } from '../stores/cv.js'
 import { useAuthStore } from '../stores/auth.js'
-import { lang as uiLang, LANGS } from '../i18n/index.js'
-import BrandLogo from '../components/BrandLogo.vue'
+import { lang as uiLang, LANGS, t } from '../i18n/index.js'
 
 const store = useCvStore()
 const auth = useAuthStore()
 const requireAccount = inject('requireAccount', null)
 const resendVerification = inject('resendVerification', null)
+const confirmBox = inject('confirm', null)
 const apiUrl = (p) => (import.meta.env.VITE_API_URL || '') + p
 
 const MODES = [
-  { id: 'text', name: 'Text', sub: 'Type your answers', icon: '<path d="M4 5h16v11H8l-4 4z"/><line x1="8" y1="9.5" x2="16" y2="9.5"/><line x1="8" y1="12.5" x2="13" y2="12.5"/>' },
-  { id: 'audio', name: 'Audio', sub: 'Talk, CVM listens and speaks', icon: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/>' },
-  { id: 'video', name: 'Video', sub: 'Face to face, with your camera', icon: '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/>' },
+  { id: 'text', name: 'Text', icon: '<path d="M4 5h16v11H8l-4 4z"/><line x1="8" y1="9.5" x2="16" y2="9.5"/><line x1="8" y1="12.5" x2="13" y2="12.5"/>' },
+  { id: 'audio', name: 'Voice', icon: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/>' },
+  { id: 'video', name: 'Video', icon: '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/>' },
 ]
-const LEVELS = [{ id: 'friendly', name: 'Friendly' }, { id: 'standard', name: 'Realistic' }, { id: 'tough', name: 'Tough' }]
+const LEVELS = [{ id: 'friendly', name: 'Easy' }, { id: 'standard', name: 'Real' }, { id: 'tough', name: 'Tough' }]
 const SPEECH = { en: 'en-GB', fr: 'fr-FR', es: 'es-ES', de: 'de-DE', it: 'it-IT', pt: 'pt-PT', zh: 'zh-CN' }
 
-const stage = ref('intro'), mode = ref('text'), level = ref('standard')
+const stage = ref('intro'), mode = ref('audio'), level = ref('standard')
 const ivLang = ref(LANGS.some(l => l.code === store.data.lang) ? store.data.lang : uiLang.value)
 const role = ref('')
 const offerTitle = computed(() => (store.data.jobOffer || '').trim().length >= 80)
-const firstName = computed(() => (store.data.fn || auth.user?.name || '').trim().split(/\s+/)[0] || '')
-const levelName = computed(() => LEVELS.find(l => l.id === level.value)?.name || '')
 const busy = ref(false), thinking = ref(false), error = ref(''), gate = ref('')
-const messages = ref([]), turns = ref([]), current = ref(''), lastSay = ref(''), draft = ref('')
+const turns = ref([]), current = ref(''), lastSay = ref(''), draft = ref('')
 const qn = ref(0), total = ref(6), done = ref(false), shownRole = ref(''), report = ref(null)
-const chatEl = ref(null)
+const taEl = ref(null)
+function grow() { const el = taEl.value; if (el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 160) + 'px' } }
 
-// The browser's speech: recognition (to listen) and synthesis (to speak)
-const SR = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null
-const canListen = !!SR
-const voice = computed(() => mode.value !== 'text' && canListen)
-const speaking = ref(false), listening = ref(false)
-let rec = null, finalText = '', wantListening = false
-
-function pickVoice(code) {
-  const vs = window.speechSynthesis?.getVoices?.() || []
-  const tag = SPEECH[code] || 'en-GB'
-  return vs.find(v => v.lang === tag) || vs.find(v => v.lang?.toLowerCase().startsWith(code)) || null
+// ── Sound: a level from 0 to 1 that drives the orb (CVM's voice, or the person's while they talk) ──
+const vol = ref(0)
+let actx = null, voiceAnalyser = null, micAnalyser = null, raf = 0
+function audioCtx() { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); return actx }
+function meter() {
+  const read = (an) => { if (!an) return 0; const d = new Uint8Array(an.fftSize); an.getByteTimeDomainData(d); let s = 0; for (const v of d) { const x = (v - 128) / 128; s += x * x } return Math.min(1, Math.sqrt(s / d.length) * 4) }
+  const v = speaking.value ? (voiceAnalyser ? read(voiceAnalyser) : 0.35 + 0.25 * Math.sin(performance.now() / 120)) : listening.value ? read(micAnalyser) : 0
+  vol.value += (v - vol.value) * 0.35
+  raf = requestAnimationFrame(meter)
 }
-function speak(text) {
+
+// ── CVM speaks: natural voice from the server (English), the browser's voice otherwise ──
+const speaking = ref(false)
+let serverVoice = true, player = null
+const sentences = (text) => (String(text).match(/[^.!?]+[.!?]*\s*/g) || [text]).reduce((acc, s) => {
+  const last = acc[acc.length - 1]
+  if (last && (last + s).length < 220) acc[acc.length - 1] = last + s; else acc.push(s)
+  return acc
+}, []).map(s => s.trim()).filter(Boolean)
+async function fetchVoice(text) {
+  const r = await fetch(apiUrl('/api/ai/speak'), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, lang: ivLang.value }) })
+  if (r.status !== 200) return null
+  return URL.createObjectURL(await r.blob())
+}
+function playUrl(url) {
   return new Promise((resolve) => {
-    if (mode.value === 'text' || !text || !window.speechSynthesis) return resolve()
-    window.speechSynthesis.cancel()
+    player = new Audio(url)
+    try { const ctx = audioCtx(); const src = ctx.createMediaElementSource(player); voiceAnalyser = ctx.createAnalyser(); voiceAnalyser.fftSize = 512; src.connect(voiceAnalyser); voiceAnalyser.connect(ctx.destination) } catch { voiceAnalyser = null }
+    player.onended = player.onerror = () => { URL.revokeObjectURL(url); resolve() }
+    player.play().catch(() => resolve())
+  })
+}
+function browserSay(text) {
+  return new Promise((resolve) => {
+    if (!window.speechSynthesis) return resolve()
     const u = new SpeechSynthesisUtterance(text)
     u.lang = SPEECH[ivLang.value] || 'en-GB'
-    const v = pickVoice(ivLang.value); if (v) u.voice = v
-    u.rate = 1; u.pitch = 1
-    speaking.value = true
-    u.onend = u.onerror = () => { speaking.value = false; resolve() }
+    const vs = window.speechSynthesis.getVoices()
+    const v = vs.find(x => x.lang === u.lang && /natural|neural|premium|enhanced|google/i.test(x.name)) || vs.find(x => x.lang === u.lang) || vs.find(x => x.lang?.startsWith(ivLang.value))
+    if (v) u.voice = v
+    voiceAnalyser = null
+    u.onend = u.onerror = () => resolve()
     window.speechSynthesis.speak(u)
   })
 }
+let speakToken = 0
+async function speak(text) {
+  if (mode.value === 'text' || !text) return
+  const my = ++speakToken
+  stopVoice(); speaking.value = true
+  const parts = sentences(text)
+  let next = serverVoice ? fetchVoice(parts[0]).catch(() => null) : null
+  for (let i = 0; i < parts.length && my === speakToken; i++) {
+    const url = next ? await next : null
+    next = serverVoice && parts[i + 1] ? fetchVoice(parts[i + 1]).catch(() => null) : null
+    if (url) await playUrl(url)
+    else { if (i === 0) serverVoice = false; await browserSay(parts[i]) }
+  }
+  if (my === speakToken) speaking.value = false
+}
+function stopVoice() { try { player?.pause() } catch {} ; window.speechSynthesis?.cancel(); speaking.value = false }
+
+// ── Listening: the browser's speech recognition ──
+const SR = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null
+const canListen = !!SR
+const listening = ref(false)
+let rec = null, finalText = '', wantListening = false
 function listen() {
   if (!SR || done.value) return
   stopListening(true)
@@ -214,37 +231,72 @@ function listen() {
   rec.onresult = (e) => {
     let interim = ''
     for (let i = e.resultIndex; i < e.results.length; i++) {
-      const t = e.results[i][0].transcript
-      if (e.results[i].isFinal) finalText += t + ' '; else interim += t
+      const tx = e.results[i][0].transcript
+      if (e.results[i].isFinal) finalText += tx + ' '; else interim += tx
     }
     draft.value = (finalText + interim).trim()
   }
-  // browsers stop after a silence: keep listening until they press "Send my answer"
   rec.onend = () => { if (wantListening) { try { rec.start() } catch { listening.value = false } } else listening.value = false }
-  rec.onerror = (e) => { if (e.error === 'not-allowed') { error.value = 'Allow the microphone to answer out loud, or switch to Text.'; wantListening = false; listening.value = false } }
+  rec.onerror = (e) => { if (e.error === 'not-allowed') { error.value = 'Allow the microphone, or switch to Text.'; wantListening = false; listening.value = false } }
   wantListening = true; listening.value = true
   try { rec.start() } catch { listening.value = false }
 }
-function stopListening(silent) {
-  wantListening = false
-  try { rec?.stop() } catch {}
-  rec = null
-  if (!silent) listening.value = false
-}
+function stopListening(silent) { wantListening = false; try { rec?.stop() } catch {} ; rec = null; if (!silent) listening.value = false }
 
-// The camera (video mode): shown to the person only
-const camEl = ref(null), camOn = ref(false), camError = ref(false)
-let stream = null
-async function startCam() {
+// ── Camera and the face check (video) ──
+const camEl = ref(null), camOn = ref(false), camError = ref(false), face = ref('')   // '' unknown · 'in' · 'out'
+let stream = null, detector = null, faceTimer = 0, misses = 0
+async function startMedia() {
+  if (mode.value === 'text') return
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
-    camOn.value = true; camError.value = false
-    await nextTick(); if (camEl.value) camEl.value.srcObject = stream
-  } catch { camOn.value = false; camError.value = true }
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: mode.value === 'video' ? { facingMode: 'user', width: 640, height: 480 } : false })
+    try { const ctx = audioCtx(); micAnalyser = ctx.createAnalyser(); micAnalyser.fftSize = 512; ctx.createMediaStreamSource(new MediaStream(stream.getAudioTracks())).connect(micAnalyser) } catch {}
+    if (mode.value === 'video') {
+      camOn.value = true; camError.value = false
+      await nextTick(); if (camEl.value) camEl.value.srcObject = new MediaStream(stream.getVideoTracks())
+      startFaceCheck()
+    }
+  } catch { camError.value = mode.value === 'video'; camOn.value = false }
 }
-function stopCam() { stream?.getTracks().forEach(t => t.stop()); stream = null; camOn.value = false }
-function toggleCam() { camOn.value ? stopCam() : startCam() }
+async function startFaceCheck() {
+  try {
+    const { FilesetResolver, FaceDetector } = await import('@mediapipe/tasks-vision')
+    const files = await FilesetResolver.forVisionTasks('/mediapipe/wasm')
+    detector = await FaceDetector.createFromOptions(files, { baseOptions: { modelAssetPath: '/mediapipe/blaze_face_short_range.tflite' }, runningMode: 'VIDEO', minDetectionConfidence: 0.5 })
+  } catch (e) { console.warn('[interview] face check unavailable:', e?.message); return }
+  const tick = () => {
+    const v = camEl.value
+    if (!detector || !v || !camOn.value || v.readyState < 2) { faceTimer = setTimeout(tick, 400); return }
+    let ok = false
+    try {
+      const r = detector.detectForVideo(v, performance.now())
+      const b = r.detections?.[0]?.boundingBox
+      if (b) {
+        const W = v.videoWidth || 640, H = v.videoHeight || 480
+        const cx = (b.originX + b.width / 2) / W, cy = (b.originY + b.height / 2) / H
+        ok = r.detections.length >= 1 && cx > 0.18 && cx < 0.82 && cy > 0.15 && cy < 0.85 && b.width / W > 0.12
+      }
+    } catch {}
+    misses = ok ? 0 : misses + 1
+    face.value = ok ? 'in' : misses >= 3 ? 'out' : face.value
+    faceTimer = setTimeout(tick, 250)
+  }
+  tick()
+}
+function stopMedia() {
+  clearTimeout(faceTimer); try { detector?.close() } catch {} ; detector = null; face.value = ''
+  stream?.getTracks().forEach(tr => tr.stop()); stream = null; camOn.value = false; micAnalyser = null
+}
+function toggleCam() {
+  const tr = stream?.getVideoTracks()[0]
+  if (tr) { tr.enabled = !tr.enabled; camOn.value = tr.enabled; if (!tr.enabled) face.value = '' }
+}
 
+// ── Full screen ──
+function enterFull() { try { document.documentElement.requestFullscreen?.() } catch {} }
+function leaveFull() { try { if (document.fullscreenElement) document.exitFullscreen?.() } catch {} }
+
+// ── The interview ──
 function body() {
   const { photo, coverLetter, interviewPrep, ...cv } = JSON.parse(JSON.stringify(store.data))
   return { cv, jobOffer: store.data.jobOffer || '', role: role.value.trim(), difficulty: level.value, lang: ivLang.value, uiLang: uiLang.value, turns: turns.value }
@@ -252,12 +304,10 @@ function body() {
 async function post(path) {
   const r = await fetch(apiUrl(path), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body()) })
   const j = await r.json().catch(() => ({}))
-  if (r.status === 402) { gate.value = 'pass'; stage.value = 'intro'; throw Object.assign(new Error(''), { quiet: true }) }
+  if (r.status === 402) { close(); gate.value = 'pass'; throw Object.assign(new Error(''), { quiet: true }) }
   if (!r.ok) throw Object.assign(new Error(j.error || 'AI is unavailable right now. Please try again in a moment.'), { quiet: r.status === 429 })
   return j
 }
-const scrollChat = () => nextTick(() => { if (chatEl.value) chatEl.value.scrollTop = chatEl.value.scrollHeight })
-
 async function ask() {
   thinking.value = true; error.value = ''
   try {
@@ -265,11 +315,11 @@ async function ask() {
     shownRole.value = j.role || shownRole.value
     qn.value = j.n; total.value = j.total; done.value = !!j.done
     current.value = j.question; lastSay.value = j.say
-    messages.value.push({ from: 'cvm', text: j.say }); scrollChat()
     thinking.value = false
     await speak(j.say)
-    if (done.value) { await new Promise(r => setTimeout(r, 600)); return makeReport() }
-    if (voice.value) listen()
+    if (done.value) { await new Promise(r => setTimeout(r, 500)); return makeReport() }
+    if (mode.value !== 'text' && canListen && stage.value === 'session') listen()
+    else nextTick(() => taEl.value?.focus())
   } catch (e) { thinking.value = false; if (!e.quiet) error.value = e.message }
 }
 async function start() {
@@ -277,202 +327,181 @@ async function start() {
   if (!auth.isLoggedIn && !(await requireAccount?.('interview'))) return
   if (auth.user?.campus && !auth.user?.campusActive && !auth.user?.pass) { gate.value = 'confirm'; return }
   if (!auth.user?.pass && !auth.user?.campusActive) { gate.value = 'pass'; return }
-  busy.value = true
-  messages.value = []; turns.value = []; draft.value = ''; done.value = false; report.value = null; qn.value = 0
-  shownRole.value = role.value.trim()
-  window.speechSynthesis?.getVoices?.()   // starts loading the voices
-  stage.value = 'session'; busy.value = false
-  // the camera joins when it's allowed; the interview doesn't wait for the permission prompt
-  if (mode.value === 'video') startCam()
+  enterFull()
+  turns.value = []; draft.value = ''; done.value = false; report.value = null; qn.value = 0; lastSay.value = ''
+  shownRole.value = role.value.trim(); serverVoice = ivLang.value === 'en'
+  window.speechSynthesis?.getVoices?.()
+  try { audioCtx().resume() } catch {}
+  stage.value = 'session'
+  cancelAnimationFrame(raf); meter()
+  startMedia()          // the camera and mic join when allowed; the interview doesn't wait
   await ask()
 }
 async function send() {
   const a = draft.value.trim()
   if (!a || thinking.value || done.value) return
   stopListening()
-  messages.value.push({ from: 'me', text: a }); scrollChat()
   turns.value.push({ q: current.value, a })
-  draft.value = ''
+  draft.value = ''; nextTick(grow)
   await ask()
 }
+async function askEnd() {
+  const answered = turns.value.some(x => x.a)
+  const sure = confirmBox ? await confirmBox({ title: t('End the interview?'), message: t(answered ? 'You’ll get a report on what you answered.' : 'Nothing has been answered yet.'), ok: t('End'), cancel: t('Keep going'), mode: 'danger' }) : true
+  if (!sure) return
+  if (answered) makeReport(); else { close(); stage.value = 'intro' }
+}
+function close() { speakToken++; stopListening(); stopVoice(); stopMedia(); cancelAnimationFrame(raf); vol.value = 0; leaveFull() }
 async function makeReport() {
-  stopListening(); window.speechSynthesis?.cancel(); stopCam()
+  close()
   stage.value = 'report'; report.value = null; error.value = ''
   try { report.value = await post('/api/ai/interview/report') } catch (e) { if (!e.quiet) error.value = e.message }
 }
-function endEarly() {
-  if (turns.value.some(t => t.a)) return makeReport()
-  reset()
-}
-function reset() {
-  stopListening(); window.speechSynthesis?.cancel(); stopCam()
-  stage.value = 'intro'; messages.value = []; turns.value = []; report.value = null; error.value = ''; draft.value = ''
-}
-onBeforeUnmount(() => { stopListening(); window.speechSynthesis?.cancel(); stopCam() })
+function reset() { close(); stage.value = 'intro'; turns.value = []; report.value = null; error.value = ''; draft.value = '' }
+onBeforeUnmount(() => { close(); try { actx?.close() } catch {} })
 </script>
 
 <style scoped>
-.iv-page{background:var(--c-surface)}
-.iv{max-width:1120px;margin:0 auto;padding:8px 0 64px}
+/* ── The glow behind everything (soft, slow, a little alive) ── */
+.iv-page{position:relative;background:#fff;overflow:hidden;min-height:100%}
+.iv-aura{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:0}
+.iv-aura i{position:absolute;border-radius:50%;filter:blur(70px);opacity:.55}
+.iv-aura .a1{width:46vw;height:46vw;max-width:620px;max-height:620px;left:12%;top:18%;background:#a78bfa;animation:ivDrift1 18s ease-in-out infinite alternate}
+.iv-aura .a2{width:40vw;height:40vw;max-width:560px;max-height:560px;right:10%;top:26%;background:#f472b6;animation:ivDrift2 22s ease-in-out infinite alternate}
+.iv-aura .a3{width:30vw;height:30vw;max-width:420px;max-height:420px;left:42%;bottom:-6%;background:#fdba74;opacity:.35;animation:ivDrift1 26s ease-in-out infinite alternate-reverse}
+.iv-lines{position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 63px,rgba(255,255,255,.55) 63px 64px);-webkit-mask:radial-gradient(70% 60% at 50% 55%,#000 30%,transparent 75%);mask:radial-gradient(70% 60% at 50% 55%,#000 30%,transparent 75%)}
+@keyframes ivDrift1{to{transform:translate(8%,6%) scale(1.08)}}
+@keyframes ivDrift2{to{transform:translate(-9%,-5%) scale(.94)}}
 
-/* Intro */
-.iv-intro{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,480px);gap:56px;align-items:center;min-height:calc(100dvh - 140px)}
-.iv-kicker{display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--c-accent)}
-.iv-live{width:8px;height:8px;border-radius:50%;background:#16a34a;box-shadow:0 0 0 4px rgba(22,163,74,.15)}
-.iv-hero h1{font-size:clamp(34px,4.4vw,54px);font-weight:700;letter-spacing:-.035em;line-height:1.05;margin:14px 0 0;color:var(--c-text)}
-.iv-lead{font-size:18px;line-height:1.55;color:var(--c-text2);margin:18px 0 0;max-width:560px}
-.iv-points{list-style:none;padding:0;margin:28px 0 0;display:flex;flex-direction:column;gap:14px}
-.iv-points li{display:flex;flex-direction:column;gap:2px;padding-left:18px;position:relative}
-.iv-points li::before{content:'';position:absolute;left:0;top:8px;width:7px;height:7px;border-radius:50%;background:var(--c-accent)}
-.iv-points b{font-size:16px;color:var(--c-text);font-weight:650}
-.iv-points span{font-size:14.5px;color:var(--c-text3)}
+.iv-tag{display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 13px;border-radius:99px;background:rgba(255,255,255,.75);box-shadow:inset 0 0 0 1px rgba(20,20,43,.08);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);font-size:13px;font-weight:600;color:#3b3b55}
+.iv-live{width:7px;height:7px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.18);animation:ivBlink 2.4s ease-in-out infinite}
+@keyframes ivBlink{50%{opacity:.45}}
+.iv-grad,.iv-h1{background:linear-gradient(92deg,#7c3aed 0%,#c026d3 45%,#ec4899 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
 
-/* The embedded card */
-.iv-card{background:var(--c-surface);border-radius:28px;box-shadow:inset 0 0 0 1px var(--c-border),0 30px 80px -30px rgba(20,20,43,.25);overflow:hidden}
-.iv-card-hd{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--c-border)}
-.iv-ava{width:40px;height:40px;border-radius:50%;background:var(--c-accent-lt);display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.iv-ava{overflow:hidden}
-.iv-ava :deep(svg){height:18px!important;width:auto!important}
-.iv-ava.sm{width:34px;height:34px}.iv-ava.sm :deep(svg){height:15px!important}
-.iv-ava.xs{width:28px;height:28px}.iv-ava.xs :deep(svg){height:12px!important}
-.iv-ava.lg{width:72px;height:72px}.iv-ava.lg :deep(svg){height:30px!important}
-.iv-who{display:flex;flex-direction:column;line-height:1.25;min-width:0}
-.iv-who b{font-size:15px;color:var(--c-text)}
-.iv-who small{font-size:12.5px;color:var(--c-text3);display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.iv-dot{width:7px;height:7px;border-radius:50%;background:#16a34a;flex-shrink:0}
-.iv-card-body{padding:20px}
-.iv-say{margin:0;padding:12px 15px;border-radius:18px 18px 18px 6px;background:var(--c-accent-lt);color:var(--c-text);font-size:15px;line-height:1.5;max-width:92%}
-.iv-modes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}
-.iv-mode{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:14px 12px;border:none;border-radius:18px;background:var(--c-surface);box-shadow:inset 0 0 0 1px var(--c-border);font:inherit;text-align:left;cursor:pointer;transition:box-shadow .15s}
-.iv-mode:hover{box-shadow:inset 0 0 0 1px var(--c-accent)}
-.iv-mode.on{box-shadow:inset 0 0 0 2px var(--c-accent)}
-.iv-mode-ic{width:34px;height:34px;border-radius:50%;background:var(--c-accent-lt);color:var(--c-accent);display:flex;align-items:center;justify-content:center;margin-bottom:6px}
-.iv-mode-ic svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.iv-mode b{font-size:15px;color:var(--c-text)}
-.iv-mode small{font-size:12px;color:var(--c-text3);line-height:1.35}
-.iv-warn{font-size:13px;color:var(--c-amber,#b45309);margin:10px 2px 0;line-height:1.45}
-.iv-opts{margin-top:16px;border-radius:18px;box-shadow:inset 0 0 0 1px var(--c-border);overflow:hidden}
-.iv-opt{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;min-height:52px;font-size:14.5px;color:var(--c-text)}
-.iv-opt + .iv-opt,.iv-opt-note + .iv-opt{border-top:1px solid var(--c-border)}
-.iv-opt > span{font-weight:600;flex-shrink:0}
-.iv-opt-note{margin:-6px 14px 8px;font-size:12.5px;color:var(--c-text3)}
-.iv-in{flex:1;min-width:0;border:none;background:none;font:inherit;font-size:14.5px;color:var(--c-text);text-align:right;outline:none}
-.iv-select{flex:0 1 auto;cursor:pointer}
-.iv-seg button{height:30px;padding:0 12px;font-size:13px}
-.iv-start{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:52px;margin-top:18px;border:none;border-radius:99px;background:var(--c-accent);color:#fff;font:inherit;font-size:16px;font-weight:600;cursor:pointer}
-.iv-start:disabled{opacity:.6;cursor:default}
-.iv-spin{width:15px;height:15px;border:2px solid #fff;border-right-color:transparent;border-radius:50%;animation:ivSpin .8s linear infinite}
+/* ── Intro ── */
+.iv-intro{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;text-align:center;padding:9vh 0 64px}
+.iv-h1{font-size:clamp(40px,6vw,72px);font-weight:700;letter-spacing:-.045em;line-height:1.02;margin:22px 0 0}
+.iv-sub{font-size:18px;color:#4a4a63;margin:14px 0 0}
+.iv-glass{width:min(640px,100%);margin-top:44px;padding:22px;border-radius:30px;background:rgba(255,255,255,.62);backdrop-filter:blur(24px) saturate(1.4);-webkit-backdrop-filter:blur(24px) saturate(1.4);box-shadow:inset 0 0 0 1px rgba(255,255,255,.9),0 1px 0 rgba(20,20,43,.04),0 40px 90px -40px rgba(124,58,237,.45)}
+.iv-dock{display:flex;gap:6px;padding:6px;border-radius:99px;background:rgba(255,255,255,.8);box-shadow:inset 0 0 0 1px rgba(20,20,43,.07),0 10px 30px -14px rgba(124,58,237,.35)}
+.iv-dock-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:9px;height:52px;border:none;border-radius:99px;background:none;font:inherit;font-size:15.5px;font-weight:600;color:#55556f;cursor:pointer;transition:background .25s,color .25s,box-shadow .25s}
+.iv-dock-btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.iv-dock-btn:hover{color:#14142b}
+.iv-dock-btn.on{background:#fff;color:#7c3aed;box-shadow:inset 0 0 0 1.5px #e9d5ff,0 6px 18px -8px rgba(192,38,211,.5)}
+.iv-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;justify-content:center}
+.iv-chip{display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 14px;border-radius:99px;background:rgba(255,255,255,.85);box-shadow:inset 0 0 0 1px rgba(20,20,43,.08);font-size:14px;color:#14142b}
+.iv-chip svg{width:16px;height:16px;fill:none;stroke:#8b8ba3;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.iv-chip input,.iv-chip select{border:none;background:none;font:inherit;font-size:14px;color:#14142b;outline:none;min-width:0}
+.iv-chip-job{flex:1 1 220px}.iv-chip-job input{flex:1}
+.iv-chip select{cursor:pointer}
+.iv-levels{padding:4px;gap:2px}
+.iv-levels button{height:34px;padding:0 13px;border:none;border-radius:99px;background:none;font:inherit;font-size:13.5px;font-weight:600;color:#6b6b84;cursor:pointer}
+.iv-levels button.on{background:#14142b;color:#fff}
+.iv-go{display:inline-flex;align-items:center;justify-content:center;gap:10px;width:100%;height:56px;margin-top:18px;border:none;border-radius:99px;background:linear-gradient(92deg,#7c3aed,#c026d3 60%,#ec4899);color:#fff;font:inherit;font-size:17px;font-weight:650;cursor:pointer;box-shadow:0 18px 40px -16px rgba(192,38,211,.7);transition:transform .2s,box-shadow .2s}
+.iv-go:hover{transform:translateY(-1px);box-shadow:0 22px 46px -16px rgba(192,38,211,.8)}
+.iv-go:disabled{opacity:.7;cursor:default;transform:none}
+.iv-go svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.iv-go.sm{width:auto;height:40px;padding:0 18px;margin:0;font-size:14px}
+.iv-spin{width:16px;height:16px;border:2px solid #fff;border-right-color:transparent;border-radius:50%;animation:ivSpin .8s linear infinite}
 @keyframes ivSpin{to{transform:rotate(360deg)}}
-.iv-fine{text-align:center;font-size:12.5px;color:var(--c-text3);margin:10px 0 0}
-.iv-err{color:var(--c-rose);font-size:13.5px;margin:10px 2px 0}
-.iv-gate{display:flex;flex-direction:column;gap:6px;margin-top:18px;padding:16px;border-radius:18px;box-shadow:inset 0 0 0 1px var(--c-accent);background:var(--c-accent-lt)}
-.iv-gate b{font-size:15px;color:var(--c-text)}.iv-gate span{font-size:13.5px;color:var(--c-text2);line-height:1.45}
-.iv-btn{align-self:flex-start;margin-top:6px;height:38px;padding:0 18px;border:none;border-radius:99px;background:var(--c-accent);color:#fff;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
-.iv-link{border:none;background:none;font:inherit;font-size:15px;font-weight:600;color:var(--c-accent);cursor:pointer}
+.iv-fine{margin:12px 0 0;font-size:12.5px;color:#8b8ba3}
+.iv-err{color:#e11d48;font-size:13.5px;margin:10px 0 0}
+.iv-gate{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:18px;padding:14px 16px;border-radius:22px;background:rgba(255,255,255,.85);box-shadow:inset 0 0 0 1px #e9d5ff;text-align:left}
+.iv-gate b{font-size:15px;color:#14142b}
+.iv-link{border:none;background:none;font:inherit;font-size:15px;font-weight:600;color:#7c3aed;cursor:pointer}
 
-/* The interview */
-.iv-session{display:flex;flex-direction:column;height:calc(100dvh - 120px);max-width:860px;margin:0 auto;border-radius:28px;box-shadow:inset 0 0 0 1px var(--c-border);overflow:hidden;background:var(--c-surface)}
-.iv-top{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--c-border)}
-.iv-prog{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:5px;font-size:12.5px;color:var(--c-text3);white-space:nowrap}
-.iv-prog i{display:block;width:120px;height:4px;border-radius:99px;background:var(--c-border);overflow:hidden}
-.iv-prog i b{display:block;height:100%;background:var(--c-accent);border-radius:99px;transition:width .4s var(--ease)}
-.iv-end{height:34px;padding:0 16px;border:none;border-radius:99px;background:var(--c-surface);box-shadow:inset 0 0 0 1px var(--c-border);font:inherit;font-size:13.5px;font-weight:600;color:var(--c-rose);cursor:pointer}
-.iv-chat{flex:1;overflow-y:auto;padding:22px 20px;display:flex;flex-direction:column;gap:14px}
-.iv-msg{display:flex;gap:10px;align-items:flex-end;max-width:84%}
-.iv-msg p{margin:0;padding:12px 15px;font-size:15px;line-height:1.55;white-space:pre-line}
-.iv-msg.cvm p{background:var(--c-accent-lt);color:var(--c-text);border-radius:18px 18px 18px 6px}
-.iv-msg.me{align-self:flex-end}
-.iv-msg.me p{background:var(--c-accent);color:#fff;border-radius:18px 18px 6px 18px}
-.iv-typing{display:flex;gap:5px;padding:16px 18px!important}
-.iv-typing i{width:7px;height:7px;border-radius:50%;background:var(--c-accent);opacity:.4;animation:ivDot 1.2s infinite}
-.iv-typing i:nth-child(2){animation-delay:.15s}.iv-typing i:nth-child(3){animation-delay:.3s}
-@keyframes ivDot{40%{opacity:1;transform:translateY(-3px)}}
-.iv-stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px 20px;overflow-y:auto}
-.iv-tiles{display:grid;grid-template-columns:minmax(0,420px);gap:14px;width:100%;justify-content:center}
-.iv-tiles.two{grid-template-columns:repeat(2,minmax(0,1fr))}
-.iv-tile{position:relative;aspect-ratio:4/3;border-radius:22px;background:var(--c-surface);box-shadow:inset 0 0 0 1px var(--c-border);overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
-.iv-tile.me{background:#111}
-.iv-tile video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
-.iv-cam-off{color:#d4d4dc;font-size:14px}
-.iv-tile-name{position:absolute;left:12px;bottom:10px;padding:4px 10px;border-radius:99px;background:rgba(0,0,0,.45);color:#fff;font-size:12.5px;font-weight:600}
-.iv-tile.cvm .iv-tile-name{background:var(--c-accent)}
-.iv-state{font-size:13px;color:var(--c-text3);font-weight:500}
-.iv-orb{position:relative;width:104px;height:104px;border-radius:50%;background:var(--c-accent-lt);display:flex;align-items:center;justify-content:center}
-.iv-orb :deep(svg){height:40px!important;width:auto!important;position:relative;z-index:1}
-.iv-ring{position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 2px var(--c-accent);opacity:0}
-.iv-tile.speaking .iv-ring{animation:ivRing 1.6s ease-out infinite}
-.iv-tile.speaking .iv-ring.r2{animation-delay:.8s}
-.iv-tile.listening .iv-orb{box-shadow:0 0 0 6px color-mix(in srgb,#16a34a 25%,transparent)}
-@keyframes ivRing{0%{transform:scale(1);opacity:.5}100%{transform:scale(1.55);opacity:0}}
-.iv-caption{margin:0;max-width:640px;text-align:center;font-size:18px;line-height:1.5;color:var(--c-text);font-weight:500}
-.iv-heard{margin:0;max-width:640px;text-align:center;font-size:15px;line-height:1.5;color:var(--c-text2);min-height:24px}
-.iv-heard.empty{color:var(--c-text3)}
-.iv-compose{display:flex;align-items:flex-end;justify-content:center;gap:10px;padding:14px 16px calc(14px + env(safe-area-inset-bottom));border-top:1px solid var(--c-border)}
-.iv-ta{flex:1;min-width:0;resize:none;max-height:160px;border:1px solid var(--c-border);border-radius:20px;padding:11px 16px;font:inherit;font-size:15px;line-height:1.45;color:var(--c-text);background:var(--c-surface);outline:none}
-.iv-ta:focus{border-color:var(--c-accent);box-shadow:0 0 0 4px var(--c-accent-ring)}
-.iv-send{width:44px;height:44px;flex-shrink:0;border:none;border-radius:50%;background:var(--c-accent);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
-.iv-send:disabled{opacity:.4;cursor:default}
-.iv-send svg,.iv-ctl svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.iv-ctl{width:50px;height:50px;border:none;border-radius:50%;background:var(--c-surface);box-shadow:inset 0 0 0 1px var(--c-border);color:var(--c-text);display:flex;align-items:center;justify-content:center;cursor:pointer}
-.iv-ctl.on{background:#16a34a;color:#fff;box-shadow:none}
-.iv-ctl.off{background:var(--c-rose);color:#fff;box-shadow:none}
-.iv-ctl:disabled{opacity:.45;cursor:default}
-.iv-answer{height:50px;padding:0 22px;border:none;border-radius:99px;background:var(--c-accent);color:#fff;font:inherit;font-size:15px;font-weight:600;cursor:pointer}
-.iv-answer:disabled{opacity:.45;cursor:default}
+/* ── The orb: CVM ── */
+.iv-orb{--lv:0;position:relative;display:block;width:clamp(150px,22vw,220px);aspect-ratio:1;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#fff 0%,#f5d0fe 18%,#c084fc 45%,#ec4899 78%,#fb923c 100%);
+  box-shadow:0 0 calc(40px + var(--lv) * 90px) calc(var(--lv) * 30px) rgba(192,38,211,.45),inset -18px -22px 50px rgba(124,58,237,.35);
+  transform:scale(calc(1 + var(--lv) * .12));transition:transform .08s linear;animation:ivBreathe 5s ease-in-out infinite}
+.iv-orb i{position:absolute;inset:-14px;border-radius:50%;box-shadow:0 0 0 1px rgba(192,38,211,.25);opacity:0}
+.iv-orb.speaking i{animation:ivRipple 1.8s ease-out infinite}
+.iv-orb.listening{background:radial-gradient(circle at 35% 30%,#fff 0%,#e0e7ff 18%,#a5b4fc 45%,#8b5cf6 80%,#c084fc 100%)}
+.iv-orb.thinking{animation:ivBreathe 1.6s ease-in-out infinite,ivSpinHue 3s linear infinite}
+.iv-orb.sm{width:96px}
+@keyframes ivBreathe{50%{filter:saturate(1.15) brightness(1.04)}}
+@keyframes ivRipple{0%{transform:scale(1);opacity:.6}100%{transform:scale(1.5);opacity:0}}
+@keyframes ivSpinHue{to{filter:hue-rotate(40deg)}}
 
-/* The report */
-.iv-report{max-width:860px;margin:0 auto}
-.iv-loading{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:120px 0}
-.iv-loading b{font-size:20px;color:var(--c-text);margin-top:10px}.iv-loading span{color:var(--c-text3)}
-.iv-rep-hd{display:flex;gap:28px;align-items:center;padding:8px 0 24px}
-.iv-rep-hd h1{font-size:clamp(28px,3.4vw,40px);font-weight:700;letter-spacing:-.03em;margin:6px 0 0;color:var(--c-text)}
-.iv-rep-hd p{font-size:16px;line-height:1.55;color:var(--c-text2);margin:10px 0 0}
-.iv-score{--p:0;width:120px;height:120px;flex-shrink:0;border-radius:50%;display:flex;align-items:baseline;justify-content:center;padding-top:40px;background:radial-gradient(closest-side,var(--c-surface) 79%,transparent 80% 100%),conic-gradient(var(--c-accent) calc(var(--p)*1%),var(--c-border) 0)}
-.iv-score b{font-size:36px;font-weight:700;letter-spacing:-.03em;color:var(--c-text)}.iv-score small{font-size:13px;color:var(--c-text3)}
-.iv-two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.iv-box{padding:18px 20px;border-radius:22px;box-shadow:inset 0 0 0 1px var(--c-border)}
-.iv-box h3{font-size:15px;margin:0 0 8px;color:var(--c-text)}
-.iv-box ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:14.5px;line-height:1.45;color:var(--c-text2)}
-.iv-h2{font-size:20px;font-weight:700;letter-spacing:-.02em;margin:32px 0 12px;color:var(--c-text)}
-.iv-q{border-radius:20px;box-shadow:inset 0 0 0 1px var(--c-border);margin-bottom:10px;overflow:hidden}
-.iv-q summary{display:flex;align-items:center;gap:12px;padding:16px 18px;cursor:pointer;list-style:none}
+/* ── Full screen interview ── */
+.iv-full{position:fixed;inset:0;z-index:3000;background:#fff;display:flex;flex-direction:column;overflow:hidden;animation:ivIn .45s cubic-bezier(.2,.8,.2,1) both}
+@keyframes ivIn{from{opacity:0;transform:scale(1.02)}}
+.iv-bar{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:calc(16px + env(safe-area-inset-top)) 22px 0}
+.iv-steps{display:flex;gap:6px}
+.iv-steps i{width:22px;height:5px;border-radius:99px;background:rgba(20,20,43,.1);transition:background .4s,width .4s}
+.iv-steps i.on{background:linear-gradient(90deg,#7c3aed,#ec4899)}
+.iv-steps i.now{width:36px}
+.iv-x{width:42px;height:42px;border:none;border-radius:50%;background:rgba(255,255,255,.8);box-shadow:inset 0 0 0 1px rgba(20,20,43,.08);display:flex;align-items:center;justify-content:center;cursor:pointer;color:#3b3b55}
+.iv-x svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
+.iv-center{position:relative;z-index:1;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px;padding:0 24px 120px;text-align:center}
+.iv-cap{margin:0;max-width:760px;font-size:clamp(20px,2.4vw,28px);line-height:1.4;font-weight:550;letter-spacing:-.015em;color:#14142b}
+.iv-heard{margin:-14px 0 0;max-width:640px;font-size:16px;line-height:1.5;color:#55556f;min-height:24px}
+.iv-heard.dim{color:#a3a3b8}
+.iv-cap-enter-active,.iv-cap-leave-active{transition:opacity .35s,transform .35s}
+.iv-cap-enter-from{opacity:0;transform:translateY(10px)}.iv-cap-leave-to{opacity:0;transform:translateY(-6px)}
+
+/* the person, in a circle */
+.iv-me{position:absolute;z-index:2;right:28px;bottom:120px;width:clamp(130px,16vw,190px);aspect-ratio:1;border-radius:50%;overflow:hidden;background:#0f0f14;box-shadow:0 0 0 4px #fff,0 0 0 7px #22c55e,0 20px 50px -20px rgba(20,20,43,.45);transition:box-shadow .3s}
+.iv-me.out{box-shadow:0 0 0 4px #fff,0 0 0 7px #ef4444,0 0 40px 6px rgba(239,68,68,.45)}
+.iv-me:not(.in):not(.out){box-shadow:0 0 0 4px #fff,0 0 0 7px rgba(20,20,43,.12),0 20px 50px -20px rgba(20,20,43,.45)}
+.iv-me video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.iv-me-off{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#d4d4dc;font-size:13px}
+.iv-me-tip{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);white-space:nowrap;padding:4px 10px;border-radius:99px;background:#ef4444;color:#fff;font-size:11.5px;font-weight:650}
+
+/* the floating dock / answer bar */
+.iv-float{position:absolute;z-index:3;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(680px,calc(100% - 32px));display:flex;justify-content:center}
+.iv-dock-live{width:auto;gap:8px;padding:8px;background:rgba(255,255,255,.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.iv-dock-btn.round{flex:none;width:52px;height:52px;padding:0}
+.iv-dock-btn.round.on{background:#22c55e;color:#fff;box-shadow:0 0 0 6px rgba(34,197,94,.18)}
+.iv-dock-btn.round.off{background:#ef4444;color:#fff}
+.iv-dock-btn:disabled{opacity:.4;cursor:default}
+.iv-done{height:52px;padding:0 26px;border:none;border-radius:99px;background:linear-gradient(92deg,#7c3aed,#c026d3 60%,#ec4899);color:#fff;font:inherit;font-size:15.5px;font-weight:650;cursor:pointer}
+.iv-done:disabled{opacity:.4;cursor:default}
+.iv-type{display:flex;align-items:flex-end;gap:8px;width:100%;padding:8px 8px 8px 20px;border-radius:30px;background:rgba(255,255,255,.88);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:inset 0 0 0 1px rgba(20,20,43,.08),0 20px 50px -20px rgba(124,58,237,.45)}
+.iv-type textarea{flex:1;min-width:0;border:none;background:none;resize:none;font:inherit;font-size:16px;line-height:1.45;color:#14142b;outline:none;padding:10px 0;max-height:160px}
+.iv-send{width:44px;height:44px;flex-shrink:0;border:none;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.iv-send:disabled{opacity:.35;cursor:default}
+.iv-send svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.iv-err-float{position:absolute;z-index:3;left:0;right:0;bottom:96px;text-align:center}
+
+/* ── Report ── */
+.iv-report{position:relative;z-index:1;max-width:820px;margin:0 auto;padding:7vh 0 64px}
+.iv-loading{display:flex;flex-direction:column;align-items:center;gap:22px;padding:14vh 0;text-align:center}
+.iv-loading b{font-size:20px;color:#14142b}
+.iv-rep-top{display:flex;align-items:center;gap:28px;padding:22px;border-radius:30px;background:rgba(255,255,255,.7);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.9),0 30px 70px -40px rgba(124,58,237,.45)}
+.iv-ring{--p:0;width:118px;height:118px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(closest-side,#fff 80%,transparent 81% 100%),conic-gradient(#7c3aed,#ec4899 calc(var(--p)*1%),rgba(20,20,43,.08) 0)}
+.iv-ring b{font-size:38px;font-weight:700;letter-spacing:-.04em;color:#14142b}
+.iv-rep-sum{margin:12px 0 0;font-size:17px;line-height:1.5;color:#3b3b55}
+.iv-pills{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 22px}
+.iv-pill{padding:8px 14px;border-radius:99px;font-size:13.5px;font-weight:550;background:#fff;box-shadow:inset 0 0 0 1px rgba(20,20,43,.08)}
+.iv-pill.good::before{content:'+ ';color:#16a34a;font-weight:800}
+.iv-pill.work::before{content:'→ ';color:#c026d3;font-weight:800}
+.iv-q{margin-bottom:10px;border-radius:22px;background:rgba(255,255,255,.85);box-shadow:inset 0 0 0 1px rgba(20,20,43,.07)}
+.iv-q summary{display:flex;align-items:center;gap:14px;padding:16px 18px;cursor:pointer;list-style:none}
 .iv-q summary::-webkit-details-marker{display:none}
-.iv-q-n{width:26px;height:26px;border-radius:50%;background:var(--c-accent-lt);color:var(--c-accent);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.iv-q-t{flex:1;font-size:15px;font-weight:600;color:var(--c-text);line-height:1.4}
-.iv-dots{display:flex;gap:4px;flex-shrink:0}
-.iv-dots i{width:9px;height:9px;border-radius:50%;background:var(--c-border)}
-.iv-dots i.on{background:var(--c-accent)}
-.iv-q-body{padding:0 18px 18px 56px}
-.iv-q-body p{margin:0 0 4px;font-size:14.5px;line-height:1.55;color:var(--c-text2)}
-.iv-q-lbl{font-size:12.5px!important;font-weight:650;color:var(--c-text3)!important;margin-top:12px!important}
-.iv-q-a{font-style:italic}
-.iv-better{color:var(--c-text)!important;padding:12px 14px;border-radius:14px;background:var(--c-accent-lt)}
-.iv-acts{display:flex;align-items:center;gap:20px;margin-top:24px}
-.iv-acts .iv-start{width:auto;padding:0 28px;margin:0}
+.iv-q-t{flex:1;font-size:15px;font-weight:600;color:#14142b;line-height:1.4}
+.iv-bars{display:flex;gap:3px;flex-shrink:0}
+.iv-bars i{width:6px;height:16px;border-radius:3px;background:rgba(20,20,43,.1)}
+.iv-bars i.on{background:linear-gradient(180deg,#c026d3,#7c3aed)}
+.iv-q-body{padding:0 18px 18px}
+.iv-q-body p{margin:0 0 10px;font-size:14.5px;line-height:1.55;color:#4a4a63}
+.iv-q-you{font-style:italic;color:#8b8ba3!important}
+.iv-better{padding:12px 14px;border-radius:16px;background:linear-gradient(92deg,rgba(124,58,237,.07),rgba(236,72,153,.07));color:#14142b!important}
+.iv-better b{color:#7c3aed;margin-right:4px}
+.iv-acts{display:flex;align-items:center;gap:22px;margin-top:22px}
+.iv-acts .iv-go{width:auto;padding:0 34px;margin:0}
 
-@media (max-width:900px){
-  .iv-intro{grid-template-columns:1fr;gap:28px;min-height:0}
-  .iv-card{max-width:560px}
+@media (max-width:640px){
+  .iv-intro{padding-top:5vh}
+  .iv-sub{font-size:16px}
+  .iv-glass{padding:14px;border-radius:26px;margin-top:30px}
+  .iv-dock-btn{height:48px;font-size:14.5px;gap:7px}
+  .iv-chip-job{flex-basis:100%}
+  .iv-center{gap:26px;padding-bottom:150px}
+  .iv-me{right:14px;top:calc(70px + env(safe-area-inset-top));bottom:auto;width:104px}
+  .iv-me-tip{font-size:10px;padding:3px 8px}
+  .iv-rep-top{flex-direction:column;align-items:flex-start;gap:16px}
 }
-@media (max-width:600px){
-  .iv-hero h1{font-size:32px}
-  .iv-lead{font-size:16px}
-  .iv-modes{grid-template-columns:1fr}
-  .iv-mode{flex-direction:row;align-items:center;gap:12px}
-  .iv-mode-ic{margin:0}
-  .iv-mode small{margin-left:auto;text-align:right}
-  .iv-session{height:calc(100dvh - 150px);border-radius:22px}
-  .iv-prog i{width:80px}
-  .iv-tiles.two{grid-template-columns:1fr 1fr}
-  .iv-tiles.two .iv-orb{width:64px;height:64px}
-  .iv-tiles.two .iv-orb :deep(svg){height:26px!important}
-  .iv-tiles.two .iv-state{display:none}
-  .iv-answer{padding:0 16px;white-space:nowrap;font-size:14px}
-  .iv-ctl{width:46px;height:46px}
-  .iv-caption{font-size:16px}
-  .iv-rep-hd{flex-direction:column;align-items:flex-start;gap:16px}
-  .iv-two{grid-template-columns:1fr}
-  .iv-q-body{padding-left:18px}
-}
-@media (prefers-reduced-motion:reduce){ .iv-ring,.iv-typing i{animation:none} }
+@media (prefers-reduced-motion:reduce){ .iv-aura i,.iv-orb,.iv-orb i,.iv-live{animation:none} }
 </style>

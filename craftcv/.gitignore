@@ -14,3 +14,5 @@ i18n-export/
 
 # Local test copy of the server (never committed)
 _srvtest/
+# the face check WebAssembly is copied from node_modules at build time (scripts/copy-mediapipe.mjs)
+public/mediapipe/wasm/
