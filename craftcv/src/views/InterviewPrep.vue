@@ -382,23 +382,23 @@ onBeforeUnmount(() => { close(); try { actx?.close() } catch {} })
 .iv-intro{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;text-align:center;padding:9vh 0 64px}
 .iv-h1{font-size:clamp(40px,6vw,72px);font-weight:700;letter-spacing:-.045em;line-height:1.02;margin:22px 0 0}
 .iv-sub{font-size:18px;color:#4a4a63;margin:14px 0 0}
-.iv-glass{width:min(640px,100%);margin-top:44px;padding:22px;border-radius:30px;background:rgba(255,255,255,.62);backdrop-filter:blur(24px) saturate(1.4);-webkit-backdrop-filter:blur(24px) saturate(1.4);box-shadow:inset 0 0 0 1px rgba(255,255,255,.9),0 1px 0 rgba(20,20,43,.04),0 40px 90px -40px rgba(124,58,237,.45)}
-.iv-dock{display:flex;gap:6px;padding:6px;border-radius:99px;background:rgba(255,255,255,.8);box-shadow:inset 0 0 0 1px rgba(20,20,43,.07),0 10px 30px -14px rgba(124,58,237,.35)}
+.iv-glass{width:min(640px,100%);margin-top:44px;padding:20px;border-radius:28px;background:#fff;box-shadow:inset 0 0 0 1px #e8e8ee,0 24px 60px -30px rgba(20,20,43,.18)}
+.iv-dock{display:flex;gap:4px;padding:5px;border-radius:99px;background:#fff;box-shadow:inset 0 0 0 1px #e8e8ee}
 .iv-dock-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:9px;height:52px;border:none;border-radius:99px;background:none;font:inherit;font-size:15.5px;font-weight:600;color:#55556f;cursor:pointer;transition:background .25s,color .25s,box-shadow .25s}
 .iv-dock-btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .iv-dock-btn:hover{color:#14142b}
-.iv-dock-btn.on{background:#fff;color:#7c3aed;box-shadow:inset 0 0 0 1.5px #e9d5ff,0 6px 18px -8px rgba(192,38,211,.5)}
+.iv-dock-btn.on{background:var(--c-accent-lt);color:var(--c-accent)}
 .iv-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;justify-content:center}
-.iv-chip{display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 14px;border-radius:99px;background:rgba(255,255,255,.85);box-shadow:inset 0 0 0 1px rgba(20,20,43,.08);font-size:14px;color:#14142b}
+.iv-chip{display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 14px;border-radius:99px;background:#fff;box-shadow:inset 0 0 0 1px #e8e8ee;font-size:14px;color:#14142b}
 .iv-chip svg{width:16px;height:16px;fill:none;stroke:#8b8ba3;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
 .iv-chip input,.iv-chip select{border:none;background:none;font:inherit;font-size:14px;color:#14142b;outline:none;min-width:0}
 .iv-chip-job{flex:1 1 220px}.iv-chip-job input{flex:1}
 .iv-chip select{cursor:pointer}
 .iv-levels{padding:4px;gap:2px}
 .iv-levels button{height:34px;padding:0 13px;border:none;border-radius:99px;background:none;font:inherit;font-size:13.5px;font-weight:600;color:#6b6b84;cursor:pointer}
-.iv-levels button.on{background:#14142b;color:#fff}
-.iv-go{display:inline-flex;align-items:center;justify-content:center;gap:10px;width:100%;height:56px;margin-top:18px;border:none;border-radius:99px;background:linear-gradient(92deg,#7c3aed,#c026d3 60%,#ec4899);color:#fff;font:inherit;font-size:17px;font-weight:650;cursor:pointer;box-shadow:0 18px 40px -16px rgba(192,38,211,.7);transition:transform .2s,box-shadow .2s}
-.iv-go:hover{transform:translateY(-1px);box-shadow:0 22px 46px -16px rgba(192,38,211,.8)}
+.iv-levels button.on{background:var(--c-accent-lt);color:var(--c-accent)}
+.iv-go{display:inline-flex;align-items:center;justify-content:center;gap:10px;width:100%;height:54px;margin-top:16px;border:none;border-radius:99px;background:#14142b;color:#fff;font:inherit;font-size:16.5px;font-weight:600;cursor:pointer;transition:transform .2s,background .2s}
+.iv-go:hover{background:#000}
 .iv-go:disabled{opacity:.7;cursor:default;transform:none}
 .iv-go svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .iv-go.sm{width:auto;height:40px;padding:0 18px;margin:0;font-size:14px}
@@ -451,16 +451,16 @@ onBeforeUnmount(() => { close(); try { actx?.close() } catch {} })
 
 /* the floating dock / answer bar */
 .iv-float{position:absolute;z-index:3;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(680px,calc(100% - 32px));display:flex;justify-content:center}
-.iv-dock-live{width:auto;gap:8px;padding:8px;background:rgba(255,255,255,.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.iv-dock-live{width:auto;gap:8px;padding:8px;background:#fff;box-shadow:inset 0 0 0 1px #e8e8ee,0 16px 40px -24px rgba(20,20,43,.25)}
 .iv-dock-btn.round{flex:none;width:52px;height:52px;padding:0}
 .iv-dock-btn.round.on{background:#22c55e;color:#fff;box-shadow:0 0 0 6px rgba(34,197,94,.18)}
 .iv-dock-btn.round.off{background:#ef4444;color:#fff}
 .iv-dock-btn:disabled{opacity:.4;cursor:default}
-.iv-done{height:52px;padding:0 26px;border:none;border-radius:99px;background:linear-gradient(92deg,#7c3aed,#c026d3 60%,#ec4899);color:#fff;font:inherit;font-size:15.5px;font-weight:650;cursor:pointer}
+.iv-done{height:52px;padding:0 26px;border:none;border-radius:99px;background:#14142b;color:#fff;font:inherit;font-size:15.5px;font-weight:650;cursor:pointer}
 .iv-done:disabled{opacity:.4;cursor:default}
-.iv-type{display:flex;align-items:flex-end;gap:8px;width:100%;padding:8px 8px 8px 20px;border-radius:30px;background:rgba(255,255,255,.88);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:inset 0 0 0 1px rgba(20,20,43,.08),0 20px 50px -20px rgba(124,58,237,.45)}
+.iv-type{display:flex;align-items:flex-end;gap:8px;width:100%;padding:8px 8px 8px 20px;border-radius:30px;background:#fff;box-shadow:inset 0 0 0 1px #e8e8ee,0 16px 40px -24px rgba(20,20,43,.25)}
 .iv-type textarea{flex:1;min-width:0;border:none;background:none;resize:none;font:inherit;font-size:16px;line-height:1.45;color:#14142b;outline:none;padding:10px 0;max-height:160px}
-.iv-send{width:44px;height:44px;flex-shrink:0;border:none;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.iv-send{width:44px;height:44px;flex-shrink:0;border:none;border-radius:50%;background:#14142b;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .iv-send:disabled{opacity:.35;cursor:default}
 .iv-send svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .iv-err-float{position:absolute;z-index:3;left:0;right:0;bottom:96px;text-align:center}
