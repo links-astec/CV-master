@@ -2023,6 +2023,27 @@ async function interviewJob(x, req) {
 }
 const transcript = (turns) => turns.map((t, i) => `Q${i + 1}: ${t.q}\nANSWER: ${t.a || '(no answer)'}`).join('\n\n');
 
+// POST /api/ai/speak { text, lang } → audio/wav: CVM's voice. English uses Groq's Orpheus voices (TTS_MODEL /
+// TTS_VOICE); other languages answer 204 and the browser speaks instead. Same access as the interviewer.
+const TTS_MODEL = process.env.TTS_MODEL || 'canopylabs/orpheus-v1-english';
+const TTS_VOICE = process.env.TTS_VOICE || 'autumn';
+app.post('/api/ai/speak', rateLimit({ windowMs: 60 * 60 * 1000, max: 600 }), passOnly, async (req, res) => {
+  try {
+    const text = String(req.body?.text || '').replace(/\s+/g, ' ').trim().slice(0, 400);
+    if (!text) return res.status(400).json({ error: 'Nothing to say.' });
+    if (req.body?.lang && req.body.lang !== 'en') return res.status(204).end();
+    if (!GROQ_KEY) return res.status(204).end();
+    const r = await fetch('https://api.groq.com/openai/v1/audio/speech', {
+      method: 'POST', headers: { Authorization: `Bearer ${GROQ_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: TTS_MODEL, voice: TTS_VOICE, input: text, response_format: 'wav' }),
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!r.ok) { console.warn('[speak]', r.status, (await r.text().catch(() => '')).slice(0, 160)); return res.status(204).end(); }
+    res.set('Content-Type', 'audio/wav'); res.set('Cache-Control', 'no-store');
+    res.send(Buffer.from(await r.arrayBuffer()));
+  } catch (e) { console.warn('[speak]', e.message); res.status(204).end(); }
+});
+
 app.post('/api/ai/interview/next', needsCvContent, passOnly, aiAccess, async (req, res) => {
   try {
     const x = interviewInput(req);
