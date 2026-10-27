@@ -1995,6 +1995,87 @@ app.post('/api/ai/cover-letter', needsCvContent, aiAccess, async (req, res) => {
     res.status(500).json({ error: 'AI is unavailable right now. Please try again in a moment.' });
   }
 });
+// ── CVM AI INTERVIEWER ────────────────────────────────────────────────────────
+// A mock interview for the job on this CV (or a role the person names), one question at a time, in the
+// language and at the difficulty they chose. The interviewer reacts briefly, asks a follow-up when an answer
+// is thin, and ends after INTERVIEW_QUESTIONS questions; then a report scores each answer. The person's
+// answers are untrusted material like everything else (callAi seals them).
+const INTERVIEW_QUESTIONS = 6;
+const INTERVIEW_LEVELS = {
+  friendly: 'Friendly: warm and encouraging, like a first-round chat. Plain questions, no pressure, one follow-up at most.',
+  standard: 'Realistic: a professional first interview. Clear questions about the role and their experience, follow-ups when an answer is vague.',
+  tough: 'Tough: a demanding final-round interviewer. Probing follow-ups, asks for numbers and specifics, challenges weak claims politely, one hard situational question.',
+};
+function interviewInput(req) {
+  const b = req.body || {};
+  const str = (v, n) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
+  const turns = (Array.isArray(b.turns) ? b.turns : []).slice(0, 14).map(t => ({ q: str(t?.q, 600), a: str(t?.a, 3000) })).filter(t => t.q);
+  return {
+    cv: cvFromBody(req.body), turns, role: str(b.role, 100),
+    level: INTERVIEW_LEVELS[b.difficulty] ? b.difficulty : 'standard',
+    lang: uiLangName(b.lang), jobOffer: str(b.jobOffer, 15000),
+  };
+}
+async function interviewJob(x, req) {
+  const brief = x.jobOffer.length >= 80 ? await jobBrief(x.jobOffer, req).catch(() => null) : null;
+  const role = x.role || brief?.title || '';
+  return { brief, role, text: brief ? `JOB:\n${briefForPrompt(brief)}` : role ? `ROLE THEY ARE PREPARING FOR: ${role}` : 'ROLE: the kind of role their CV points to' };
+}
+const transcript = (turns) => turns.map((t, i) => `Q${i + 1}: ${t.q}\nANSWER: ${t.a || '(no answer)'}`).join('\n\n');
+
+app.post('/api/ai/interview/next', needsCvContent, passOnly, aiAccess, async (req, res) => {
+  try {
+    const x = interviewInput(req);
+    if (!x.cv) return res.status(413).json({ error: 'This CV is too long to use in one go.' });
+    const job = await interviewJob(x, req);
+    const asked = x.turns.length;
+    const last = asked >= INTERVIEW_QUESTIONS;
+    const system = `You are CVM, the AI interviewer in CVMaster, running a spoken-style mock job interview with the person on this CV${job.role ? ` for the role of ${job.role}` : ''}.
+Interview style: ${INTERVIEW_LEVELS[x.level]}
+Speak in ${x.lang}, to the candidate as "you" (formal: "vous" in French, "usted" in Spanish, "Sie" in German, "Lei" in Italian), naturally, like a real interviewer talking: short sentences, no lists, no markdown, no emoji.
+${asked === 0 ? 'This is the start: greet them by first name, say in one sentence what this interview is for, then ask the first question (a short warm-up about themselves and why this role).' : last ? 'They have answered the last question: thank them warmly in one or two sentences and say their feedback report is ready. Do not ask anything else.' : `This is question ${asked + 1} of ${INTERVIEW_QUESTIONS}. First react to their last answer in one short, natural sentence (acknowledge it; never score it or give feedback yet). Then ask the next question. If their last answer was vague or missing an example and you have not already followed up on it, ask one follow-up on it instead.`}
+Across the interview cover: their motivation, two or three things from their CV that matter for the job (ask about specific roles or projects by name), the job's main requirements, one behavioural question ("Tell me about a time..."), and at most one kind question about a gap between the CV and the job. Never repeat a question. Never invent facts about them.
+Reply with ONLY JSON: {"say": "what you say now, reaction plus question", "question": "just the question on its own (empty when finished)", "done": ${last}}`;
+    const out = parseJsonObject(await callAi(`${job.text}\n\nCV:\n${cvFactsText(x.cv)}\n\nINTERVIEW SO FAR:\n${transcript(x.turns) || '(not started)'}`, AI_MODEL, system, 700, 'low'));
+    const clean = (v) => (typeof v === 'string' ? noEmDash(v.replace(/[*_#`]/g, '').trim()).slice(0, 900) : '');
+    const say = clean(out?.say), question = last ? '' : clean(out?.question) || say;
+    if (!say) return res.status(500).json({ error: 'AI is unavailable right now. Please try again in a moment.' });
+    res.json({ say, question, done: last, n: last ? asked : asked + 1, total: INTERVIEW_QUESTIONS, role: job.role });
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message });
+    console.error('[ai/interview/next]', e.message);
+    res.status(500).json({ error: 'AI is unavailable right now. Please try again in a moment.' });
+  }
+});
+
+app.post('/api/ai/interview/report', needsCvContent, passOnly, aiAccess, async (req, res) => {
+  try {
+    const x = interviewInput(req);
+    if (!x.cv) return res.status(413).json({ error: 'This CV is too long to use in one go.' });
+    if (!x.turns.some(t => t.a)) return res.status(400).json({ error: 'Answer at least one question first.' });
+    const job = await interviewJob(x, req);
+    const system = `You are an experienced interview coach reviewing a mock interview${job.role ? ` for the role of ${job.role}` : ''}, held at this level: ${INTERVIEW_LEVELS[x.level]}
+Write in ${x.lang}, to the candidate as "you" (formal in French, Spanish, German and Italian): honest, specific and encouraging, like a good careers adviser. Judge only what they actually said; use the CV to suggest what they could have used. Never invent experience.
+For each question: "score" 1 to 5 (5 = a strong, specific answer with an example and a result); "feedback" two sentences on what worked and what to change; "better" a stronger answer they could give, in the first person, built only from facts in their answer and CV, 60 to 110 words.
+Also: "overall" 0 to 100; "summary" two sentences; "strengths" 2-3 short points; "improve" 2-3 short points.
+Reply with ONLY JSON: {"overall":0,"summary":"","strengths":[""],"improve":[""],"questions":[{"q":"","score":0,"feedback":"","better":""}]}`;
+    const out = parseJsonObject(await callAi(`${job.text}\n\nCV:\n${cvFactsText(x.cv)}\n\nINTERVIEW:\n${transcript(x.turns)}`, AI_MODEL, system, 3000, 'medium'));
+    const str = (v, n) => (typeof v === 'string' ? noEmDash(v.trim()).slice(0, n) : '');
+    const list = (v) => (Array.isArray(v) ? v.map(y => str(y, 220)).filter(Boolean).slice(0, 4) : []);
+    const questions = (Array.isArray(out?.questions) ? out.questions : []).slice(0, x.turns.length).map((y, i) => ({
+      q: str(y?.q, 600) || x.turns[i]?.q || '', a: x.turns[i]?.a || '', score: Math.max(1, Math.min(5, Math.round(Number(y?.score) || 1))),
+      feedback: str(y?.feedback, 600), better: str(y?.better, 1200),
+    }));
+    if (!questions.length) return res.status(500).json({ error: 'AI is unavailable right now. Please try again in a moment.' });
+    track(req, 'interview_done');
+    res.json({ overall: Math.max(0, Math.min(100, Math.round(Number(out?.overall) || 0))), summary: str(out?.summary, 600), strengths: list(out?.strengths), improve: list(out?.improve), questions, role: job.role });
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message });
+    console.error('[ai/interview/report]', e.message);
+    res.status(500).json({ error: 'AI is unavailable right now. Please try again in a moment.' });
+  }
+});
+
 app.post('/api/ai/interview', needsCvContent, passOnly, aiAccess, async (req, res) => {
   try {
     const cv = cvFromBody(req.body);

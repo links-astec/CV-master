@@ -18,7 +18,7 @@
       <!-- Interview prep -->
       <div class="ak-row">
         <div class="ak-row-t"><b>{{ $t('Interview prep') }}</b><span>{{ $t('The questions this employer is likely to ask you, and how to answer from your CV.') }}</span></div>
-        <button v-if="pass" class="ak-btn" :disabled="busy === 'interview'" @click="prepInterview">{{ $t(busy === 'interview' ? 'Preparing…' : prep ? 'Prepare again' : 'Prepare me') }}</button>
+        <button v-if="pass" class="ak-btn" @click="router.push('/interview')">{{ $t('Practise with CVM') }}</button>
         <button v-else class="ak-lock" @click="toPass"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>{{ $t(campus ? 'Confirm your email' : 'With the pass') }}</button>
       </div>
       <div v-if="pass && prep" class="ak-out">

@@ -7,6 +7,7 @@ const Editor   = () => import('./views/Editor.vue')
 const Settings = () => import('./views/Settings.vue')
 const Legal    = () => import('./views/Legal.vue')
 const Pricing  = () => import('./views/Pricing.vue')
+const InterviewPrep = () => import('./views/InterviewPrep.vue')
 
 const routes = [
   { path: '/',               component: Dashboard, meta: { title: 'My CVs' } },
@@ -14,6 +15,7 @@ const routes = [
   { path: '/editor',         component: Editor,    meta: { title: 'Editor', full: true } },
   { path: '/settings',       component: Settings,  meta: { title: 'Settings' } },
   { path: '/pricing',        component: Pricing,   meta: { title: 'Pricing' } },
+  { path: '/interview',      component: InterviewPrep, meta: { title: 'Interview prep' } },
   { path: '/legal',          component: Legal,     meta: { title: 'Privacy & Terms' } },
   { path: '/builder',        redirect: '/editor'  },
   { path: '/privacy',        redirect: '/legal?tab=privacy' },
