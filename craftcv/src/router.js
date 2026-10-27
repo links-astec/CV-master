@@ -15,7 +15,7 @@ const routes = [
   { path: '/editor',         component: Editor,    meta: { title: 'Editor', full: true } },
   { path: '/settings',       component: Settings,  meta: { title: 'Settings' } },
   { path: '/pricing',        component: Pricing,   meta: { title: 'Pricing' } },
-  { path: '/interview',      component: InterviewPrep, meta: { title: 'Interview prep' } },
+  { path: '/interview',      component: InterviewPrep, meta: { title: 'Interview prep', bare: true } },
   { path: '/legal',          component: Legal,     meta: { title: 'Privacy & Terms' } },
   { path: '/builder',        redirect: '/editor'  },
   { path: '/privacy',        redirect: '/legal?tab=privacy' },

@@ -461,11 +461,14 @@ export const useCvStore = defineStore('cv', () => {
   // always gets the job offer, so suggestions are aimed at the job being applied for.
   async function aiWrite(task, extra = {}) {
     const { photo, ...cv } = plainClone(data.value)
-    const r = await fetch(apiUrl('/api/ai/write'), {
+    const send = () => fetch(apiUrl('/api/ai/write'), {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ task, cv, jobOffer: data.value.jobOffer || '', ...extra }),
     })
+    // a hiccup (the server busy, the connection dropped) is tried once more before the person sees an error
+    let r = await send().catch(() => null)
+    if (!r || r.status >= 500) { await new Promise(res => setTimeout(res, 1200)); r = await send() }
     const json = await r.json().catch(() => ({}))
     if (!r.ok || json.error) throw new Error(json.error || 'AI request failed.')
     return json

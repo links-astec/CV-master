@@ -11,7 +11,7 @@
 
   <LandingPage v-else-if="showLanding" :signed-in="auth.isLoggedIn" :campus="!!auth.user?.campus" @start="startBuilding" @sign-in="openAuth('signin')" />
 
-  <div v-else-if="ready" class="shell" :class="{ 'sb-mini': sbMini }">
+  <div v-else-if="ready" class="shell" :class="{ 'sb-mini': sbMini, bare: route.meta.bare }">
     <!-- Sidebar -->
     <div class="sb-dim" :class="{ on: navOpen }" @click="navOpen = false"></div>
     <aside class="sb" :class="{ open: navOpen }">
@@ -651,7 +651,10 @@ onMounted(() => setTimeout(checkBigTitle, 400))
   .top{padding:0 12px}
   .verify-bar{margin:10px 12px 0;border-radius:18px}
   .content{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+  .shell.bare .content{padding-bottom:0}
 }
+/* A page with its own header (the interviewer): no sidebar, top bar or bottom bar */
+.shell.bare .sb,.shell.bare .sb-dim,.shell.bare .top,.shell.bare .bnav,.shell.bare .verify-bar{display:none!important}
 
 /* Boot + maintenance */
 .boot{height:100vh;height:100dvh;display:flex;align-items:center;justify-content:center;background:var(--c-bg)}

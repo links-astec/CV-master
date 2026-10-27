@@ -100,5 +100,23 @@ app.use(createPinia())
 app.use(router)
 app.use(i18n)
 app.directive('reveal', reveal)
+
+// Pages and wizard steps load their code when first opened. After a new version goes live, a tab opened
+// before it asks for files that no longer exist and the page stays blank: load the new version instead
+// (once, so a real network problem doesn't reload forever).
+const STALE = /dynamically imported module|Importing a module script failed|error loading dynamically imported|Unable to preload CSS/i
+function loadNewVersion(path) {
+  let last = 0
+  try { last = Number(sessionStorage.getItem('cvm-reloaded')) || 0 } catch {}
+  if (Date.now() - last < 20000) return false
+  try { sessionStorage.setItem('cvm-reloaded', String(Date.now())) } catch {}
+  if (path) window.location.assign(path); else window.location.reload()
+  return true
+}
+router.onError((err, to) => { if (STALE.test(err?.message || '')) loadNewVersion(to?.fullPath) })
+app.config.errorHandler = (err) => {
+  if (STALE.test(err?.message || '') && loadNewVersion()) return
+  console.error(err)
+}
 // Show the app once its language is loaded, so nothing flashes in English first
 i18nReady.finally(() => app.mount('#app'))

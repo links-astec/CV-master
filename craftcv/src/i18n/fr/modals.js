@@ -409,4 +409,8 @@ export default {
   "Camera on": "Caméra activée",
   "Repeat": "Répéter",
   "Allow the microphone, or switch to Text.": "Autorisez le micro, ou passez en mode Texte.",
+  // CVM AI Interviewer, two-column intro
+  "Questions from your CV and the job": "Des questions tirées de votre CV et du poste",
+  "Follow-ups, like a real recruiter": "Des relances, comme un vrai recruteur",
+  "A score and a stronger answer for each one": "Une note et une meilleure réponse pour chacune",
 }
