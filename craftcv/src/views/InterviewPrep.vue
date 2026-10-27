@@ -17,7 +17,6 @@
     <!-- ── Intro ───────────────────────────────────────────────── -->
     <section v-if="stage === 'intro'" class="iv-intro">
       <div class="iv-hero">
-        <span class="iv-tag"><span class="iv-live"></span>CVM · {{ $t('AI Interviewer') }}</span>
         <h1 class="iv-h1">{{ $t('Ready when you are.') }}</h1>
         <p class="iv-sub">{{ $t('Rehearse your interview with CVM.') }}</p>
       </div>
@@ -415,7 +414,7 @@ onBeforeUnmount(() => { close(); document.removeEventListener('pointerdown', clo
 .iv-brand{display:inline-flex;text-decoration:none}
 .iv-intro{position:relative;z-index:1;flex:1;display:flex;flex-direction:column;align-items:center;text-align:center;gap:40px;padding:0 0 8px}
 .iv-hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:4vh}
-.iv-h1{font-size:clamp(40px,6.4vw,84px);font-weight:700;letter-spacing:-.045em;line-height:1.02;margin:22px 0 0}
+.iv-h1{font-size:clamp(40px,6.4vw,84px);font-weight:700;letter-spacing:-.045em;line-height:1.02;margin:0}
 .iv-sub{font-size:clamp(16px,1.5vw,19px);color:#4a4a63;margin:14px 0 0}
 .iv-dock{display:flex;gap:4px;padding:5px;border-radius:99px;background:#fff;box-shadow:inset 0 0 0 1px #e8e8ee}
 .iv-dock-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:9px;height:52px;border:none;border-radius:99px;background:none;font:inherit;font-size:15.5px;font-weight:600;color:#55556f;cursor:pointer;transition:background .25s,color .25s,box-shadow .25s}
