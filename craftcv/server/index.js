@@ -1457,6 +1457,15 @@ const cacheShare = () => {
 // spelling and grammar. If it ever fails, the request falls back to Groq like any other.
 const PROOF_MODEL = process.env.PROOF_MODEL || 'claude-haiku-5-5';
 async function callClaude(prompt, systemPrompt, maxTokens, claudeModel = ANTHROPIC_MODEL) {
+  try { return await callClaudeOnce(prompt, systemPrompt, maxTokens, claudeModel); }
+  catch (e) {
+    // busy or a hiccup (overloaded, 5xx, too many requests at once, a dropped connection): one more try after a pause
+    if (!e.retry) throw e;
+    await new Promise(res => setTimeout(res, 1500));
+    return callClaudeOnce(prompt, systemPrompt, maxTokens, claudeModel);
+  }
+}
+async function callClaudeOnce(prompt, systemPrompt, maxTokens, claudeModel) {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
@@ -1469,9 +1478,12 @@ async function callClaude(prompt, systemPrompt, maxTokens, claudeModel = ANTHROP
       messages: [{ role: 'user', content: prompt }],
     }),
     signal: AbortSignal.timeout(90000),
-  });
+  }).catch(e => { throw Object.assign(e, { retry: e.name !== 'TimeoutError' }); });   // after 90 s, Groq instead
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) { const msg = j.error?.message || `AI request failed (${r.status}).`; claudeFailed(msg); throw new Error(msg); }
+  if (!r.ok) {
+    const msg = j.error?.message || `AI request failed (${r.status}).`; claudeFailed(msg);
+    throw Object.assign(new Error(msg), { retry: (r.status === 429 || r.status >= 500) && !/credit balance|billing/i.test(msg) });
+  }
   claudeWorked();
   const u = j.usage || {};
   countClaude(u);
@@ -1569,12 +1581,14 @@ async function callAiRaw(prompt, model, systemPrompt, maxTokens, reasoningEffort
 // or have a hiccup. Wait and try again (as long as Groq asks, within reason), then try the
 // smaller model, which has its own rate limit, before giving up.
 const AI_FALLBACK_MODEL = process.env.GROQ_FALLBACK_MODEL || 'openai/gpt-oss-20b';
+const AI_LAST_MODEL = process.env.GROQ_LAST_MODEL || 'qwen/qwen3.8-27b';
 async function callGroq(prompt, model = AI_MODEL, systemPrompt = null, maxTokens = 800, reasoningEffort = 'low') {
   if (!GROQ_KEY) throw new Error('AI is unavailable right now. Please try again in a moment.');
   const messages = [];
   if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
   messages.push({ role: 'user', content: prompt });
-  const plan = [model, model, ...(model !== AI_FALLBACK_MODEL ? [AI_FALLBACK_MODEL, AI_FALLBACK_MODEL] : [model])];
+  // each model twice; each has its own rate limits, so a model that is used up for the day doesn't stop the rest
+  const plan = [...new Set([model, AI_FALLBACK_MODEL, AI_LAST_MODEL])].flatMap(m => [m, m]);
   let lastErr = null;
   for (let i = 0; i < plan.length; i++) {
     const m = plan[i];
@@ -1587,6 +1601,7 @@ async function callGroq(prompt, model = AI_MODEL, systemPrompt = null, maxTokens
           model: m, messages, temperature: 0.1,
           ...(m.startsWith('openai/gpt-oss')
             ? { reasoning_effort: reasoningEffort, max_tokens: maxTokens + (reasoningEffort === 'low' ? 1024 : 4096) }
+            : m.startsWith('qwen/') ? { reasoning_format: 'hidden', max_tokens: maxTokens + 1024 }
             : { max_tokens: maxTokens }),
         }),
         signal: AbortSignal.timeout(60000),
@@ -1604,6 +1619,8 @@ async function callGroq(prompt, model = AI_MODEL, systemPrompt = null, maxTokens
     }
     if (i < plan.length - 1) {
       const asked = Number(r?.headers.get('retry-after')) || 0;
+      // used up for a while (often the daily allowance): go straight to the next model instead of waiting
+      if (r?.status === 429 && asked > 10) { while (plan[i + 1] === m) i++; continue; }
       await new Promise(res => setTimeout(res, Math.min(8000, Math.max(asked * 1000, 800 * (i + 1)))));
     }
   }
@@ -2203,7 +2220,10 @@ app.post('/api/ai/write', needsCvContent, aiAccess, async (req, res) => {
       const have = new Set(arr(cv.skills).map(s => str(s).toLowerCase()));
       const out = await callAi(`CV:\n${facts}${job}${personal}`, AI_MODEL,
         `Suggest 10 skills for this CV: concrete tools, methods and domain knowledge (at most 2 soft skills), short names. ${brief ? 'Prefer the job’s keywords (exact wording) that the experience supports. ' : ''}${personal.includes('ABOUT THE ACCOUNT HOLDER') ? 'Skills from their other CVs that fit this CV are good suggestions. ' : ''}Do not repeat skills already listed, and never suggest spoken languages (they belong under Languages). Skill names in ${language} (keep technical terms normally left in English). Return ONLY a JSON array of strings.`, 600);
-      const list = JSON.parse(String(out).slice(String(out).indexOf('['), String(out).lastIndexOf(']') + 1));
+      // a JSON array; a reply that lists them some other way (one per line, commas) still counts
+      let list;
+      try { list = JSON.parse(String(out).slice(String(out).indexOf('['), String(out).lastIndexOf(']') + 1)); }
+      catch { list = String(out).split(/[\n,;]/).map(s => s.replace(/^[\s\-•*\d.)"'\[]+|["'\]\s]+$/g, '')).filter(s => !s.endsWith(':')); }
       return res.json({ skills: arr(list).map(str).filter(s => s && s.length <= 50 && !have.has(s.toLowerCase())).slice(0, 12) });
     }
     if (task === 'bullets') {

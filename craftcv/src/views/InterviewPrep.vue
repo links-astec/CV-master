@@ -6,11 +6,26 @@
   <div class="view-page iv-page">
     <div class="iv-aura" aria-hidden="true"><i class="a1"></i><i class="a2"></i><i class="a3"></i><span class="iv-lines"></span></div>
 
+    <!-- The page has no sidebar: its own small header -->
+    <header class="iv-head">
+      <RouterLink to="/" class="iv-brand" :aria-label="$t('CVMaster home')"><BrandLogo /></RouterLink>
+      <button type="button" class="iv-x iv-close" :aria-label="$t('Close')" @click="leave">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </header>
+
     <!-- ── Intro ───────────────────────────────────────────────── -->
     <section v-if="stage === 'intro'" class="iv-intro">
-      <span class="iv-tag"><span class="iv-live"></span>CVM · {{ $t('AI Interviewer') }}</span>
-      <h1 class="iv-h1">{{ $t('Ready when you are.') }}</h1>
-      <p class="iv-sub">{{ $t('Rehearse your interview with CVM.') }}</p>
+      <div class="iv-hero">
+        <span class="iv-tag"><span class="iv-live"></span>CVM · {{ $t('AI Interviewer') }}</span>
+        <h1 class="iv-h1">{{ $t('Ready when you are.') }}</h1>
+        <p class="iv-sub">{{ $t('Rehearse your interview with CVM.') }}</p>
+        <ul class="iv-facts">
+          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>{{ $t('Questions from your CV and the job') }}</li>
+          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 01-11.6 7.1L4 20l1-4.6A8 8 0 1121 12z"/></svg>{{ $t('Follow-ups, like a real recruiter') }}</li>
+          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>{{ $t('A score and a stronger answer for each one') }}</li>
+        </ul>
+      </div>
 
       <div class="iv-glass">
         <div class="iv-dock" role="radiogroup" :aria-label="$t('How to talk')">
@@ -128,6 +143,8 @@ import { ref, computed, nextTick, onBeforeUnmount, inject } from 'vue'
 import { useCvStore } from '../stores/cv.js'
 import { useAuthStore } from '../stores/auth.js'
 import { lang as uiLang, LANGS, t } from '../i18n/index.js'
+import { useRouter } from 'vue-router'
+import BrandLogo from '../components/BrandLogo.vue'
 
 const store = useCvStore()
 const auth = useAuthStore()
@@ -357,6 +374,9 @@ async function makeReport() {
   stage.value = 'report'; report.value = null; error.value = ''
   try { report.value = await post('/api/ai/interview/report') } catch (e) { if (!e.quiet) error.value = e.message }
 }
+// The header's ×: back where they came from in the app, or My CVs
+const router = useRouter()
+function leave() { if (window.history.state?.back) router.back(); else router.push('/') }
 function reset() { close(); stage.value = 'intro'; turns.value = []; report.value = null; error.value = ''; draft.value = '' }
 onBeforeUnmount(() => { close(); try { actx?.close() } catch {} })
 </script>
@@ -379,10 +399,29 @@ onBeforeUnmount(() => { close(); try { actx?.close() } catch {} })
 .iv-grad,.iv-h1{background:linear-gradient(92deg,#7c3aed 0%,#c026d3 45%,#ec4899 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
 
 /* ── Intro ── */
-.iv-intro{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;text-align:center;padding:9vh 0 64px}
+.iv-head{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:calc(18px + env(safe-area-inset-top)) clamp(16px,3vw,32px) 0}
+.iv-brand{display:inline-flex;text-decoration:none}
+.iv-intro{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;text-align:center;padding:7vh 0 64px}
+.iv-hero{display:flex;flex-direction:column;align-items:center}
 .iv-h1{font-size:clamp(40px,6vw,72px);font-weight:700;letter-spacing:-.045em;line-height:1.02;margin:22px 0 0}
 .iv-sub{font-size:18px;color:#4a4a63;margin:14px 0 0}
-.iv-glass{width:min(640px,100%);margin-top:44px;padding:20px;border-radius:28px;background:#fff;box-shadow:inset 0 0 0 1px #e8e8ee,0 24px 60px -30px rgba(20,20,43,.18)}
+.iv-facts{display:none}
+/* the card sits on the page (an outline, no shadow) */
+.iv-glass{width:min(640px,100%);margin-top:44px;padding:20px;border-radius:28px;background:#fff;box-shadow:inset 0 0 0 1px #e8e8ee}
+/* computers: the words on the left, the card on the right */
+@media (min-width:1024px){
+  .iv-intro{flex-direction:row;justify-content:center;gap:clamp(48px,7vw,112px);text-align:left;min-height:calc(100vh - 140px);padding:24px clamp(32px,5vw,80px) 72px}
+  .iv-hero{flex:1;max-width:580px;align-items:flex-start}
+  .iv-h1{font-size:clamp(56px,5.6vw,84px)}
+  .iv-sub{font-size:19px}
+  .iv-facts{display:flex;flex-direction:column;gap:14px;margin:36px 0 0;padding:0;list-style:none}
+  .iv-facts li{display:flex;align-items:center;gap:14px;font-size:15.5px;font-weight:500;color:#3b3b55}
+  .iv-facts svg{width:19px;height:19px;padding:10px;box-sizing:content-box;flex-shrink:0;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1px #e8e8ee;fill:none;stroke:var(--c-accent);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .iv-glass{width:480px;flex-shrink:0;margin-top:0;padding:22px}
+  .iv-glass .iv-chips{justify-content:stretch}
+  .iv-glass .iv-chip-job{flex:1 1 100%}
+  .iv-glass .iv-levels{flex:1}.iv-glass .iv-levels button{flex:1}
+}
 .iv-dock{display:flex;gap:4px;padding:5px;border-radius:99px;background:#fff;box-shadow:inset 0 0 0 1px #e8e8ee}
 .iv-dock-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:9px;height:52px;border:none;border-radius:99px;background:none;font:inherit;font-size:15.5px;font-weight:600;color:#55556f;cursor:pointer;transition:background .25s,color .25s,box-shadow .25s}
 .iv-dock-btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -469,7 +508,7 @@ onBeforeUnmount(() => { close(); try { actx?.close() } catch {} })
 .iv-report{position:relative;z-index:1;max-width:820px;margin:0 auto;padding:7vh 0 64px}
 .iv-loading{display:flex;flex-direction:column;align-items:center;gap:22px;padding:14vh 0;text-align:center}
 .iv-loading b{font-size:20px;color:#14142b}
-.iv-rep-top{display:flex;align-items:center;gap:28px;padding:22px;border-radius:30px;background:rgba(255,255,255,.7);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.9),0 30px 70px -40px rgba(124,58,237,.45)}
+.iv-rep-top{display:flex;align-items:center;gap:28px;padding:22px;border-radius:30px;background:#fff;box-shadow:inset 0 0 0 1px #e8e8ee}
 .iv-ring{--p:0;width:118px;height:118px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(closest-side,#fff 80%,transparent 81% 100%),conic-gradient(#7c3aed,#ec4899 calc(var(--p)*1%),rgba(20,20,43,.08) 0)}
 .iv-ring b{font-size:38px;font-weight:700;letter-spacing:-.04em;color:#14142b}
 .iv-rep-sum{margin:12px 0 0;font-size:17px;line-height:1.5;color:#3b3b55}
@@ -477,7 +516,7 @@ onBeforeUnmount(() => { close(); try { actx?.close() } catch {} })
 .iv-pill{padding:8px 14px;border-radius:99px;font-size:13.5px;font-weight:550;background:#fff;box-shadow:inset 0 0 0 1px rgba(20,20,43,.08)}
 .iv-pill.good::before{content:'+ ';color:#16a34a;font-weight:800}
 .iv-pill.work::before{content:'→ ';color:#c026d3;font-weight:800}
-.iv-q{margin-bottom:10px;border-radius:22px;background:rgba(255,255,255,.85);box-shadow:inset 0 0 0 1px rgba(20,20,43,.07)}
+.iv-q{margin-bottom:10px;border-radius:22px;background:#fff;box-shadow:inset 0 0 0 1px #e8e8ee}
 .iv-q summary{display:flex;align-items:center;gap:14px;padding:16px 18px;cursor:pointer;list-style:none}
 .iv-q summary::-webkit-details-marker{display:none}
 .iv-q-t{flex:1;font-size:15px;font-weight:600;color:#14142b;line-height:1.4}
@@ -487,8 +526,8 @@ onBeforeUnmount(() => { close(); try { actx?.close() } catch {} })
 .iv-q-body{padding:0 18px 18px}
 .iv-q-body p{margin:0 0 10px;font-size:14.5px;line-height:1.55;color:#4a4a63}
 .iv-q-you{font-style:italic;color:#8b8ba3!important}
-.iv-better{padding:12px 14px;border-radius:16px;background:linear-gradient(92deg,rgba(124,58,237,.07),rgba(236,72,153,.07));color:#14142b!important}
-.iv-better b{color:#7c3aed;margin-right:4px}
+.iv-better{padding:12px 14px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 1px #e9e3fb;color:#14142b!important}
+.iv-better b{color:var(--c-accent);margin-right:4px}
 .iv-acts{display:flex;align-items:center;gap:22px;margin-top:22px}
 .iv-acts .iv-go{width:auto;padding:0 34px;margin:0}
 
