@@ -20,40 +20,46 @@
         <span class="iv-tag"><span class="iv-live"></span>CVM · {{ $t('AI Interviewer') }}</span>
         <h1 class="iv-h1">{{ $t('Ready when you are.') }}</h1>
         <p class="iv-sub">{{ $t('Rehearse your interview with CVM.') }}</p>
-        <ul class="iv-facts">
-          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>{{ $t('Questions from your CV and the job') }}</li>
-          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 01-11.6 7.1L4 20l1-4.6A8 8 0 1121 12z"/></svg>{{ $t('Follow-ups, like a real recruiter') }}</li>
-          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>{{ $t('A score and a stronger answer for each one') }}</li>
-        </ul>
       </div>
 
-      <div class="iv-glass">
-        <div class="iv-dock" role="radiogroup" :aria-label="$t('How to talk')">
-          <button v-for="m in MODES" :key="m.id" type="button" role="radio" class="iv-dock-btn" :class="{ on: mode === m.id }" :aria-checked="mode === m.id" @click="mode = m.id">
-            <svg viewBox="0 0 24 24" aria-hidden="true" v-html="m.icon"></svg><span>{{ $t(m.name) }}</span>
-          </button>
-        </div>
-
-        <div class="iv-chips">
-          <label class="iv-chip iv-chip-job"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+      <!-- Everything to set, in one line along the bottom (a card on phones) -->
+      <div class="iv-bottom">
+        <div class="iv-line">
+          <div class="iv-seg iv-dock" role="radiogroup" :aria-label="$t('How to talk')">
+            <button v-for="m in MODES" :key="m.id" type="button" role="radio" class="iv-dock-btn" :class="{ on: mode === m.id }" :aria-checked="mode === m.id" :title="$t(m.name)" @click="mode = m.id">
+              <svg viewBox="0 0 24 24" aria-hidden="true" v-html="m.icon"></svg><span>{{ $t(m.name) }}</span>
+            </button>
+          </div>
+          <label class="iv-seg iv-job"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
             <input v-model="role" maxlength="100" :placeholder="offerTitle ? $t('From your job offer') : (store.data.title || $t('The job'))" :aria-label="$t('The job')" /></label>
-          <div class="iv-chip iv-levels" role="radiogroup" :aria-label="$t('Difficulty')">
+          <div class="iv-seg iv-levels" role="radiogroup" :aria-label="$t('Difficulty')">
             <button v-for="d in LEVELS" :key="d.id" type="button" role="radio" :class="{ on: level === d.id }" :aria-checked="level === d.id" @click="level = d.id">{{ $t(d.name) }}</button>
           </div>
-          <label class="iv-chip"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/></svg>
-            <select v-model="ivLang" :aria-label="$t('Language')"><option v-for="l in LANGS" :key="l.code" :value="l.code">{{ l.label }}</option></select></label>
+          <div ref="langBox" class="iv-seg iv-lang" @keydown.esc="langOpen = false">
+            <button type="button" class="iv-lang-btn" :aria-label="$t('Language')" aria-haspopup="listbox" :aria-expanded="langOpen" @click="langOpen = !langOpen">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/></svg>
+              <span>{{ langLabel }}</span>
+              <svg class="iv-chev" :class="{ up: langOpen }" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <Transition name="iv-pop">
+              <ul v-if="langOpen" class="iv-menu" role="listbox" :aria-label="$t('Language')">
+                <li v-for="l in LANGS" :key="l.code">
+                  <button type="button" role="option" :aria-selected="ivLang === l.code" :class="{ on: ivLang === l.code }" @click="ivLang = l.code; langOpen = false">
+                    {{ l.label }}<svg v-if="ivLang === l.code" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+                  </button>
+                </li>
+              </ul>
+            </Transition>
+          </div>
+          <button v-if="gate === 'confirm'" type="button" class="iv-go" @click="resendVerification?.()">{{ $t('Resend the link') }}</button>
+          <button v-else-if="gate" type="button" class="iv-go" @click="$router.push({ path: '/settings', hash: '#pass' })">{{ $t('See the pass') }}</button>
+          <button v-else type="button" class="iv-go" :disabled="busy" @click="start">
+            <span v-if="busy" class="iv-spin"></span>{{ $t(busy ? 'Getting ready…' : 'Start') }}
+            <svg v-if="!busy" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
         </div>
-
-        <div v-if="gate" class="iv-gate">
-          <b>{{ $t(gate === 'confirm' ? 'Confirm your student email first' : 'Included with the Job Hunt Pass') }}</b>
-          <button v-if="gate === 'confirm'" type="button" class="iv-go sm" @click="resendVerification?.()">{{ $t('Resend the link') }}</button>
-          <button v-else type="button" class="iv-go sm" @click="$router.push({ path: '/settings', hash: '#pass' })">{{ $t('See the pass') }}</button>
-        </div>
-        <button v-else type="button" class="iv-go" :disabled="busy" @click="start">
-          <span v-if="busy" class="iv-spin"></span>{{ $t(busy ? 'Getting ready…' : 'Start') }}
-          <svg v-if="!busy" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-        </button>
-        <p class="iv-fine">{{ $t('6 questions · about 10 minutes') }}<template v-if="mode === 'video'"> · {{ $t('Camera stays on your device') }}</template></p>
+        <p v-if="gate" class="iv-fine"><b>{{ $t(gate === 'confirm' ? 'Confirm your student email first' : 'Included with the Job Hunt Pass') }}</b></p>
+        <p v-else class="iv-fine">{{ $t('6 questions · about 10 minutes') }}<template v-if="mode === 'video'"> · {{ $t('Camera stays on your device') }}</template></p>
         <p v-if="error" class="iv-err">{{ $t(error) }}</p>
       </div>
     </section>
@@ -163,6 +169,12 @@ const SPEECH = { en: 'en-GB', fr: 'fr-FR', es: 'es-ES', de: 'de-DE', it: 'it-IT'
 
 const stage = ref('intro'), mode = ref('audio'), level = ref('standard')
 const ivLang = ref(LANGS.some(l => l.code === store.data.lang) ? store.data.lang : uiLang.value)
+// The language menu: opens above the bar, closes on a choice, a click elsewhere or Escape
+const langOpen = ref(false)
+const langBox = ref(null)
+const langLabel = computed(() => LANGS.find(l => l.code === ivLang.value)?.label || ivLang.value)
+const closeLang = (e) => { if (langOpen.value && !langBox.value?.contains(e.target)) langOpen.value = false }
+document.addEventListener('pointerdown', closeLang)
 const role = ref('')
 const offerTitle = computed(() => (store.data.jobOffer || '').trim().length >= 80)
 const busy = ref(false), thinking = ref(false), error = ref(''), gate = ref('')
@@ -378,12 +390,12 @@ async function makeReport() {
 const router = useRouter()
 function leave() { if (window.history.state?.back) router.back(); else router.push('/') }
 function reset() { close(); stage.value = 'intro'; turns.value = []; report.value = null; error.value = ''; draft.value = '' }
-onBeforeUnmount(() => { close(); try { actx?.close() } catch {} })
+onBeforeUnmount(() => { close(); document.removeEventListener('pointerdown', closeLang); try { actx?.close() } catch {} })
 </script>
 
 <style scoped>
 /* ── The glow behind everything (soft, slow, a little alive) ── */
-.iv-page{position:relative;background:#fff;overflow:hidden;min-height:100%}
+.iv-page{position:relative;background:#fff;overflow-x:hidden;overflow-y:auto;display:flex;flex-direction:column}
 .iv-aura{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:0}
 .iv-aura i{position:absolute;border-radius:50%;filter:blur(70px);opacity:.55}
 .iv-aura .a1{width:46vw;height:46vw;max-width:620px;max-height:620px;left:12%;top:18%;background:#a78bfa;animation:ivDrift1 18s ease-in-out infinite alternate}
@@ -401,41 +413,65 @@ onBeforeUnmount(() => { close(); try { actx?.close() } catch {} })
 /* ── Intro ── */
 .iv-head{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:calc(18px + env(safe-area-inset-top)) clamp(16px,3vw,32px) 0}
 .iv-brand{display:inline-flex;text-decoration:none}
-.iv-intro{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;text-align:center;padding:7vh 0 64px}
-.iv-hero{display:flex;flex-direction:column;align-items:center}
-.iv-h1{font-size:clamp(40px,6vw,72px);font-weight:700;letter-spacing:-.045em;line-height:1.02;margin:22px 0 0}
-.iv-sub{font-size:18px;color:#4a4a63;margin:14px 0 0}
-.iv-facts{display:none}
-/* the card sits on the page (an outline, no shadow) */
-.iv-glass{width:min(640px,100%);margin-top:44px;padding:20px;border-radius:28px;background:#fff;box-shadow:inset 0 0 0 1px #e8e8ee}
-/* computers: the words on the left, the card on the right */
-@media (min-width:1024px){
-  .iv-intro{flex-direction:row;justify-content:center;gap:clamp(48px,7vw,112px);text-align:left;min-height:calc(100vh - 140px);padding:24px clamp(32px,5vw,80px) 72px}
-  .iv-hero{flex:1;max-width:580px;align-items:flex-start}
-  .iv-h1{font-size:clamp(56px,5.6vw,84px)}
-  .iv-sub{font-size:19px}
-  .iv-facts{display:flex;flex-direction:column;gap:14px;margin:36px 0 0;padding:0;list-style:none}
-  .iv-facts li{display:flex;align-items:center;gap:14px;font-size:15.5px;font-weight:500;color:#3b3b55}
-  .iv-facts svg{width:19px;height:19px;padding:10px;box-sizing:content-box;flex-shrink:0;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1px #e8e8ee;fill:none;stroke:var(--c-accent);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-  .iv-glass{width:480px;flex-shrink:0;margin-top:0;padding:22px}
-  .iv-glass .iv-chips{justify-content:stretch}
-  .iv-glass .iv-chip-job{flex:1 1 100%}
-  .iv-glass .iv-levels{flex:1}.iv-glass .iv-levels button{flex:1}
-}
+.iv-intro{position:relative;z-index:1;flex:1;display:flex;flex-direction:column;align-items:center;text-align:center;gap:40px;padding:0 0 8px}
+.iv-hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:4vh}
+.iv-h1{font-size:clamp(40px,6.4vw,84px);font-weight:700;letter-spacing:-.045em;line-height:1.02;margin:22px 0 0}
+.iv-sub{font-size:clamp(16px,1.5vw,19px);color:#4a4a63;margin:14px 0 0}
 .iv-dock{display:flex;gap:4px;padding:5px;border-radius:99px;background:#fff;box-shadow:inset 0 0 0 1px #e8e8ee}
 .iv-dock-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:9px;height:52px;border:none;border-radius:99px;background:none;font:inherit;font-size:15.5px;font-weight:600;color:#55556f;cursor:pointer;transition:background .25s,color .25s,box-shadow .25s}
 .iv-dock-btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .iv-dock-btn:hover{color:#14142b}
 .iv-dock-btn.on{background:var(--c-accent-lt);color:var(--c-accent)}
-.iv-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;justify-content:center}
-.iv-chip{display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 14px;border-radius:99px;background:#fff;box-shadow:inset 0 0 0 1px #e8e8ee;font-size:14px;color:#14142b}
-.iv-chip svg{width:16px;height:16px;fill:none;stroke:#8b8ba3;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
-.iv-chip input,.iv-chip select{border:none;background:none;font:inherit;font-size:14px;color:#14142b;outline:none;min-width:0}
-.iv-chip-job{flex:1 1 220px}.iv-chip-job input{flex:1}
-.iv-chip select{cursor:pointer}
-.iv-levels{padding:4px;gap:2px}
-.iv-levels button{height:34px;padding:0 13px;border:none;border-radius:99px;background:none;font:inherit;font-size:13.5px;font-weight:600;color:#6b6b84;cursor:pointer}
+/* ── The line: one long bar on the page (an outline, no shadow); a card on phones ── */
+.iv-bottom{width:min(1180px,100%);display:flex;flex-direction:column;align-items:center}
+.iv-line{width:100%;display:flex;align-items:center;padding:8px;border-radius:99px;background:#fff;box-shadow:inset 0 0 0 1px #e8e8ee}
+.iv-seg{position:relative;display:flex;align-items:center;height:52px;flex-shrink:0}
+.iv-seg + .iv-seg::before{content:'';position:absolute;left:0;top:14px;bottom:14px;width:1px;background:#ececf2}
+.iv-seg + .iv-seg{padding-left:10px;margin-left:6px}
+.iv-line .iv-dock{gap:2px;padding:0;box-shadow:none;background:none}
+.iv-line .iv-dock-btn{flex:none;height:52px;padding:0 18px;font-size:15px}
+.iv-job{flex:1;min-width:150px;gap:10px;padding-right:6px;cursor:text}
+.iv-job svg,.iv-lang-btn svg{width:17px;height:17px;flex-shrink:0;fill:none;stroke:#8b8ba3;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.iv-job input{flex:1;min-width:0;height:100%;border:none;background:none;font:inherit;font-size:15px;color:#14142b;outline:none}
+.iv-job input::placeholder{color:#8b8ba3}
+.iv-levels{gap:2px}
+.iv-levels button{height:40px;padding:0 15px;border:none;border-radius:99px;background:none;font:inherit;font-size:14px;font-weight:600;color:#6b6b84;cursor:pointer;transition:background .2s,color .2s}
+.iv-levels button:hover{color:#14142b}
 .iv-levels button.on{background:var(--c-accent-lt);color:var(--c-accent)}
+.iv-lang-btn{display:flex;align-items:center;gap:9px;height:40px;padding:0 12px;border:none;border-radius:99px;background:none;font:inherit;font-size:14.5px;font-weight:600;color:#14142b;cursor:pointer;white-space:nowrap}
+.iv-lang-btn:hover .iv-chev,.iv-lang-btn[aria-expanded="true"] .iv-chev{stroke:#14142b}
+.iv-lang-btn .iv-chev{width:15px;height:15px;transition:transform .25s}
+.iv-chev.up{transform:rotate(180deg)}
+.iv-menu{position:absolute;right:0;bottom:calc(100% + 14px);z-index:20;min-width:210px;margin:0;padding:6px;list-style:none;border-radius:22px;background:#fff;box-shadow:inset 0 0 0 1px #e8e8ee,0 24px 50px -28px rgba(20,20,43,.3);text-align:left}
+.iv-menu button{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;height:42px;padding:0 14px;border:none;border-radius:16px;background:none;font:inherit;font-size:14.5px;font-weight:500;color:#14142b;cursor:pointer}
+.iv-menu button:hover{color:var(--c-accent)}
+.iv-menu button.on{background:var(--c-accent-lt);color:var(--c-accent);font-weight:600}
+.iv-menu svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.iv-pop-enter-active,.iv-pop-leave-active{transition:opacity .18s,transform .18s}
+.iv-pop-enter-from,.iv-pop-leave-to{opacity:0;transform:translateY(6px)}
+.iv-line .iv-go{width:auto;flex-shrink:0;height:52px;margin:0 0 0 10px;padding:0 28px}
+/* narrower computers: the modes as icons */
+@media (max-width:1100px){
+  .iv-line .iv-dock-btn{padding:0 15px}
+  .iv-line .iv-dock-btn span{display:none}
+}
+/* tablets upright and phones: a card, each setting on its own */
+@media (max-width:860px){
+  .iv-intro{gap:28px}
+  .iv-bottom{width:min(560px,100%)}
+  .iv-line{flex-wrap:wrap;gap:10px;padding:14px;border-radius:28px}
+  .iv-seg + .iv-seg{padding-left:0;margin-left:0}
+  .iv-seg + .iv-seg::before{display:none}
+  .iv-line .iv-dock{flex:1 1 100%;padding:4px;border-radius:99px;box-shadow:inset 0 0 0 1px #e8e8ee}
+  .iv-line .iv-dock-btn{flex:1;height:48px}
+  .iv-line .iv-dock-btn span{display:inline}
+  .iv-line .iv-job{flex:1 1 100%;height:48px;padding:0 16px;border-radius:99px;box-shadow:inset 0 0 0 1px #e8e8ee}
+  .iv-levels{flex:1;height:48px;padding:4px;border-radius:99px;box-shadow:inset 0 0 0 1px #e8e8ee}
+  .iv-levels button{flex:1;padding:0 8px}
+  .iv-line .iv-lang{height:48px;padding:0 2px;border-radius:99px;box-shadow:inset 0 0 0 1px #e8e8ee}
+  .iv-lang-btn{padding:0 12px 0 10px;gap:7px}
+  .iv-line .iv-go{flex:1 1 100%;margin:4px 0 0}
+}
 .iv-go{display:inline-flex;align-items:center;justify-content:center;gap:10px;width:100%;height:54px;margin-top:16px;border:none;border-radius:99px;background:#14142b;color:#fff;font:inherit;font-size:16.5px;font-weight:600;cursor:pointer;transition:transform .2s,background .2s}
 .iv-go:hover{background:#000}
 .iv-go:disabled{opacity:.7;cursor:default;transform:none}
@@ -443,10 +479,8 @@ onBeforeUnmount(() => { close(); try { actx?.close() } catch {} })
 .iv-go.sm{width:auto;height:40px;padding:0 18px;margin:0;font-size:14px}
 .iv-spin{width:16px;height:16px;border:2px solid #fff;border-right-color:transparent;border-radius:50%;animation:ivSpin .8s linear infinite}
 @keyframes ivSpin{to{transform:rotate(360deg)}}
-.iv-fine{margin:12px 0 0;font-size:12.5px;color:#8b8ba3}
+.iv-fine{margin:14px 0 0;font-size:12.5px;color:#8b8ba3}
 .iv-err{color:#e11d48;font-size:13.5px;margin:10px 0 0}
-.iv-gate{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:18px;padding:14px 16px;border-radius:22px;background:rgba(255,255,255,.85);box-shadow:inset 0 0 0 1px #e9d5ff;text-align:left}
-.iv-gate b{font-size:15px;color:#14142b}
 .iv-link{border:none;background:none;font:inherit;font-size:15px;font-weight:600;color:#7c3aed;cursor:pointer}
 
 /* ── The orb: CVM ── */
@@ -532,11 +566,8 @@ onBeforeUnmount(() => { close(); try { actx?.close() } catch {} })
 .iv-acts .iv-go{width:auto;padding:0 34px;margin:0}
 
 @media (max-width:640px){
-  .iv-intro{padding-top:5vh}
   .iv-sub{font-size:16px}
-  .iv-glass{padding:14px;border-radius:26px;margin-top:30px}
   .iv-dock-btn{height:48px;font-size:14.5px;gap:7px}
-  .iv-chip-job{flex-basis:100%}
   .iv-center{gap:26px;padding-bottom:150px}
   .iv-me{right:14px;top:calc(70px + env(safe-area-inset-top));bottom:auto;width:104px}
   .iv-me-tip{font-size:10px;padding:3px 8px}
