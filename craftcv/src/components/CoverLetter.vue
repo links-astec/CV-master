@@ -237,5 +237,5 @@ async function downloadPdf() {
 @keyframes clSpin{to{transform:rotate(360deg)}}
 .cl-foot{font-size:12.5px;color:var(--c-text3);margin:8px 4px 0;line-height:1.45}
 .cl-err{font-size:13px;color:var(--c-rose);margin:10px 4px 0}
-@media (max-width:420px){ .cl-row{flex-wrap:wrap} .cl-in{text-align:left;flex-basis:100%} }
+@media (max-width:420px){ .cl-row{flex-wrap:wrap} .cl-row-col{flex-wrap:nowrap} .cl-in{text-align:left;flex-basis:100%} }
 </style>
