@@ -150,4 +150,14 @@ export default {
   'For people applying to lots of jobs: for €6.99 a month every CV you make is unlocked as a clean PDF, and you get 100 AI requests a day. Cancel any time in Settings; the pass then runs to the end of the month you paid for.': 'Pour celles et ceux qui postulent à beaucoup d’offres : pour 6,99 € par mois, chaque CV que vous créez est débloqué en PDF sans filigrane, et vous avez 100 requêtes IA par jour. Annulable à tout moment dans les Paramètres ; le pass reste actif jusqu’à la fin du mois payé.',
   'Or €14.99 every 3 months (save 29%)': 'Ou 14,99 € tous les 3 mois (29 % d’économie)',
   'Compare all plans': 'Comparer toutes les formules',
+  // The interview chapter
+  "Six steps, each one built to get you closer to the job.": "Six étapes, chacune pensée pour vous rapprocher du poste.",
+  "Rehearse the interview": "Répétez l’entretien",
+  "Rehearse an interview": "Répéter un entretien",
+  "Practise my interview": "Préparer mon entretien",
+  "Then rehearse the interview.": "Puis répétez l’entretien.",
+  "CVM, our AI interviewer, asks the questions this job is likely to bring, built from your CV and the job offer. Answer by text, voice or video, then see what landed and how to say it better.": "CVM, notre recruteur IA, vous pose les questions que ce poste risque d’amener, à partir de votre CV et de l’offre. Répondez par écrit, à voix haute ou en vidéo, puis voyez ce qui a convaincu et comment mieux le dire.",
+  "Questions from your CV and the job offer": "Des questions tirées de votre CV et de l’offre",
+  "Text, voice or video, in your language": "Écrit, voix ou vidéo, dans votre langue",
+  "Tell me about a project you are proud of. What was your part in it?": "Parlez-moi d’un projet dont vous êtes fier. Quel a été votre rôle ?",
 }
