@@ -36,6 +36,8 @@
           <button class="lp-q" @click="$emit('start', 'ats')">{{ $t('Check your ATS score') }}</button>
           <span aria-hidden="true">·</span>
           <button class="lp-q" @click="$emit('start', 'letter')">{{ $t('Write a cover letter') }}</button>
+          <span aria-hidden="true">·</span>
+          <button class="lp-q" @click="go('#ch-interview')">{{ $t('Rehearse an interview') }}</button>
         </p>
       </div>
       <div class="lp-stage" aria-hidden="true" inert :style="{ '--drift': drift }">
@@ -51,7 +53,7 @@
     <section class="lp-sec lp-story" id="how">
       <div class="lp-wrap">
         <h2 class="lp-h2" v-reveal>{{ $t('From blank page to interview.') }}</h2>
-        <p class="lp-sub" v-reveal>{{ $t('Five steps, each one built to get you closer to the job.') }}</p>
+        <p class="lp-sub" v-reveal>{{ $t('Six steps, each one built to get you closer to the job.') }}</p>
         <nav class="lp-rail" :aria-label="$t('How it works')" v-reveal>
           <a v-for="(c, i) in CHAPTERS" :key="c.k" :href="'#ch-' + c.k" @click.prevent="go('#ch-' + c.k)"><span>{{ i + 1 }}</span>{{ $t(c.short) }}</a>
         </nav>
@@ -66,6 +68,7 @@
           <p>{{ $t(c.lead) }}</p>
           <ul><li v-for="p in c.pts" :key="p">{{ $t(p) }}</li></ul>
           <button class="btn-primary accent btn-lg" @click="$emit('start', c.mode)">{{ $t(c.cta) }}</button>
+          <p v-if="c.note && !campus" class="lp-ch-note">{{ $t(c.note) }}</p>
         </div>
         <div class="lp-media lp-ch-media" :class="'m-' + c.k" aria-hidden="true" inert v-reveal="120">
           <!-- Story -->
@@ -100,6 +103,20 @@
             <div class="m-ring"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="50" class="track" /><circle cx="60" cy="60" r="50" class="bar" pathLength="100" /></svg><b>86</b></div>
             <div class="m-checks"><div class="m-ats-ttl">{{ $t('Your ATS score') }}</div>
               <div v-for="k in CHECKS" :key="k" class="m-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg>{{ $t(k) }}</div></div>
+          </template>
+          <!-- The interviewer: CVM's orb asking a question, the progress dashes and the dock, as on the real page -->
+          <template v-else-if="c.k === 'interview'">
+            <div class="m-iv">
+              <div class="m-iv-steps"><i class="on"></i><i class="on"></i><i class="on now"></i><i></i><i></i><i></i></div>
+              <span class="m-iv-orb"><i></i></span>
+              <p class="m-iv-cap">{{ $t('Tell me about a project you are proud of. What was your part in it?') }}</p>
+              <div class="m-iv-dock">
+                <span class="on"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0014 0M12 18v3" /></svg></span>
+                <span><svg viewBox="0 0 24 24"><rect x="2" y="6" width="14" height="12" rx="2" /><path d="M16 10l6-3v10l-6-3" /></svg></span>
+                <span><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0115-6.7L21 8M21 3v5h-5M21 12a9 9 0 01-15 6.7L3 16M3 21v-5h5" /></svg></span>
+                <b>{{ $t('Done') }}</b>
+              </div>
+            </div>
           </template>
           <!-- PDF -->
           <template v-else>
@@ -425,6 +442,9 @@ const CHAPTERS = [
   { k: 'pdf', short: 'Send it', mode: 'new', cta: 'Build my CV for free',
     t: 'One clean page, ready to send.', lead: 'Download a polished one-page PDF without a watermark, and get it by email. Edit it any time and download it again for free.',
     pts: ['One A4 page, checked for you', 'Emailed and downloadable', '€0.99 per CV, no subscription'] },
+  { k: 'interview', short: 'Rehearse the interview', mode: 'interview', cta: 'Practise my interview', note: 'Included with the Job Hunt Pass',
+    t: 'Then rehearse the interview.', lead: 'CVM, our AI interviewer, asks the questions this job is likely to bring, built from your CV and the job offer. Answer by text, voice or video, then see what landed and how to say it better.',
+    pts: ['Questions from your CV and the job offer', 'Text, voice or video, in your language', 'A score and a stronger answer for each one'] },
 ]
 
 const feat = ref(0)
@@ -583,6 +603,30 @@ const FAQ = [
 .m-story,.m-tailor,.m-fit,.m-ats{background:#fff;box-shadow:inset 0 0 0 1px #E4E4EE}
 :global([data-theme="dark"]) .m-story,:global([data-theme="dark"]) .m-tailor,:global([data-theme="dark"]) .m-fit,:global([data-theme="dark"]) .m-ats{background:#1c1c22}
 .m-pdf{background:#4338CA}
+/* The interviewer, as on its page: white with a soft glow, CVM's orb, the question, the dock */
+.m-interview{background:#fff;flex-direction:column}
+.m-interview::before,.m-interview::after{content:'';position:absolute;border-radius:50%;filter:blur(60px);opacity:.5;pointer-events:none}
+.m-interview::before{width:55%;height:60%;left:6%;top:12%;background:#a78bfa}
+.m-interview::after{width:50%;height:55%;right:4%;top:24%;background:#f472b6}
+.m-iv{position:relative;z-index:1;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;text-align:center}
+.m-iv-steps{position:absolute;top:0;left:0;display:flex;gap:5px}
+.m-iv-steps i{width:18px;height:4px;border-radius:99px;background:rgba(20,20,43,.12)}
+.m-iv-steps i.on{background:#14142b}
+.m-iv-steps i.now{width:30px}
+.m-iv-orb{position:relative;width:30%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff 0%,#f5d0fe 18%,#c084fc 45%,#ec4899 78%,#fb923c 100%);
+  box-shadow:0 0 50px 6px rgba(192,38,211,.35),inset -14px -18px 40px rgba(124,58,237,.35);animation:mIvTalk 1.6s ease-in-out infinite}
+.m-iv-orb i{position:absolute;inset:-12px;border-radius:50%;box-shadow:0 0 0 1px rgba(192,38,211,.3);animation:mIvRing 1.8s ease-out infinite}
+@keyframes mIvTalk{0%,100%{transform:scale(1)}30%{transform:scale(1.06)}55%{transform:scale(.98)}75%{transform:scale(1.04)}}
+@keyframes mIvRing{from{transform:scale(1);opacity:.7}to{transform:scale(1.45);opacity:0}}
+.m-iv-cap{margin:0;max-width:86%;font-size:clamp(14px,1.5vw,18px);line-height:1.4;font-weight:600;letter-spacing:-.01em;color:#14142b}
+.m-iv-dock{display:flex;align-items:center;gap:6px;padding:6px;border-radius:99px;background:#fff;box-shadow:inset 0 0 0 1px #e8e8ee}
+.m-iv-dock span{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#55556f}
+.m-iv-dock span.on{background:#22c55e;color:#fff;box-shadow:0 0 0 5px rgba(34,197,94,.18)}
+.m-iv-dock svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.m-iv-dock b{height:38px;padding:0 18px;border-radius:99px;background:#14142b;color:#fff;font-size:13.5px;font-weight:650;display:flex;align-items:center}
+@media (prefers-reduced-motion:reduce){ .m-iv-orb,.m-iv-orb i{animation:none} }
+.lp-ch-note{margin:12px 0 0;font-size:13.5px;color:var(--c-text3)}
+.lp-ch.dark .lp-ch-note{color:#86868b}
 .m-mic{width:44%;background:#fff;border-radius:22px;padding:24px 20px;display:flex;flex-direction:column;align-items:center;gap:14px;box-shadow:0 20px 50px rgba(20,20,43,.14)}
 .m-mic-btn{width:64px;height:64px;border-radius:50%;background:#4338CA;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 10px rgba(67,56,202,.12)}
 .m-mic-btn svg{width:28px;height:28px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round}
