@@ -131,19 +131,19 @@ export function templateLabel(id) {
 // ── i18n ──────────────────────────────────────────────────────────────────────
 const LABELS = {
   en: { profile: 'Profile', experience: 'Experience', education: 'Education', skills: 'Skills',
-        projects: 'Projects', languages: 'Languages', certifications: 'Certifications', contact: 'Contact', seeking: 'Looking for' },
+        projects: 'Projects', languages: 'Languages', certifications: 'Certifications', contact: 'Contact', seeking: 'Looking for', technical: 'Technical', soft: 'Soft skills' },
   fr: { profile: 'Profil', experience: 'Expérience professionnelle', education: 'Formation', skills: 'Compétences',
-        projects: 'Projets', languages: 'Langues', certifications: 'Certifications', contact: 'Contact', seeking: 'Recherche' },
+        projects: 'Projets', languages: 'Langues', certifications: 'Certifications', contact: 'Contact', seeking: 'Recherche', technical: 'Techniques', soft: 'Savoir-être' },
   es: { profile: 'Perfil', experience: 'Experiencia profesional', education: 'Formación', skills: 'Competencias',
-        projects: 'Proyectos', languages: 'Idiomas', certifications: 'Certificaciones', contact: 'Contacto', seeking: 'Busco' },
+        projects: 'Proyectos', languages: 'Idiomas', certifications: 'Certificaciones', contact: 'Contacto', seeking: 'Busco', technical: 'Técnicas', soft: 'Habilidades blandas' },
   de: { profile: 'Profil', experience: 'Berufserfahrung', education: 'Ausbildung', skills: 'Kenntnisse',
-        projects: 'Projekte', languages: 'Sprachen', certifications: 'Zertifikate', contact: 'Kontakt', seeking: 'Ich suche' },
+        projects: 'Projekte', languages: 'Sprachen', certifications: 'Zertifikate', contact: 'Kontakt', seeking: 'Ich suche', technical: 'Fachlich', soft: 'Soft Skills' },
   it: { profile: 'Profilo', experience: 'Esperienza professionale', education: 'Formazione', skills: 'Competenze',
-        projects: 'Progetti', languages: 'Lingue', certifications: 'Certificazioni', contact: 'Contatti', seeking: 'Cerco' },
+        projects: 'Progetti', languages: 'Lingue', certifications: 'Certificazioni', contact: 'Contatti', seeking: 'Cerco', technical: 'Tecniche', soft: 'Soft skill' },
   pt: { profile: 'Perfil', experience: 'Experiência profissional', education: 'Formação', skills: 'Competências',
-        projects: 'Projetos', languages: 'Idiomas', certifications: 'Certificações', contact: 'Contato', seeking: 'Procuro' },
+        projects: 'Projetos', languages: 'Idiomas', certifications: 'Certificações', contact: 'Contato', seeking: 'Procuro', technical: 'Técnicas', soft: 'Competências comportamentais' },
   zh: { profile: '个人简介', experience: '工作经历', education: '教育背景', skills: '技能',
-        projects: '项目经历', languages: '语言能力', certifications: '证书', contact: '联系方式', seeking: '求职意向：' },
+        projects: '项目经历', languages: '语言能力', certifications: '证书', contact: '联系方式', seeking: '求职意向：', technical: '专业技能', soft: '软技能' },
 }
 const PLACEHOLDERS = {
   en: { name: 'Your Name', title: 'Job title', email: 'you@email.com', phone: '+44 7700 900000', loc: 'City, Country',
@@ -294,6 +294,7 @@ function buildModel(raw, preview, fullLinks = false) {
   const edu = eduRaw.filter(e => e && (str(e.degree) || str(e.school) || str(e.year)))
     .map(e => ({ degree: esc(str(e.degree)), school: esc(str(e.school)), year: esc(str(e.year)) }))
   const skills = (Array.isArray(d.skills) ? d.skills : []).map(str).filter(Boolean).map(esc)
+  const soft = (Array.isArray(d.softSkills) ? d.softSkills : []).map(str).filter(Boolean).map(esc)
   const projects = (Array.isArray(d.projects) ? d.projects : [])
     .filter(p => p && (str(p.name) || str(p.desc)))
     .map(p => {
@@ -317,7 +318,8 @@ function buildModel(raw, preview, fullLinks = false) {
     seeking: seekingSentence(str(d.seeking), lang),
     exps: exps.length ? exps : (preview ? [{ title: ph(P.expTitle), company: ph(P.expCompany), period: ph(P.expPeriod), bullets: [ph(P.expDesc)] }] : []),
     edu: edu.length ? edu : (preview ? [{ degree: ph(P.degree), school: ph(P.school), year: '' }] : []),
-    skills: skills.length ? skills : (preview ? P.skills.map(ph) : []),
+    skills: skills.length || soft.length ? skills : (preview ? P.skills.map(ph) : []),
+    soft,
     projects, languages, certs,
   }
 }
@@ -379,6 +381,13 @@ const B = {
   certs: (m) => m.certs.length ? `<ul class="list">${m.certs.map(c => `<li>${c}</li>`).join('')}</ul>` : '',
 }
 
+// Technical and soft skills share the Skills section: with soft skills, each list gets a small heading
+function skillsBody(m, draw) {
+  if (!m.soft.length) return draw(m.skills)
+  const group = (label, list) => list.length ? `<div class="sk-g"><h3 class="sk-h">${label}</h3>${draw(list)}</div>` : ''
+  return group(m.L.technical, m.skills) + group(m.L.soft, m.soft)
+}
+
 // Sections in the given reading order. `side` = rendered in a narrow column (lists, not inline)
 function sections(m, keys, side = false) {
   const L = m.L
@@ -389,14 +398,14 @@ function sections(m, keys, side = false) {
     projects:       () => sec('projects', L.projects, B.projects(m)),
     education:      () => sec('education', L.education, B.education(m)),
     // In a narrow column a long skill list reads better (and fits) as one wrapped line
-    skills:         () => sec('skills', L.skills, side && m.skills.length <= 12 ? B.skillsList(m) : B.skillsInline(m)),
+    skills:         () => sec('skills', L.skills, skillsBody(m, (list) => side && list.length <= 12 ? B.skillsList({ skills: list }) : B.skillsInline({ skills: list }))),
     languages:      () => sec('languages', L.languages, side ? B.langList(m) : B.langInline(m)),
     certifications: () => sec('certifications', L.certifications, B.certs(m)),
     contact:        () => sec('contact', L.contact, B.contactList(m)),
     // Tags look good for a handful of skills; a long list is kinder as one wrapped line
-    chips:          () => sec('skills', L.skills, m.skills.length <= 16 ? B.skillsChips(m) : B.skillsInline(m)),
+    chips:          () => sec('skills', L.skills, skillsBody(m, (list) => list.length <= 16 ? B.skillsChips({ skills: list }) : B.skillsInline({ skills: list }))),
     langList:       () => sec('languages', L.languages, B.langList(m)),
-    skillsGrid:     () => sec('skills', L.skills, B.skillsGrid(m)),
+    skillsGrid:     () => sec('skills', L.skills, skillsBody(m, (list) => B.skillsGrid({ skills: list }))),
   }
   return keys.map(k => html[k]()).join('')
 }
@@ -564,6 +573,8 @@ const BASE_CSS = `
 .cvr .chips li{padding:3px 9px;border-radius:999px;background:var(--act);color:var(--acd);font-size:calc(9.6px*var(--s));font-weight:500;line-height:1.4}
 .cvr .sgrid{list-style:none;display:grid;grid-template-columns:repeat(3,1fr);gap:3px 18px;color:#374151}
 .cvr .sgrid li{overflow-wrap:anywhere}
+.cvr .sk-g + .sk-g{margin-top:calc(7px*var(--s))}
+.cvr .sk-h{font-family:var(--font);font-size:calc(9.4px*var(--s));font-weight:600;letter-spacing:.02em;color:inherit;opacity:.72;margin:0 0 calc(3px*var(--s))}
 `
 
 const TWO_COL = (l) => `

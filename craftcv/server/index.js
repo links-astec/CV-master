@@ -530,7 +530,7 @@ function cvHasContent(d) {
   const list = (v) => (Array.isArray(v) ? v : []);
   return Boolean(
     s(d.title) || s(d.sum) ||
-    list(d.skills).some(s) || list(d.certifications).some(s) ||
+    list(d.skills).some(s) || list(d.softSkills).some(s) || list(d.certifications).some(s) ||
     list(d.experiences).some(e => s(e?.title) || s(e?.company) || s(e?.desc)) ||
     list(d.education).some(e => s(e?.degree) || s(e?.school)) ||
     list(d.projects).some(p => s(p?.name) || s(p?.desc)) ||
@@ -1754,7 +1754,7 @@ function atsScore(cv, brief) {
   const text = normText([
     cv.title, cv.sum, ...exps.map(e => `${str(e.title)} ${str(e.company)} ${str(e.desc)}`),
     ...arr(cv.projects).map(p => `${str(p?.name)} ${str(p?.tech)} ${str(p?.desc)}`),
-    ...arr(cv.skills), ...edu.map(e => `${str(e.degree)} ${str(e.school)}`), ...arr(cv.certifications),
+    ...arr(cv.skills), ...arr(cv.softSkills), ...edu.map(e => `${str(e.degree)} ${str(e.school)}`), ...arr(cv.certifications),
     ...arr(cv.languages).map(l => `${str(l?.name)} ${str(l?.level)}`),
   ].map(str).join(' \n '));
 
@@ -1947,7 +1947,7 @@ function cvFactsText(cv) {
     `Name: ${[str(cv.fn), str(cv.ln)].filter(Boolean).join(' ') || 'not given'}`, `Headline: ${str(cv.title) || 'none'}`, `Summary: ${str(cv.sum) || 'none'}`,
     `Experience:\n${exps.map(e => `- ${str(e.title)} at ${str(e.company)} (${str(e.period)}): ${str(e.desc).slice(0, 500)}`).join('\n') || 'none'}`,
     `Projects: ${arr(cv.projects).map(p => [str(p?.name), str(p?.desc).slice(0, 200)].filter(Boolean).join(': ')).filter(Boolean).join('; ') || 'none'}`,
-    `Skills: ${arr(cv.skills).map(str).filter(Boolean).join(', ') || 'none'}`,
+    `Skills: ${[...arr(cv.skills), ...arr(cv.softSkills)].map(str).filter(Boolean).join(', ') || 'none'}`,
     `Education: ${arr(cv.education).map(e => [str(e?.degree), str(e?.school), str(e?.year)].filter(Boolean).join(', ')).filter(Boolean).join('; ') || 'none'}`,
     `Languages: ${arr(cv.languages).map(l => [str(l?.name), str(l?.level)].filter(Boolean).join(' ')).filter(Boolean).join(', ') || 'none'}`,
   ].join('\n');
@@ -2153,7 +2153,7 @@ app.post('/api/ai/fit', needsCvContent, aiAccess, async (req, res) => {
     const facts = [
       `Headline: ${str(cv.title) || 'none'}`, `Location: ${str(cv.loc) || 'not given'}`, `Summary: ${str(cv.sum) || 'none'}`,
       `Experience:\n${exps.map(e => `- ${str(e.title)} at ${str(e.company)} (${str(e.period)}): ${str(e.desc).slice(0, 400)}`).join('\n') || 'none'}`,
-      `Skills: ${arr(cv.skills).map(str).filter(Boolean).join(', ') || 'none'}`,
+      `Skills: ${[...arr(cv.skills), ...arr(cv.softSkills)].map(str).filter(Boolean).join(', ') || 'none'}`,
       `Education: ${arr(cv.education).map(e => [str(e?.degree), str(e?.school), str(e?.year)].filter(Boolean).join(', ')).filter(Boolean).join('; ') || 'none'}`,
       `Certifications: ${arr(cv.certifications).map(str).filter(Boolean).join(', ') || 'none'}`,
       `Languages: ${arr(cv.languages).map(l => [str(l?.name), str(l?.level)].filter(Boolean).join(' ')).filter(Boolean).join(', ') || 'none'}`,
@@ -2200,7 +2200,7 @@ app.post('/api/ai/write', needsCvContent, aiAccess, async (req, res) => {
     const facts = [
       `Name: ${str(cv.fn)} ${str(cv.ln)}`, `Headline: ${str(cv.title)}`, `Current summary: ${str(cv.sum) || 'none'}`,
       `Experience:\n${exps.map(e => `- ${str(e.title)} at ${str(e.company)} (${str(e.period)}): ${str(e.desc).slice(0, 700)}`).join('\n') || 'none'}`,
-      `Skills: ${arr(cv.skills).map(str).filter(Boolean).join(', ') || 'none'}`,
+      `Skills: ${[...arr(cv.skills), ...arr(cv.softSkills)].map(str).filter(Boolean).join(', ') || 'none'}`,
       `Education: ${arr(cv.education).map(e => [str(e?.degree), str(e?.school)].filter(Boolean).join(', ')).filter(Boolean).join('; ') || 'none'}`,
     ].join('\n');
     const personal = (await personalContext(req, cv).catch(() => null))?.text || '';
@@ -2217,14 +2217,20 @@ app.post('/api/ai/write', needsCvContent, aiAccess, async (req, res) => {
       return res.json({ result: str(out).replace(/^["“]|["”]$/g, '') });
     }
     if (task === 'skills') {
-      const have = new Set(arr(cv.skills).map(s => str(s).toLowerCase()));
+      const have = new Set([...arr(cv.skills), ...arr(cv.softSkills)].map(s => str(s).toLowerCase()));
       const out = await callAi(`CV:\n${facts}${job}${personal}`, AI_MODEL,
-        `Suggest 10 skills for this CV: concrete tools, methods and domain knowledge (at most 2 soft skills), short names. ${brief ? 'Prefer the job’s keywords (exact wording) that the experience supports. ' : ''}${personal.includes('ABOUT THE ACCOUNT HOLDER') ? 'Skills from their other CVs that fit this CV are good suggestions. ' : ''}Do not repeat skills already listed, and never suggest spoken languages (they belong under Languages). Skill names in ${language} (keep technical terms normally left in English). Return ONLY a JSON array of strings.`, 600);
-      // a JSON array; a reply that lists them some other way (one per line, commas) still counts
-      let list;
-      try { list = JSON.parse(String(out).slice(String(out).indexOf('['), String(out).lastIndexOf(']') + 1)); }
-      catch { list = String(out).split(/[\n,;]/).map(s => s.replace(/^[\s\-•*\d.)"'\[]+|["'\]\s]+$/g, '')).filter(s => !s.endsWith(':')); }
-      return res.json({ skills: arr(list).map(str).filter(s => s && s.length <= 50 && !have.has(s.toLowerCase())).slice(0, 12) });
+        `Suggest skills for this CV, short names: 8 technical skills (concrete tools, methods and domain knowledge) and 3 soft skills (such as teamwork or client communication) that the CV shows. ${brief ? 'Prefer the job’s keywords (exact wording) that the experience supports. ' : ''}${personal.includes('ABOUT THE ACCOUNT HOLDER') ? 'Skills from their other CVs that fit this CV are good suggestions. ' : ''}Do not repeat skills already listed, and never suggest spoken languages (they belong under Languages). Skill names in ${language} (keep technical terms normally left in English). Return ONLY JSON: {"technical":["..."],"soft":["..."]}`, 600);
+      // {"technical": [...], "soft": [...]}; a plain array, or a list written some other way (one per line,
+      // commas), still counts as technical skills
+      let tech = [], soft = [];
+      try {
+        const raw = String(out);
+        const obj = raw.includes('{') ? JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)) : null;
+        if (obj && (Array.isArray(obj.technical) || Array.isArray(obj.soft))) { tech = arr(obj.technical); soft = arr(obj.soft); }
+        else tech = JSON.parse(raw.slice(raw.indexOf('['), raw.lastIndexOf(']') + 1));
+      } catch { tech = String(out).split(/[\n,;]/).map(s => s.replace(/^[\s\-•*\d.)"'\[]+|["'\]\s]+$/g, '')).filter(s => !s.endsWith(':')); }
+      const clean = (list, n) => arr(list).map(str).filter(s => s && s.length <= 50 && !have.has(s.toLowerCase())).slice(0, n);
+      return res.json({ skills: clean(tech, 12), soft: clean(soft, 5) });
     }
     if (task === 'bullets') {
       // a job (experiences) or, with kind: 'project', a project
@@ -2490,6 +2496,7 @@ app.post('/api/ai/translate', needsCvContent, aiAccess, async (req, res) => {
       education: arr(cv.education).slice(0, 6).map((e, i) => ({ i, degree: str(e?.degree), year: str(e?.year) })),
       projects: arr(cv.projects).slice(0, 8).map((p, i) => ({ i, desc: str(p?.desc) })),
       skills: arr(cv.skills).map(str).filter(Boolean).slice(0, 40),
+      softSkills: arr(cv.softSkills).map(str).filter(Boolean).slice(0, 20),
       languages: arr(cv.languages).slice(0, 8).map((l, i) => ({ i, name: str(l?.name), level: str(l?.level) })),
       certifications: arr(cv.certifications).map(str).filter(Boolean).slice(0, 12),
     };
@@ -2521,6 +2528,7 @@ app.post('/api/ai/translate', needsCvContent, aiAccess, async (req, res) => {
       education: src.education.map(e => ({ i: e.i, degree: keep(e.degree, edus.get(e.i)?.degree), year: keep(e.year, edus.get(e.i)?.year) })),
       projects: src.projects.map(x => ({ i: x.i, desc: keep(x.desc, projs.get(x.i)?.desc) })),
       skills: arr(p.skills).length === src.skills.length ? arr(p.skills).map((s, k) => keep(src.skills[k], s)) : src.skills,
+      softSkills: arr(p.softSkills).length === src.softSkills.length ? arr(p.softSkills).map((s, k) => keep(src.softSkills[k], s)) : src.softSkills,
       languages: src.languages.map(l => ({ i: l.i, name: keep(l.name, langs.get(l.i)?.name), level: keep(l.level, langs.get(l.i)?.level) })),
       certifications: arr(p.certifications).length === src.certifications.length ? arr(p.certifications).map((c, k) => keep(src.certifications[k], c)) : src.certifications,
     });

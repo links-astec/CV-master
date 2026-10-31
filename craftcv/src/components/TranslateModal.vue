@@ -117,6 +117,10 @@ function buildChanges(tr) {
   if (Array.isArray(tr.skills) && tr.skills.length === d.skills.length) {
     add('skills', 'Skills', d.skills.join(' · '), tr.skills.join(' · '), (x) => { x.skills = [...tr.skills] })
   }
+  const soft = d.softSkills || []
+  if (Array.isArray(tr.softSkills) && soft.length && tr.softSkills.length === soft.length) {
+    add('soft', 'Soft skills', soft.join(' · '), tr.softSkills.join(' · '), (x) => { x.softSkills = [...tr.softSkills] })
+  }
   const langText = (list) => list.map(l => [l.name, l.level].filter(Boolean).join(': ')).join(' · ')
   if (tr.languages?.length) {
     add('langs', 'Languages', langText(d.languages), langText(tr.languages),

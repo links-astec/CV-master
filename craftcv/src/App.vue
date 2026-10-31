@@ -29,7 +29,7 @@
       </button>
 
       <nav class="sb-nav">
-        <RouterLink v-for="n in NAV" :key="n.id" :to="n.to" class="sb-link" :data-tour="`nav-${n.id}`"
+        <RouterLink v-for="n in navItems" :key="n.id" :to="n.to" class="sb-link" :data-tour="`nav-${n.id}`"
                     :class="{ active: n.id === 'letter' ? route.path === '/editor' && route.query.tab === 'letter' : route.path === n.to && !(n.id === 'editor' && route.query.tab === 'letter') }" :title="sbMini ? $t(n.label) : null" @click="navOpen = false">
           <svg viewBox="0 0 24 24" v-html="n.icon"></svg>
           <span class="sb-lbl">{{ $t(n.label) }}</span>
@@ -185,6 +185,9 @@ const NAV = [
   { id: 'interview', to: '/interview', label: 'Interview prep', icon: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/>' },
   { id: 'settings',  to: '/settings',  label: 'Settings',  icon: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>' },
 ]
+
+// Interview prep shows once the open CV has content and a job offer (the interview is built from both)
+const navItems = computed(() => NAV.filter(n => n.id !== 'interview' || (hasCvContent(store.data) && (store.data.jobOffer || '').trim().length >= 80)))
 
 const ready        = ref(false)
 const maintenance  = ref(false)

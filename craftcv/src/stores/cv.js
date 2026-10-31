@@ -19,7 +19,8 @@ const emptyData = () => ({
   experiences: [
     { id: 1, title: '', company: '', period: '', desc: '' },
   ],
-  skills: [],
+  skills: [],         // technical skills (tools, methods, domain knowledge)
+  softSkills: [],     // soft skills, shown as their own group in the Skills section
   education: [{ degree: '', school: '', year: '' }],
   projects: [],
   certifications: [],
@@ -68,7 +69,7 @@ export function hasDraftableContent(d) {
   if (!d || typeof d !== 'object') return false
   return Boolean(
     d.fn || d.ln || d.title || d.email || d.phone || d.loc || d.li || d.github || d.website || d.photo || d.sum ||
-    d.skills?.length ||
+    d.skills?.length || d.softSkills?.length ||
     d.projects?.some(p => p?.name || p?.desc || p?.tech || p?.url) ||
     d.certifications?.length ||
     d.languages?.some(l => l?.name || l?.level) ||
@@ -98,7 +99,7 @@ export function hasSubstance(d) {
     list(d.education).some(e => s(e?.degree) || s(e?.school)) ||
     list(d.projects).some(p => s(p?.name) || s(p?.desc)) ||
     list(d.certifications).some(s) ||
-    list(d.skills).filter(s).length >= 2
+    [...list(d.skills), ...list(d.softSkills)].filter(s).length >= 2
   )
 }
 
@@ -108,7 +109,7 @@ export function hasCvContent(d) {
   const list = (v) => (Array.isArray(v) ? v : [])
   return Boolean(
     s(d.title) || s(d.sum) ||
-    list(d.skills).some(s) || list(d.certifications).some(s) ||
+    list(d.skills).some(s) || list(d.softSkills).some(s) || list(d.certifications).some(s) ||
     list(d.experiences).some(e => s(e?.title) || s(e?.company) || s(e?.desc)) ||
     list(d.education).some(e => s(e?.degree) || s(e?.school)) ||
     list(d.projects).some(p => s(p?.name) || s(p?.desc)) ||
@@ -123,7 +124,7 @@ function normaliseData(saved) {
   const hasSaved = !!(saved && typeof saved === 'object')
   const merged = { ...emptyData(), lang: hasSaved ? 'en' : (uiLang.value === 'fr' ? 'fr' : 'en'), ...(hasSaved ? saved : {}) }
   delete merged.fmt
-  for (const k of ['skills', 'certifications', 'languages', 'projects']) {
+  for (const k of ['skills', 'softSkills', 'certifications', 'languages', 'projects']) {
     if (!Array.isArray(merged[k])) merged[k] = []
   }
   if (!Array.isArray(merged.experiences) || !merged.experiences.length) merged.experiences = emptyData().experiences
@@ -236,17 +237,26 @@ export const useCvStore = defineStore('cv', () => {
   function removeExperience(id) {
     data.value.experiences = data.value.experiences.filter(e => e.id !== id)
   }
-  function addSkill(s) {
+  // kind: 'tech' (the skills list) or 'soft'. A skill lives in one group only.
+  const listOf = (kind) => (kind === 'soft' ? 'softSkills' : 'skills')
+  function addSkill(s, kind = 'tech') {
     const v = String(s || '').trim()
-    if (v && !data.value.skills.some(x => x.toLowerCase() === v.toLowerCase())) data.value.skills.push(v)
+    if (!Array.isArray(data.value.softSkills)) data.value.softSkills = []
+    const all = [...data.value.skills, ...data.value.softSkills]
+    if (v && !all.some(x => x.toLowerCase() === v.toLowerCase())) data.value[listOf(kind)].push(v)
   }
   // "Python, SQL; Figma" (typed or pasted, also one per line, with | or bullets) → three skills.
   // Slashes and & stay inside a skill: "CI/CD", "HTML & CSS".
-  function addSkills(text) {
-    for (const part of splitSkills(text)) addSkill(part)
+  function addSkills(text, kind = 'tech') {
+    for (const part of splitSkills(text)) addSkill(part, kind)
   }
-  function removeSkill(s) {
-    data.value.skills = data.value.skills.filter(x => x !== s)
+  function removeSkill(s, kind = 'tech') {
+    data.value[listOf(kind)] = (data.value[listOf(kind)] || []).filter(x => x !== s)
+  }
+  // Technical ⇄ soft
+  function moveSkill(s, kind) {
+    removeSkill(s, kind)
+    data.value[listOf(kind === 'soft' ? 'tech' : 'soft')].push(s)
   }
 
   // New, empty CV. Keeps the chosen template and formatting.
@@ -480,7 +490,7 @@ export const useCvStore = defineStore('cv', () => {
     fullName, initials, hasContent, needsKeepDecision,
     initDarkMode, openWizard, openWizardAtStep, closeWizard, clearPrefill, profile, loadProfile,
     setMode, nextStep, prevStep,
-    addExperience, removeExperience, addSkill, addSkills, removeSkill,
+    addExperience, removeExperience, addSkill, addSkills, removeSkill, moveSkill,
     resetData, loadDraft, refreshFromServer, applyExtracted, saveDraft, ensureSavedDraftId, aiWrite,
   }
 })

@@ -6,10 +6,16 @@
       <p>{{ $t('Add your core skills. AI can suggest relevant ones based on your role.') }}</p>
     </div>
 
+    <!-- Which group the box adds to -->
+    <div class="seg sk-kind" role="radiogroup" :aria-label="$t('Kind of skill')">
+      <button type="button" role="radio" :class="{ active: kind === 'tech' }" :aria-checked="kind === 'tech'" @click="kind = 'tech'">{{ $t('Technical') }}</button>
+      <button type="button" role="radio" :class="{ active: kind === 'soft' }" :aria-checked="kind === 'soft'" @click="kind = 'soft'">{{ $t('Soft skills') }}</button>
+    </div>
+
     <div class="skill-input-row">
       <input
         class="f-inp" v-model="newSkill"
-        :placeholder="$t('Type a skill and press Enter, or paste a list')"
+        :placeholder="$t(kind === 'soft' ? 'A soft skill, such as Teamwork. Press Enter' : 'Type a skill and press Enter, or paste a list')"
         @keydown.enter="addSkill"
         @input="splitTyped"
         @paste="pasteList"
@@ -18,14 +24,21 @@
       <button class="btn-add-skill" @click="addSkill">{{ $t('Add') }}</button>
     </div>
 
-    <div class="skill-wrap" style="margin-top:12px;min-height:48px;">
-      <TransitionGroup name="skill-tag">
-        <span v-for="s in store.data.skills" :key="s" class="skill-tag">
-          {{ s }}
-          <button class="skill-rm" @click="store.removeSkill(s)" :aria-label="$t('Remove {name}', { name: s })">×</button>
-        </span>
-      </TransitionGroup>
-      <div v-if="!store.data.skills.length" class="empty-skills">{{ $t('No skills added yet') }}</div>
+    <!-- Both groups; ⇄ moves a skill to the other one -->
+    <div v-for="g in GROUPS" :key="g.kind" class="sk-group">
+      <div class="sk-group-h">{{ $t(g.label) }} <small>{{ (store.data[g.list] || []).length }}</small></div>
+      <div class="skill-wrap">
+        <TransitionGroup name="skill-tag">
+          <span v-for="s in store.data[g.list] || []" :key="s" class="skill-tag">
+            {{ s }}
+            <button type="button" class="skill-mv" :title="$t(g.kind === 'soft' ? 'Move to technical' : 'Move to soft skills')" :aria-label="$t(g.kind === 'soft' ? 'Move to technical' : 'Move to soft skills')" @click="store.moveSkill(s, g.kind)">
+              <svg viewBox="0 0 24 24"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg>
+            </button>
+            <button class="skill-rm" @click="store.removeSkill(s, g.kind)" :aria-label="$t('Remove {name}', { name: s })">×</button>
+          </span>
+        </TransitionGroup>
+        <div v-if="!(store.data[g.list] || []).length" class="empty-skills">{{ $t(g.kind === 'soft' ? 'None yet. Optional: shown as their own group on the CV' : 'No skills added yet') }}</div>
+      </div>
     </div>
 
     <div v-if="aiLoading" class="thinking" style="margin-top:14px;">
@@ -33,16 +46,21 @@
       <div class="thinking-txt">{{ $t('Finding relevant skills for your role…') }}</div>
     </div>
 
-    <div v-if="suggested.length" class="suggested-block">
+    <div v-if="suggested.length || suggestedSoft.length" class="suggested-block">
       <div class="sug-label">💡 {{ $t('AI Suggestions, click to add') }}</div>
-      <div class="sug-chips">
-        <button
-          v-for="s in suggested" :key="s"
-          class="sug-chip"
-          :class="{ added: store.data.skills.includes(s) }"
-          @click="addSuggested(s)"
-        >{{ s }}</button>
-      </div>
+      <template v-for="g in GROUPS" :key="g.kind">
+        <template v-if="(g.kind === 'soft' ? suggestedSoft : suggested).length">
+          <div class="sug-sub">{{ $t(g.label) }}</div>
+          <div class="sug-chips">
+            <button
+              v-for="s in (g.kind === 'soft' ? suggestedSoft : suggested)" :key="s"
+              class="sug-chip"
+              :class="{ added: has(s) }"
+              @click="addSuggested(s, g.kind)"
+            >{{ s }}</button>
+          </div>
+        </template>
+      </template>
       <button class="btn-add-all" @click="addAll">{{ $t('Add all') }}</button>
     </div>
 
@@ -68,44 +86,51 @@ const store = useCvStore()
 const showToast = inject('showToast', null)
 const emit = defineEmits(['next', 'ai-thinking'])
 
+const GROUPS = [{ kind: 'tech', list: 'skills', label: 'Technical' }, { kind: 'soft', list: 'softSkills', label: 'Soft skills' }]
+const kind      = ref('tech')   // the group the box adds to
 const newSkill  = ref('')
 const aiLoading = ref(false)
 const suggested = ref([])
+const suggestedSoft = ref([])
 
+const has = (s) => [...(store.data.skills || []), ...(store.data.softSkills || [])].some(x => x.toLowerCase() === s.toLowerCase())
 function addSkill() {
   const v = newSkill.value.trim()
-  if (v) { store.addSkills(v); newSkill.value = '' }
+  if (v) { store.addSkills(v, kind.value); newSkill.value = '' }
 }
 // A comma (or ; | •) typed after a skill adds it; what comes after stays in the box
 function splitTyped() {
   const parts = newSkill.value.split(/[,;|\u2022]/)
   if (parts.length < 2) return
   newSkill.value = parts.pop().replace(/^\s+/, '')
-  store.addSkills(parts.join(','))
+  store.addSkills(parts.join(','), kind.value)
 }
 // A pasted list goes in all at once ("Python, SQL, Figma" or one per line)
 function pasteList(e) {
   const text = e.clipboardData?.getData('text') || ''
   if (!/[,;|\n\t\u2022\u00b7]/.test(text.trim())) return
   e.preventDefault()
-  store.addSkills(newSkill.value + ',' + text)
+  store.addSkills(newSkill.value + ',' + text, kind.value)
   newSkill.value = ''
 }
-function addSuggested(s) {
-  if (!store.data.skills.includes(s)) store.addSkill(s)
+function addSuggested(s, k = 'tech') {
+  if (!has(s)) store.addSkill(s, k)
 }
 function addAll() {
-  suggested.value.forEach(s => addSuggested(s))
+  suggested.value.forEach(s => addSuggested(s, 'tech'))
+  suggestedSoft.value.forEach(s => addSuggested(s, 'soft'))
 }
 
 async function suggestSkills() {
   aiLoading.value = true
   emit('ai-thinking', true)
   try {
-    // The server uses the job offer (if any) and what the CV already says, and skips skills already listed
-    const { skills } = await store.aiWrite('skills')
-    const lower = new Set((store.data.skills || []).map(s => s.toLowerCase()))
-    suggested.value = (skills || []).filter(s => typeof s === 'string' && !lower.has(s.toLowerCase()))
+    // The server uses the job offer (if any) and what the CV already says, and skips skills already listed;
+    // technical and soft skills come back apart
+    const { skills, soft } = await store.aiWrite('skills')
+    const fresh = (list) => (list || []).filter(s => typeof s === 'string' && !has(s))
+    suggested.value = fresh(skills)
+    suggestedSoft.value = fresh(soft)
   } catch (e) {
     showToast?.(e?.message || 'AI is unavailable right now. Please try again in a moment.')
   }
@@ -149,6 +174,16 @@ p  { font-size: 13px; color: var(--c-text2); line-height: 1.5; }
 .btn-add-all { background: none; border: none; font-size: 11.5px; font-weight: 700; color: var(--c-accent); cursor: pointer; font-family:inherit; text-decoration: underline; }
 
 .skill-count { font-size: 12px; color: var(--c-text3); margin-top: 10px; }
+/* Technical / soft: which group the box adds to, then both groups */
+.sk-kind { margin-bottom: 10px; }
+.sk-group { margin-top: 16px; }
+.sk-group-h { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; font-weight: 700; color: var(--c-text); }
+.sk-group-h small { font-size: 12px; font-weight: 500; color: var(--c-text3); }
+.sk-group .skill-wrap { margin-top: 8px; }
+.skill-mv { width: 22px; height: 22px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; border: none; background: none; padding: 0; color: var(--c-text3); cursor: pointer; }
+.skill-mv svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.skill-mv:hover { background: var(--c-accent-lt); color: var(--c-accent); }
+.sug-sub { font-size: 11.5px; font-weight: 600; color: var(--c-text2); margin: 2px 0 6px; }
 .skill-count .warn { color: var(--c-amber); font-weight: 700; }
 .skill-count .ok   { color: var(--c-green);  font-weight: 700; }
 .skill-tag-enter-active, .skill-tag-leave-active { transition: all .2s ease; }
