@@ -413,4 +413,15 @@ export default {
   "Questions from your CV and the job": "Des questions tirées de votre CV et du poste",
   "Follow-ups, like a real recruiter": "Des relances, comme un vrai recruteur",
   "A score and a stronger answer for each one": "Une note et une meilleure réponse pour chacune",
+  // Soft skills; interview prep needs a CV and a job offer
+  "Soft skills": "Savoir-être",
+  "Kind of skill": "Type de compétence",
+  "A soft skill, such as Teamwork. Press Enter": "Un savoir-être, par exemple Travail en équipe. Appuyez sur Entrée",
+  "Move to technical": "Passer en compétences techniques",
+  "Move to soft skills": "Passer en savoir-être",
+  "None yet. Optional: shown as their own group on the CV": "Aucun pour l’instant. Facultatif : affichés à part sur le CV",
+  "Make your CV first. CVM interviews you on it and the job offer.": "Créez d’abord votre CV. CVM vous interroge dessus et sur l’offre d’emploi.",
+  "Add the job offer to this CV. CVM asks questions about that job.": "Ajoutez l’offre d’emploi à ce CV. CVM vous pose des questions sur ce poste.",
+  "Make my CV": "Créer mon CV",
+  "Add a job offer": "Ajouter une offre",
 }

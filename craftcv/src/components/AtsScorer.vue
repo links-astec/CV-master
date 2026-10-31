@@ -117,7 +117,7 @@ const emit    = defineEmits(['scored'])
 const store   = useCvStore()
 // The job offer lives on the CV itself, so the Tailor step, this check and the saved draft share it
 const jobDesc = computed(() => store.data.jobOffer || '')
-const hasSkill = (kw) => (store.data.skills || []).some(s => s.toLowerCase() === String(kw).toLowerCase())
+const hasSkill = (kw) => [...(store.data.skills || []), ...(store.data.softSkills || [])].some(s => s.toLowerCase() === String(kw).toLowerCase())
 const scoring = ref(false)
 const result  = ref(null)
 const error   = ref('')
@@ -156,7 +156,7 @@ function cvText() {
     ...(d.experiences || []).map(e => `${e.title} ${e.company} ${e.desc}`),
     ...(d.projects || []).map(p => `${p.name} ${p.tech} ${p.desc}`),
     ...(d.languages || []).map(l => `${l.name} ${l.level}`),
-    ...(d.skills || []),
+    ...(d.skills || []), ...(d.softSkills || []),
     ...(Array.isArray(d.education) ? d.education : [d.education]).map(e => `${e?.degree} ${e?.school}`),
     ...(d.certifications || []),
   ].filter(Boolean).join(' ')

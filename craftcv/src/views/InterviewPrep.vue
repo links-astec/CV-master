@@ -23,7 +23,15 @@
 
       <!-- Everything to set, in one line along the bottom (a card on phones) -->
       <div class="iv-bottom">
-        <div class="iv-line">
+        <!-- The interview is built from the CV and the job offer: until both are there, say what's missing -->
+        <div v-if="missing" class="iv-line iv-need">
+          <p>{{ $t(missing === 'cv' ? 'Make your CV first. CVM interviews you on it and the job offer.' : 'Add the job offer to this CV. CVM asks questions about that job.') }}</p>
+          <button type="button" class="iv-go" @click="$router.push(missing === 'cv' ? '/editor' : { path: '/editor', query: { tab: 'job' } })">
+            {{ $t(missing === 'cv' ? 'Make my CV' : 'Add a job offer') }}
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+        </div>
+        <div v-else class="iv-line">
           <div class="iv-seg iv-dock" role="radiogroup" :aria-label="$t('How to talk')">
             <button v-for="m in MODES" :key="m.id" type="button" role="radio" class="iv-dock-btn" :class="{ on: mode === m.id }" :aria-checked="mode === m.id" :title="$t(m.name)" @click="mode = m.id">
               <svg viewBox="0 0 24 24" aria-hidden="true" v-html="m.icon"></svg><span>{{ $t(m.name) }}</span>
@@ -57,8 +65,8 @@
             <svg v-if="!busy" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </button>
         </div>
-        <p v-if="gate" class="iv-fine"><b>{{ $t(gate === 'confirm' ? 'Confirm your student email first' : 'Included with the Job Hunt Pass') }}</b></p>
-        <p v-else class="iv-fine">{{ $t('6 questions · about 10 minutes') }}<template v-if="mode === 'video'"> · {{ $t('Camera stays on your device') }}</template></p>
+        <p v-if="gate && !missing" class="iv-fine"><b>{{ $t(gate === 'confirm' ? 'Confirm your student email first' : 'Included with the Job Hunt Pass') }}</b></p>
+        <p v-else-if="!missing" class="iv-fine">{{ $t('6 questions · about 10 minutes') }}<template v-if="mode === 'video'"> · {{ $t('Camera stays on your device') }}</template></p>
         <p v-if="error" class="iv-err">{{ $t(error) }}</p>
       </div>
     </section>
@@ -145,7 +153,7 @@
 
 <script setup>
 import { ref, computed, nextTick, onBeforeUnmount, inject } from 'vue'
-import { useCvStore } from '../stores/cv.js'
+import { useCvStore, hasCvContent } from '../stores/cv.js'
 import { useAuthStore } from '../stores/auth.js'
 import { lang as uiLang, LANGS, t } from '../i18n/index.js'
 import { useRouter } from 'vue-router'
@@ -176,6 +184,8 @@ const closeLang = (e) => { if (langOpen.value && !langBox.value?.contains(e.targ
 document.addEventListener('pointerdown', closeLang)
 const role = ref('')
 const offerTitle = computed(() => (store.data.jobOffer || '').trim().length >= 80)
+// What the interview still needs: 'cv', 'offer' or nothing
+const missing = computed(() => !hasCvContent(store.data) ? 'cv' : !offerTitle.value ? 'offer' : '')
 const busy = ref(false), thinking = ref(false), error = ref(''), gate = ref('')
 const turns = ref([]), current = ref(''), lastSay = ref(''), draft = ref('')
 const qn = ref(0), total = ref(6), done = ref(false), shownRole = ref(''), report = ref(null)
@@ -448,6 +458,8 @@ onBeforeUnmount(() => { close(); document.removeEventListener('pointerdown', clo
 .iv-menu svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 .iv-pop-enter-active,.iv-pop-leave-active{transition:opacity .18s,transform .18s}
 .iv-pop-enter-from,.iv-pop-leave-to{opacity:0;transform:translateY(6px)}
+.iv-need{justify-content:space-between;gap:16px;padding-left:26px}
+.iv-need p{margin:0;font-size:15px;color:#3b3b55;text-align:left}
 .iv-line .iv-go{width:auto;flex-shrink:0;height:52px;margin:0 0 0 10px;padding:0 28px}
 /* narrower computers: the modes as icons */
 @media (max-width:1100px){
