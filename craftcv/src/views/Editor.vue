@@ -28,7 +28,12 @@
           <div class="seg hide-mobile">
             <button v-for="z in ZOOMS" :key="z.l" :class="{ active: zoom === z.v }" @click="zoom = z.v">{{ $t(z.l) }}</button>
           </div>
-          <button class="btn-primary accent" @click="openPaywall">
+          <!-- On the Letter tab, with a letter written: the letter's PDF in one click -->
+          <button v-if="letterReady" class="btn-primary accent" :disabled="letterBusy" @click="downloadLetter">
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            {{ $t(letterBusy ? 'Preparing…' : 'Download letter') }}
+          </button>
+          <button v-else class="btn-primary accent" @click="openPaywall">
             <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             {{ $t('Export PDF') }}
           </button>
@@ -81,11 +86,14 @@ import CvPreview from '../components/CvPreview.vue'
 import QuickStyle from '../components/QuickStyle.vue'
 import CvLangPicker from '../components/CvLangPicker.vue'
 import { t } from '../i18n/index.js'
+import { downloadLetterPdf } from '../composables/letterPdf.js'
 
 const store = useCvStore()
 const auth  = useAuthStore()
 const openPaywall = inject('openPaywall')
 const askConfirm = inject('confirm', null)
+const requireAccount = inject('requireAccount', null)
+const showToast = inject('showToast', () => {})
 
 const ZOOMS = [{ l: 'Fit', v: 'fit' }, { l: '75%', v: 0.75 }, { l: '100%', v: 1 }]
 const zoom = ref('fit')
@@ -141,6 +149,18 @@ const savedText = computed(() => {
   const s = Math.round((now.value - store.lastSavedAt) / 1000)
   return s < 30 ? t('Saved just now') : t('Saved {n} min ago', { n: Math.max(1, Math.round(s / 60)) })
 })
+
+// The cover letter's PDF from the top bar (it comes with the CV's PDF: otherwise the CV's export opens)
+const letterReady = computed(() => panelTab.value === 'letter' && !!String(store.data.coverLetter?.text || '').trim())
+const letterBusy = ref(false)
+async function downloadLetter() {
+  if (!auth.isLoggedIn && !(await requireAccount?.('download'))) return
+  letterBusy.value = true
+  try {
+    if (await downloadLetterPdf(store) === 'pay') { showToast(t('The letter comes with this CV’s PDF.')); openPaywall() }
+  } catch (e) { showToast(t(e.message)) }
+  finally { letterBusy.value = false }
+}
 
 function showDesign() {
   if (window.innerWidth <= 768) { drawer.value = true; nextTick(() => drawerRef.value?.show?.('design')); return }

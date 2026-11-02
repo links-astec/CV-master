@@ -13,6 +13,7 @@
 
 import { MORE_LAYOUTS, moreLayoutHtml, MORE_LAYOUT_CSS } from './cvLayoutsMore.js'
 import { t } from '../i18n/index.js'
+import { collapsePeriod } from './period.js'
 
 export const PAGE_W = 700
 export const PAGE_H = 990
@@ -289,10 +290,10 @@ function buildModel(raw, preview, fullLinks = false) {
 
   const exps = (Array.isArray(d.experiences) ? d.experiences : [])
     .filter(e => e && (str(e.title) || str(e.company) || str(e.desc)))
-    .map(e => ({ title: esc(str(e.title)), company: esc(str(e.company)), period: esc(str(e.period)), bullets: toBullets(e.desc).map(esc) }))
+    .map(e => ({ title: esc(str(e.title)), company: esc(str(e.company)), period: esc(collapsePeriod(str(e.period), lang)), bullets: toBullets(e.desc).map(esc) }))
   const eduRaw = Array.isArray(d.education) ? d.education : (d.education ? [d.education] : [])
   const edu = eduRaw.filter(e => e && (str(e.degree) || str(e.school) || str(e.year)))
-    .map(e => ({ degree: esc(str(e.degree)), school: esc(str(e.school)), year: esc(str(e.year)) }))
+    .map(e => ({ degree: esc(str(e.degree)), school: esc(str(e.school)), year: esc(collapsePeriod(str(e.year), lang)) }))
   const skills = (Array.isArray(d.skills) ? d.skills : []).map(str).filter(Boolean).map(esc)
   const soft = (Array.isArray(d.softSkills) ? d.softSkills : []).map(str).filter(Boolean).map(esc)
   const projects = (Array.isArray(d.projects) ? d.projects : [])
@@ -833,12 +834,24 @@ const LETTER_IN_CSS = `
 .cvr.lt-on-cv .lt-in div,.cvr.lt-on-cv .lt-in p{color:#1f2937!important;font-style:normal!important;text-transform:none!important;letter-spacing:normal!important;text-align:left!important}
 .cvr.lt-on-cv .lt-in b{color:#111827!important}
 `
+// The few words the letter's layout adds itself, in each language a letter can be written in
+const LETTER_WORDS = {
+  en: { locale: 'en-GB', subject: 'Re: Application for ' },
+  fr: { locale: 'fr-FR', subject: 'Objet : candidature au poste de ' },
+  es: { locale: 'es-ES', subject: 'Asunto: candidatura al puesto de ' },
+  de: { locale: 'de-DE', subject: 'Betreff: Bewerbung als ' },
+  it: { locale: 'it-IT', subject: 'Oggetto: candidatura per la posizione di ' },
+  pt: { locale: 'pt-PT', subject: 'Assunto: candidatura para a função de ' },
+  zh: { locale: 'zh-CN', subject: '应聘职位：' },
+}
 export function renderLetter(tpl, rawData, fmt = {}, opts = {}) {
   const { theme, layout } = parseTemplate(tpl)
   const t = themeById[theme] || THEMES[0]
   const d = rawData && typeof rawData === 'object' ? rawData : {}
   const L = d.coverLetter && typeof d.coverLetter === 'object' ? d.coverLetter : {}
-  const fr = d.lang === 'fr'
+  // the letter's own language (it can differ from the CV's: a letter answers the job offer in its language)
+  const ll = LETTER_WORDS[L.lang] ? L.lang : d.lang === 'fr' ? 'fr' : 'en'
+  const fr = ll === 'fr'
   const font  = ALL_FONTS.some(x => x.id === fmt.fontFamily) ? fmt.fontFamily : 'DM Sans'
   const scale = fmt.fontSize === 'small' ? 0.93 : fmt.fontSize === 'large' ? 1.07 : 1
   const lh    = fmt.lineSpacing === 'compact' ? 1.42 : fmt.lineSpacing === 'relaxed' ? 1.68 : 1.55
@@ -854,9 +867,9 @@ export function renderLetter(tpl, rawData, fmt = {}, opts = {}) {
   const name = [str(d.fn), str(d.ln)].filter(Boolean).join(' ')
   const contact = [str(d.email), str(d.phone), str(d.loc), str(d.li).replace(/^https?:\/\/(www\.)?/, '')].filter(Boolean)
   let date = ''
-  try { date = new Date(L.date || Date.now()).toLocaleDateString(fr ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) } catch {}
+  try { date = new Date(L.date || Date.now()).toLocaleDateString(LETTER_WORDS[ll].locale, { day: 'numeric', month: 'long', year: 'numeric' }) } catch {}
   const to = [str(L.to), str(L.job?.company)].filter(Boolean)
-  const subject = str(L.job?.title) ? (fr ? 'Objet : candidature au poste de ' : 'Re: Application for ') + str(L.job.title) : ''
+  const subject = str(L.job?.title) ? LETTER_WORDS[ll].subject + str(L.job.title) : ''
   const text = str(L.text)
   const paras = text ? text.split(/\n\s*\n|\n/).map(p => p.trim()).filter(Boolean) : []
   const body = paras.length ? paras.map(p => `<p>${esc(p)}</p>`).join('')
@@ -873,7 +886,7 @@ export function renderLetter(tpl, rawData, fmt = {}, opts = {}) {
     const out = shell.replace(/(<main class="(?:main|body)"[^>]*>)[\s\S]*?(<\/main>)/, (_, a, b) => a + inner + b)
     if (out !== shell) return out.replace('class="cvr ', 'class="cvr lt-on-cv ').replace('<style>', `<style>${LETTER_IN_CSS}`)
   }
-  return `<div class="cvr l-letter lt-${look}" data-cv-root data-template="letter:${theme}" lang="${fr ? 'fr' : 'en'}" style="${vars}">`
+  return `<div class="cvr l-letter lt-${look}" data-cv-root data-template="letter:${theme}" lang="${ll}" style="${vars}">`
     + `<style>${BASE_CSS}${LETTER_CSS}</style>`
     + `<header class="lt-hd"><h1 class="lt-name">${esc(name || (opts.preview ? (fr ? 'Votre nom' : 'Your name') : ''))}</h1>`
     + (str(d.title) ? `<div class="lt-title">${esc(str(d.title))}</div>` : '')

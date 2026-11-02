@@ -25,6 +25,25 @@
     <!-- How it should sound -->
     <p class="cl-sec">{{ $t('Style') }}</p>
     <div class="cl-group">
+      <!-- The letter's language: the job offer's unless they pick one; picking another translates the letter -->
+      <div class="cl-row cl-row-lang"><span class="cl-row-k"><b>{{ $t('Language') }}</b><small>{{ langHint }}</small></span>
+        <div ref="langBox" class="cl-lang">
+          <button type="button" class="cl-lang-btn" aria-haspopup="listbox" :aria-expanded="langOpen" :disabled="translating" @click="langOpen = !langOpen">
+            <span v-if="translating" class="cl-spin cl-spin-dark"></span>{{ translating ? $t('Translating…') : langLabel(letterLang) }}
+            <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <Transition name="cl-pop">
+            <ul v-if="langOpen" class="cl-menu" role="listbox" :aria-label="$t('Letter language')">
+              <li v-for="l in LANGS" :key="l.code">
+                <button type="button" role="option" :aria-selected="l.code === letterLang" @click="pickLang(l.code)">
+                  <span>{{ l.label }}</span><small v-if="l.code === autoLang">{{ $t(offerLang ? 'job offer' : 'your CV') }}</small>
+                  <svg v-if="l.code === letterLang" viewBox="0 0 24 24" aria-hidden="true"><polyline points="5 12.5 10 17.5 19 7"/></svg>
+                </button>
+              </li>
+            </ul>
+          </Transition>
+        </div>
+      </div>
       <div class="cl-row cl-row-col"><span class="cl-row-k"><b>{{ $t('Layout') }}</b><small>{{ layoutHint }}</small></span>
         <div class="cl-looks" role="radiogroup" :aria-label="$t('Letter layout')">
           <button v-for="o in LETTER_LAYOUTS" :key="o.id" type="button" role="radio" class="cl-look" :class="{ on: chosenLayout === o.id }" :aria-checked="chosenLayout === o.id" @click="store.data.letterLayout = o.id">
@@ -46,7 +65,7 @@
         <input v-model="opts.to" class="cl-in" maxlength="80" :placeholder="$t('Name, if the offer gives one')" /></label>
     </div>
 
-    <button type="button" class="cl-cta" :disabled="busy" @click="write">
+    <button type="button" class="cl-cta" :class="{ 'cl-cta-2': letter?.text }" :disabled="busy || translating" @click="write">
       <span v-if="busy" class="cl-spin"></span>{{ $t(busy ? 'Writing your letter…' : letter?.text ? 'Write it again' : hasOffer ? 'Write my letter' : 'Write it from my CV') }}
     </button>
     <button v-if="!letter" type="button" class="cl-own" @click="writeOwn">{{ $t('Or write it yourself, and let the AI polish it') }}</button>
@@ -61,24 +80,30 @@
         <textarea ref="letterRef" v-model="letterText" class="cl-text" rows="16" :aria-label="$t('Cover letter')" :placeholder="$t('Dear Hiring Manager,\n\nWrite your letter here, in your own words. When you’re done, “Refine with AI” fixes the language and the shape, and keeps your voice.')"></textarea>
         <div class="cl-group-ft">
           <span class="cl-count">{{ $t('{n} words', { n: words }) }}</span>
-          <button v-if="undoText !== null" type="button" class="cl-link cl-undo" @click="undo">{{ $t('Undo') }}</button>
-          <button type="button" class="cl-link" :disabled="refining || letterText.trim().length < 40" :title="letterText.trim().length < 40 ? $t('Write a few sentences first') : ''" @click="refine">{{ $t(refining ? 'Refining…' : 'Refine with AI') }}</button>
-          <button type="button" class="cl-link" @click="copy">{{ $t(copied ? 'Copied' : 'Copy') }}</button>
-          <button type="button" class="cl-btn" :disabled="pdfBusy" @click="downloadPdf">{{ $t(pdfBusy ? 'Preparing…' : 'Download PDF') }}</button>
+          <button v-if="undo !== null" type="button" class="cl-link cl-undo" @click="undoIt">{{ $t('Undo') }}</button>
+          <button type="button" class="cl-link" :disabled="refining || translating || letterText.trim().length < 40" :title="letterText.trim().length < 40 ? $t('Write a few sentences first') : ''" @click="refine">{{ $t(refining ? 'Refining…' : 'Refine with AI') }}</button>
+          <button type="button" class="cl-link" @click="copy">{{ $t(copied ? 'Copied' : 'Copy text') }}</button>
         </div>
       </div>
+      <button type="button" class="cl-cta cl-dl" :disabled="pdfBusy || !letterText.trim()" @click="downloadPdf">
+        <span v-if="pdfBusy" class="cl-spin"></span>
+        <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        {{ $t(pdfBusy ? 'Preparing…' : 'Download my letter (PDF)') }}
+      </button>
       <p class="cl-foot">{{ $t(unlocked ? 'The PDF uses your CV’s design, colours and fonts.' : auth.user?.campus ? 'The letter comes with this CV’s PDF.' : 'The PDF comes with this CV’s PDF (€0.99), or with every CV on the Job Hunt Pass.') }}</p>
     </template>
   </section>
 </template>
 
 <script setup>
-import { ref, computed, inject, watch, nextTick } from 'vue'
+import { ref, computed, inject, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useCvStore } from '../stores/cv.js'
 import { useAuthStore } from '../stores/auth.js'
-import { lang, t } from '../i18n/index.js'
+import { lang, t, LANGS } from '../i18n/index.js'
 import OfferFileButton from './OfferFileButton.vue'
 import { LETTER_LAYOUTS, letterLayoutFor } from '../composables/cvRenderer.js'
+import { detectLang, autoLetterLang, letterLangOf } from '../composables/cvLanguage.js'
+import { downloadLetterPdf } from '../composables/letterPdf.js'
 
 const emit = defineEmits(['pay'])
 const store = useCvStore()
@@ -123,65 +148,99 @@ const autoLayout = computed(() => letterLayoutFor(store.template))
 const layoutHint = computed(() => chosenLayout.value === 'auto' ? t('Matches your CV’s design') : t('Your choice'))
 const unlocked = computed(() => !!auth.user?.pass)
 
+// The letter's language: picked here, else the job offer's, else the CV's (see letterLangOf)
+const letterLang = computed(() => letterLangOf(store.data))
+const autoLang = computed(() => autoLetterLang(store.data))
+const offerLang = computed(() => !!detectLang(store.data.jobOffer))
+const langHint = computed(() => store.data.letterLang && store.data.letterLang !== autoLang.value ? t('Your choice')
+  : offerLang.value ? t('The job offer’s language') : t('The language of your CV'))
+const langLabel = (code) => LANGS.find(l => l.code === code)?.label || code
+const langOpen = ref(false), langBox = ref(null), translating = ref(false)
+const closeLang = (e) => { if (langOpen.value && !langBox.value?.contains(e.target)) langOpen.value = false }
+onMounted(() => document.addEventListener('pointerdown', closeLang))
+onBeforeUnmount(() => document.removeEventListener('pointerdown', closeLang))
+
+// One call to the letter writer; null when it failed (the error is shown, or the AI-limit pop-up explains it)
+async function ask(extra) {
+  const { photo, coverLetter, interviewPrep, ...cv } = JSON.parse(JSON.stringify(store.data))
+  try {
+    const r = await fetch(apiUrl('/api/ai/cover-letter'), {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cv, jobOffer: store.data.jobOffer, uiLang: lang.value, letterLang: letterLang.value, ...opts.value, ...extra }),
+    })
+    const j = await r.json().catch(() => ({}))
+    if (r.ok) return j
+    if (r.status !== 429) error.value = j.error || 'AI is unavailable right now. Please try again in a moment.'
+  } catch { error.value = 'AI is unavailable right now. Please try again in a moment.' }
+  return null
+}
+
 async function write() {
   error.value = ''
   busy.value = true
-  try {
-    const { photo, coverLetter, interviewPrep, ...cv } = JSON.parse(JSON.stringify(store.data))
-    const r = await fetch(apiUrl('/api/ai/cover-letter'), {
-      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cv, jobOffer: store.data.jobOffer, uiLang: lang.value, ...opts.value }),
-    })
-    const j = await r.json().catch(() => ({}))
-    if (!r.ok) { if (r.status !== 429) error.value = j.error || 'AI is unavailable right now. Please try again in a moment.'; return }
-    store.data.coverLetter = { key: jobKey.value, text: j.letter, job: j.job || null, date: new Date().toISOString(), ...opts.value }
-    undoText.value = null
-  } catch { error.value = 'AI is unavailable right now. Please try again in a moment.' }
-  finally { busy.value = false }
+  const j = await ask({})
+  if (j) {
+    store.data.coverLetter = { key: jobKey.value, text: j.letter, job: j.job || null, lang: j.lang || letterLang.value, date: new Date().toISOString(), ...opts.value }
+    undo.value = null
+  }
+  busy.value = false
 }
 // Their own letter: an empty page to type in
 function writeOwn() {
-  store.data.coverLetter = { key: jobKey.value, text: '', own: true, date: new Date().toISOString(), ...opts.value }
+  store.data.coverLetter = { key: jobKey.value, text: '', own: true, lang: letterLang.value, date: new Date().toISOString(), ...opts.value }
   nextTick(() => letterRef.value?.focus())
 }
-// "Refine with AI": the language and shape fixed, their voice and facts kept (Undo brings theirs back)
-const refining = ref(false), undoText = ref(null)
+// What Undo brings back: the letter's text and language, and the language picked, before the last AI change
+const undo = ref(null)
+const snapshot = () => ({ text: letterText.value, lang: letter.value?.lang, pick: store.data.letterLang || '' })
+function undoIt() {
+  const u = undo.value
+  if (!u) return
+  store.data.coverLetter = { ...store.data.coverLetter, text: u.text, lang: u.lang }
+  store.data.letterLang = u.pick
+  undo.value = null
+}
+// "Refine with AI": the language and shape fixed, their voice and facts kept, in the language they wrote it in
+const refining = ref(false)
 async function refine() {
   error.value = ''
   refining.value = true
-  try {
-    const before = letterText.value
-    const { photo, coverLetter, interviewPrep, ...cv } = JSON.parse(JSON.stringify(store.data))
-    const r = await fetch(apiUrl('/api/ai/cover-letter'), {
-      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cv, jobOffer: store.data.jobOffer, uiLang: lang.value, mode: 'refine', draft: before, ...opts.value }),
-    })
-    const j = await r.json().catch(() => ({}))
-    if (!r.ok) { if (r.status !== 429) error.value = j.error || 'AI is unavailable right now. Please try again in a moment.'; return }
-    undoText.value = before
-    store.data.coverLetter = { ...store.data.coverLetter, text: j.letter, job: j.job || store.data.coverLetter?.job || null, date: new Date().toISOString() }
-  } catch { error.value = 'AI is unavailable right now. Please try again in a moment.' }
-  finally { refining.value = false }
+  const before = snapshot()
+  const written = detectLang(before.text) || letterLang.value
+  const j = await ask({ mode: 'refine', draft: before.text, letterLang: written })
+  if (j) {
+    undo.value = before
+    if (written !== letterLang.value) store.data.letterLang = written
+    store.data.coverLetter = { ...store.data.coverLetter, text: j.letter, lang: j.lang || written, job: j.job || store.data.coverLetter?.job || null, date: new Date().toISOString() }
+  }
+  refining.value = false
 }
-function undo() { store.data.coverLetter = { ...store.data.coverLetter, text: undoText.value }; undoText.value = null }
+// Another language picked: the letter written so far is translated into it (one AI request), with Undo
+async function pickLang(code) {
+  langOpen.value = false
+  if (code === letterLang.value) return
+  const before = snapshot()
+  store.data.letterLang = code === autoLang.value ? '' : code
+  const written = before.lang || detectLang(before.text) || store.data.lang
+  if (before.text.trim().length < 40 || written === code) return
+  error.value = ''
+  translating.value = true
+  const j = await ask({ mode: 'translate', draft: before.text, letterLang: code })
+  if (j) {
+    undo.value = before
+    store.data.coverLetter = { ...store.data.coverLetter, text: j.letter, lang: j.lang || code }
+  } else store.data.letterLang = before.pick
+  translating.value = false
+}
 async function copy() {
   try { await navigator.clipboard.writeText(letterText.value); copied.value = true; setTimeout(() => { copied.value = false }, 1600) } catch {}
 }
 async function downloadPdf() {
   if (!auth.isLoggedIn && !(await requireAccount?.('download'))) return
+  error.value = ''
   pdfBusy.value = true
   try {
-    const id = await store.saveDraft({ force: true })
-    const r = await fetch(apiUrl('/api/cv/letter-pdf'), {
-      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ draftId: id || store.currentDraftId }),
-    })
-    if (r.status === 402) { showToast(t('The letter comes with this CV’s PDF.')); emit('pay'); return }
-    if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || 'Download failed. Please try again.') }
-    const blob = await r.blob()
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = ([store.data.fn, store.data.ln].filter(Boolean).join('-') || 'Cover') + '-Cover-letter.pdf'
-    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 3000)
+    if (await downloadLetterPdf(store) === 'pay') { showToast(t('The letter comes with this CV’s PDF.')); emit('pay') }
   } catch (e) { error.value = e.message }
   finally { pdfBusy.value = false }
 }
@@ -235,6 +294,25 @@ async function downloadPdf() {
 .cl-undo{color:var(--c-text3)}
 .cl-spin{width:14px;height:14px;border:2px solid #fff;border-right-color:transparent;border-radius:50%;animation:clSpin .8s linear infinite}
 @keyframes clSpin{to{transform:rotate(360deg)}}
+/* "Write it again" once there's a letter: the download is the main thing then */
+.cl-cta.cl-cta-2{background:var(--c-surface);color:var(--c-accent);box-shadow:inset 0 0 0 1.5px var(--c-accent)}
+.cl-cta svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.cl-dl{margin-top:12px}
+/* the letter's language */
+.cl-group:has(.cl-row-lang){overflow:visible}
+.cl-lang{position:relative;flex-shrink:0}
+.cl-lang-btn{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 10px 0 13px;border:none;border-radius:99px;background:var(--c-surface);box-shadow:inset 0 0 0 1px var(--c-border);font:inherit;font-size:13.5px;font-weight:600;color:var(--c-text);cursor:pointer}
+.cl-lang-btn:disabled{cursor:default;color:var(--c-text3)}
+.cl-lang-btn svg{width:13px;height:13px;fill:none;stroke:var(--c-text3);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.cl-menu{position:absolute;top:calc(100% + 6px);right:0;z-index:60;width:220px;margin:0;padding:6px;list-style:none;border-radius:14px;background:var(--c-surface);box-shadow:0 0 0 1px var(--c-border),0 12px 32px -8px rgba(0,0,0,.2)}
+.cl-menu button{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;border:none;border-radius:9px;background:none;font:inherit;font-size:14px;color:var(--c-text);text-align:left;cursor:pointer}
+.cl-menu button:hover{background:color-mix(in srgb,var(--c-accent) 7%,transparent)}
+.cl-menu button[aria-selected="true"]{color:var(--c-accent);font-weight:600}
+.cl-menu small{font-size:11.5px;font-weight:500;color:var(--c-text3)}
+.cl-menu svg{width:16px;height:16px;margin-left:auto;fill:none;stroke:var(--c-accent);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.cl-pop-enter-active,.cl-pop-leave-active{transition:opacity .15s ease,transform .18s ease}
+.cl-pop-enter-from,.cl-pop-leave-to{opacity:0;transform:translateY(-4px)}
+.cl-spin-dark{width:12px;height:12px;border-color:var(--c-accent);border-right-color:transparent}
 .cl-foot{font-size:12.5px;color:var(--c-text3);margin:8px 4px 0;line-height:1.45}
 .cl-err{font-size:13px;color:var(--c-rose);margin:10px 4px 0}
 @media (max-width:420px){ .cl-row{flex-wrap:wrap} .cl-row-col{flex-wrap:nowrap} .cl-in{text-align:left;flex-basis:100%} }

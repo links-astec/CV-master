@@ -1,5 +1,17 @@
 # Changes
 
+## 2026-11-02: One language per CV, the letter's language, fair ATS score, tabs in sync
+
+- **One language from top to bottom.** `src/composables/cvLanguage.js` reads which language each part of the CV is written in (common words, no AI).
+  - The editor (Content tab) and the wizard's review step warn when part of the CV is in another language ("Your CV mixes English and French", with "Put it all in French"), or when the headings don't match the content ("Switch the headings to French"). Either can be ignored.
+  - When the PDF is made, a mixed CV is translated into its main language first and the headings follow (one AI request; if it can't, the export goes ahead as it is).
+  - The translation now also covers the "What are you looking for?" line.
+- **Cover letter language.** The letter is written in the job offer's language, or the CV's language when there's no offer. A Language menu in the Letter tab switches it, and switching translates a letter already written (Undo brings it back). The PDF's date and subject line follow the letter's language. Refine with AI keeps the language the letter is written in.
+- **Easier letter download:** a full-width "Download my letter (PDF)" button under the letter, and "Download letter" in the editor's top bar on the Letter tab.
+- **One-month dates:** the same month (or year) at both ends prints once ("Jan 2026", not "Jan 2026 – Jan 2026"), also for dates saved before.
+- **ATS score:** a CV without experience is capped (45, or 65 with projects) and says why, and a keyword found only in the skills list counts 60% of one shown in experience, projects or the summary. Before, a skills list alone could score about 98%.
+- **Two tabs, one CV:** an edit in one browser tab shows straight away in another tab with the same CV open (content, layout and style), so neither saves over the other.
+
 ## 2026-10-10: No AI calls for an empty CV
 
 - **An empty CV never reaches the AI.** "Empty" means nothing beyond name, contact details and photo. This covers writing help (summary, skills, bullets), the job-fit check, Fix with AI, translation, tailoring and the ATS check.

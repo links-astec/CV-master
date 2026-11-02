@@ -10,7 +10,7 @@
           <!-- Working -->
           <div v-if="state === 'checking' || state === 'sending'" class="pw-center">
             <span class="pw-spin"></span>
-            <h2>{{ $t(state === 'sending' ? 'Creating your PDF…' : 'Getting your CV ready…') }}</h2>
+            <h2>{{ $t(state === 'sending' ? 'Creating your PDF…' : unifying ? 'Putting your whole CV in one language…' : 'Getting your CV ready…') }}</h2>
             <p v-if="state === 'sending'">{{ $t('Sending to {email}. This takes a few seconds.', { email: deliveryEmail.trim() || userEmail }) }}</p>
           </div>
 
@@ -132,6 +132,7 @@ import { analysePage } from '../composables/pageFit.js'
 import { t } from '../i18n/index.js'
 import { useRouter } from 'vue-router'
 import { approx } from '../composables/localPrice.js'
+import { cvLanguages, unifyCvLanguage } from '../composables/cvLanguage.js'
 
 const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
 
@@ -148,6 +149,8 @@ const FEATURES = ['Clean, watermark-free PDF, emailed to you', 'Download it stra
 
 // checking | tooLong | ready | sending | sent | emailFailed | error
 const state         = ref('checking')
+const unifying      = ref(false)   // putting a mixed-language CV into one language first
+const needsUnifying  = (d) => cvLanguages(d).mixed
 const loading       = ref(false)
 const downloading   = ref(false)
 const error         = ref('')
@@ -221,6 +224,11 @@ async function prepare() {
   error.value = ''
   demoMode.value = false
   try {
+    // One language from top to bottom: whatever is in another language than most of the CV is translated
+    // now, and the headings follow (the editor asked first; this is for when that was ignored)
+    unifying.value = needsUnifying(store.data)
+    if (unifying.value) await unifyCvLanguage(store)
+    unifying.value = false
     const [id, info] = await Promise.all([store.ensureSavedDraftId(), analysePage(cvHtml())])
     page.value = info
     if (!id) throw new Error('We couldn’t save your CV to your account. Check your connection and try again.')

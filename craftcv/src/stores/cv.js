@@ -30,8 +30,9 @@ const emptyData = () => ({
   jobTailored: '',     // Job match step 2 for this offer: '' | 'applied' | 'skipped'
   jobTarget: null,     // { title, company } read from the job offer (shown in Job match)
   jobFit: null,        // the AI's "is this role a good fit?" for this offer: { key, fit, headline, reasons, advice, dismissed }
-  coverLetter: null,   // Job Hunt Pass: { key (the job offer it is for), text }
+  coverLetter: null,   // { key (the job offer it is for), text, lang (the language it's written in), job, tone… }
   letterLayout: 'auto', // the cover letter's layout: 'auto' (like the CV's design) or one picked in the Letter tab
+  letterLang: '',      // the cover letter's language when picked in the Letter tab ('' : the job offer's, else the CV's)
   interviewPrep: null, // Job Hunt Pass: { key, questions: [{ q, why, tip }] }
   cvFor: '',           // '' (guess from the name) | 'self' | 'other' — the AI only personalises your own CVs
   checkIgnored: [],    // checklist warnings the user chose to ignore for this CV
@@ -175,6 +176,7 @@ export const useCvStore = defineStore('cv', () => {
 
   // ── Persist on change. LocalStorage immediately, account debounced ─────────
   let saveTimer = null
+  let fromOtherTab = '', lastTabSync = 0   // see the storage listener below
   let savePromise = null
   function scheduleSave(delay = 1500) {
     clearTimeout(saveTimer)
@@ -186,12 +188,35 @@ export const useCvStore = defineStore('cv', () => {
   }
   watch(data, (v) => {
     const clone = plainClone(v)
-    if (clone) lsSet('pcv-draft', onlyPrefill(clone) ? '' : JSON.stringify(clone))
+    const json = clone ? JSON.stringify(clone) : ''
+    if (json && json === fromOtherTab) return   // just arrived from another tab, which saves it itself
+    if (clone) lsSet('pcv-draft', onlyPrefill(clone) ? '' : json)
     rememberGuestProfile(clone)
     scheduleSave()
   }, { deep: true, flush: 'post' })
-  watch(template, (v) => { lsSet('pcv-template', v); scheduleSave(800) }, { flush: 'post' })
-  watch(fmt, (v) => { lsSet('pcv-fmt', JSON.stringify(v)); scheduleSave(800) }, { deep: true, flush: 'post' })
+  watch(template, (v) => { if (v === fromOtherTab) return; lsSet('pcv-template', v); scheduleSave(800) }, { flush: 'post' })
+  watch(fmt, (v) => { if (JSON.stringify(v) === fromOtherTab) return; lsSet('pcv-fmt', JSON.stringify(v)); scheduleSave(800) }, { deep: true, flush: 'post' })
+
+  // The same CV open in two browser tabs: a change in one shows in the other straight away, so neither
+  // works on (or saves over) an older version. Only when both tabs have the same CV open.
+  if (typeof window !== 'undefined') window.addEventListener('storage', (e) => {
+    if (!e.newValue || (lsGet('pcv-draft-id') || '') !== (currentDraftId.value || '')) return
+    if (e.key === 'pcv-draft') {
+      const v = safeParse(e.newValue)
+      if (!v) return
+      fromOtherTab = JSON.stringify(normaliseData(v))
+      data.value = normaliseData(v)
+    } else if (e.key === 'pcv-template') {
+      fromOtherTab = normalizeTemplate(e.newValue)
+      template.value = fromOtherTab
+    } else if (e.key === 'pcv-fmt') {
+      const v = safeParse(e.newValue)
+      if (!v) return
+      fromOtherTab = JSON.stringify(normaliseFmt(v))
+      fmt.value = normaliseFmt(v)
+    } else return
+    lastTabSync = Date.now()
+  })
 
   watch(darkMode, (v) => {
     document.documentElement.setAttribute('data-theme', v ? 'dark' : 'light')
@@ -350,6 +375,8 @@ export const useCvStore = defineStore('cv', () => {
   // and nothing here is waiting to be saved, show the newer version instead of saving over it
   async function refreshFromServer() {
     if (!auth.isLoggedIn || !currentDraftId.value || saveTimer || savePromise) return
+    // Another tab of this browser just passed its changes over; its save may not have reached the server yet
+    if (Date.now() - lastTabSync < 15000) return
     try {
       const r = await fetch(apiUrl('/api/drafts'), { credentials: 'include' })
       if (!r.ok || saveTimer || savePromise) return
