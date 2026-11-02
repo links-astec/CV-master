@@ -3115,8 +3115,19 @@ html,body{margin:0!important;padding:0!important;background:#fff!important;width
 }
 
 // ── SHARED PUPPETEER BROWSER ──────────────────────────────────────────────────
-// One browser instance shared across all PDF requests.
-// Avoids 3-8s cold-start per request. Pages open in ~200ms instead.
+// One browser instance shared across PDF requests (pages open in ~200ms instead of a 3-8s launch each).
+// It runs only while PDFs are being made: Chrome takes a large part of the server's memory, and on a
+// small instance a Chrome that is always running pushed the server out of memory, which restarts it and
+// cuts off every request in progress (an AI tailoring, a translation…). It closes after BROWSER_IDLE_MS.
+const BROWSER_IDLE_MS = Number(process.env.PDF_IDLE_MS) || 3 * 60 * 1000;
+let _browserIdle = null;
+function browserIdleLater() {
+  clearTimeout(_browserIdle);
+  _browserIdle = setTimeout(() => {
+    if (_pdfActive) return;
+    resetBrowser().then(() => { if (!_pdfActive) pdfEngine.status = 'idle'; });
+  }, BROWSER_IDLE_MS);
+}
 let _browser = null;
 let _browserReady = null;
 
@@ -3260,7 +3271,7 @@ async function renderPdfFromHtml(html) {
 // Puppeteer (Chrome) only. The old wkhtmltopdf / html-pdf-node fallbacks silently
 // produced broken CVs (no CSS grid, no embedded fonts, wrong page size), so a failure
 // now returns null and the caller asks the user to try again instead.
-const pdfEngine = { status: 'starting', error: null, lastMs: null };
+const pdfEngine = { status: 'idle', error: null, lastMs: null };   // idle: Chrome starts with the next PDF
 const PDF_TIMEOUT_MS = 45000; // Render's free CPU is slow, and the first PDF also launches Chrome
 
 async function resetBrowser() {
@@ -3274,7 +3285,8 @@ const _pdfQueue = [];
 async function withPdfSlot(fn) {
   if (_pdfActive >= 2) await new Promise(r => _pdfQueue.push(r));
   _pdfActive++;
-  try { return await fn(); } finally { _pdfActive--; _pdfQueue.shift()?.(); }
+  clearTimeout(_browserIdle);
+  try { return await fn(); } finally { _pdfActive--; _pdfQueue.shift()?.(); if (!_pdfActive) browserIdleLater(); }
 }
 
 function generateCvPdf(htmlContent) { return withPdfSlot(() => generateCvPdfNow(htmlContent)); }
@@ -4589,7 +4601,15 @@ async function runStatus() {
     }),
     check('AI', 'pdf', 'PDF engine', async () => (
       pdfEngine.status === 'ready' ? { state: 'ok', detail: `Chrome ready${pdfEngine.lastMs ? ` · last PDF in ${pdfEngine.lastMs} ms` : ''}` }
+        : pdfEngine.status === 'idle' ? { state: 'ok', detail: `Chrome starts with the next PDF (closed when idle, to save memory)${pdfEngine.lastMs ? ` · last PDF in ${pdfEngine.lastMs} ms` : ''}` }
         : { state: pdfEngine.status === 'starting' ? 'warn' : 'down', detail: `Status: ${pdfEngine.status}${pdfEngine.error ? ` · ${pdfEngine.error}` : ''}` })),
+    // A restart (out of memory, a deploy, the free plan waking up) cuts off requests in progress: how long the
+    // server has been up shows it, and memory close to the limit warns before it happens
+    check('AI', 'server', 'Server (Render)', async () => {
+      const mb = Math.round(process.memoryUsage().rss / 1048576), up = Math.round(process.uptime());
+      const upText = up < 3600 ? `${Math.round(up / 60)} min` : up < 172800 ? `${Math.round(up / 3600)} h` : `${Math.round(up / 86400)} days`;
+      return { state: mb > 430 ? 'warn' : 'ok', detail: `Up for ${upText} · memory ${mb} MB of about 512 MB${mb > 430 ? ': close to the limit, the server may restart and cut off requests' : ''}` };
+    }),
     // ── Email
     check('Email', 'mail', 'Sending email', async () => {
       if (!(resend || smtpTransport)) return { state: 'down', detail: 'No email provider configured' };
@@ -5770,7 +5790,7 @@ app.get('/api/health', async (req, res) => {
   if (maintenanceMode) {
     return res.status(503).json({ ok: false, maintenance: true, message: 'Under maintenance' });
   }
-  res.json({ ok: true, maintenance: false, db, ai: !!AI_READY, pdf: pdfEngine.status, time: new Date().toISOString() });
+  res.json({ ok: true, maintenance: false, db, ai: !!AI_READY, pdf: pdfEngine.status, up: Math.round(process.uptime()), time: new Date().toISOString() });
 });
 // For the outside uptime monitor (UptimeRobot): an error status when the database isn't answering,
 // so a plain "is it up?" monitor notices. /api/health stays 200 for Render's own check, which would
@@ -5797,14 +5817,7 @@ export default app;
 
 if (process.env.VERCEL !== '1') {
   const PORT = process.env.PORT || 3001;
-  // Warm up Puppeteer on server start so first PDF is fast
-  getBrowser().then(() => {
-    pdfEngine.status = 'ready';
-    console.log('  PDF:    Puppeteer ready');
-  }).catch((e) => {
-    Object.assign(pdfEngine, { status: 'error', error: e.message });
-    console.error('  PDF:    Puppeteer could not start —', e.message);
-  });
+  // Chrome is not started here: it launches with the first PDF and closes when idle (see BROWSER_IDLE_MS)
 
   app.listen(PORT, () => {
     console.log(`\nCVMaster API → http://localhost:${PORT}`);

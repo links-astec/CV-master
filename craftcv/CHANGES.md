@@ -1,5 +1,13 @@
 # Changes
 
+## 2026-11-02: Fewer "AI is unavailable" / "Tailoring failed" errors
+
+- **Cause:** the API runs on Render's free plan (about 512 MB, a fraction of a CPU, asleep after 15 idle minutes). Chrome, started at boot for PDFs and kept running, took a large part of that memory, so the server could run out and restart, cutting off AI requests in progress. Claude and Groq themselves were answering (checked on the live API: a summary in 1.5 s, a tailoring in 25 s).
+- **Chrome only while PDFs are made:** it starts with the first PDF (about 1.5 s) and closes after 3 idle minutes (`BROWSER_IDLE_MS`, or `PDF_IDLE_MS` in the environment). Admin status shows it as "starts with the next PDF".
+- **AI requests survive a short outage:** when the server doesn't answer, or Render answers 502/503/504, an AI request (and CV upload, proofreading) is tried twice more after a pause (App.vue's fetch wrapper).
+- **The server is woken up early:** opening the site pings `/api/health` (the database is checked at most once an hour), so a sleeping free server is up by the time the AI is needed.
+- **Restarts are visible:** `/api/health` gives `up` (seconds since the server started), and admin status has a "Server (Render)" row with uptime and memory, warning above 430 MB.
+
 ## 2026-11-02: One language per CV, the letter's language, fair ATS score, tabs in sync
 
 - **One language from top to bottom.** `src/composables/cvLanguage.js` reads which language each part of the CV is written in (common words, no AI).

@@ -277,6 +277,10 @@ if (!window.__aiLimitWatch) {
   // AI features that work on the CV: never call them for an empty CV (nothing to work
   // with, and it would use up an AI request). Answered here, no request is sent.
   const CV_AI = /\/api\/ai\/(write|fit|fix|translate|tailor|ats)\b/
+  const AI_RETRY = /\/api\/(ai\/|cv\/upload|proofread)/
+  // A free-plan server falls asleep when nobody uses it: wake it as soon as someone opens the site, so it is
+  // up by the time they ask the AI for something (the health check doesn't touch the database every time)
+  _fetch((import.meta.env.VITE_API_URL || '') + '/api/health', { cache: 'no-store' }).catch(() => {})
   window.fetch = async (...args) => {
     const url0 = String(args[0]?.url || args[0] || '')
     if (CV_AI.test(url0) && typeof args[1]?.body === 'string') {
@@ -286,7 +290,16 @@ if (!window.__aiLimitWatch) {
         return new Response(JSON.stringify({ code: 'CV_EMPTY', error: CV_EMPTY_MSG }), { status: 400, headers: { 'Content-Type': 'application/json' } })
       }
     }
-    const res = await _fetch(...args)
+    // The server briefly out of reach (restarting, waking up, a dropped connection: no answer, or Render's
+    // 502/503/504): an AI request is tried twice more after a pause before the person sees an error
+    let res
+    for (let i = 0; ; i++) {
+      const again = AI_RETRY.test(url0) && i < 2
+      try { res = await _fetch(...args) }
+      catch (e) { if (!again || e?.name === 'AbortError') throw e; await new Promise(r => setTimeout(r, 2500 * (i + 1))); continue }
+      if (again && [502, 503, 504].includes(res.status) && !res.headers.get('content-type')?.includes('json')) { await new Promise(r => setTimeout(r, 2500 * (i + 1))); continue }
+      break
+    }
     if (res.status === 429) {
       const url = String(args[0]?.url || args[0] || '')
       if (url.includes('/api/ai/') || url.includes('/api/cv/upload')) {
