@@ -2259,6 +2259,26 @@ app.post('/api/ai/write', needsCvContent, aiAccess, async (req, res) => {
       const clean = (list, n) => arr(list).map(str).filter(s => s && s.length <= 50 && !have.has(s.toLowerCase())).slice(0, n);
       return res.json({ skills: clean(tech, 12), soft: clean(soft, 5) });
     }
+    // Skills checked against the job offer: which belong under soft skills, and which don't help for this job
+    // (suggested for removal; the person decides). `check`: the skills to look at (all of them when absent).
+    if (task === 'skillsFit') {
+      if (!brief) return res.status(400).json({ error: 'Add the job offer first.' });
+      const all = [...arr(cv.skills), ...arr(cv.softSkills)].map(str).filter(Boolean);
+      const wanted = new Set(arr(req.body?.check).map(s => str(s).toLowerCase()).filter(Boolean));
+      const list = (wanted.size ? all.filter(s => wanted.has(s.toLowerCase())) : all).slice(0, 40);
+      if (!list.length) return res.json({ skills: [] });
+      const out = await callAi(`SKILLS TO CHECK:\n${list.map(s => `- ${s}`).join('\n')}\n\nCV:\n${facts}${job}`, AI_MODEL,
+        `You review the skills section of a CV for one job application. For EVERY skill in the list:
+- "kind": "soft" for soft skills (personal and interpersonal qualities such as communication, teamwork, leadership, problem solving, autonomy), otherwise "technical" (tools, software, methods, languages, domain knowledge).
+- "fit": false only when the skill does not help for THIS job at all and a recruiter for it would see it as noise (e.g. "Photoshop" for an accountant, "Forklift driving" for a developer). Be generous: transferable skills, general office tools, soft skills and anything the job's duties could use are a fit. When unsure, true.
+- "why": when fit is false, at most 10 words in ${uiLangName(req.body?.uiLang)} saying why it doesn't help for this job; otherwise "".
+Return ONLY JSON: {"skills":[{"name":"exactly as given","kind":"technical","fit":true,"why":""}]}`, 1500, 'low');
+      const parsed = parseJsonObject(out);
+      const byName = new Map(list.map(s => [s.toLowerCase(), s]));
+      const skills = arr(parsed?.skills).map(x => ({ name: byName.get(str(x?.name).toLowerCase()), kind: x?.kind === 'soft' ? 'soft' : 'technical', fit: x?.fit !== false, why: noEmDash(str(x?.why)).slice(0, 120) }))
+        .filter(x => x.name);
+      return res.json({ skills });
+    }
     if (task === 'bullets') {
       // a job (experiences) or, with kind: 'project', a project
       const isProject = req.body?.kind === 'project';

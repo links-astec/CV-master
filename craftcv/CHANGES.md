@@ -10,6 +10,8 @@
 - **Easier letter download:** a full-width "Download my letter (PDF)" button under the letter, and "Download letter" in the editor's top bar on the Letter tab.
 - **One-month dates:** the same month (or year) at both ends prints once ("Jan 2026", not "Jan 2026 – Jan 2026"), also for dates saved before.
 - **ATS score:** a CV without experience is capped (45, or 65 with projects) and says why, and a keyword found only in the skills list counts 60% of one shown in experience, projects or the summary. Before, a skills list alone could score about 98%.
+- **Skills sort themselves.** A pasted list goes into Technical and Soft skills straight away (a list of common soft skills in English and French, `src/composables/skillKinds.js`; no AI). A typed soft skill goes to Soft skills whichever group is selected. Skills from an imported CV and keywords added from the ATS check are sorted the same way.
+- **Skills checked against the job offer.** With a job offer, a pasted list is checked with one AI request (task `skillsFit`): skills the sorting put in the wrong group move, and skills that don't help for this job are listed under "Not needed for this job?" with a short reason, to Remove (or Remove all) or Keep. Nothing is removed without a tap. "Check my skills against the job offer" checks the whole list. Kept skills are remembered on the CV.
 - **Two tabs, one CV:** an edit in one browser tab shows straight away in another tab with the same CV open (content, layout and style), so neither saves over the other.
 
 ## 2026-10-10: No AI calls for an empty CV
