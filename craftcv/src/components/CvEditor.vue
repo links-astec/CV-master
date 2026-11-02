@@ -9,6 +9,7 @@
     <div class="ced-body" ref="bodyRef">
       <!-- CONTENT: one collapsible section per part of the CV -->
       <div v-if="tab === 'content'" class="ced-acc">
+        <LangCheck />
         <div v-for="s in SECTIONS" :key="s.id" class="acc" :class="{ open: open === s.id }">
           <button class="acc-hd" @click="toggle(s.id)" :aria-expanded="open === s.id">
             <span class="acc-dot" :class="{ done: s.done() }">
@@ -44,6 +45,7 @@ import StepSkills from './wizard/StepSkills.vue'
 import StepEducation from './wizard/StepEducation.vue'
 import JobMatch from './JobMatch.vue'
 import CoverLetter from './CoverLetter.vue'
+import LangCheck from './LangCheck.vue'
 import { t } from '../i18n/index.js'
 
 const emit = defineEmits(['pay', 'tab'])

@@ -1714,9 +1714,9 @@ function briefForPrompt(b) {
 
 // ── ATS SCORE ─────────────────────────────────────────────────────────────────
 // A fixed calculation against the job brief, so the same CV and job always get the same
-// score and every change shows up. Weights: keywords 65, job title 12, sections 13,
-// requirements (years, education, languages) 10. A CV that truthfully covers the job's
-// keywords scores in the 90s.
+// score and every change shows up. Weights: keywords 65 (a keyword only in a skills list counts 60%),
+// job title 12, sections 13, requirements (years, education, languages) 10. No experience caps the
+// score (45, or 65 with projects). A CV that truthfully covers the job's keywords scores in the 90s.
 const normText = (s) => ' ' + String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
   .replace(/[^a-z0-9+#.]+/g, ' ').replace(/(\S)\.(?=\s|$)/g, '$1').replace(/\s+/g, ' ').trim() + ' ';
 function termForms(term) {
@@ -1751,20 +1751,27 @@ function atsScore(cv, brief) {
   const arr = (v) => (Array.isArray(v) ? v : []);
   const exps = arr(cv.experiences).filter(e => e && (str(e.title) || str(e.company) || str(e.desc)));
   const edu = arr(cv.education).filter(e => e && (str(e.degree) || str(e.school)));
-  const text = normText([
+  const projs = arr(cv.projects).filter(p => p && (str(p.name) || str(p.desc)));
+  // Where a keyword shows matters: in what they did (experience, projects, summary) it is evidence; only in a
+  // skills list it is a claim, so it counts for less (as recruiters and ranking ATS read it)
+  const doneText = normText([
     cv.title, cv.sum, ...exps.map(e => `${str(e.title)} ${str(e.company)} ${str(e.desc)}`),
-    ...arr(cv.projects).map(p => `${str(p?.name)} ${str(p?.tech)} ${str(p?.desc)}`),
-    ...arr(cv.skills), ...arr(cv.softSkills), ...edu.map(e => `${str(e.degree)} ${str(e.school)}`), ...arr(cv.certifications),
+    ...projs.map(p => `${str(p?.name)} ${str(p?.tech)} ${str(p?.desc)}`),
+  ].map(str).join(' \n '));
+  const text = normText([
+    doneText, ...arr(cv.skills), ...arr(cv.softSkills), ...edu.map(e => `${str(e.degree)} ${str(e.school)}`), ...arr(cv.certifications),
     ...arr(cv.languages).map(l => `${str(l?.name)} ${str(l?.level)}`),
   ].map(str).join(' \n '));
 
   // Keywords
   const weightOf = (k) => (k.required ? 3 : 1.5) * (k.type === 'soft' ? 0.6 : 1);
   let total = 0, got = 0;
-  const matched = [], missing = [];
+  const matched = [], missing = [], listedOnly = [];
   for (const k of brief.keywords) {
     total += weightOf(k);
-    if (hasTerm(text, k)) { got += weightOf(k); matched.push(k.term); } else missing.push(k);
+    if (hasTerm(doneText, k)) { got += weightOf(k); matched.push(k.term); }
+    else if (hasTerm(text, k)) { got += weightOf(k) * 0.6; matched.push(k.term); if (k.type !== 'soft') listedOnly.push(k.term); }
+    else missing.push(k);
   }
   const kwScore = total ? got / total : 1;
 
@@ -1798,11 +1805,17 @@ function atsScore(cv, brief) {
   if (brief.languages.length) reqParts.push(1 - langsMissing.length / brief.languages.length);
   const reqScore = reqParts.length ? reqParts.reduce((a, b) => a + b, 0) / reqParts.length : 1;
 
-  const score = Math.round(100 * (0.65 * kwScore + 0.12 * titleScore + 0.13 * secScore + 0.10 * reqScore));
+  // A CV without any experience can't be a strong match, whatever its skills list says: capped
+  // (a little higher when projects show the work, as for students)
+  const cap = exps.length ? 100 : projs.length ? 65 : 45;
+  const score = Math.min(cap, Math.round(100 * (0.65 * kwScore + 0.12 * titleScore + 0.13 * secScore + 0.10 * reqScore)));
 
   // What to do about it, most useful first
   const reqMissing = missing.filter(k => k.required).map(k => k.term), niceMissing = missing.filter(k => !k.required).map(k => k.term);
   const gaps = [], suggestions = [];
+  if (!exps.length) gaps.push(M(projs.length
+    ? 'Your CV has no work experience yet, so the score is capped. Add jobs, internships, volunteering or student roles that show the job’s skills.'
+    : 'Your CV has no work experience or projects, so the score is capped. Add jobs, internships, volunteering or projects that show the job’s skills.'));
   if (reqMissing.length) gaps.push(M('Required by the job but not on your CV: {list}.', { list: reqMissing.slice(0, 8).join(', ') }));
   if (brief.years && years < brief.years) gaps.push(M('The job asks for {need}+ years of experience; your CV shows about {have}.', { need: brief.years, have: years }));
   if (langsMissing.length) gaps.push(M('The job asks for {langs}. Add it under Languages if you speak it.', { langs: langsMissing.join(', ') }));
@@ -1812,6 +1825,7 @@ function atsScore(cv, brief) {
 
   if (reqMissing.length || niceMissing.length) suggestions.push(M('Use “Improve my score with AI” to work the missing keywords into what you’ve already written. Only where they’re true for you.'));
   if (missing.length) suggestions.push(M('Tap a missing keyword below to add it to your skills if you have it.'));
+  if (exps.length && listedOnly.length) suggestions.push(M('Show where you used {list}: a skill named in your experience counts more than one only in the skills list.', { list: listedOnly.slice(0, 4).join(', ') }));
   if (titleScore < 1 && brief.title) suggestions.push(M('Use the job title “{title}” in your headline if it matches what you do.', { title: brief.title }));
   if (!reqMissing.length && niceMissing.length) suggestions.push(M('Nice-to-haves you could mention: {list}.', { list: niceMissing.slice(0, 6).join(', ') }));
   if (str(cv.sum).trim().length < 80) suggestions.push(M('Write a 2–3 sentence summary aimed at this job.'));
@@ -1955,9 +1969,22 @@ function cvFactsText(cv) {
 // A cover letter for this CV and job, from the CV's facts only. Throws { status, message } for bad input.
 // mode 'write' (default): a letter for the job, or, with openApplication and no job offer, an open application
 // from the CV (aimed at role / company when given). mode 'refine': the person's own letter (draft), polished.
-async function writeCoverLetter(cv, jobOffer, req, { tone, length, to, mode = 'write', draft = '', role = '', company = '', openApplication = false } = {}) {
+// mode 'translate': their letter (draft) put into another language. letterLang: the letter's language (the app
+// picks the job offer's by default); without it, the CV's.
+async function writeCoverLetter(cv, jobOffer, req, { tone, length, to, mode = 'write', draft = '', role = '', company = '', openApplication = false, letterLang = '' } = {}) {
   const clip = (v, n) => String(v || '').replace(/[\r\n"]/g, ' ').trim().slice(0, n);
-  const lang = UI_LANG_NAME[cv.lang] || 'English';
+  const code = UI_LANG_NAME[letterLang] ? letterLang : UI_LANG_NAME[cv.lang] ? cv.lang : 'en';
+  const lang = UI_LANG_NAME[code];
+  if (mode === 'translate') {
+    const own = String(draft || '').trim().slice(0, 6000);
+    if (own.length < 40) throw Object.assign(new Error('Write a few sentences of your letter first.'), { status: 400 });
+    const system = `You translate a cover letter into ${lang}${code === 'fr' ? ' (as used in France)' : ''}. Translate faithfully, in the natural, professional register of a cover letter in that language: the greeting, sign-off and polite formulas become the ones used there (e.g. "Dear Hiring Manager," / "Madame, Monsieur,"). Keep every fact, name, company, number and the paragraph breaks; add nothing.
+Reply with ONLY the letter text, no title and no notes.`;
+    const out = await callAi(`THE LETTER:\n${own}`, AI_MODEL, system, 1100, 'low');
+    const letter = noEmDash(String(out || '')).replace(/^\s*```[a-z]*\s*|```\s*$/g, '').trim().slice(0, 6000);
+    if (letter.length < 40) throw Object.assign(new Error('AI is unavailable right now. Please try again in a moment.'), { status: 500 });
+    return { letter, lang: code };
+  }
   const toneText = tone === 'warm' ? 'warm and personal, still professional' : tone === 'confident' ? 'confident and direct, short sentences' : 'professional, confident and warm';
   const words = length === 'short' ? '150 to 210 words' : '220 to 320 words';
   const brief = jobOffer && String(jobOffer).trim().length >= 80 ? await jobBrief(jobOffer, req) : null;
@@ -1970,7 +1997,7 @@ Reply with ONLY the letter text, no title and no notes.`;
     const out = await callAi(`THEIR LETTER:\n${own}\n\nCV:\n${cvFactsText(cv)}${jobText}`, AI_MODEL, system, 1100, 'medium');
     const letter = noEmDash(String(out || '')).replace(/^\s*```[a-z]*\s*|```\s*$/g, '').trim().slice(0, 6000);
     if (letter.length < 80) throw Object.assign(new Error('AI is unavailable right now. Please try again in a moment.'), { status: 500 });
-    return { letter, job: brief ? { title: brief.title, company: brief.company } : (role || company) ? { title: clip(role, 80), company: clip(company, 80) } : null };
+    return { letter, lang: code, job: brief ? { title: brief.title, company: brief.company } : (role || company) ? { title: clip(role, 80), company: clip(company, 80) } : null };
   }
   if (!brief && openApplication) {
     const system = `You write cover letters. There is no job advert: write an open application (a speculative letter) for the person on this CV, in ${lang}, ${role || company ? 'for what they are applying for (below)' : 'for the kind of role their CV points to (their headline and latest experience)'}.
@@ -1981,7 +2008,7 @@ Reply with ONLY the letter text, no title and no notes.`;
     const out = await callAi(`CV:\n${cvFactsText(cv)}${jobText}`, AI_MODEL, system, 1100, 'medium');
     const letter = noEmDash(String(out || '')).replace(/^\s*```[a-z]*\s*|```\s*$/g, '').trim().slice(0, 6000);
     if (letter.length < 200) throw Object.assign(new Error('AI is unavailable right now. Please try again in a moment.'), { status: 500 });
-    return { letter, job: (role || company) ? { title: clip(role, 80), company: clip(company, 80) } : null };
+    return { letter, lang: code, job: (role || company) ? { title: clip(role, 80), company: clip(company, 80) } : null };
   }
   {
     if (!brief) throw Object.assign(new Error('Please paste the full job description (at least a few sentences).'), { status: 400 });
@@ -1993,7 +2020,7 @@ Reply with ONLY the letter text, no title and no notes.`;
     const out = await callAi(`JOB:\n${briefForPrompt(brief)}\n\nCV:\n${cvFactsText(cv)}`, AI_MODEL, system, 1100, 'medium');
     const letter = noEmDash(String(out || '')).replace(/^\s*```[a-z]*\s*|```\s*$/g, '').trim().slice(0, 6000);
     if (letter.length < 200) throw Object.assign(new Error('AI is unavailable right now. Please try again in a moment.'), { status: 500 });
-    return { letter, job: { title: brief.title, company: brief.company } };
+    return { letter, lang: code, job: { title: brief.title, company: brief.company } };
   }
 }
 app.post('/api/ai/cover-letter', needsCvContent, aiAccess, async (req, res) => {
@@ -2003,7 +2030,7 @@ app.post('/api/ai/cover-letter', needsCvContent, aiAccess, async (req, res) => {
     const b = req.body || {};
     const str = (v) => (typeof v === 'string' ? v.trim() : '');
     const out = await writeCoverLetter(cv, b.jobOffer, req, { tone: ['professional', 'warm', 'confident'].includes(b.tone) ? b.tone : 'professional', length: b.length === 'short' ? 'short' : 'standard', to: str(b.to),
-      mode: b.mode === 'refine' ? 'refine' : 'write', draft: str(b.draft), role: str(b.role), company: str(b.company), openApplication: true });
+      mode: ['refine', 'translate'].includes(b.mode) ? b.mode : 'write', draft: str(b.draft), role: str(b.role), company: str(b.company), openApplication: true, letterLang: str(b.letterLang) });
     track(req, 'cover_letter');
     res.json(out);
   } catch (e) {
@@ -2492,6 +2519,7 @@ app.post('/api/ai/translate', needsCvContent, aiAccess, async (req, res) => {
     const src = {
       title: str(cv.title),
       sum: str(cv.sum),
+      seeking: str(cv.seeking),
       experiences: arr(cv.experiences).slice(0, 10).map((e, i) => ({ i, title: str(e?.title), period: str(e?.period), desc: str(e?.desc) })),
       education: arr(cv.education).slice(0, 6).map((e, i) => ({ i, degree: str(e?.degree), year: str(e?.year) })),
       projects: arr(cv.projects).slice(0, 8).map((p, i) => ({ i, desc: str(p?.desc) })),
@@ -2524,6 +2552,7 @@ app.post('/api/ai/translate', needsCvContent, aiAccess, async (req, res) => {
     res.json({
       title: keep(src.title, p.title),
       sum: keep(src.sum, p.sum),
+      seeking: keep(src.seeking, p.seeking),
       experiences: src.experiences.map(e => ({ i: e.i, title: keep(e.title, exps.get(e.i)?.title), period: keep(e.period, exps.get(e.i)?.period), desc: keep(e.desc, exps.get(e.i)?.desc) })),
       education: src.education.map(e => ({ i: e.i, degree: keep(e.degree, edus.get(e.i)?.degree), year: keep(e.year, edus.get(e.i)?.year) })),
       projects: src.projects.map(x => ({ i: x.i, desc: keep(x.desc, projs.get(x.i)?.desc) })),

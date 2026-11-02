@@ -61,9 +61,18 @@ const monthName = (m, lang) => {
 }
 const pointText = (p, lang) => (p === 'present' ? PRESENT[lang] || PRESENT.en : p.m ? `${monthName(p.m, lang)} ${p.y}` : String(p.y))
 
+// The same month (or the same year) at both ends: something that lasted a month, written once
+const samePoint = (a, b) => !!a && !!b && a !== 'present' && b !== 'present' && a.y === b.y && (a.m || null) === (b.m || null)
+
 export function formatPeriod(p, lang = 'en') {
   if (!p?.start) return ''
-  return p.end ? `${pointText(p.start, lang)} – ${pointText(p.end, lang)}` : pointText(p.start, lang)
+  return p.end && !samePoint(p.start, p.end) ? `${pointText(p.start, lang)} – ${pointText(p.end, lang)}` : pointText(p.start, lang)
+}
+
+// For the CV itself: "Jan 2026 – Jan 2026" prints as "Jan 2026" (dates saved before this was tidied on typing)
+export function collapsePeriod(text, lang = 'en') {
+  const p = parsePeriod(text)
+  return p && samePoint(p.start, p.end) ? formatPeriod(p, lang) : String(text || '')
 }
 
 // What a field should hold after it's typed in: the tidy version when the text can be read

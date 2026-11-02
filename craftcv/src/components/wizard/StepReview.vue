@@ -1,5 +1,6 @@
 <template>
   <div class="ck">
+    <LangCheck />
     <div class="ck-hd">
       <div class="ck-ttl">{{ todo.length ? $t(todo.length === 1 ? '{n} thing to fix' : '{n} things to fix', { n: todo.length }) : $t('Your CV is complete') }}</div>
       <div class="ck-count">{{ $t('{n}/{total} checks passed', { n: passed.length, total: rules.length }) }}</div>
@@ -54,6 +55,7 @@
 import { ref, computed, inject } from 'vue'
 import { useCvStore } from '../../stores/cv.js'
 import AiFixModal from '../AiFixModal.vue'
+import LangCheck from '../LangCheck.vue'
 import { isOutOfOrder, sortByDate } from '../../composables/reorder.js'
 import { t } from '../../i18n/index.js'
 

@@ -98,6 +98,7 @@ function buildChanges(tr) {
 
   add('title', 'cv|Headline', d.title, tr.title, (x) => { x.title = tr.title })
   add('sum', 'Summary', d.sum, tr.sum, (x) => { x.sum = tr.sum })
+  if (typeof tr.seeking === 'string') add('seeking', 'What are you looking for?', d.seeking, tr.seeking, (x) => { x.seeking = tr.seeking })
   for (const e of tr.experiences || []) {
     const cur = d.experiences[e.i]; if (!cur) continue
     const before = [cur.title, cur.period, cur.desc].filter(Boolean).join('\n')

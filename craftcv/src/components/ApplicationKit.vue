@@ -37,6 +37,7 @@
 
 <script setup>
 import { ref, computed, watch, inject } from 'vue'
+import { letterLangOf } from '../composables/cvLanguage.js'
 import { useRouter } from 'vue-router'
 import { useCvStore } from '../stores/cv.js'
 import { useAuthStore } from '../stores/auth.js'
@@ -67,7 +68,7 @@ async function ask(path) {
   const { photo, coverLetter, interviewPrep, ...cv } = JSON.parse(JSON.stringify(store.data))
   const r = await fetch((import.meta.env.VITE_API_URL || '') + path, {
     method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cv, jobOffer: store.data.jobOffer, uiLang: lang.value }),
+    body: JSON.stringify({ cv, jobOffer: store.data.jobOffer, uiLang: lang.value, letterLang: letterLangOf(store.data) }),
   })
   const j = await r.json().catch(() => ({}))
   if (!r.ok) throw Object.assign(new Error(j.error || 'AI is unavailable right now. Please try again in a moment.'), { status: r.status })
@@ -75,7 +76,7 @@ async function ask(path) {
 }
 async function writeLetter() {
   busy.value = 'letter'; error.value = ''
-  try { const j = await ask('/api/ai/cover-letter'); store.data.coverLetter = { key: jobKey.value, text: j.letter } }
+  try { const j = await ask('/api/ai/cover-letter'); store.data.coverLetter = { key: jobKey.value, text: j.letter, job: j.job || null, lang: j.lang || letterLangOf(store.data), date: new Date().toISOString() } }
   catch (e) { error.value = e.status === 429 ? '' : e.message }
   busy.value = ''
 }
