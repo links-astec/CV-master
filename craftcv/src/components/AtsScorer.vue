@@ -69,7 +69,7 @@
           </span>
           <!-- Missing keywords: one tap adds it to the CV's skills -->
           <button v-for="kw in result.missing" :key="kw" type="button" class="ats-kw ats-kw-miss" :class="{ added: hasSkill(kw) }"
-                  :disabled="hasSkill(kw)" :title="$t(hasSkill(kw) ? 'Added to your skills' : 'Add to your skills')" @click="store.addSkill(kw)">
+                  :disabled="hasSkill(kw)" :title="$t(hasSkill(kw) ? 'Added to your skills' : 'Add to your skills')" @click="store.addSkill(kw, isSoftSkill(kw) ? 'soft' : 'tech')">
             <svg v-if="hasSkill(kw)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" style="width:10px;height:10px"><polyline points="20 6 9 17 4 12"/></svg>
             <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="width:10px;height:10px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             {{ kw }}
@@ -111,6 +111,7 @@ const atsCache = new Map()
 import { ref, computed, onMounted } from 'vue'
 import { useCvStore, hasCvContent } from '../stores/cv.js'
 import { lang, locale } from '../i18n/index.js'
+import { isSoftSkill } from '../composables/skillKinds.js'
 
 const props   = defineProps({ embedded: Boolean })
 const emit    = defineEmits(['scored'])

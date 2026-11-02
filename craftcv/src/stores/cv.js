@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { useAuthStore } from './auth.js'
 import { DEFAULT_TEMPLATE, normalizeTemplate, ALL_FONTS } from '../composables/cvRenderer.js'
 import { lang as uiLang } from '../i18n/index.js'
+import { isSoftSkill } from '../composables/skillKinds.js'
 
 const apiUrl = (path) => (import.meta.env.VITE_API_URL || '') + path
 
@@ -392,8 +393,11 @@ export const useCvStore = defineStore('cv', () => {
     for (const k of ['fn', 'ln', 'title', 'email', 'phone', 'loc', 'li', 'website', 'sum']) {
       if (ext[k] && typeof ext[k] === 'string') d[k] = ext[k]
     }
+    // Skills from an imported CV go to their group by themselves (soft skills apart, see skillKinds.js)
     if (Array.isArray(ext.skills) && ext.skills.length) {
-      d.skills = ext.skills.filter(s => typeof s === 'string' && s.trim()).map(s => s.trim()).slice(0, 30)
+      const all = ext.skills.filter(s => typeof s === 'string' && s.trim()).map(s => s.trim()).slice(0, 30)
+      d.skills = all.filter(s => !isSoftSkill(s))
+      d.softSkills = all.filter(isSoftSkill)
     }
     if (Array.isArray(ext.experiences) && ext.experiences.length) {
       d.experiences = ext.experiences

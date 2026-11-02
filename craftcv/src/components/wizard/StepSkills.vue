@@ -23,6 +23,8 @@
       />
       <button class="btn-add-skill" @click="addSkill">{{ $t('Add') }}</button>
     </div>
+    <!-- A pasted list was sorted into technical and soft (and is being checked against the job offer) -->
+    <p v-if="sortNote" class="sk-note" role="status">{{ sortNote }}</p>
 
     <!-- Both groups; ⇄ moves a skill to the other one -->
     <div v-for="g in GROUPS" :key="g.kind" class="sk-group">
@@ -38,6 +40,20 @@
           </span>
         </TransitionGroup>
         <div v-if="!(store.data[g.list] || []).length" class="empty-skills">{{ $t(g.kind === 'soft' ? 'None yet. Optional: shown as their own group on the CV' : 'No skills added yet') }}</div>
+      </div>
+    </div>
+
+    <!-- Skills that don't help for this job: suggested for removal, the person decides -->
+    <div v-if="unfitShown.length" class="sk-fit">
+      <div class="sk-fit-h">
+        <b>{{ $t('Not needed for this job?') }}</b>
+        <button v-if="unfitShown.length > 1" type="button" class="sk-fit-all" @click="unfitShown.forEach(dropSkill)">{{ $t('Remove all') }}</button>
+      </div>
+      <p class="sk-fit-sub">{{ $t('These don’t seem to help for the job you’re applying for. Remove them to keep your skills focused, or keep the ones you want.') }}</p>
+      <div v-for="u in unfitShown" :key="u.name" class="sk-fit-row">
+        <span class="sk-fit-k"><b>{{ u.name }}</b><small v-if="u.why">{{ u.why }}</small></span>
+        <button type="button" class="sk-fit-keep" @click="keepSkill(u)">{{ $t('Keep') }}</button>
+        <button type="button" class="sk-fit-rm" @click="dropSkill(u)">{{ $t('Remove') }}</button>
       </div>
     </div>
 
@@ -69,6 +85,11 @@
       {{ $t(aiLoading ? 'Suggesting…' : 'Suggest Skills with AI') }}
     </button>
 
+    <button v-if="hasOffer && allSkills.length" type="button" class="sk-fit-check" :disabled="fitBusy" @click="checkFit()">
+      {{ $t(fitBusy ? 'Checking your skills…' : 'Check my skills against the job offer') }}
+    </button>
+    <p v-if="fitDone" class="sk-note sk-note-ok" role="status">{{ $t('All your skills fit this job.') }}</p>
+
     <div class="skill-count">
       <span :class="{ warn: store.data.skills.length < 5, ok: store.data.skills.length >= 5 }">
         {{ $t(store.data.skills.length === 1 ? '{n} skill' : '{n} skills', { n: store.data.skills.length }) }}
@@ -79,8 +100,10 @@
 </template>
 
 <script setup>
-import { ref, inject } from 'vue'
-import { useCvStore } from '../../stores/cv.js'
+import { ref, computed, inject } from 'vue'
+import { useCvStore, splitSkills } from '../../stores/cv.js'
+import { isSoftSkill } from '../../composables/skillKinds.js'
+import { lang, t } from '../../i18n/index.js'
 
 const store = useCvStore()
 const showToast = inject('showToast', null)
@@ -93,26 +116,82 @@ const aiLoading = ref(false)
 const suggested = ref([])
 const suggestedSoft = ref([])
 
-const has = (s) => [...(store.data.skills || []), ...(store.data.softSkills || [])].some(x => x.toLowerCase() === s.toLowerCase())
+const allSkills = computed(() => [...(store.data.skills || []), ...(store.data.softSkills || [])])
+const has = (s) => allSkills.value.some(x => x.toLowerCase() === s.toLowerCase())
+const hasOffer = computed(() => (store.data.jobOffer || '').trim().length >= 80)
+
+// Each skill goes to its group by itself: a soft skill (teamwork, leadership…) to Soft skills, anything else to
+// the group chosen above, or to Technical for a pasted list. ⇄ moves one that landed in the wrong place.
+const autoSorted = new Set()   // sorted here, not placed by the person: the job check may correct these
+function addSorted(text, list = false) {
+  const added = []
+  for (const s of splitSkills(text)) {
+    if (has(s)) continue
+    const k = isSoftSkill(s) ? 'soft' : list ? 'tech' : kind.value
+    store.addSkill(s, k)
+    if (list) autoSorted.add(s.toLowerCase())
+    added.push({ name: s, kind: k })
+  }
+  return added
+}
+const sortNote = ref('')
+let noteTimer = null
+function note(text) { sortNote.value = text; clearTimeout(noteTimer); noteTimer = setTimeout(() => { sortNote.value = '' }, 7000) }
+
 function addSkill() {
   const v = newSkill.value.trim()
-  if (v) { store.addSkills(v, kind.value); newSkill.value = '' }
+  if (v) { addSorted(v); newSkill.value = '' }
 }
 // A comma (or ; | •) typed after a skill adds it; what comes after stays in the box
 function splitTyped() {
   const parts = newSkill.value.split(/[,;|\u2022]/)
   if (parts.length < 2) return
   newSkill.value = parts.pop().replace(/^\s+/, '')
-  store.addSkills(parts.join(','), kind.value)
+  addSorted(parts.join(','))
 }
-// A pasted list goes in all at once ("Python, SQL, Figma" or one per line)
+// A pasted list goes in all at once ("Python, SQL, Figma" or one per line), sorted into technical and soft,
+// then (with a job offer) checked against the job
 function pasteList(e) {
   const text = e.clipboardData?.getData('text') || ''
   if (!/[,;|\n\t\u2022\u00b7]/.test(text.trim())) return
   e.preventDefault()
-  store.addSkills(newSkill.value + ',' + text, kind.value)
+  const added = addSorted(newSkill.value + ',' + text, true)
   newSkill.value = ''
+  if (added.length < 2) return
+  const soft = added.filter(a => a.kind === 'soft').length
+  note(t('Sorted {n} skills: {t} technical, {s} soft.', { n: added.length, t: added.length - soft, s: soft }) + (hasOffer.value ? ' ' + t('Checking them against the job offer…') : ''))
+  if (hasOffer.value) checkFit(added.map(a => a.name))
 }
+
+// The job check: the AI says which skills are soft and which don't help for this job. Kinds are corrected only
+// for skills sorted automatically; removal is only suggested. "Keep" is remembered on the CV.
+const unfit = ref([])          // [{ name, why }]
+const fitBusy = ref(false), fitDone = ref(false)
+const keptKey = (name) => 'skill-keep:' + name.toLowerCase()
+const unfitShown = computed(() => unfit.value.filter(u => has(u.name) && !(store.data.checkIgnored || []).includes(keptKey(u.name))))
+async function checkFit(names = null) {
+  fitBusy.value = true; fitDone.value = false
+  try {
+    const { skills = [] } = await store.aiWrite('skillsFit', { check: names || allSkills.value, uiLang: lang.value })
+    for (const x of skills) {
+      if (!autoSorted.has(x.name.toLowerCase())) continue
+      const now = (store.data.softSkills || []).includes(x.name) ? 'soft' : 'tech'
+      if (now !== (x.kind === 'soft' ? 'soft' : 'tech')) store.moveSkill(x.name, now)
+    }
+    const drop = skills.filter(x => !x.fit).map(x => ({ name: x.name, why: x.why }))
+    unfit.value = [...unfit.value.filter(u => !skills.some(x => x.name === u.name)), ...drop]
+    if (!names) fitDone.value = !unfitShown.value.length
+    if (names && sortNote.value) {
+      const kept = names.filter(has), soft = kept.filter(n => (store.data.softSkills || []).includes(n)).length
+      note(t('Sorted {n} skills: {t} technical, {s} soft.', { n: kept.length, t: kept.length - soft, s: soft }))
+    }
+  } catch (e) {
+    showToast?.(t(e?.message || 'AI is unavailable right now. Please try again in a moment.'))
+  }
+  fitBusy.value = false
+}
+function dropSkill(u) { store.removeSkill(u.name, (store.data.softSkills || []).includes(u.name) ? 'soft' : 'tech') }
+function keepSkill(u) { store.data.checkIgnored = [...new Set([...(store.data.checkIgnored || []), keptKey(u.name)])] }
 function addSuggested(s, k = 'tech') {
   if (!has(s)) store.addSkill(s, k)
 }
@@ -176,6 +255,23 @@ p  { font-size: 13px; color: var(--c-text2); line-height: 1.5; }
 .skill-count { font-size: 12px; color: var(--c-text3); margin-top: 10px; }
 /* Technical / soft: which group the box adds to, then both groups */
 .sk-kind { margin-bottom: 10px; }
+.sk-note { font-size: 12.5px; color: var(--c-text2); margin-top: 8px; line-height: 1.45; }
+.sk-note-ok { color: var(--c-green); font-weight: 600; }
+/* skills that don't help for this job */
+.sk-fit { margin-top: 16px; padding: 12px 14px; border-radius: 14px; background: var(--c-surface); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c-amber) 55%, var(--c-border)); }
+.sk-fit-h { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.sk-fit-h b { font-size: 13.5px; font-weight: 650; color: var(--c-text); }
+.sk-fit-all { border: none; background: none; padding: 0; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--c-rose); cursor: pointer; }
+.sk-fit-sub { font-size: 12.5px; color: var(--c-text2); margin: 3px 0 6px; }
+.sk-fit-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--hair); }
+.sk-fit-k { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.sk-fit-k b { font-size: 13.5px; font-weight: 600; color: var(--c-text); }
+.sk-fit-k small { font-size: 12px; color: var(--c-text3); line-height: 1.4; }
+.sk-fit-keep, .sk-fit-rm { border: none; background: none; padding: 4px 0; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; flex-shrink: 0; }
+.sk-fit-keep { color: var(--c-text3); }
+.sk-fit-rm { color: var(--c-rose); }
+.sk-fit-check { display: block; margin-top: 12px; border: none; background: none; padding: 0; font: inherit; font-size: 13px; font-weight: 600; color: var(--c-accent); cursor: pointer; }
+.sk-fit-check:disabled { color: var(--c-text3); cursor: default; }
 .sk-group { margin-top: 16px; }
 .sk-group-h { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; font-weight: 700; color: var(--c-text); }
 .sk-group-h small { font-size: 12px; font-weight: 500; color: var(--c-text3); }

@@ -447,4 +447,14 @@ export default {
   "Your CV has no work experience or projects, so the score is capped. Add jobs, internships, volunteering or projects that show the job’s skills.": "Votre CV n’a ni expérience professionnelle ni projet, le score est donc plafonné. Ajoutez des emplois, stages, du bénévolat ou des projets qui montrent les compétences du poste.",
   "Show where you used {list}: a skill named in your experience counts more than one only in the skills list.": "Montrez où vous avez utilisé {list} : une compétence citée dans votre expérience compte plus qu’une compétence seulement listée.",
   "Write a few sentences of your letter first.": "Écrivez d’abord quelques phrases de votre lettre.",
+  // Skills sorted on paste, checked against the job
+  "Sorted {n} skills: {t} technical, {s} soft.": "{n} compétences triées : {t} techniques, {s} savoir-être.",
+  "Checking them against the job offer…": "Vérification par rapport à l’offre…",
+  "Not needed for this job?": "Inutiles pour ce poste ?",
+  "Remove all": "Tout retirer",
+  "These don’t seem to help for the job you’re applying for. Remove them to keep your skills focused, or keep the ones you want.": "Elles ne semblent pas utiles pour le poste visé. Retirez-les pour garder des compétences ciblées, ou gardez celles que vous voulez.",
+  "Checking your skills…": "Vérification de vos compétences…",
+  "Check my skills against the job offer": "Vérifier mes compétences par rapport à l’offre",
+  "All your skills fit this job.": "Toutes vos compétences correspondent à ce poste.",
+  "Add the job offer first.": "Ajoutez d’abord l’offre d’emploi.",
 }
