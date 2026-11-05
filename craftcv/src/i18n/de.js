@@ -1696,6 +1696,7 @@ export default {
   "Tip: “Compact” spacing and a smaller text size help a long CV fit on one page without shrinking it.": "Tipp: Kompakte Abstände und kleinere Textgröße lassen einen langen Lebenslauf auf eine Seite passen, ohne ihn zu verkleinern.",
   "Tip: start each line with • for bullet points on your CV": "Tipp: Beginnen Sie jede Zeile mit • für Aufzählungen in Ihrem Lebenslauf",
   "Title": "Titel",
+  "To get your CV as a PDF, use Export PDF on cvmaster.live.": "Um Ihren Lebenslauf als PDF zu erhalten, nutzen Sie Export PDF auf cvmaster.live.",
   "To strengthen your application": "Um Ihre Bewerbung zu stärken",
   "Token and password required.": "Token und Passwort sind erforderlich.",
   "Tone": "Ton",

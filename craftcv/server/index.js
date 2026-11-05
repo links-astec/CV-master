@@ -3583,6 +3583,16 @@ function samePerson(locked, now) {
   if (a.some(w => b.has(w))) return true;
   return editDistance(locked, now) <= 2;
 }
+// Stricter than samePerson (which only guesses whose CV it is for the AI): one shared word isn't enough,
+// or "John Smith" could be turned into "John Doe" on the same payment. Same person = a small typo overall,
+// or every word of the shorter name is in the other (a middle name added or dropped, the order changed),
+// allowing one wrong letter in a longer word.
+function samePaidPerson(locked, now) {
+  if (!locked || !now || locked === now || editDistance(locked, now) <= 2) return true;
+  const a = locked.split(' ').filter(w => w.length > 1), b = now.split(' ').filter(w => w.length > 1);
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+  return short.length > 0 && short.every(w => long.some(x => x === w || (w.length >= 4 && editDistance(w, x) <= 1)));
+}
 const IDENTITY_MSG = 'This CV was paid for under another person’s name. A CV for someone else needs its own payment. Start a new CV for them.';
 async function checkPaidIdentity(userId, draft) {
   await ensurePaymentCols();
@@ -3598,7 +3608,7 @@ async function checkPaidIdentity(userId, draft) {
       [name, userId, String(draft.id)]);
     return true;
   }
-  return samePerson(locked, name);
+  return samePaidPerson(locked, name);
 }
 
 // PDFs are heavy: a per-IP limit, and at most two renders at a time

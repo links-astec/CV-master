@@ -457,4 +457,6 @@ export default {
   "Check my skills against the job offer": "Vérifier mes compétences par rapport à l’offre",
   "All your skills fit this job.": "Toutes vos compétences correspondent à ce poste.",
   "Add the job offer first.": "Ajoutez d’abord l’offre d’emploi.",
+  // A printed page points to Export PDF
+  "To get your CV as a PDF, use Export PDF on cvmaster.live.": "Pour obtenir votre CV en PDF, utilisez Exporter en PDF sur cvmaster.live.",
 }

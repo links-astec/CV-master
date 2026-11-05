@@ -94,7 +94,11 @@ export const i18nReady = typeof window !== 'undefined' ? setLang(initialLang(), 
 
 // The server imports the CV renderer (and so this file) to build PDFs, no DOM there
 if (typeof document !== 'undefined') {
-  watch(lang, (code) => { document.documentElement.lang = code }, { immediate: true })
+  watch(lang, (code) => {
+    document.documentElement.lang = code
+    // What a printout of any page shows instead of the page (see @media print in style.css)
+    document.documentElement.dataset.printNote = t('To get your CV as a PDF, use Export PDF on cvmaster.live.')
+  }, { immediate: true })
 }
 
 // Dates and numbers in the interface language
