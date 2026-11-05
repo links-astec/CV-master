@@ -1696,6 +1696,7 @@ export default {
   "Tip: “Compact” spacing and a smaller text size help a long CV fit on one page without shrinking it.": "提示：“紧凑”间距和较小的字号可让较长的简历无需缩放即可排进一页。",
   "Tip: start each line with • for bullet points on your CV": "提示：每行以 • 开头，即可在简历中显示为要点",
   "Title": "职位名称",
+  "To get your CV as a PDF, use Export PDF on cvmaster.live.": "要将您的简历导出为 PDF，请使用 cvmaster.live 上的导出 PDF 功能。",
   "To strengthen your application": "提升您的申请",
   "Token and password required.": "必须提供令牌和密码。",
   "Tone": "语气",

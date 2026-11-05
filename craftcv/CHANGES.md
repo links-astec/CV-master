@@ -1,5 +1,11 @@
 # Changes
 
+## 2026-11-05: Free CVs: printing closed, stricter name check on paid CVs
+
+- **Printing a page no longer gives the CV away.** There were no print styles, so Ctrl+P → "Save as PDF" on the editor printed the CV preview as a clean, readable PDF, even for a guest, without any unlock. A printout of any page now shows only "To get your CV as a PDF, use Export PDF on cvmaster.live." (in the interface language; `@media print` in style.css, the note set in i18n/index.js). Server PDFs are not affected (they don't use the site's stylesheet).
+- **One payment, one person, enforced properly.** A paid CV keeps the name it was first exported with; a CV with another person's name needs its own unlock. The check accepted any shared word, so "John Smith" could become "John Doe". Now (`samePaidPerson`) the same person means a small typo overall, or every word of the shorter name in the other (a middle name added or dropped, the order changed). The looser `samePerson` stays for guessing whose CV it is for the AI.
+- Reviewed and unchanged: the clean PDF routes (email, download, re-send, letter) all require an unlock for that CV (paid, one of the free CVs, a referral credit, the Job Hunt Pass, or a confirmed JUNIA address). The 3 free CVs per account (5 for JUNIA) don't require a confirmed email.
+
 ## 2026-11-02: Fewer "AI is unavailable" / "Tailoring failed" errors
 
 - **Cause:** the API runs on Render's free plan (about 512 MB, a fraction of a CPU, asleep after 15 idle minutes). Chrome, started at boot for PDFs and kept running, took a large part of that memory, so the server could run out and restart, cutting off AI requests in progress. Claude and Groq themselves were answering (checked on the live API: a summary in 1.5 s, a tailoring in 25 s).
