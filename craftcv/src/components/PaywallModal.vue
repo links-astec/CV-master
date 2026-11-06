@@ -61,12 +61,13 @@
               <p v-if="paidForDraft && auth.user?.pass">{{ $t('Your Job Hunt Pass covers this CV. Send it as often as you like, even after edits.') }}</p>
               <p v-else-if="paidForDraft">{{ $t('This CV is already paid for. Send it as often as you like, even after edits.') }}</p>
               <p v-else-if="demoMode">{{ $t('Payments aren’t switched on yet, so this is free for now.') }}</p>
+              <p v-else-if="waitingConfirm && !campus">{{ $t('Your first {total} CVs are free once you confirm your email. We sent a link to {email}.', { total: freeTotal, email: userEmail }) }}</p>
               <p v-else-if="isFree">{{ $t(freeLeft === 1 ? 'A clean, one-page PDF, emailed to you. Free: this is the last of your free CVs.' : 'A clean, one-page PDF, emailed to you. Free: you have {n} of {total} free CVs left.', { n: freeLeft, total: freeTotal }) }}</p>
-              <p v-else-if="campusWaiting">{{ $t('Your first 5 CVs are free with your JUNIA student account. Confirm your student email to switch it on: we sent you a link.') }}</p>
+              <p v-else-if="waitingConfirm">{{ $t('Your first 5 CVs are free with your JUNIA student account. Confirm your student email to switch it on: we sent you a link.') }}</p>
               <p v-else>{{ $t('A clean, one-page PDF, emailed to you.') }}</p>
             </div>
 
-            <div v-if="needsPay && !campusWaiting" class="pw-price">
+            <div v-if="needsPay && !waitingConfirm" class="pw-price">
               <div class="pw-amt">{{ $t('€0.99') }} <span>{{ $t('one-time, for this CV') }}</span></div>
               <div v-if="approx(0.99)" class="price-local">{{ approx(0.99) }}</div>
               <ul>
@@ -74,7 +75,7 @@
               </ul>
             </div>
 
-            <div class="f-grp">
+            <div v-if="!waitingConfirm" class="f-grp">
               <label class="f-lbl" for="pw-email">{{ $t('Send to') }}</label>
               <input id="pw-email" class="f-inp" v-model="deliveryEmail" type="email" :placeholder="userEmail" @keydown.enter="primary" />
               <p v-if="deliverySuggestion && deliveryOk" class="f-hint">{{ $t('Did you mean') }} <button type="button" class="pw-fix" @click="deliveryEmail = deliverySuggestion">{{ deliverySuggestion }}</button>?</p>
@@ -83,27 +84,30 @@
 
             <!-- EU/French law: buyers of instant digital content must agree before paying
                  that delivery starts now and ends the 14-day right of withdrawal -->
-            <label v-if="needsPay && !campusWaiting" class="pw-consent">
+            <label v-if="needsPay && !waitingConfirm" class="pw-consent">
               <input type="checkbox" v-model="withdrawalOk" />
               <span>{{ $t('I want my PDF straight away and agree that I lose my 14-day right of withdrawal once it’s delivered.') }}</span>
             </label>
 
             <div v-if="error" class="notice error pw-err">{{ $t(error) }}</div>
 
-            <!-- A JUNIA student who hasn't confirmed their address yet (and has no free CV left): confirm, not pay -->
-            <button v-if="needsPay && campusWaiting" class="btn-primary accent btn-lg btn-block" :disabled="resent" @click="resend">{{ $t(resent ? 'Sent. Check your inbox' : 'Resend the confirmation email') }}</button>
+            <!-- Free CVs left but the address isn't confirmed yet: confirm, or pay if they'd rather not wait (never a price for a JUNIA student) -->
+            <template v-if="waitingConfirm">
+              <button class="btn-primary accent btn-lg btn-block" :disabled="resent" @click="resend">{{ $t(resent ? 'Sent. Check your inbox' : 'Resend the confirmation email') }}</button>
+              <button v-if="!campus" type="button" class="pw-pay-instead" @click="payAnyway = true">{{ $t('Pay €0.99 instead') }}</button>
+            </template>
             <button v-else class="btn-primary accent btn-lg btn-block" :disabled="loading || !deliveryOk || (needsPay && !withdrawalOk)" @click="primary">
               {{ $t(loading ? 'Please wait…' : paidForDraft || demoMode ? 'Email my CV' : isFree ? 'Get my CV, free' : 'Pay €0.99 and get my CV') }}
             </button>
             <button v-if="paidForDraft && auth.user?.pass" class="btn-secondary btn-lg btn-block pw-dl" :disabled="downloading" @click="downloadPdf">{{ $t(downloading ? 'Preparing…' : 'Download PDF') }}</button>
-            <button v-if="needsPay && !campusWaiting && credits > 0" class="btn-secondary btn-block pw-credit" :disabled="loading || !deliveryOk" @click="useCredit">
+            <button v-if="needsPay && !campus && credits > 0 && !waitingConfirm" class="btn-secondary btn-block pw-credit" :disabled="loading || !deliveryOk" @click="useCredit">
               {{ $t('Use a referral credit instead, free ({n} left)', { n: credits }) }}
             </button>
-            <p v-if="needsPay && !campusWaiting" class="pw-secure">
+            <p v-if="needsPay && !waitingConfirm" class="pw-secure">
               <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
               {{ $t('Secure payment by Stripe · No subscription') }}
             </p>
-            <button v-if="needsPay && !campus" type="button" class="pw-pass" @click="toPass">
+            <button v-if="needsPay && !campus && !waitingConfirm" type="button" class="pw-pass" @click="toPass">
               <b>{{ $t('Applying to lots of jobs?') }}</b> {{ $t('The Job Hunt Pass unlocks every CV you make for €6.99 a month.') }}
             </button>
           </div>
@@ -121,7 +125,7 @@
 </template>
 
 <script setup>
-import { ref, computed, inject, watch } from 'vue'
+import { ref, computed, inject, watch, onBeforeUnmount } from 'vue'
 import { useCvStore }    from '../stores/cv.js'
 import { useAuthStore }  from '../stores/auth.js'
 import { useNotifStore } from '../stores/notifications.js'
@@ -166,11 +170,33 @@ async function copyRef() { try { await navigator.clipboard.writeText(refLink.val
 const campus   = computed(() => !!auth.user?.campus)
 const campusOn = computed(() => !!auth.user?.campusActive)
 const campusWaiting = computed(() => campus.value && !campusOn.value)
-const isFree   = computed(() => !paidForDraft.value && !demoMode.value && freeLeft.value > 0)
+// Free CVs left, but they come with a confirmed email (the server's rule): until then, confirm or pay
+const confirmNeeded = ref(false)
+const payAnyway     = ref(false)
+const waitingConfirm = computed(() => !paidForDraft.value && !demoMode.value && (confirmNeeded.value || campusWaiting.value) && !payAnyway.value)
+const isFree   = computed(() => !paidForDraft.value && !demoMode.value && freeLeft.value > 0 && !confirmNeeded.value)
 const needsPay = computed(() => !paidForDraft.value && !demoMode.value && !isFree.value)
 const resendVerification = inject('resendVerification', null)
 const resent = ref(false)
-async function resend() { await resendVerification?.(); resent.value = true }
+async function resend() { await resendVerification?.(); resent.value = true; recheck() }
+// Back from clicking the link in the email (another tab, the mail app): the free CV is there without starting over
+async function recheck() {
+  if (!props.show || !confirmNeeded.value || !draftId.value) return
+  const s = await api(`/api/payment/status/${draftId.value}`).catch(() => null)
+  if (!s || s.confirmNeeded) return
+  applyStatus(s)
+  auth.fetchMe?.()
+}
+function applyStatus(s) {
+  paidForDraft.value = !!s.paid
+  freeLeft.value = Number(s.freeLeft) || 0
+  freeTotal.value = Number(s.freeTotal) || 3
+  confirmNeeded.value = !!s.confirmNeeded
+}
+const onBack = () => { if (document.visibilityState === 'visible') recheck() }
+window.addEventListener('focus', onBack)
+document.addEventListener('visibilitychange', onBack)
+onBeforeUnmount(() => { window.removeEventListener('focus', onBack); document.removeEventListener('visibilitychange', onBack) })
 const deliveryEmail = ref('')
 const sentTo        = ref('')
 const draftId       = ref(null)
@@ -223,6 +249,8 @@ async function prepare() {
   state.value = 'checking'
   error.value = ''
   demoMode.value = false
+  payAnyway.value = false
+  resent.value = false
   try {
     // One language from top to bottom: whatever is in another language than most of the CV is translated
     // now, and the headings follow (the editor asked first; this is for when that was ignored)
@@ -237,9 +265,7 @@ async function prepare() {
       api(`/api/payment/status/${id}`).catch(() => ({ paid: false })),
       api('/api/referral/info').catch(() => ({ credits: 0 })),
     ])
-    paidForDraft.value = !!status.paid
-    freeLeft.value = Number(status.freeLeft) || 0
-    freeTotal.value = Number(status.freeTotal) || 3
+    applyStatus(status)
     credits.value = Number(refInfo.credits) || 0
     refLink.value = refInfo.link || ''
     state.value = info.overflow && !store.data.shrinkToFit ? 'tooLong' : 'ready'
@@ -366,6 +392,7 @@ defineExpose({ handleStripeReturn })
 </script>
 
 <style scoped>
+.pw-pay-instead{display:block;margin:12px auto 0;border:none;background:none;padding:4px;font:inherit;font-size:14px;font-weight:600;color:var(--c-text2);cursor:pointer}
 .pw-dl{margin-top:10px}
 .pw-included{display:inline-flex;align-items:center;gap:7px;margin-top:10px;font-size:14px;font-weight:600;color:var(--c-accent)}
 .pw-included svg{width:18px;height:18px;padding:3px;border-radius:50%;background:var(--c-accent);fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}

@@ -118,12 +118,12 @@
         <main class="iv-center">
           <CvmOrb class="iv-orb" :state="cvmState" :level="vol" />
           <Transition name="iv-cap" mode="out-in"><p :key="lastSay" class="iv-cap">{{ lastSay }}</p></Transition>
-          <!-- At the Real level an answer isn't written out as they speak, as in a real interview: only that they're heard -->
-          <p v-if="hideAnswer" class="iv-heard iv-status" :class="{ dim: !draft }">
+          <!-- In a conversation the answer isn't written out as they speak, as in a real interview: only that they're heard -->
+          <p v-if="handsFree" class="iv-heard iv-status" :class="{ dim: !draft }">
             <span v-if="listening" class="iv-bars" aria-hidden="true"><i v-for="n in 5" :key="n" :style="{ transform: `scaleY(${barHeight(n)})` }"></i></span>
             {{ speaking || thinking ? '' : $t(hardToHear ? HARD_TO_HEAR : listening ? 'Listening…' : 'Tap the mic') }}
           </p>
-          <p v-else-if="mode !== 'text'" class="iv-heard" :class="{ dim: !draft }">{{ draft || (speaking || thinking ? '' : $t(!canListen ? 'Type below' : hardToHear ? HARD_TO_HEAR : listening ? 'Listening…' : 'Tap the mic')) }}</p>
+          <p v-else-if="mode !== 'text'" class="iv-heard" :class="{ dim: !draft }">{{ draft || (speaking || thinking ? '' : $t(!canListen ? 'Type below' : listening ? 'Listening…' : 'Tap the mic')) }}</p>
         </main>
 
         <!-- The person, in a circle: red when they're out of the frame -->
@@ -197,10 +197,8 @@ const turns = ref([]), current = ref(''), lastSay = ref(''), draft = ref('')
 const qn = ref(0), total = ref(6), done = ref(false), shownRole = ref(''), report = ref(null)
 const taEl = ref(null)
 const cvmState = computed(() => speaking.value ? 'speaking' : listening.value ? 'listening' : thinking.value ? 'thinking' : 'idle')
-// Real, spoken: closer to the real thing, their answer stays off the screen (unless the browser can't
-// listen and they have to type it)
-const hideAnswer = computed(() => level.value === 'standard' && mode.value !== 'text' && canListen)
-// Real and Tough, spoken: a conversation. Nothing to press: when they stop talking, the answer is sent
+// Real and Tough, spoken: a conversation. Nothing to press (when they stop talking, the answer is sent) and their
+// answer stays off the screen. Easy keeps both; so does a browser that can't listen, where the answer is typed
 const handsFree = computed(() => level.value !== 'friendly' && mode.value !== 'text' && canListen)
 const barHeight = (n) => Math.max(.18, Math.min(1, vol.value * (1.5 - Math.abs(n - 3) * .34))).toFixed(2)
 function grow() { const el = taEl.value; if (el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 160) + 'px' } }

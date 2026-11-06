@@ -1,5 +1,11 @@
 # Changes
 
+## 2026-11-06: Free CVs need a confirmed email; Tough hides the answer too
+
+- **The 3 free CVs (5 for JUNIA) now need a confirmed email**, so a made-up address no longer gives 3 more. Google and Apple sign-ins count as confirmed, and CVs already unlocked stay unlocked. The rule is on the server (`emailConfirmed` in `useFreeCv`). `/api/payment/status` gives `confirmNeeded`, and starting a payment without ticking the box answers `CONFIRM_EMAIL` when that's what is missing.
+- **Export window:** without a confirmed email it says the free CVs come once it is confirmed, with "Resend the confirmation email" and "Pay €0.99 instead" (no price for JUNIA students). Coming back after clicking the link, the free CV is there without starting over. The confirmation email, the reminder bar, the toast and the tour say so too.
+- **Tough, spoken:** the answer stays off the screen as in Real, with the sound meter and "Listening…".
+
 ## 2026-11-06: Real and Tough are a conversation
 
 - **No Done button in Real and Tough (Voice or Video):** the mic opens when CVM finishes, and the answer goes by itself when the person stops talking. The wait is 2.5 s of quiet, 3.5 s under 8 words and 5 s under 3 words, so a pause to think doesn't cut anyone off; 7 s without new words ends it even if noise keeps the mic busy. Tapping the mic after speaking sends straight away; before speaking, it pauses. Easy keeps Done.

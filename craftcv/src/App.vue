@@ -96,7 +96,7 @@
       </header>
       <!-- Email accounts that haven't confirmed yet -->
       <div v-if="auth.isLoggedIn && auth.user && auth.user.emailVerified === false && !verifyHidden" class="verify-bar">
-        <span>{{ $t(auth.user?.campus ? 'Confirm your student email to get your 5 free CVs. We sent a link to {email}.' : 'Confirm your email to unlock 30 AI requests a day. We sent a link to {email}.', { email: auth.user.email }) }}</span>
+        <span>{{ $t(auth.user?.campus ? 'Confirm your student email to get your 5 free CVs. We sent a link to {email}.' : 'Confirm your email to unlock your free CVs and 30 AI requests a day. We sent a link to {email}.', { email: auth.user.email }) }}</span>
         <button class="btn-secondary btn-sm" :disabled="verifySending" @click="resendVerification">{{ $t(verifySent ? 'Sent ✓' : verifySending ? 'Sending…' : 'Resend email') }}</button>
         <button class="verify-x" :aria-label="$t('Hide')" @click="verifyHidden = true">×</button>
       </div>
@@ -242,7 +242,7 @@ async function confirmEmail(token) {
     const j = await r.json().catch(() => ({}))
     if (!r.ok) throw new Error(j.error)
     if (auth.user) auth.user.emailVerified = true
-    showToast('Email confirmed. You now get 30 AI requests a day.')
+    showToast('Email confirmed. Your free CVs and 30 AI requests a day are unlocked.')
   } catch (e) { showToast(e.message || 'Could not confirm your email.') }
 }
 
