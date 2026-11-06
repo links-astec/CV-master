@@ -107,7 +107,7 @@
 
     <!-- ── The interview: full screen ──────────────────────────── -->
     <Teleport to="body">
-      <div v-if="stage === 'session'" class="iv-full" :class="'is-' + mode" role="dialog" aria-modal="true" :aria-label="$t('Interview with CVM')">
+      <div v-if="stage === 'session'" class="iv-full" :class="['is-' + mode, { 'is-call': useAvatar }]" role="dialog" aria-modal="true" :aria-label="$t('Interview with CVM')">
         <div class="iv-aura" aria-hidden="true"><i class="a1"></i><i class="a2"></i><i class="a3"></i><span class="iv-lines"></span></div>
         <header class="iv-bar">
           <span class="iv-tag"><span class="iv-live"></span>CVM</span>
@@ -116,9 +116,16 @@
         </header>
 
         <main class="iv-center">
-          <CvmOrb class="iv-orb" :state="speaking ? 'speaking' : listening ? 'listening' : thinking ? 'thinking' : 'idle'" :level="vol" />
+          <!-- Video at the Real level: CVM as a person, in a call. Otherwise the orb -->
+          <div v-if="useAvatar" class="iv-call"><CvmAvatar :state="cvmState" :level="vol" /></div>
+          <CvmOrb v-else class="iv-orb" :state="cvmState" :level="vol" />
           <Transition name="iv-cap" mode="out-in"><p :key="lastSay" class="iv-cap">{{ lastSay }}</p></Transition>
-          <p v-if="mode !== 'text'" class="iv-heard" :class="{ dim: !draft }">{{ draft || $t(!canListen ? 'Type below' : listening ? 'Listening…' : thinking ? '' : 'Tap the mic') }}</p>
+          <!-- At the Real level an answer isn't written out as they speak, as in a real interview: only that they're heard -->
+          <p v-if="hideAnswer" class="iv-heard iv-status" :class="{ dim: !draft }">
+            <span v-if="listening" class="iv-bars" aria-hidden="true"><i v-for="n in 5" :key="n" :style="{ transform: `scaleY(${barHeight(n)})` }"></i></span>
+            {{ speaking || thinking ? '' : $t(listening ? (draft ? 'I can hear you. Tap Done when you’ve finished.' : 'Listening…') : draft ? 'Tap Done when you’ve finished.' : 'Tap the mic') }}
+          </p>
+          <p v-else-if="mode !== 'text'" class="iv-heard" :class="{ dim: !draft }">{{ draft || $t(!canListen ? 'Type below' : listening ? 'Listening…' : thinking ? '' : 'Tap the mic') }}</p>
         </main>
 
         <!-- The person, in a circle: red when they're out of the frame -->
@@ -159,6 +166,7 @@ import { lang as uiLang, LANGS, t } from '../i18n/index.js'
 import { useRouter } from 'vue-router'
 import BrandLogo from '../components/BrandLogo.vue'
 import CvmOrb from '../components/CvmOrb.vue'
+import CvmAvatar from '../components/CvmAvatar.vue'
 
 const store = useCvStore()
 const auth = useAuthStore()
@@ -191,6 +199,12 @@ const busy = ref(false), thinking = ref(false), error = ref(''), gate = ref('')
 const turns = ref([]), current = ref(''), lastSay = ref(''), draft = ref('')
 const qn = ref(0), total = ref(6), done = ref(false), shownRole = ref(''), report = ref(null)
 const taEl = ref(null)
+const cvmState = computed(() => speaking.value ? 'speaking' : listening.value ? 'listening' : thinking.value ? 'thinking' : 'idle')
+// The Real level, spoken: closer to the real thing. Their answer stays off the screen (unless the browser
+// can't listen and they have to type it), and with video CVM is a person in a call
+const hideAnswer = computed(() => level.value === 'standard' && mode.value !== 'text' && canListen)
+const useAvatar = computed(() => level.value === 'standard' && mode.value === 'video')
+const barHeight = (n) => Math.max(.18, Math.min(1, vol.value * (1.5 - Math.abs(n - 3) * .34))).toFixed(2)
 function grow() { const el = taEl.value; if (el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 160) + 'px' } }
 
 // ── Sound: a level from 0 to 1 that drives the orb (CVM's voice, or the person's while they talk) ──
@@ -513,6 +527,13 @@ onBeforeUnmount(() => { close(); document.removeEventListener('pointerdown', clo
 .iv-cap{margin:0;max-width:760px;font-size:clamp(20px,2.4vw,28px);line-height:1.4;font-weight:550;letter-spacing:-.015em;color:#14142b}
 .iv-heard{margin:-14px 0 0;max-width:640px;font-size:16px;line-height:1.5;color:#55556f;min-height:24px}
 .iv-heard.dim{color:#a3a3b8}
+.iv-status{display:inline-flex;align-items:center;justify-content:center;gap:10px}
+.iv-bars{display:inline-flex;align-items:center;gap:3px;height:18px}
+.iv-bars i{width:3.5px;height:18px;border-radius:99px;background:#1433e6;transform-origin:center;transition:transform .08s linear}
+/* Video at the Real level: CVM in a call */
+.iv-call{position:relative;width:min(680px,100%,calc((100dvh - 390px) * 4 / 3));min-width:min(300px,100%);aspect-ratio:4/3;border-radius:28px;overflow:hidden;background:#e6edfb;box-shadow:inset 0 0 0 1px rgba(20,20,43,.08)}
+.is-call .iv-center{gap:20px}
+.is-call .iv-cap{font-size:clamp(17px,1.8vw,22px)}
 .iv-cap-enter-active,.iv-cap-leave-active{transition:opacity .35s,transform .35s}
 .iv-cap-enter-from{opacity:0;transform:translateY(10px)}.iv-cap-leave-to{opacity:0;transform:translateY(-6px)}
 
