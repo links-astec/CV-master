@@ -1,9 +1,11 @@
 # Changes
 
-## 2026-11-06: Real level: answers stay off the screen, and a drawn interviewer on video
+## 2026-11-06: Real and Tough are a conversation
 
-- **Real + Voice or Video:** the person's answer is no longer written out as they speak, as in a real interview. A small sound meter and a status line ("Listening…", "I can hear you. Tap Done when you've finished.") show they are being heard. Easy and Tough, and browsers that can't listen (the answer is typed), are unchanged. The report still shows the answers afterwards.
-- **Real + Video (a trial):** CVM is a drawn interviewer in a video-call frame instead of the orb (`src/components/CvmAvatar.vue`, plain SVG, no paid service). The mouth follows the voice level, with blinking, small head movements and glances; if a browser can't give a sound level, the mouth keeps a speech rhythm. To remove it: `useAvatar` in InterviewPrep.vue.
+- **No Done button in Real and Tough (Voice or Video):** the mic opens when CVM finishes, and the answer goes by itself when the person stops talking. The wait is 2.5 s of quiet, 3.5 s under 8 words and 5 s under 3 words, so a pause to think doesn't cut anyone off; 7 s without new words ends it even if noise keeps the mic busy. Tapping the mic after speaking sends straight away; before speaking, it pauses. Easy keeps Done.
+- **Real + Voice or Video:** the answer isn't written out while they speak, as in a real interview; a small sound meter and "Listening…" show they are heard. The report still shows the answers afterwards. If the mic hears them but no words come through for 15 s, a line says so.
+- **Fixed along the way:** Repeat closes the mic while CVM talks (it could hear CVM as the answer) and keeps what was said so far; words from a stopped session can't reach the next answer; words survive when the browser restarts listening.
+- The drawn interviewer tried for Real + Video was removed: the orb is back.
 
 ## 2026-11-06: CVM is a glossy blue blob
 
