@@ -679,7 +679,7 @@ async function sendVerificationEmail(user) {
         <div style="margin-bottom:26px">${EMAIL_LOGO}</div>
         <h2 style="font-size:22px;margin:0 0 10px">Confirm your email</h2>
         <p style="color:#55556F;line-height:1.65;margin:0 0 22px">Hi ${escHtml(String(user.name || '').split(' ')[0] || 'there')},<br><br>
-          Tap the button to confirm this is your email. It unlocks <strong>${AI_FREE_PER_DAY} AI requests a day</strong> and keeps your account secure.</p>
+          Tap the button to confirm this is your email. It unlocks <strong>your free CVs</strong> and <strong>${AI_FREE_PER_DAY} AI requests a day</strong>, and keeps your account secure.</p>
         <a href="${link}" style="display:inline-block;background:#4338CA;color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-weight:700;font-size:15px">Confirm my email</a>
         <p style="color:#8A8AA3;font-size:12px;line-height:1.6;margin-top:26px;border-top:1px solid #eee;padding-top:14px">
           The link works for 3 days. If you didn’t create a CVMaster account, you can ignore this email.</p>
@@ -3487,7 +3487,12 @@ async function hasEmailExport(userId, draftId) {
   return rows.length > 0;
 }
 
-// Every account's first 3 CVs are free (the clean PDF, same as paying €0.99); JUNIA students' first 5
+// Every account's first 3 CVs are free (the clean PDF, same as paying €0.99); JUNIA students' first 5. Only with a
+// confirmed email (Google and Apple sign-ins are), or any made-up address would give 3 more free CVs.
+async function emailConfirmed(userId) {
+  const u = (await query('SELECT provider, email_verified FROM users WHERE id = $1', [userId])).rows[0];
+  return !!u && (u.provider === 'google' || !!u.email_verified);
+}
 const FREE_CVS = 3, FREE_CVS_CAMPUS = 5;
 const freeCvLimit = async (userId) => (await hasCampusAccess(userId).catch(() => false)) ? FREE_CVS_CAMPUS : FREE_CVS;
 async function freeCvsUsed(userId) {
@@ -3497,6 +3502,7 @@ async function freeCvsLeft(userId) { return Math.max(0, await freeCvLimit(userId
 // Unlocks this CV with one of them, if any are left. Each free CV takes a numbered slot (free:<user>:1..3),
 // so two clicks at the same moment can never make it four.
 async function useFreeCv(userId, draftId) {
+  if (!(await emailConfirmed(userId))) return false;
   const limit = await freeCvLimit(userId);
   for (let i = 0; i < limit; i++) {
     const used = await freeCvsUsed(userId);
@@ -3506,10 +3512,9 @@ async function useFreeCv(userId, draftId) {
        ON CONFLICT (session_id) DO NOTHING RETURNING session_id`, [userId, String(draftId), `free:${userId}:${used + 1}`]);
     if (r.rows.length) {
       await notify(userId, 'payment', 'Your CV is unlocked', 'Download it or email it again any time from My CVs. Free, even after edits.', '/').catch(() => {});
-      // a friend who got their CV completes the referral too, free or paid (only with a confirmed address,
+      // a friend who got their CV completes the referral too, free or paid (the address is confirmed by now,
       // so made-up accounts can't earn anyone free CVs)
-      const u = (await query('SELECT provider, email_verified FROM users WHERE id = $1', [userId])).rows[0];
-      if (u && (u.provider === 'google' || u.email_verified)) await rewardReferrer(userId).catch(e => console.warn('[referral] reward failed:', e.message));
+      await rewardReferrer(userId).catch(e => console.warn('[referral] reward failed:', e.message));
       return true;
     }
   }
@@ -3878,7 +3883,11 @@ app.post('/api/payment/create-session', authMiddleware, async (req, res) => {
       await recordPayment({ userId: req.user.sub, draftId, sessionId: `demo_${uuid()}`, product: 'email_export', source: 'demo' });
       return res.json({ url: null, demo: true });
     }
-    if (withdrawalConsent !== true) return res.status(400).json({ error: 'Please tick the box to confirm you want your PDF straight away.' });
+    if (withdrawalConsent !== true) {
+      // no box ticked: they expected a free CV (an older page, or an app), so say what's missing
+      if (await freeCvsLeft(req.user.sub) > 0 && !(await emailConfirmed(req.user.sub))) return res.status(403).json({ code: 'CONFIRM_EMAIL', error: 'Confirm your email to get your free CVs. We sent you a link.' });
+      return res.status(400).json({ error: 'Please tick the box to confirm you want your PDF straight away.' });
+    }
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [{ price_data: { currency: CV_CURRENCY, product_data: { name: 'CVMaster | your CV as a clean PDF', description: 'Emailed and downloadable · re-send free, even after edits' }, unit_amount: CV_PRICE_CENTS }, quantity: 1 }],
@@ -3929,7 +3938,8 @@ app.get('/api/payment/paid-drafts', authMiddleware, async (req, res) => {
 app.get('/api/payment/status/:draftId', authMiddleware, async (req, res) => {
   try {
     const paid = await hasEmailExport(req.user.sub, req.params.draftId);
-    res.json({ paid, freeLeft: paid ? undefined : await freeCvsLeft(req.user.sub), freeTotal: await freeCvLimit(req.user.sub) });
+    const freeLeft = paid ? undefined : await freeCvsLeft(req.user.sub);
+    res.json({ paid, freeLeft, freeTotal: await freeCvLimit(req.user.sub), confirmNeeded: !paid && freeLeft > 0 && !(await emailConfirmed(req.user.sub)) });
   } catch (e) { res.status(500).json({ error: 'Status check failed.' }); }
 });
 

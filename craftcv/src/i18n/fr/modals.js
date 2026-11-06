@@ -206,7 +206,7 @@ export default {
   'Free with your JUNIA student account once you confirm your student email.': 'Gratuit avec votre compte étudiant JUNIA dès que vous confirmez votre adresse étudiante.',
   'Resend the link': 'Renvoyer le lien',
   'The PDF is free with your JUNIA student account once you confirm your student email.': 'Le PDF est gratuit avec votre compte étudiant JUNIA dès que vous confirmez votre adresse étudiante.',
-  'Use “Export PDF” in the editor for the clean PDF by email and as a download, re-sendable free after edits. Your first 3 CVs are free, then it’s €0.99 per CV. From My CVs you can also download a free copy with a watermark.': 'Utilisez « Exporter en PDF » dans l’éditeur pour recevoir le PDF propre par e-mail et en téléchargement, à renvoyer gratuitement après modification. Vos 3 premiers CV sont gratuits, ensuite c’est 0,99 € par CV. Depuis Mes CV, vous pouvez aussi télécharger une copie gratuite avec filigrane.',
+  'Use “Export PDF” in the editor for the clean PDF by email and as a download, re-sendable free after edits. Your first 3 CVs are free once your email is confirmed, then it’s €0.99 per CV. From My CVs you can also download a free copy with a watermark.': 'Utilisez « Exporter en PDF » dans l’éditeur pour recevoir le PDF propre par e-mail et en téléchargement, à renvoyer gratuitement après modification. Vos 3 premiers CV sont gratuits une fois votre e-mail confirmé, ensuite c’est 0,99 € par CV. Depuis Mes CV, vous pouvez aussi télécharger une copie gratuite avec filigrane.',
   'Use “Export PDF” in the editor for the clean PDF by email and as a download. With your JUNIA student account every CV is free, as often as you like.': 'Utilisez « Exporter en PDF » dans l’éditeur pour recevoir le PDF propre par e-mail et en téléchargement. Avec votre compte étudiant JUNIA, tous les CV sont gratuits, autant de fois que vous voulez.',
   'Student access': 'Accès étudiant',
   'JUNIA student access': 'Accès étudiant JUNIA',
@@ -461,4 +461,10 @@ export default {
   "To get your CV as a PDF, use Export PDF on cvmaster.live.": "Pour obtenir votre CV en PDF, utilisez Exporter en PDF sur cvmaster.live.",
   // The interview in Real and Tough: a conversation
   "I’m having trouble hearing you. Try speaking closer to the mic.": "J’ai du mal à vous entendre. Essayez de parler plus près du micro.",
+  // Free CVs need a confirmed email
+  "Your first {total} CVs are free once you confirm your email. We sent a link to {email}.": "Vos {total} premiers CV sont gratuits une fois votre e-mail confirmé. Nous avons envoyé un lien à {email}.",
+  "Pay €0.99 instead": "Payer 0,99 € à la place",
+  "Confirm your email to unlock your free CVs and 30 AI requests a day. We sent a link to {email}.": "Confirmez votre e-mail pour débloquer vos CV gratuits et 30 requêtes IA par jour. Nous avons envoyé un lien à {email}.",
+  "Email confirmed. Your free CVs and 30 AI requests a day are unlocked.": "E-mail confirmé. Vos CV gratuits et 30 requêtes IA par jour sont débloqués.",
+  "Confirm your email to get your free CVs. We sent you a link.": "Confirmez votre e-mail pour obtenir vos CV gratuits. Nous vous avons envoyé un lien.",
 }
