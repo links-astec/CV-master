@@ -1,5 +1,10 @@
 # Changes
 
+## 2026-11-06: Real level: answers stay off the screen, and a drawn interviewer on video
+
+- **Real + Voice or Video:** the person's answer is no longer written out as they speak, as in a real interview. A small sound meter and a status line ("Listening…", "I can hear you. Tap Done when you've finished.") show they are being heard. Easy and Tough, and browsers that can't listen (the answer is typed), are unchanged. The report still shows the answers afterwards.
+- **Real + Video (a trial):** CVM is a drawn interviewer in a video-call frame instead of the orb (`src/components/CvmAvatar.vue`, plain SVG, no paid service). The mouth follows the voice level, with blinking, small head movements and glances; if a browser can't give a sound level, the mouth keeps a speech rhythm. To remove it: `useAvatar` in InterviewPrep.vue.
+
 ## 2026-11-06: CVM is a glossy blue blob
 
 - **New look for the AI interviewer:** the gradient circle is replaced by a glossy blue shape that keeps changing, with soft folds (`src/components/CvmOrb.vue`, a small WebGL shader, no new library). It moves most while CVM talks, following the voice level; it is calmer and paler while listening, and turns quietly while thinking.

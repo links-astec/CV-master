@@ -459,4 +459,7 @@ export default {
   "Add the job offer first.": "Ajoutez d’abord l’offre d’emploi.",
   // A printed page points to Export PDF
   "To get your CV as a PDF, use Export PDF on cvmaster.live.": "Pour obtenir votre CV en PDF, utilisez Exporter en PDF sur cvmaster.live.",
+  // The interview at the Real level: their answer stays off the screen
+  "I can hear you. Tap Done when you’ve finished.": "Je vous entends. Touchez Terminé quand vous avez fini.",
+  "Tap Done when you’ve finished.": "Touchez Terminé quand vous avez fini.",
 }
