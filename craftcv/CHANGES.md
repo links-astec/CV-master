@@ -1,5 +1,11 @@
 # Changes
 
+## 2026-11-06: CVM is a glossy blue blob
+
+- **New look for the AI interviewer:** the gradient circle is replaced by a glossy blue shape that keeps changing, with soft folds (`src/components/CvmOrb.vue`, a small WebGL shader, no new library). It moves most while CVM talks, following the voice level; it is calmer and paler while listening, and turns quietly while thinking.
+- The interview's background glow and progress bar are blue to match, and the homepage's interview scene uses the same orb.
+- It draws nothing when off screen or in a background tab, frees its WebGL context when the page closes, and falls back to a CSS blob without WebGL. With reduced motion, it holds still.
+
 ## 2026-11-05: Free CVs: printing closed, stricter name check on paid CVs
 
 - **Printing a page no longer gives the CV away.** There were no print styles, so Ctrl+P → "Save as PDF" on the editor printed the CV preview as a clean, readable PDF, even for a guest, without any unlock. A printout of any page now shows only "To get your CV as a PDF, use Export PDF on cvmaster.live." (in the interface language; `@media print` in style.css, the note set in i18n/index.js). Server PDFs are not affected (they don't use the site's stylesheet).
