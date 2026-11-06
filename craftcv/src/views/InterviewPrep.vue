@@ -74,7 +74,7 @@
     <!-- ── The report ──────────────────────────────────────────── -->
     <section v-else-if="stage === 'report'" class="iv-report">
       <div v-if="!report" class="iv-loading">
-        <span class="iv-orb sm thinking"><i></i></span>
+        <CvmOrb class="iv-orb sm" state="thinking" />
         <b>{{ $t('Scoring your answers…') }}</b>
         <p v-if="error" class="iv-err">{{ $t(error) }} <button type="button" class="iv-link" @click="makeReport">{{ $t('Try again') }}</button></p>
       </div>
@@ -116,7 +116,7 @@
         </header>
 
         <main class="iv-center">
-          <span class="iv-orb" :class="{ speaking, listening, thinking }" :style="{ '--lv': vol.toFixed(3) }"><i></i></span>
+          <CvmOrb class="iv-orb" :state="speaking ? 'speaking' : listening ? 'listening' : thinking ? 'thinking' : 'idle'" :level="vol" />
           <Transition name="iv-cap" mode="out-in"><p :key="lastSay" class="iv-cap">{{ lastSay }}</p></Transition>
           <p v-if="mode !== 'text'" class="iv-heard" :class="{ dim: !draft }">{{ draft || $t(!canListen ? 'Type below' : listening ? 'Listening…' : thinking ? '' : 'Tap the mic') }}</p>
         </main>
@@ -158,6 +158,7 @@ import { useAuthStore } from '../stores/auth.js'
 import { lang as uiLang, LANGS, t } from '../i18n/index.js'
 import { useRouter } from 'vue-router'
 import BrandLogo from '../components/BrandLogo.vue'
+import CvmOrb from '../components/CvmOrb.vue'
 
 const store = useCvStore()
 const auth = useAuthStore()
@@ -407,9 +408,9 @@ onBeforeUnmount(() => { close(); document.removeEventListener('pointerdown', clo
 .iv-page{position:relative;background:#fff;overflow-x:hidden;overflow-y:auto;display:flex;flex-direction:column}
 .iv-aura{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:0}
 .iv-aura i{position:absolute;border-radius:50%;filter:blur(70px);opacity:.55}
-.iv-aura .a1{width:46vw;height:46vw;max-width:620px;max-height:620px;left:12%;top:18%;background:#a78bfa;animation:ivDrift1 18s ease-in-out infinite alternate}
-.iv-aura .a2{width:40vw;height:40vw;max-width:560px;max-height:560px;right:10%;top:26%;background:#f472b6;animation:ivDrift2 22s ease-in-out infinite alternate}
-.iv-aura .a3{width:30vw;height:30vw;max-width:420px;max-height:420px;left:42%;bottom:-6%;background:#fdba74;opacity:.35;animation:ivDrift1 26s ease-in-out infinite alternate-reverse}
+.iv-aura .a1{width:46vw;height:46vw;max-width:620px;max-height:620px;left:12%;top:18%;background:#bfdbfe;animation:ivDrift1 18s ease-in-out infinite alternate}
+.iv-aura .a2{width:40vw;height:40vw;max-width:560px;max-height:560px;right:10%;top:26%;background:#c7d7fe;animation:ivDrift2 22s ease-in-out infinite alternate}
+.iv-aura .a3{width:30vw;height:30vw;max-width:420px;max-height:420px;left:42%;bottom:-6%;background:#dbeafe;opacity:.5;animation:ivDrift1 26s ease-in-out infinite alternate-reverse}
 .iv-lines{position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 63px,rgba(255,255,255,.55) 63px 64px);-webkit-mask:radial-gradient(70% 60% at 50% 55%,#000 30%,transparent 75%);mask:radial-gradient(70% 60% at 50% 55%,#000 30%,transparent 75%)}
 @keyframes ivDrift1{to{transform:translate(8%,6%) scale(1.08)}}
 @keyframes ivDrift2{to{transform:translate(-9%,-5%) scale(.94)}}
@@ -495,18 +496,8 @@ onBeforeUnmount(() => { close(); document.removeEventListener('pointerdown', clo
 .iv-link{border:none;background:none;font:inherit;font-size:15px;font-weight:600;color:#7c3aed;cursor:pointer}
 
 /* ── The orb: CVM ── */
-.iv-orb{--lv:0;position:relative;display:block;width:clamp(150px,22vw,220px);aspect-ratio:1;border-radius:50%;
-  background:radial-gradient(circle at 35% 30%,#fff 0%,#f5d0fe 18%,#c084fc 45%,#ec4899 78%,#fb923c 100%);
-  box-shadow:0 0 calc(40px + var(--lv) * 90px) calc(var(--lv) * 30px) rgba(192,38,211,.45),inset -18px -22px 50px rgba(124,58,237,.35);
-  transform:scale(calc(1 + var(--lv) * .12));transition:transform .08s linear;animation:ivBreathe 5s ease-in-out infinite}
-.iv-orb i{position:absolute;inset:-14px;border-radius:50%;box-shadow:0 0 0 1px rgba(192,38,211,.25);opacity:0}
-.iv-orb.speaking i{animation:ivRipple 1.8s ease-out infinite}
-.iv-orb.listening{background:radial-gradient(circle at 35% 30%,#fff 0%,#e0e7ff 18%,#a5b4fc 45%,#8b5cf6 80%,#c084fc 100%)}
-.iv-orb.thinking{animation:ivBreathe 1.6s ease-in-out infinite,ivSpinHue 3s linear infinite}
-.iv-orb.sm{width:96px}
-@keyframes ivBreathe{50%{filter:saturate(1.15) brightness(1.04)}}
-@keyframes ivRipple{0%{transform:scale(1);opacity:.6}100%{transform:scale(1.5);opacity:0}}
-@keyframes ivSpinHue{to{filter:hue-rotate(40deg)}}
+.iv-orb{width:clamp(190px,27vw,290px)}
+.iv-orb.sm{width:120px}
 
 /* ── Full screen interview ── */
 .iv-full{position:fixed;inset:0;z-index:3000;background:#fff;display:flex;flex-direction:column;overflow:hidden;animation:ivIn .45s cubic-bezier(.2,.8,.2,1) both}
@@ -514,7 +505,7 @@ onBeforeUnmount(() => { close(); document.removeEventListener('pointerdown', clo
 .iv-bar{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:calc(16px + env(safe-area-inset-top)) 22px 0}
 .iv-steps{display:flex;gap:6px}
 .iv-steps i{width:22px;height:5px;border-radius:99px;background:rgba(20,20,43,.1);transition:background .4s,width .4s}
-.iv-steps i.on{background:linear-gradient(90deg,#7c3aed,#ec4899)}
+.iv-steps i.on{background:#1433e6}
 .iv-steps i.now{width:36px}
 .iv-x{width:42px;height:42px;border:none;border-radius:50%;background:rgba(255,255,255,.8);box-shadow:inset 0 0 0 1px rgba(20,20,43,.08);display:flex;align-items:center;justify-content:center;cursor:pointer;color:#3b3b55}
 .iv-x svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
@@ -584,5 +575,5 @@ onBeforeUnmount(() => { close(); document.removeEventListener('pointerdown', clo
   .iv-me-tip{font-size:10px;padding:3px 8px}
   .iv-rep-top{flex-direction:column;align-items:flex-start;gap:16px}
 }
-@media (prefers-reduced-motion:reduce){ .iv-aura i,.iv-orb,.iv-orb i,.iv-live{animation:none} }
+@media (prefers-reduced-motion:reduce){ .iv-aura i,.iv-live{animation:none} }
 </style>

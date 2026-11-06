@@ -108,7 +108,7 @@
           <template v-else-if="c.k === 'interview'">
             <div class="m-iv">
               <div class="m-iv-steps"><i class="on"></i><i class="on"></i><i class="on now"></i><i></i><i></i><i></i></div>
-              <span class="m-iv-orb"><i></i></span>
+              <CvmOrb class="m-iv-orb" state="speaking" :level="0.25" />
               <p class="m-iv-cap">{{ $t('Tell me about a project you are proud of. What was your part in it?') }}</p>
               <div class="m-iv-dock">
                 <span class="on"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0014 0M12 18v3" /></svg></span>
@@ -339,6 +339,7 @@
 <script setup>
 import { ref, reactive, computed, inject, onMounted, onUnmounted, watch } from 'vue'
 import BrandLogo from '../components/BrandLogo.vue'
+import CvmOrb from '../components/CvmOrb.vue'
 import CvThumb from '../components/CvThumb.vue'
 import { sampleCv, SAMPLE_CV_FR } from '../composables/sampleCv.js'
 import { THEMES } from '../composables/cvRenderer.js'
@@ -606,25 +607,20 @@ const FAQ = [
 /* The interviewer, as on its page: white with a soft glow, CVM's orb, the question, the dock */
 .m-interview{background:#fff;flex-direction:column}
 .m-interview::before,.m-interview::after{content:'';position:absolute;border-radius:50%;filter:blur(60px);opacity:.5;pointer-events:none}
-.m-interview::before{width:55%;height:60%;left:6%;top:12%;background:#a78bfa}
-.m-interview::after{width:50%;height:55%;right:4%;top:24%;background:#f472b6}
+.m-interview::before{width:55%;height:60%;left:6%;top:12%;background:#bfdbfe}
+.m-interview::after{width:50%;height:55%;right:4%;top:24%;background:#c7d7fe}
 .m-iv{position:relative;z-index:1;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;text-align:center}
 .m-iv-steps{position:absolute;top:0;left:0;display:flex;gap:5px}
 .m-iv-steps i{width:18px;height:4px;border-radius:99px;background:rgba(20,20,43,.12)}
 .m-iv-steps i.on{background:#14142b}
 .m-iv-steps i.now{width:30px}
-.m-iv-orb{position:relative;width:30%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff 0%,#f5d0fe 18%,#c084fc 45%,#ec4899 78%,#fb923c 100%);
-  box-shadow:0 0 50px 6px rgba(192,38,211,.35),inset -14px -18px 40px rgba(124,58,237,.35);animation:mIvTalk 1.6s ease-in-out infinite}
-.m-iv-orb i{position:absolute;inset:-12px;border-radius:50%;box-shadow:0 0 0 1px rgba(192,38,211,.3);animation:mIvRing 1.8s ease-out infinite}
-@keyframes mIvTalk{0%,100%{transform:scale(1)}30%{transform:scale(1.06)}55%{transform:scale(.98)}75%{transform:scale(1.04)}}
-@keyframes mIvRing{from{transform:scale(1);opacity:.7}to{transform:scale(1.45);opacity:0}}
+.m-iv-orb{width:36%}
 .m-iv-cap{margin:0;max-width:86%;font-size:clamp(14px,1.5vw,18px);line-height:1.4;font-weight:600;letter-spacing:-.01em;color:#14142b}
 .m-iv-dock{display:flex;align-items:center;gap:6px;padding:6px;border-radius:99px;background:#fff;box-shadow:inset 0 0 0 1px #e8e8ee}
 .m-iv-dock span{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#55556f}
 .m-iv-dock span.on{background:#22c55e;color:#fff;box-shadow:0 0 0 5px rgba(34,197,94,.18)}
 .m-iv-dock svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .m-iv-dock b{height:38px;padding:0 18px;border-radius:99px;background:#14142b;color:#fff;font-size:13.5px;font-weight:650;display:flex;align-items:center}
-@media (prefers-reduced-motion:reduce){ .m-iv-orb,.m-iv-orb i{animation:none} }
 .lp-ch-note{margin:12px 0 0;font-size:13.5px;color:var(--c-text3)}
 .lp-ch.dark .lp-ch-note{color:#86868b}
 .m-mic{width:44%;background:#fff;border-radius:22px;padding:24px 20px;display:flex;flex-direction:column;align-items:center;gap:14px;box-shadow:0 20px 50px rgba(20,20,43,.14)}
